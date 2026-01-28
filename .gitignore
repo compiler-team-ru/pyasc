@@ -1,0 +1,27 @@
+.vscode/
+.idea/
+/build*/
+.venv*/
+venv*/
+pythonenv*/
+__pycache__/
+*.egg-info/
+*.pyc
+*.so
+*.o
+*.log
+
+# docs
+/docs/_build/
+/docs/mlir/dialects/*.md
+/docs/mlir/passes/*.md
+/docs/python-api/rst/**/generated/
+
+# python
+/python/asc/_C/libpyasc/*
+!/python/asc/_C/libpyasc/py.typed
+
+# test
+/test/**/Output/
+/test/build
+.lit_test_times.txt
