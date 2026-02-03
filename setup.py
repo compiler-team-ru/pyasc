@@ -274,6 +274,7 @@ packages = [
     "asc/lib/profiling",
     "asc/lib/runtime",
     "asc/runtime",
+    "asc2",
 ]
 
 extras_require = {

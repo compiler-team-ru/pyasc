@@ -13,6 +13,7 @@
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
+#include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/EmitAsc/Utils/Attributes.h"
 
@@ -205,6 +206,16 @@ void bindEnums(py::module& m)
         .value("VSEL_TENSOR_TENSOR_MODE", ascendc::SELMODE::VSEL_TENSOR_TENSOR_MODE)
         .def_static(
             "symbolize", [](uint8_t selMode) -> ascendc::SELMODE { return static_cast<ascendc::SELMODE>(selMode); });
+
+    py::enum_<asctile::TileLocation>(m, "TileLocation", py::module_local())
+        .value("L0A", asctile::TileLocation::L0A)
+        .value("L0B", asctile::TileLocation::L0B)
+        .value("L0C", asctile::TileLocation::L0C)
+        .value("L1", asctile::TileLocation::L1)
+        .value("UB", asctile::TileLocation::UB)
+        .value("FIX", asctile::TileLocation::FIX)
+        .def_static(
+            "symbolize", [](int32_t loc) -> asctile::TileLocation { return static_cast<asctile::TileLocation>(loc); });
 }
 
 void bindContextAndDialect(py::module& m)
@@ -217,8 +228,8 @@ void bindContextAndDialect(py::module& m)
         DialectRegistry registry;
         registry.insert<
             //
-            arith::ArithDialect, ascendc::AscendCDialect, emitasc::EmitAscDialect, emitc::EmitCDialect,
-            func::FuncDialect, math::MathDialect, memref::MemRefDialect, scf::SCFDialect, vector::VectorDialect
+            arith::ArithDialect, ascendc::AscendCDialect, asctile::AscTileDialect, emitasc::EmitAscDialect,
+            emitc::EmitCDialect, func::FuncDialect, memref::MemRefDialect, scf::SCFDialect, vector::VectorDialect
             //
             >();
         ascendc::registerExternalModels(registry);
@@ -360,6 +371,23 @@ void bindTensorType(py::module& m)
     m.def("get_opaque_type_name", [](Type& type) -> std::string {
         return cast<emitc::OpaqueType>(type).getValue().str();
     });
+}
+
+void bindAscTileType(py::module& m)
+{
+    using namespace pybind11::literals;
+    m.def(
+        "get_asctile_TensorType",
+        [](std::vector<int64_t>& shape, Type& elementType) -> Type {
+            return asctile::TensorType::get(shape, elementType);
+        },
+        "shape"_a, "element_type"_a);
+    m.def(
+        "get_asctile_TileType",
+        [](std::vector<int64_t>& shape, Type& elementType, asctile::TileLocation loc) -> Type {
+            return asctile::TileType::get(shape, elementType, loc);
+        },
+        "shape"_a, "element_type"_a, "loc"_a = asctile::TileLocation::UB);
 }
 
 void bindLocation(py::module& m)
@@ -731,6 +759,7 @@ void initIRModule(py::module&& m)
     bindType(m);
     bindMemref(m);
     bindTensorType(m);
+    bindAscTileType(m);
     bindLocation(m);
     bindValue(m);
     bindRegion(m);

@@ -12,6 +12,7 @@
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
+#include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -423,11 +424,10 @@ void bindGetAttributes(py::class_<PyOpBuilder>& clss)
     using namespace pybind11::literals;
 
     clss.def("get_index_attr", [](PyOpBuilder& self, int64_t value) -> Attribute { return self->getIndexAttr(value); })
-        .def("get_bool_attr", [](PyOpBuilder& self, bool value) -> Attribute { return self->getBoolAttr(value); })
         .def("get_i8_attr", [](PyOpBuilder& self, int8_t value) -> Attribute { return self->getI8IntegerAttr(value); })
         .def(
             "get_i16_attr",
-            [](PyOpBuilder& self, int16_t val) -> Attribute { return self->getIntegerAttr(self->getI16Type(), val); })
+            [](PyOpBuilder& self, int16_t value) -> Attribute { return self->getI16IntegerAttr(value); })
         .def(
             "get_i32_attr",
             [](PyOpBuilder& self, int32_t value) -> Attribute { return self->getI32IntegerAttr(value); })
@@ -435,9 +435,6 @@ void bindGetAttributes(py::class_<PyOpBuilder>& clss)
             "get_i64_attr",
             [](PyOpBuilder& self, int64_t value) -> Attribute { return self->getI64IntegerAttr(value); })
         .def("get_f16_attr", [](PyOpBuilder& self, float value) -> Attribute { return self->getF16FloatAttr(value); })
-        .def(
-            "get_bf16_attr",
-            [](PyOpBuilder& self, float value) -> Attribute { return self->getFloatAttr(self->getBF16Type(), value); })
         .def("get_f32_attr", [](PyOpBuilder& self, float value) -> Attribute { return self->getF32FloatAttr(value); })
         .def("get_f64_attr", [](PyOpBuilder& self, double value) -> Attribute { return self->getF64FloatAttr(value); })
         .def(
@@ -1115,6 +1112,16 @@ void bindCreateAscCommonOperations(py::class_<PyOpBuilder>& clss)
         "type"_a, "op"_a);
 }
 
+void bindCreateAscTileOperations(py::class_<PyOpBuilder>& clss)
+{
+    using ret = py::return_value_policy;
+    using namespace pybind11::literals;
+
+    clss
+#include "ascir/Dialect/AscTile/IR/AscTileOpBindings.h.inc"
+        ;
+}
+
 } // namespace
 
 namespace pybind11 {
@@ -1150,6 +1157,7 @@ void initBuilderInIRModule(py::module& m)
     bindCreateAscPipeOperations(clss);
     bindCreateAscEventOperations(clss);
     bindCreateAscCommonOperations(clss);
+    bindCreateAscTileOperations(clss);
 }
 
 } // namespace asc

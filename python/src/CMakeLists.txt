@@ -29,8 +29,11 @@ target_link_libraries(${TARGET_NAME} PRIVATE
   MLIRAsc
   MLIRAscTransforms
   MLIRAscUtils
+  MLIRAscTile
+  MLIRAscTileTransforms
   MLIREmitAsc
   MLIRIR
+  MLIRLowerToAsc
   MLIRPass
   MLIRTransforms
   MLIRTargetAsc
@@ -41,5 +44,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 
 add_dependencies(${TARGET_NAME}
   AscPybindGen
+  AscTilePybindGen
   AscTypesPybindGen
 )
