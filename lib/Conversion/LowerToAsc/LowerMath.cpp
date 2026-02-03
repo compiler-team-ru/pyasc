@@ -1,0 +1,104 @@
+/*
+ * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+ * CANN Open Software License Agreement Version 2.0 (the "License").
+ * Please refer to the License for details. You may not use this file except in compliance with the License.
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+ * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+ * See LICENSE in the root of the software repository for the full text of the License.
+ */
+
+#include "ascir/Dialect/Asc/IR/Asc.h"
+#include "ascir/Conversion/LowerToAsc/Passes.h"
+#include "ascir/Dialect/Utils/ConstantOpBuilder.h"
+
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Math/IR/Math.h"
+
+#include "Common.h"
+
+namespace mlir {
+namespace asclower {
+#define GEN_PASS_DEF_LOWERMATH
+#include "ascir/Conversion/LowerToAsc/Passes.h.inc"
+} // namespace asclower
+} // namespace mlir
+
+using namespace mlir;
+using namespace mlir::asclower;
+
+namespace {
+
+struct LoweringConversionTarget : public ConversionTarget {
+    LoweringConversionTarget(TensorTypeConverter &converter, MLIRContext *context) : ConversionTarget(*context)
+    {
+        addDynamicallyLegalDialect<math::MathDialect>([&](Operation *op) { return converter.isLegal(op); });
+        addLegalDialect<ascendc::AscendCDialect>();
+        addLegalOp<arith::ConstantOp>();
+    }
+};
+
+template <typename MathOp, typename LibraryOp>
+struct ConvertUnaryToLib : public ConvertOp<MathOp> {
+    using ConvertOp<MathOp>::createTensorOp;
+    using ConvertOp<MathOp>::ConvertOp;
+
+    LogicalResult convert(MathOp op, ConvertRewriter &rewriter) const override
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto loc = op.getLoc();
+        Value dst = createTensorOp(rewriter, loc, op.getType());
+        auto src = rewriter.getRemappedValue(op->getOperand(0));
+        rewriter.create<LibraryOp>(loc, dst, src, /*sharedTmpBuffer*/ Value {}, /* calCount */ Value {},
+                                   consts.i1(false));
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
+template <typename MathOp, typename L2Op>
+struct ConvertUnaryToL2 : public ConvertOp<MathOp> {
+    using ConvertOp<MathOp>::createTensorOp;
+    using ConvertOp<MathOp>::ConvertOp;
+
+    LogicalResult convert(MathOp op, ConvertRewriter &rewriter) const override
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto loc = op.getLoc();
+        Value dst = createTensorOp(rewriter, loc, op.getType());
+        auto src = rewriter.getRemappedValue(op->getOperand(0));
+        rewriter.create<L2Op>(loc, dst, src, consts.i64(1));
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
+struct LowerMathPass : public asclower::impl::LowerMathBase<LowerMathPass> {
+    void runOnOperation() override
+    {
+        func::FuncOp funcOp = getOperation();
+        TensorTypeConverter converter;
+        MLIRContext *context = &getContext();
+        LoweringConversionTarget target(converter, context);
+        RewritePatternSet patterns(context);
+        patterns.insert<
+            //
+            ConvertUnaryToLib<math::LogOp, ascendc::LogOp>, ConvertUnaryToLib<math::ErfOp, ascendc::ErfOp>,
+            ConvertUnaryToLib<math::AsinOp, ascendc::AsinOp>, ConvertUnaryToLib<math::AcosOp, ascendc::AcosOp>,
+            ConvertUnaryToLib<math::CosOp, ascendc::CosOp>, ConvertUnaryToLib<math::SinOp, ascendc::SinOp>,
+            ConvertUnaryToLib<math::CeilOp, ascendc::CeilOp>, ConvertUnaryToLib<math::FloorOp, ascendc::FloorOp>,
+            ConvertUnaryToLib<math::RoundOp, ascendc::RoundOp>, ConvertUnaryToL2<math::AbsFOp, ascendc::AbsL2Op>,
+            ConvertUnaryToL2<math::ExpOp, ascendc::ExpL2Op>, ConvertUnaryToL2<math::SqrtOp, ascendc::SqrtL2Op>
+            //
+            >(converter, context);
+        if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())
+            signalPassFailure();
+    }
+};
+
+} // namespace
+
+std::unique_ptr<Pass> mlir::asclower::createLowerMathPass()
+{
+    return std::make_unique<LowerMathPass>();
+}

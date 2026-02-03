@@ -39,6 +39,7 @@ class CompileOptions:
     always_compile: bool = False
     matmul_cube_only: bool = False
     insert_sync: Optional[bool] = None
+    run_asc2_passes: bool = False
 
 
 class CompilePlatform(Enum):
@@ -116,13 +117,23 @@ class Compiler:
     def run_translation(mod: ir.ModuleOp) -> str:
         return translation.ir_to_ascendc(mod)
 
-    @staticmethod
-    def _schedule_lowering(pm: passes.PassManager) -> None:
+    def _schedule_lowering(self, pm: passes.PassManager) -> None:
         passes.ascendc.add_privatize_func(pm)
         passes.common.add_inliner(pm)
         passes.common.add_symbol_dce(pm)
         passes.common.add_canonicalizer(pm)
         passes.common.add_reconcile_unrealized_casts(pm)
+        if self.options.run_asc2_passes:
+            passes.asclower.add_expand_math(pm)
+            passes.asclower.add_redress_i1_tile(pm)
+            passes.asclower.add_lower_arith(pm)
+            passes.asclower.add_lower_arith_binary(pm)
+            passes.asclower.add_lower_arith_i1(pm)
+            passes.asclower.add_lower_asctile(pm)
+            passes.asclower.add_lower_math(pm)
+            passes.asclower.add_lower_scf(pm)
+            passes.common.add_canonicalizer(pm)
+            passes.asclower.add_realize_conversion_cast(pm)
         passes.ascendc.add_input_output_tensor(pm)
         passes.ascendc.add_hoist_ub_allocation(pm)
         passes.ascendc.add_materialize_tensor(pm)
@@ -320,11 +331,7 @@ class Compiler:
         else:
             cmds = self._get_compiler_cmd(target.common_arch, src, dst, common_options)
             self._run_cmd(cmds, "compile")
-            link_cmd = [
-                self.linker, "-m", "aicorelinux", "-Ttext=0",
-                "%s" % str(dst), "-static", "-o",
-                "%s" % str(dst)
-            ]
+            link_cmd = [self.linker, "-m", "aicorelinux", "-Ttext=0", "%s" % str(dst), "-static", "-o", "%s" % str(dst)]
             self._run_cmd(link_cmd, "link")
 
     def _get_compiler_cmd(self, arch: str, src_path: Path, dst_path: Path, common_options: List[str]) -> List[str]:

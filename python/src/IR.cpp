@@ -10,6 +10,7 @@
 
 #include "InitFuncDef.h"
 #include "ascir/Dialect/Asc/IR/Asc.h"
+#include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
@@ -24,6 +25,7 @@
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
@@ -187,6 +189,17 @@ void pyasc_bind_enums(py::module &m)
         .def_static("symbolize", [](uint8_t sel_mode) -> ascendc::SELMODE {
             return static_cast<ascendc::SELMODE>(sel_mode);
         });
+
+    py::enum_<asctile::TileLocation>(m, "TileLocation", py::module_local())
+        .value("L0A", asctile::TileLocation::L0A)
+        .value("L0B", asctile::TileLocation::L0B)
+        .value("L0C", asctile::TileLocation::L0C)
+        .value("L1", asctile::TileLocation::L1)
+        .value("UB", asctile::TileLocation::UB)
+        .value("FIX", asctile::TileLocation::FIX)
+        .def_static("symbolize", [](int32_t loc) -> asctile::TileLocation {
+            return static_cast<asctile::TileLocation>(loc);
+        });
 }
 
 void pyasc_bind_context_and_dialect(py::module &m)
@@ -199,8 +212,8 @@ void pyasc_bind_context_and_dialect(py::module &m)
         DialectRegistry registry;
         registry.insert<
             //
-            arith::ArithDialect, ascendc::AscendCDialect, emitasc::EmitAscDialect, emitc::EmitCDialect,
-            func::FuncDialect, memref::MemRefDialect, scf::SCFDialect, vector::VectorDialect
+            arith::ArithDialect, ascendc::AscendCDialect, asctile::AscTileDialect, emitasc::EmitAscDialect,
+            emitc::EmitCDialect, func::FuncDialect, memref::MemRefDialect, scf::SCFDialect, vector::VectorDialect
             //
             >();
         ascendc::registerExternalModels(registry);
@@ -321,6 +334,17 @@ void pyasc_bind_tensor_type(py::module &m)
 
     m.def("get_opaque_type_name",
           [](Type &type) -> std::string { return cast<emitc::OpaqueType>(type).getValue().str(); });
+}
+
+void pyasc_bind_asctile_type(py::module &m)
+{
+    using namespace pybind11::literals;
+    m.def("get_asctile_TensorType", [](std::vector<int64_t> &shape, Type &elementType) -> Type {
+        return asctile::TensorType::get(shape, elementType);
+    }, "shape"_a, "element_type"_a);
+    m.def("get_asctile_TileType", [](std::vector<int64_t> &shape, Type &elementType, asctile::TileLocation loc) -> Type {
+        return asctile::TileType::get(shape, elementType, loc);
+    }, "shape"_a, "element_type"_a, "loc"_a = asctile::TileLocation::UB);
 }
 
 void pyasc_bind_location(py::module &m)
@@ -452,7 +476,17 @@ void pyasc_bind_attritube(py::module &m)
 
     py::class_<ArrayAttr, Attribute>(m, "ArrayAttr", py::module_local());
 
+    py::class_<TypedAttr>(m, "TypedAttr", py::module_local())
+        .def("get_type", &TypedAttr::getType);
+
     m.def("get_type_attr", [](const Type &type) -> Attribute { return TypeAttr::get(type); });
+
+    m.def("get_splat_attr", [](const Type &type, const Attribute &element) -> TypedAttr {
+        auto shaped = dyn_cast<ShapedType>(type);
+        if (!shaped)
+            throw std::runtime_error("get_splat_attr(): type must be ShapedType");
+        return SplatElementsAttr::get(shaped, element);
+    });
 }
 
 void pyasc_bind_operation(py::module &m)
@@ -646,6 +680,7 @@ void pyasc_init_ir(py::module &&m)
     pyasc_bind_type(m);
     pyasc_bind_memref(m);
     pyasc_bind_tensor_type(m);
+    pyasc_bind_asctile_type(m);
     pyasc_bind_location(m);
     pyasc_bind_value(m);
     pyasc_bind_region(m);

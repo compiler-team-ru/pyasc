@@ -11,6 +11,7 @@
 #include "InitFuncDef.h"
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
+#include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -22,6 +23,7 @@
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -429,10 +431,20 @@ void bind_get_attributes(py::class_<PyOpBuilder> &clss)
     using namespace pybind11::literals;
 
     clss.def("get_index_attr", [](PyOpBuilder &self, int64_t value) -> Attribute { return self->getIndexAttr(value); })
-        .def("get_i64_attr",
-             [](PyOpBuilder &self, int64_t value) -> Attribute { return self->getI64IntegerAttr(value); })
+        .def("get_i8_attr",
+             [](PyOpBuilder &self, int8_t value) -> Attribute { return self->getI8IntegerAttr(value); })
+        .def("get_i16_attr",
+             [](PyOpBuilder &self, int16_t value) -> Attribute { return self->getI16IntegerAttr(value); })
         .def("get_i32_attr",
              [](PyOpBuilder &self, int32_t value) -> Attribute { return self->getI32IntegerAttr(value); })
+        .def("get_i64_attr",
+             [](PyOpBuilder &self, int64_t value) -> Attribute { return self->getI64IntegerAttr(value); })
+        .def("get_f16_attr",
+             [](PyOpBuilder &self, float value) -> Attribute { return self->getF16FloatAttr(value); })
+        .def("get_f32_attr",
+             [](PyOpBuilder &self, float value) -> Attribute { return self->getF32FloatAttr(value); })
+        .def("get_f64_attr",
+             [](PyOpBuilder &self, double value) -> Attribute { return self->getF64FloatAttr(value); })
         .def("get_str_attr",
              [](PyOpBuilder &self, const std::string &value) -> Attribute { return self->getStringAttr(value); })
         .def("get_unit_attr", [](PyOpBuilder &self) -> Attribute { return self->getUnitAttr(); })
@@ -578,7 +590,10 @@ void bind_create_airth_basic_operations(py::class_<PyOpBuilder> &clss)
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("create_arith_AddIOp",
+    clss
+        .def("create_arith_ConstantOp",
+             [](PyOpBuilder &self, TypedAttr attr) -> Value { return self.create<arith::ConstantOp>(attr); })
+        .def("create_arith_AddIOp",
              [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::AddIOp>(lhs, rhs); })
         .def("create_arith_AddFOp",
              [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::AddFOp>(lhs, rhs); })
@@ -915,7 +930,7 @@ void bind_create_asc_common_operations(py::class_<PyOpBuilder> &clss)
         }
         return self.create<ascendc::GatherMaskOp>(type, dst, src0, src1Pattern, reduceMode, mask, params, *modeAttr).getResult();
     });
-    clss.def("create_asc_GetMrgSortResults", [](PyOpBuilder &self, 
+    clss.def("create_asc_GetMrgSortResults", [](PyOpBuilder &self,
              const Type &type1, const Type &type2, const Type &type3, const Type &type4) {
         auto operation = self.create<ascendc::GetMrgSortResultOp>(type1, type2, type3, type4);
         return py::make_tuple(operation.getResult(0), operation.getResult(1), operation.getResult(2), operation.getResult(3));
@@ -939,6 +954,16 @@ void bind_create_asc_common_operations(py::class_<PyOpBuilder> &clss)
         auto operation = self.create<ascendc::GetStoreAtomicConfigOp>(type, op);
         return py::make_tuple(operation.getResult(0), operation.getResult(1));
     }, "type"_a, "op"_a);
+}
+
+void bind_create_asctile_operations(py::class_<PyOpBuilder> &clss)
+{
+    using ret = py::return_value_policy;
+    using namespace pybind11::literals;
+
+    clss
+#include "ascir/Dialect/AscTile/IR/AscTileOpBindings.h.inc"
+        ;
 }
 
 void pyasc_init_ir_builder(py::module &m)
@@ -970,6 +995,7 @@ void pyasc_init_ir_builder(py::module &m)
     bind_create_asc_pipe_operations(clss);
     bind_create_asc_event_operations(clss);
     bind_create_asc_common_operations(clss);
+    bind_create_asctile_operations(clss);
 }
 } // namespace asc
 } // namespace pybind11

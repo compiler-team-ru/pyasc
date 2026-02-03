@@ -22,6 +22,7 @@ target_link_libraries(${ASCIR_LSP_NAME} PRIVATE
   MLIRIR
   MLIRLspServerLib
   MLIRAsc
+  MLIRAscTile
   MLIREmitAsc
 )
 
@@ -58,7 +59,10 @@ set(LIBS
   MLIRAsc
   MLIRAscTransforms
   MLIRAscUtils
+  MLIRAscTile
+  MLIRAscTileTransforms
   MLIREmitAsc
+  MLIRLowerToAsc
 )
 
 add_mlir_tool(${ASCIR_OPT_NAME}
@@ -76,7 +80,7 @@ mlir_check_all_link_libraries(${ASCIR_OPT_NAME})
 
 set_target_properties(${ASCIR_OPT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
-# ascir-translate 
+# ascir-translate
 
 set(ASCIR_TRANSLATE_NAME ascir-translate)
 
