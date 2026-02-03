@@ -26,7 +26,6 @@ from ..language.core.dtype import KnownTypes
 from ..language.core.ir_value import GlobalAddress, IRHandle, IRValue, PlainValue, materialize_ir_value
 from ..language.core.range import range as _range, static_range
 from ..language.core.struct import BaseField, Struct
-from ..language.core.tensor import BaseTensor
 from ..language.core.utils import static_assert, global_builder
 
 T = TypeVar("T")
@@ -153,7 +152,7 @@ class FunctionVisitor(ast.NodeVisitor):
 
     @staticmethod
     def has_builder_support(value) -> bool:
-        return isinstance(value, (BaseTensor, GlobalAddress, PlainValue))
+        return isinstance(value, IRValue)
 
     def raise_unsupported(self, node: ast.AST, message: Optional[str] = None, context: bool = False) -> NoReturn:
         error = UnsupportedSyntaxError(node, self.src, message)

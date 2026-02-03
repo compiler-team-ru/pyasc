@@ -344,6 +344,7 @@ packages = [
     "asc/lib/host",
     "asc/lib/runtime",
     "asc/runtime",
+    "asc2",
 ]
 
 extras_require = {

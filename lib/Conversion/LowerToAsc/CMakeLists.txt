@@ -6,6 +6,31 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-add_subdirectory(Asc)
-add_subdirectory(AscTile)
-add_subdirectory(EmitAsc)
+add_mlir_conversion_library(MLIRLowerToAsc
+  ExpandMath.cpp
+  LowerArith.cpp
+  LowerArithBinary.cpp
+  LowerArithI1.cpp
+  LowerAscTile.cpp
+  LowerMath.cpp
+  LowerSCF.cpp
+  RealizeConversionCast.cpp
+  RedressI1Tile.cpp
+
+ADDITIONAL_HEADER_DIRS
+  ${ASCIR_INCLUDE_DIR}/ascir/Conversion/LowerToAsc
+
+DEPENDS
+  MLIRLowerToAscPassIncGen
+
+LINK_COMPONENTS
+  Core
+
+LINK_LIBS PUBLIC
+  MLIRArithDialect
+  MLIRAsc
+  MLIRAscTile
+  MLIRMathDialect
+  MLIRMathTransforms
+  MLIRSCFDialect
+)

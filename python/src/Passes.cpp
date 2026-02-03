@@ -8,7 +8,9 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#include "ascir/Conversion/LowerToAsc/Passes.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
+#include "ascir/Dialect/AscTile/Transforms/Passes.h"
 #include "InitFuncDef.h"
 
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
@@ -109,6 +111,28 @@ void defineAscendCPasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_verify_sync", createVerifySyncPass);
 }
 
+void defineAscTilePasses(py::module& mod)
+{
+    using namespace asctile;
+    auto m = mod.def_submodule("asctile");
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_transform_math_ops", createTransformMathOpsPass);
+}
+
+void defineLowerToAscPasses(py::module& mod)
+{
+    using namespace asclower;
+    auto m = mod.def_submodule("asclower");
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_expand_math", createExpandMathPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_arith", createLowerArithPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_arith_binary", createLowerArithBinaryPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_arith_i1", createLowerArithI1Pass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_asctile", createLowerAscTilePass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_math", createLowerMathPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_scf", createLowerSCFPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_realize_conversion_cast", createRealizeConversionCastPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_redress_i1_tile", createRedressI1TilePass);
+}
+
 } // namespace
 
 namespace pybind11 {
@@ -118,6 +142,8 @@ void pyasc_init_passes(py::module&& m)
     definePassManager(m);
     defineCommonPasses(m);
     defineAscendCPasses(m);
+    defineAscTilePasses(m);
+    defineLowerToAscPasses(m);
 }
 } // namespace asc
 } // namespace pybind11

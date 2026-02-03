@@ -6,6 +6,19 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-add_subdirectory(Asc)
-add_subdirectory(AscTile)
-add_subdirectory(EmitAsc)
+add_mlir_dialect_library(MLIRAscTile
+  Attributes.cpp
+  Dialect.cpp
+  Ops.cpp
+  Types.cpp
+
+ADDITIONAL_HEADER_DIRS
+  ${ASCIR_INCLUDE_DIR}/ascir/Dialect/AscTile/IR
+
+DEPENDS
+  MLIRAscTileIncGen
+
+LINK_LIBS PUBLIC
+  MLIRIR
+  MLIRSupport
+)

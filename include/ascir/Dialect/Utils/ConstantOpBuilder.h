@@ -45,6 +45,8 @@ struct ConstantOpBuilder {
 
     Value i8(int8_t value) { return create(builder.getI8Type(), value); }
 
+    Value i1(bool value) { return create(builder.getI1Type(), value); }
+
     Value f64(double value) { return create(builder.getF64Type(), value); }
 
     Value f32(float value) { return create(builder.getF32Type(), value); }
