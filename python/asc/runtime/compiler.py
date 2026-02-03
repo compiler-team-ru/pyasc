@@ -38,33 +38,13 @@ class CompileOptions:
     auto_sync_log: Optional[str] = ""
     matmul_cube_only: bool = False
     insert_sync: Optional[bool] = None
+    run_asc2_passes: bool = False
 
-    always_compile: bool = False
-    """
-    Always run full compilation pipeline instead of fetching a cached objects from the prevoius runs.
-    This option may be useful for testing and parallel execution.
-    """
 
-    bisheng_options: Optional[Tuple[str, ...]] = None
-    """
-    Append extra arguments to the ``bisheng`` command line used to produce an object file for the kernel.
-    Please, run ``bisheng --help`` to get the list of options supported by the compiler.
-
-    Note: To pass a single argument, use ``("-O3",)`` (with a trailing comma).
-    Without the comma, ``("-O3")`` is just a string, not a tuple.
-    """
-
-    opt_level: int = 3
-    """
-    Optimization level for the Bisheng compiler. Supported values are ``1``, ``2``, ``3``.
-    Typically, this parameter affects the ``-O`` argument of the command line for the compiler.
-    """
-
-    vf_vec_len: Optional[int] = None
-    """
-    Vector register length for the C310 architecture.
-    This option is only available on supported platforms (such as ``Ascend950PR_9599``). The default value is 256.
-    """
+class CompilePlatform(Enum):
+    """get soc version"""
+    Ascend910B = "Ascend910B"
+    Ascend910_93 = "Ascend910_93"
 
 
 @dataclass(frozen=True)
@@ -128,13 +108,23 @@ class Compiler:
     def run_translation(mod: ir.ModuleOp) -> str:
         return translation.ir_to_ascendc(mod)
 
-    @staticmethod
-    def _schedule_lowering(pm: passes.PassManager) -> None:
+    def _schedule_lowering(self, pm: passes.PassManager) -> None:
         passes.ascendc.add_privatize_func(pm)
         passes.common.add_inliner(pm)
         passes.common.add_symbol_dce(pm)
         passes.common.add_canonicalizer(pm)
         passes.common.add_reconcile_unrealized_casts(pm)
+        if self.options.run_asc2_passes:
+            passes.asclower.add_expand_math(pm)
+            passes.asclower.add_redress_i1_tile(pm)
+            passes.asclower.add_lower_arith(pm)
+            passes.asclower.add_lower_arith_binary(pm)
+            passes.asclower.add_lower_arith_i1(pm)
+            passes.asclower.add_lower_asctile(pm)
+            passes.asclower.add_lower_math(pm)
+            passes.asclower.add_lower_scf(pm)
+            passes.common.add_canonicalizer(pm)
+            passes.asclower.add_realize_conversion_cast(pm)
         passes.ascendc.add_input_output_tensor(pm)
         passes.ascendc.add_hoist_tensor_allocation(pm, exclude_in_out=True)
         passes.ascendc.add_materialize_tensor(pm, always_buf=False)

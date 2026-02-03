@@ -6,6 +6,8 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-add_subdirectory(Asc)
-add_subdirectory(AscTile)
-add_subdirectory(EmitAsc)
+set(LLVM_TARGET_DEFINITIONS Passes.td)
+mlir_tablegen(Passes.h.inc -gen-pass-decls -name LowerToAsc)
+add_public_tablegen_target(MLIRLowerToAscPassIncGen)
+
+add_mlir_doc(Passes LowerToAsc ./ -gen-pass-doc)

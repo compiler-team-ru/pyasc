@@ -6,6 +6,22 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-add_subdirectory(Asc)
-add_subdirectory(AscTile)
-add_subdirectory(EmitAsc)
+from asc.language.tile.tensor import tensor
+from asc.language.tile.binary_ops import add, mul, sub
+from asc.language.tile.memory_ops import load, store
+
+from .jit import jit
+
+__all__ = [
+    # tensor
+    "tensor",
+    # binary_ops
+    "add",
+    "mul",
+    "sub",
+    # memory_ops
+    "load",
+    "store",
+    # .jit
+    "jit",
+]

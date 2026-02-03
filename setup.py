@@ -246,21 +246,21 @@ def get_project_version():
 
 local_packages = (
     "asc",
-    "asc._C",
-    "asc.codegen",
-    "asc.common",
-    "asc.experimental",
-    "asc.language",
-    "asc.language.adv",
-    "asc.language.basic",
-    "asc.language.core",
-    "asc.language.fwk",
-    "asc.lib",
-    "asc.lib.host",
-    "asc.lib.profiling",
-    "asc.lib.runtime",
-    "asc.runtime",
-)
+    "asc/_C",
+    "asc/codegen",
+    "asc/common",
+    "asc/language",
+    "asc/language/adv",
+    "asc/language/basic",
+    "asc/language/core",
+    "asc/language/fwk",
+    "asc/lib",
+    "asc/lib/host",
+    "asc/lib/profiling",
+    "asc/lib/runtime",
+    "asc/runtime",
+    "asc2",
+]
 
 extras_require = {
     "coverage": [

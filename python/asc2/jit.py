@@ -6,6 +6,31 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-add_subdirectory(Asc)
-add_subdirectory(AscTile)
-add_subdirectory(EmitAsc)
+from typing import Callable, Optional, TypeVar, overload
+from typing_extensions import ParamSpec
+
+from asc.runtime.jit import JITFunction
+
+P = ParamSpec("P")
+T = TypeVar("T")
+
+
+@overload
+def jit(fn: Callable[P, T]) -> JITFunction[P, T]:
+    ...
+
+
+@overload
+def jit(**options) -> Callable[[Callable[P, T]], JITFunction[P, T]]:
+    ...
+
+
+def jit(fn: Optional[Callable[P, T]] = None, **options):
+    options["run_asc2_passes"] = True
+
+    def decorator(fn: Callable[P, T]) -> JITFunction[P, T]:
+        return JITFunction(fn, **options)
+
+    if fn is None:
+        return decorator
+    return decorator(fn)
