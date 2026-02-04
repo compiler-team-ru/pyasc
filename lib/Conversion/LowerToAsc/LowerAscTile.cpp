@@ -13,11 +13,8 @@
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
-#include "mlir/Dialect/EmitC/IR/EmitC.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/Pass/Pass.h"
 
 #include "Common.h"
@@ -33,6 +30,28 @@ using namespace mlir;
 using namespace mlir::asclower;
 
 namespace {
+
+Value linearizeOffset(OpBuilder &builder, Location loc, asctile::TensorOp tensorOp, ValueRange offsets)
+{
+    ascir::ConstantOpBuilder consts(builder);
+    auto type = tensorOp.getType();
+    SmallVector<Value> tensorShape;
+    if (type.hasStaticShape()) {
+        for (auto dim : type.getShape())
+            tensorShape.push_back(consts.i32(dim));
+    } else {
+        tensorShape = tensorOp.getSizes();
+    }
+    assert(offsets.size() == tensorShape.size() && "must be one offset for each dimension");
+    Value linearOffset = consts.i32(0);
+    Value stride = consts.i32(1);
+    for (auto i : llvm::seq_inclusive<size_t>(tensorShape.size() - 1, 0)) {
+        Value next = builder.create<arith::MulIOp>(loc, offsets[i], stride);
+        linearOffset = builder.create<arith::AddIOp>(loc, linearOffset, next);
+        stride = builder.create<arith::MulIOp>(loc, tensorShape[i], stride);
+    }
+    return linearOffset;
+}
 
 struct LoweringConversionTarget : public ConversionTarget {
     LoweringConversionTarget(TensorTypeConverter &converter, MLIRContext *context) : ConversionTarget(*context)
@@ -51,9 +70,50 @@ struct ConvertTensor : public ConvertOp<asctile::TensorOp> {
     {
         auto loc = op.getLoc();
         Value tensor = rewriter.create<ascendc::GlobalTensorOp>(loc, converter().convertType(op.getType()));
-        rewriter.create<ascendc::GlobalTensorSetGlobalBufferOp>(loc, tensor, rewriter.getRemappedValue(op.getBase()),
-                                                                /*size*/ Value {});
+        rewriter.create<ascendc::GlobalTensorSetGlobalBufferOp>(loc, tensor, op.getBase(), /*size*/ Value {});
         rewriter.replaceOp(op, tensor);
+        return success();
+    }
+};
+
+struct ConvertLoad : ConvertOp<asctile::LoadOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    LogicalResult convert(asctile::LoadOp op, ConvertRewriter &rewriter) const override
+    {
+        assert(!op.getPadValue() && "padding value is not supported");
+        auto base = op.getBase();
+        auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
+        assert(tensorOp && "tensor must be created by asctile.tensor op");
+        auto loc = op.getLoc();
+        Value linearOffset = linearizeOffset(rewriter, loc, tensorOp, op.getOffsets());
+        Value dst = createTensorOp(rewriter, loc, op.getType());
+        Value src = rewriter.getRemappedValue(base);
+        src = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, src.getType(), src, linearOffset);
+        ascir::ConstantOpBuilder consts(rewriter);
+        rewriter.create<ascendc::DataCopyL2Op>(loc, dst, src, consts.i64(calCount(dst)));
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
+struct ConvertStore : ConvertOp<asctile::StoreOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    LogicalResult convert(asctile::StoreOp op, ConvertRewriter &rewriter) const override
+    {
+        auto base = op.getBase();
+        auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
+        assert(tensorOp && "tensor must be created by asctile.tensor op");
+        auto loc = op.getLoc();
+        Value linearOffset = linearizeOffset(rewriter, loc, tensorOp, op.getOffsets());
+        Value src = rewriter.getRemappedValue(op.getValue());
+        Value dst = rewriter.getRemappedValue(op.getBase());
+        dst = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, dst.getType(), dst, linearOffset);
+        ascir::ConstantOpBuilder consts(rewriter);
+        rewriter.replaceOpWithNewOp<ascendc::DataCopyL2Op>(op, dst, src, consts.i64(calCount(src)));
         return success();
     }
 };
@@ -118,8 +178,8 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         RewritePatternSet patterns(context);
         patterns.insert<
             //
-            ConvertTensor, ConvertSplat, ConvertRelu, ConvertToL2<asctile::AddsOp, ascendc::AddsL2Op>,
-            ConvertToL2<asctile::MulsOp, ascendc::MulsL2Op>
+            ConvertTensor, ConvertLoad, ConvertStore, ConvertSplat, ConvertRelu,
+            ConvertToL2<asctile::AddsOp, ascendc::AddsL2Op>, ConvertToL2<asctile::MulsOp, ascendc::MulsL2Op>
             //
             >(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())
