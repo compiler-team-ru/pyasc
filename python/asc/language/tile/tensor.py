@@ -12,9 +12,9 @@ from typing import Iterable, Optional
 from typing_extensions import Self
 
 from ..._C import ir
-from ..core.dtype import DataType
+from ..core.dtype import DataType, int32
 from ..core.tensor import GlobalAddress
-from ..core.ir_value import IRHandle, IRValue, RuntimeInt
+from ..core.ir_value import IRHandle, IRValue, RuntimeInt, materialize_ir_value as mat
 from ..core.utils import global_builder
 
 
@@ -34,7 +34,12 @@ class Tensor(IRValue):
 
 
 def tensor(base: GlobalAddress, shape: Iterable[RuntimeInt]) -> Tensor:
-    ir_shape = [value if isinstance(value, int) else ir.dynshape for value in shape]
-    ir_type = ir.get_asctile_TensorType(ir_shape, base.dtype.to_ir())
-    handle = global_builder.get_ir_builder().create_asctile_TensorOp(ir_type, base.to_ir())
+    if all(isinstance(dim, int) for dim in shape):
+        static_shape = list(shape)
+        dynamic_shape = []
+    else:
+        dynamic_shape = [mat(dim, int32) for dim in shape]
+        static_shape = [ir.dynshape] * len(dynamic_shape)
+    ir_type = ir.get_asctile_TensorType(static_shape, base.dtype.to_ir())
+    handle = global_builder.get_ir_builder().create_asctile_TensorOp(ir_type, base.to_ir(), dynamic_shape)
     return Tensor.from_ir(handle=handle)

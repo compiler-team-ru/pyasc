@@ -26,11 +26,13 @@ class AscTile_Op<string mnemonic, list<Trait> traits = []>
 
 def TensorOp : AscTile_Op<"tensor", [Pure]> {
   let summary = "Create tensor";
-  let arguments = (ins AnyRankedOrUnrankedMemRef:$base);
+  let arguments = (ins AnyRankedOrUnrankedMemRef:$base, Variadic<I32>:$sizes);
   let results = (outs Tensor:$result);
   let assemblyFormat = [{
-    $base attr-dict `:` qualified(type($base)) `,` qualified(type($result))
+    $base `(` $sizes `)` attr-dict `:` qualified(type($base)) `,`
+    qualified(type($result))
   }];
+  let hasVerifier = 1;
 }
 
 def SplatOp : AscTile_Op<"splat", [
