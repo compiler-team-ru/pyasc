@@ -12,6 +12,7 @@
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 
 #include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/BuiltinTypeInterfaces.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/Transforms/DialectConversion.h"
 
@@ -139,9 +140,9 @@ struct ConvertOp : public ConversionPattern {
 
     static int64_t calCount(Type type)
     {
-        auto tileType = dyn_cast<asctile::TileType>(type);
-        assert(tileType && tileType.hasStaticShape() && "must be TileType with static shape");
-        return tileType.getNumElements();
+        auto shaped = dyn_cast<ShapedType>(type);
+        assert(shaped && shaped.hasStaticShape() && "must be ShapedType with static shape");
+        return shaped.getNumElements();
     }
 };
 
