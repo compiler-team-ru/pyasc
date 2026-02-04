@@ -22,6 +22,17 @@ using namespace mlir;
 using namespace mlir::asctile;
 
 //===----------------------------------------------------------------------===//
+// TensorOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult TensorOp::verify()
+{
+    if (!getType().hasStaticShape() && getSizes().empty())
+        return emitOpError("must have sizes if tensor has dynamic shape");
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
 // LoadOp
 //===----------------------------------------------------------------------===//
 
