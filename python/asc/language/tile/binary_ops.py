@@ -9,6 +9,7 @@
 from numbers import Real
 from typing import Callable, Union
 
+from ..._C import ir
 from ...common.compat import isinstance
 from ..core.ir_value import IRHandle, PlainValue, RuntimeNumeric
 from ..core.utils import global_builder
@@ -31,6 +32,53 @@ def op_binary_impl(input: Tile, other: Union[Tile, RuntimeNumeric], build_int: C
     else:
         raise RuntimeError(f"Unexpected result tile dtype: {result_dtype}")
     return Tile(handle)
+
+
+def op_compare_impl(input: Tile, other: Union[Tile, RuntimeNumeric], pred_int: ir.CmpIPredicate,
+                    pred_float: ir.CmpFPredicate) -> Tile:
+    builder = global_builder.get_ir_builder()
+    dtype = input.dtype
+    if isinstance(other, Real):
+        other = constant_tile(other, input.shape, dtype)
+    elif isinstance(other, PlainValue):
+        other = splat_tile(other, input.shape, dtype)
+    if dtype.is_int():
+        handle = builder.create_arith_CmpIOp(pred_int, input.to_ir(), other.to_ir())
+    elif dtype.is_float():
+        handle = builder.create_arith_CmpFOp(pred_float, input.to_ir(), other.to_ir())
+    else:
+        raise RuntimeError(f"Unexpected result tile dtype: {dtype}")
+    return Tile(handle)
+
+
+@bind_tile_method(name="__eq__")
+def equal(input: Tile, other: Union[Tile, RuntimeNumeric]) -> Tile:
+    return op_compare_impl(input, other, ir.CmpIPredicate.eq, ir.CmpFPredicate.OEQ)
+
+
+@bind_tile_method(name="__ne__")
+def not_equal(input: Tile, other: Union[Tile, RuntimeNumeric]) -> Tile:
+    return op_compare_impl(input, other, ir.CmpIPredicate.ne, ir.CmpFPredicate.ONE)
+
+
+@bind_tile_method(name="__gt__")
+def greater(input: Tile, other: Union[Tile, RuntimeNumeric]) -> Tile:
+    return op_compare_impl(input, other, ir.CmpIPredicate.sgt, ir.CmpFPredicate.OGT)
+
+
+@bind_tile_method(name="__ge__")
+def greater_equal(input: Tile, other: Union[Tile, RuntimeNumeric]) -> Tile:
+    return op_compare_impl(input, other, ir.CmpIPredicate.sge, ir.CmpFPredicate.OGE)
+
+
+@bind_tile_method(name="__lt__")
+def less(input: Tile, other: Union[Tile, RuntimeNumeric]) -> Tile:
+    return op_compare_impl(input, other, ir.CmpIPredicate.slt, ir.CmpFPredicate.OLT)
+
+
+@bind_tile_method(name="__le__")
+def less_equal(input: Tile, other: Union[Tile, RuntimeNumeric]) -> Tile:
+    return op_compare_impl(input, other, ir.CmpIPredicate.sle, ir.CmpFPredicate.OLE)
 
 
 @bind_tile_method(name="__add__")
