@@ -8,20 +8,19 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef ASCTILE_PASSES_TD
-#define ASCTILE_PASSES_TD
+#ifndef ASCIR_DIALECT_ASCTILE_UTILS_ATTRIBUTES_H
+#define ASCIR_DIALECT_ASCTILE_UTILS_ATTRIBUTES_H
+#define LITERAL constexpr const char*
 
-include "mlir/Pass/PassBase.td"
+namespace mlir {
+namespace asctile {
+namespace attr {
 
-def TransformMathOps : Pass<"asctile-transform-math-ops", "func::FuncOp"> {
-  let summary = "Transform math operations";
-  let constructor = "mlir::asctile::createTransformMathOpsPass()";
-  let dependentDialects = ["asctile::AscTileDialect"];
-}
+LITERAL unrollFactor = "asctile.unroll_factor";
 
-def UnrollLoop : Pass<"asctile-unroll-loop", "func::FuncOp"> {
-  let summary = "Unroll loops by unroll_factor";
-  let constructor = "mlir::asctile::createUnrollLoopPass()";
-}
+} // namespace attr
+} // namespace asctile
+} // namespace mlir
 
-#endif // ASCTILE_PASSES_TD
+#undef LITERAL
+#endif // ASCIR_DIALECT_ASCTILE_UTILS_ATTRIBUTES_H
