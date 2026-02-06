@@ -84,14 +84,6 @@ struct ConvertCmpI : public ConvertOp<arith::CmpIOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    template <typename CompareOpTy>
-    void createCompareOp(
-        PatternRewriter& rewriter, Location loc, Value dst, Value lhs, Value rhs, ascendc::CMPMODE mode) const
-    {
-        ascir::ConstantOpBuilder consts(rewriter);
-        rewriter.create<CompareOpTy>(loc, dst, lhs, rhs, mode, consts.i64(0));
-    }
-
     LogicalResult convert(arith::CmpIOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
@@ -138,7 +130,7 @@ struct ConvertCmpI : public ConvertOp<arith::CmpIOp> {
         default:
             llvm_unreachable("Unexpected predicate type!");
         }
-        createCompareOp<ascendc::CompareL2Op>(rewriter, loc, dst, src0Casted, src1Casted, cmpMode);
+        rewriter.create<ascendc::CompareL2Op>(loc, dst, src0, src1, cmpMode, consts.i64(srcNumElems));
         rewriter.replaceOp(op, dst);
         return success();
     }
@@ -148,16 +140,9 @@ struct ConvertCmpF : public ConvertOp<arith::CmpFOp> {
     using ConvertOp::converter;
     using ConvertOp::ConvertOp;
 
-    template <typename CompareOpTy>
-    void createCompareOp(
-        PatternRewriter& rewriter, Location loc, Value dst, Value lhs, Value rhs, ascendc::CMPMODE mode) const
-    {
-        ascir::ConstantOpBuilder consts(rewriter);
-        rewriter.create<CompareOpTy>(loc, dst, lhs, rhs, mode, consts.i64(0));
-    }
-
     LogicalResult convert(arith::CmpFOp op, ConvertRewriter& rewriter) const override
     {
+        ascir::ConstantOpBuilder consts(rewriter);
         auto src0 = rewriter.getRemappedValue(op.getLhs());
         auto src1 = rewriter.getRemappedValue(op.getRhs());
         auto srcTy = src0.getType();
@@ -196,7 +181,7 @@ struct ConvertCmpF : public ConvertOp<arith::CmpFOp> {
         default:
             llvm_unreachable("Unexpected predicate type!");
         }
-        createCompareOp<ascendc::CompareL2Op>(rewriter, loc, dst, src0, src1, cmpMode);
+        rewriter.create<ascendc::CompareL2Op>(loc, dst, src0, src1, cmpMode, consts.i64(srcNumElems));
         rewriter.replaceOp(op, dst);
         return success();
     }
