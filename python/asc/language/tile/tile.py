@@ -46,6 +46,24 @@ class Tile(IRValue):
     def __mul__(self, other: Self) -> Self:
         ...
 
+    def __eq__(self, other: Self) -> Self:
+        ...
+
+    def __ne__(self, other: Self) -> Self:
+        ...
+
+    def __gt__(self, other: Self) -> Self:
+        ...
+
+    def __ge__(self, other: Self) -> Self:
+        ...
+
+    def __lt__(self, other: Self) -> Self:
+        ...
+
+    def __le__(self, other: Self) -> Self:
+        ...
+
 
 class Binder:
 

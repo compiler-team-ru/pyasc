@@ -7,7 +7,17 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 from asc.language.tile.tensor import tensor
-from asc.language.tile.binary_ops import add, mul, sub
+from asc.language.tile.binary_ops import (
+    add,
+    mul,
+    sub,
+    equal,
+    not_equal,
+    greater,
+    greater_equal,
+    less,
+    less_equal,
+)
 from asc.language.tile.unary_ops import relu
 from asc.language.tile.memory_ops import load, store
 from asc.language.tile.range import range
@@ -21,6 +31,12 @@ __all__ = [
     "add",
     "mul",
     "sub",
+    "equal",
+    "not_equal",
+    "greater",
+    "greater_equal",
+    "less",
+    "less_equal",
     # unary_ops
     "relu",
     # memory_ops
