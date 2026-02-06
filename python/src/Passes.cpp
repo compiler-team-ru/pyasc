@@ -116,6 +116,7 @@ void defineAscTilePasses(py::module& mod)
     using namespace asctile;
     auto m = mod.def_submodule("asctile");
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_transform_math_ops", createTransformMathOpsPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_unroll_loop", createUnrollLoopPass);
 }
 
 void defineLowerToAscPasses(py::module& mod)

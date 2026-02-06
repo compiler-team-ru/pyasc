@@ -24,7 +24,7 @@ from ..common.compat import get_annotations, merge_dict
 from ..language.core.constexpr import ConstExpr
 from ..language.core.dtype import KnownTypes
 from ..language.core.ir_value import GlobalAddress, IRHandle, IRValue, PlainValue, materialize_ir_value
-from ..language.core.range import range as _range, static_range
+from ..language.core.range import BaseRange, static_range
 from ..language.core.struct import BaseField, Struct
 from ..language.core.utils import static_assert, global_builder
 
@@ -486,8 +486,9 @@ class FunctionVisitor(ast.NodeVisitor):
         if func is static_range:
             self.handle_static_range(node, args, kwargs, target)
             return
-        elif func is range or func is _range:
-            range_obj = _range(*args, **kwargs)
+        elif inspect.isclass(func) and issubclass(func, (range, BaseRange)):
+            cls = BaseRange if issubclass(func, range) else func
+            range_obj = cls(*args, **kwargs)
             iter_args = range_obj.start, range_obj.stop, range_obj.step
         else:
             self.raise_unsupported(
@@ -503,6 +504,7 @@ class FunctionVisitor(ast.NodeVisitor):
             block_inout = self.compute_inout(node, node.body, (target, start.to_ir().get_type()), make_args=True)
             op = builder.create_scf_ForOp(start.to_ir(), stop.to_ir(), step.to_ir(),
                                           list(block_inout.init_handles.values()))
+            range_obj.handle_op(op)
             self.scope.save(target, PlainValue(op.get_induction_var()))
             body = op.get_body()
             body.clear()
