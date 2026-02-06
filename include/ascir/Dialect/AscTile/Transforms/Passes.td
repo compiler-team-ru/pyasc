@@ -13,6 +13,21 @@
 
 include "mlir/Pass/PassBase.td"
 
+def DensifyUnrollGroups : Pass<"asctile-densify-unroll-groups", "func::FuncOp"> {
+  let summary = "Bring ops from the same group together after loop unroll";
+  let constructor = "mlir::asctile::createDensifyUnrollGroupsPass()";
+}
+
+def PromotePureOps : Pass<"asctile-promote-pure-ops", "func::FuncOp"> {
+  let summary = "Promote pure operations within their regions";
+  let constructor = "mlir::asctile::createPromotePureOpsPass()";
+}
+
+def TagUnrollGroups : Pass<"asctile-tag-unroll-groups", "func::FuncOp"> {
+  let summary = "Tag operations of interest to find them after loop unroll";
+  let constructor = "mlir::asctile::createTagUnrollGroupsPass()";
+}
+
 def TransformMathOps : Pass<"asctile-transform-math-ops", "func::FuncOp"> {
   let summary = "Transform math operations";
   let constructor = "mlir::asctile::createTransformMathOpsPass()";

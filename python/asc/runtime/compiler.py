@@ -124,9 +124,12 @@ class Compiler:
         passes.common.add_canonicalizer(pm)
         passes.common.add_reconcile_unrealized_casts(pm)
         if self.options.run_asc2_passes:
+            passes.asctile.add_tag_unroll_groups(pm)
             passes.asctile.add_unroll_loop(pm)
             passes.common.add_canonicalizer(pm)
             passes.common.add_cse(pm)
+            passes.asctile.add_promote_pure_operations(pm)
+            passes.asctile.add_densify_unroll_groups(pm)
             passes.asclower.add_expand_math(pm)
             passes.asclower.add_redress_i1_tile(pm)
             passes.asclower.add_lower_arith(pm)

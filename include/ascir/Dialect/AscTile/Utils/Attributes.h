@@ -17,6 +17,7 @@ namespace asctile {
 namespace attr {
 
 LITERAL unrollFactor = "asctile.unroll_factor";
+LITERAL unrollGroup = "asctile.unroll_group";
 
 } // namespace attr
 } // namespace asctile
