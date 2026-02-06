@@ -8,15 +8,17 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "ascir/Dialect/AscTile/Utils/Attributes.h"
+#include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/AscTile/Transforms/Passes.h"
+#include "ascir/Dialect/AscTile/Utils/Attributes.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Dialect/SCF/Utils/Utils.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/IR/BuiltinAttributes.h"
 
 namespace mlir {
 namespace asctile {
-#define GEN_PASS_DEF_UNROLLLOOP
+#define GEN_PASS_DEF_TAGUNROLLGROUPS
 #include "ascir/Dialect/AscTile/Transforms/Passes.h.inc"
 } // namespace asctile
 } // namespace mlir
@@ -26,28 +28,27 @@ using namespace mlir::asctile;
 
 namespace {
 
-struct UnrollLoopPass : public asctile::impl::UnrollLoopBase<UnrollLoopPass> {
+template <typename OpT>
+void tagOps(Operation* root, int64_t& nextIndex)
+{
+    Builder builder(root);
+    root->walk([&](OpT op) { op->setAttr(attr::unrollGroup, builder.getI64IntegerAttr(nextIndex++)); });
+}
+
+struct TagUnrollGroupsPass : public asctile::impl::TagUnrollGroupsBase<TagUnrollGroupsPass> {
     void runOnOperation() override
     {
         auto op = getOperation();
-        op.walk([this](scf::ForOp loop) {
-            int64_t unrollFactor = 0;
-            if (auto a = loop->getAttrOfType<IntegerAttr>(attr::unrollFactor)) {
-                unrollFactor = a.getValue().getSExtValue();
-            }
-            loop->removeAttr(attr::unrollFactor);
-            if (unrollFactor <= 1)
+        int64_t i = 0;
+        op.walk([&i](scf::ForOp loop) {
+            if (!loop->hasAttrOfType<IntegerAttr>(attr::unrollFactor))
                 return;
-            auto result = loopUnrollByFactor(loop, unrollFactor);
-            if (failed(result))
-                signalPassFailure();
-            if (auto epilogueLoop = result.value().epilogueLoopOp) {
-                epilogueLoop->walk([](Operation* op) { op->removeAttr(attr::unrollGroup); });
-            }
+            tagOps<asctile::LoadOp>(loop, i);
+            tagOps<asctile::StoreOp>(loop, i);
         });
     }
 };
 
 } // namespace
 
-std::unique_ptr<Pass> mlir::asctile::createUnrollLoopPass() { return std::make_unique<UnrollLoopPass>(); }
+std::unique_ptr<Pass> mlir::asctile::createTagUnrollGroupsPass() { return std::make_unique<TagUnrollGroupsPass>(); }
