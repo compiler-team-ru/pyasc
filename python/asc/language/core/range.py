@@ -8,10 +8,11 @@
 
 from typing import overload
 
+from ..._C import ir
 from .ir_value import RuntimeInt
 
 
-class range:
+class BaseRange:
 
     @overload
     def __init__(self, stop: int, /):
@@ -44,6 +45,13 @@ class range:
 
     def __next__(self) -> int:
         raise NotImplementedError("This function must not be called")
+
+    def handle_op(self, op: ir.ForOp) -> None:
+        pass
+
+
+class range(BaseRange):
+    pass
 
 
 class static_range:

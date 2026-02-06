@@ -20,6 +20,7 @@ namespace asctile {
 #include "ascir/Dialect/AscTile/Transforms/Passes.h.inc"
 
 std::unique_ptr<Pass> createTransformMathOpsPass();
+std::unique_ptr<Pass> createUnrollLoopPass();
 
 } // namespace asctile
 
