@@ -31,7 +31,7 @@ using namespace mlir::asclower;
 
 namespace {
 
-Value linearizeOffset(OpBuilder& builder, Location loc, asctile::TensorOp tensorOp, ValueRange offsets)
+SmallVector<Value> getTensorShape(OpBuilder& builder, asctile::TensorOp tensorOp)
 {
     ascir::ConstantOpBuilder consts(builder);
     auto type = tensorOp.getType();
@@ -42,10 +42,17 @@ Value linearizeOffset(OpBuilder& builder, Location loc, asctile::TensorOp tensor
     } else {
         tensorShape = tensorOp.getSizes();
     }
+    return tensorShape;
+}
+
+Value linearizeOffset(OpBuilder& builder, Location loc, SmallVector<Value> tensorShape, ValueRange offsets)
+{
+    ascir::ConstantOpBuilder consts(builder);
     assert(offsets.size() == tensorShape.size() && "must be one offset for each dimension");
+    assert(tensorShape.size() <= 2 && "supported only tensorShape with dims <= 2");
     Value linearOffset = consts.i32(0);
     Value stride = consts.i32(1);
-    for (auto i : llvm::seq_inclusive<size_t>(tensorShape.size() - 1, 0)) {
+    for (size_t i = tensorShape.size(); i-- > 0;) {
         Value next = builder.create<arith::MulIOp>(loc, offsets[i], stride);
         linearOffset = builder.create<arith::AddIOp>(loc, linearOffset, next);
         stride = builder.create<arith::MulIOp>(loc, tensorShape[i], stride);
@@ -82,17 +89,53 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
 
     LogicalResult convert(asctile::LoadOp op, ConvertRewriter& rewriter) const override
     {
-        assert(!op.getPadValue() && "padding value is not supported");
         auto base = op.getBase();
-        auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
-        assert(tensorOp && "tensor must be created by asctile.tensor op");
         auto loc = op.getLoc();
-        Value linearOffset = linearizeOffset(rewriter, loc, tensorOp, op.getOffsets());
+        auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
         Value dst = createTensorOp(rewriter, loc, op.getType());
+        auto dstTensorOp = dst.getDefiningOp<ascendc::LocalTensorAutoOp>();
+        assert(tensorOp && "tensor must be created by asctile.tensor op");
+        SmallVector<Value> srcTensorShape = getTensorShape(rewriter, tensorOp);
+        auto dstTensorShape = dstTensorOp.getType().getShape();
+        Value linearOffset = linearizeOffset(rewriter, loc, srcTensorShape, op.getOffsets());
         Value src = rewriter.getRemappedValue(base);
-        src = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, src.getType(), src, linearOffset);
+        auto srcType = src.getType();
+        auto dstType = dst.getType();
+        auto numElements = cast<ShapedType>(srcType).getNumElements();
         ascir::ConstantOpBuilder consts(rewriter);
-        rewriter.create<ascendc::DataCopyL2Op>(loc, dst, src, consts.i64(calCount(dst)));
+        src = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, srcType, src, linearOffset);
+        auto padValue = rewriter.getRemappedValue(op.getPadValue());
+        auto typeSize = cast<ShapedType>(dstType).getElementType().getIntOrFloatBitWidth() / CHAR_BIT;
+        auto const0 = consts.i32(0);
+        auto const1 = consts.i32(1);
+        Value dstNumElements = consts.i32(calCount(dst));
+        Value tailElements = rewriter.create<arith::SubIOp>(loc, consts.i32(numElements), linearOffset);
+        Value blockCount = dstTensorShape.size() == 1 ? const1 : consts.i32(dstTensorShape[0]);
+        Value dstLastDim = consts.i32(dstTensorShape[dstTensorShape.size() - 1]);
+        Value srcLastDim = srcTensorShape[srcTensorShape.size() - 1];
+        Value strideElements = rewriter.create<arith::SubIOp>(loc, srcLastDim, dstLastDim);
+        auto typeSizeValue = consts.i32(typeSize);
+        Value srcStride = rewriter.create<arith::MulIOp>(loc, strideElements, typeSizeValue);
+        Value numElementsInBlock = consts.i32(asclower::ubBlockSize / typeSize);
+        Value totalElementsInBlock = rewriter.create<arith::MulIOp>(loc, blockCount, numElementsInBlock);
+        Value minTailElements = rewriter.create<arith::MinSIOp>(loc, dstLastDim, tailElements);
+        Value blockLen = rewriter.create<arith::MulIOp>(loc, minTailElements, typeSizeValue);
+        auto context = op.getContext();
+        auto dataCopyExtParams = rewriter.create<ascendc::ConstructOp>(
+            loc, rewriter.getType<ascendc::DataCopyExtParamsType>(),
+            ValueRange{blockCount, blockLen, srcStride, const0, const0},
+            rewriter.getTypeArrayAttr(
+                {rewriter.getI32Type(), rewriter.getIntegerType(32, false), rewriter.getI32Type(),
+                 rewriter.getI32Type(), rewriter.getI32Type()}));
+        Value numPaddingElements = rewriter.create<arith::SubIOp>(loc, totalElementsInBlock, tailElements);
+        Value rightPad = rewriter.create<arith::MaxSIOp>(loc, numPaddingElements, const0);
+        auto dataCopyPadExtParams = rewriter.create<ascendc::ConstructOp>(
+            loc, ascendc::DataCopyPadExtParamsType::get(context, cast<ShapedType>(dstType).getElementType()),
+            ValueRange{const1, const0, rightPad, padValue},
+            rewriter.getTypeArrayAttr(
+                {rewriter.getI32Type(), rewriter.getI32Type(), rewriter.getIntegerType(8, false),
+                 rewriter.getI32Type()}));
+        rewriter.create<ascendc::DataCopyPadExtL0Op>(loc, dst, src, dataCopyExtParams, dataCopyPadExtParams);
         rewriter.replaceOp(op, dst);
         return success();
     }
@@ -108,12 +151,36 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
         auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
         assert(tensorOp && "tensor must be created by asctile.tensor op");
         auto loc = op.getLoc();
-        Value linearOffset = linearizeOffset(rewriter, loc, tensorOp, op.getOffsets());
         Value src = rewriter.getRemappedValue(op.getValue());
         Value dst = rewriter.getRemappedValue(op.getBase());
-        dst = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, dst.getType(), dst, linearOffset);
+        auto srcType = src.getType();
+        auto dstType = dst.getType();
+        auto srcTensorShape = cast<ascendc::LocalTensorType>(srcType).getShape();
+        SmallVector<Value> dstTensorShape = getTensorShape(rewriter, tensorOp);
+        Value linearOffset = linearizeOffset(rewriter, loc, dstTensorShape, op.getOffsets());
+        dst = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, dstType, dst, linearOffset);
         ascir::ConstantOpBuilder consts(rewriter);
-        rewriter.replaceOpWithNewOp<ascendc::DataCopyL2Op>(op, dst, src, consts.i64(calCount(src)));
+        auto const0 = consts.i32(0);
+        auto numElements = cast<ShapedType>(dstType).getNumElements();
+        auto typeSize = cast<ShapedType>(srcType).getElementType().getIntOrFloatBitWidth() / CHAR_BIT;
+        auto typeSizeValue = consts.i32(typeSize);
+        Value srcNumElements = consts.i32(calCount(src));
+        Value tailElements = rewriter.create<arith::SubIOp>(loc, consts.i32(numElements), linearOffset);
+        Value blockCount = srcTensorShape.size() == 1 ? consts.i32(1) : consts.i32(srcTensorShape[0]);
+        Value srcLastDim = consts.i32(srcTensorShape[srcTensorShape.size() - 1]);
+        Value dstLastDim = dstTensorShape[dstTensorShape.size() - 1];
+        Value strideElements = rewriter.create<arith::SubIOp>(loc, dstLastDim, srcLastDim);
+        Value dstStride = rewriter.create<arith::MulIOp>(loc, strideElements, typeSizeValue);
+        Value minTailElements = rewriter.create<arith::MinSIOp>(loc, srcLastDim, tailElements);
+        Value blockLen = rewriter.create<arith::MulIOp>(loc, minTailElements, typeSizeValue);
+        auto context = op.getContext();
+        auto dataCopyExtParams = rewriter.create<ascendc::ConstructOp>(
+            loc, rewriter.getType<ascendc::DataCopyExtParamsType>(),
+            ValueRange{blockCount, blockLen, const0, dstStride, const0},
+            rewriter.getTypeArrayAttr(
+                {rewriter.getI32Type(), rewriter.getIntegerType(32, false), rewriter.getI32Type(),
+                 rewriter.getI32Type(), rewriter.getI32Type()}));
+        rewriter.replaceOpWithNewOp<ascendc::DataCopyPadExtL2Op>(op, dst, src, dataCopyExtParams);
         return success();
     }
 };
@@ -126,8 +193,8 @@ struct ConvertSplat : public ConvertOp<asctile::SplatOp> {
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loc = op.getLoc();
-        Value dst = createTensorOp(rewriter, op.getLoc(), op.getType());
-        rewriter.create<ascendc::DuplicateL2Op>(op.getLoc(), dst, op.getValue(), consts.i64(calCount(dst)));
+        Value dst = createTensorOp(rewriter, loc, op.getType());
+        rewriter.create<ascendc::DuplicateL2Op>(loc, dst, op.getValue(), consts.i64(calCount(dst)));
         rewriter.replaceOp(op, dst);
         return success();
     }

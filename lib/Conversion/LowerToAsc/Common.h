@@ -21,6 +21,8 @@
 namespace mlir {
 namespace asclower {
 
+constexpr unsigned ubBlockSize = 32; // In bytes
+
 struct I1ReplacementType {
     static inline constexpr unsigned width = 16U;
     IntegerType type;

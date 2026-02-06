@@ -6,7 +6,7 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-from typing import Iterable, Optional
+from typing import Iterable
 
 from ..._C import ir
 from ..core.dtype import KnownTypes as KT
@@ -16,13 +16,12 @@ from .tensor import Tensor
 from .tile import Tile
 
 
-def load(tensor: Tensor, offsets: Iterable[RuntimeInt], shape: Iterable[int],
-         pad_value: Optional[RuntimeNumeric] = None) -> Tile:
+def load(tensor: Tensor, offsets: Iterable[RuntimeInt], shape: Iterable[int], pad_value: RuntimeNumeric = 0) -> Tile:
     if not all(isinstance(dim, int) for dim in shape):
         raise RuntimeError("shape must be integers")
     ir_type = ir.get_asctile_TileType(list(shape), tensor.dtype.to_ir(), ir.TileLocation.UB)
     offsets = [_mat(v, KT.int32).to_ir() for v in offsets]
-    pad_value = _mat(pad_value, tensor.dtype) if pad_value is not None else None
+    pad_value = _mat(pad_value, tensor.dtype).to_ir() if pad_value is not None else None
     handle = global_builder.get_ir_builder().create_asctile_LoadOp(ir_type, tensor.to_ir(), offsets, pad_value)
     return Tile(handle)
 
