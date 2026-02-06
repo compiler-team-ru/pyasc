@@ -8,6 +8,7 @@
 
 from asc.language.tile.tensor import tensor
 from asc.language.tile.binary_ops import add, mul, sub
+from asc.language.tile.unary_ops import relu
 from asc.language.tile.memory_ops import load, store
 
 from .jit import jit
@@ -19,6 +20,8 @@ __all__ = [
     "add",
     "mul",
     "sub",
+    # unary_ops
+    "relu",
     # memory_ops
     "load",
     "store",
