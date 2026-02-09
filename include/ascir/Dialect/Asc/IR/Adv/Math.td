@@ -40,6 +40,7 @@ def FloorOp : UnaryMathOp<"floor", "Floor">;
 def FracOp : UnaryMathOp<"frac", "Frac">;
 def LgammaOp : UnaryMathOp<"lgamma", "Lgamma">;
 def LogOp : UnaryMathOp<"log", "Log">;
+def Log2Op : UnaryMathOp<"log2", "Log2">;
 def RoundOp : UnaryMathOp<"round", "Round">;
 def SignOp : UnaryMathOp<"sign", "Sign">;
 def SinhOp : UnaryMathOp<"sinh", "Sinh">;
