@@ -9,6 +9,9 @@
 from asc.language.tile.tensor import tensor
 from asc.language.tile.binary_ops import (
     add,
+    div,
+    maximum,
+    minimum,
     mul,
     sub,
     equal,
@@ -18,7 +21,7 @@ from asc.language.tile.binary_ops import (
     less,
     less_equal,
 )
-from asc.language.tile.unary_ops import relu
+from asc.language.tile.unary_ops import negative, relu
 from asc.language.tile.memory_ops import load, store
 from asc.language.tile.range import range
 
@@ -29,6 +32,9 @@ __all__ = [
     "tensor",
     # binary_ops
     "add",
+    "div"
+    "maximum"
+    "minimum"
     "mul",
     "sub",
     "equal",
@@ -38,6 +44,7 @@ __all__ = [
     "less",
     "less_equal",
     # unary_ops
+    "negative",
     "relu",
     # memory_ops
     "load",

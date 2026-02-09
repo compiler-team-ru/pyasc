@@ -627,8 +627,20 @@ void bind_create_airth_basic_operations(py::class_<PyOpBuilder>& clss)
         .def(
             "create_arith_DivSIOp",
             [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::DivSIOp>(lhs, rhs); })
-        .def("create_arith_DivFOp", [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value {
-            return self.create<arith::DivFOp>(lhs, rhs);
+        .def(
+            "create_arith_DivFOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::DivFOp>(lhs, rhs); })
+        .def(
+            "create_arith_MaxSIOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::MaxSIOp>(lhs, rhs); })
+        .def(
+            "create_arith_MaximumFOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::MaximumFOp>(lhs, rhs); })
+        .def(
+            "create_arith_MinSIOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::MinSIOp>(lhs, rhs); })
+        .def("create_arith_MinimumFOp", [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value {
+            return self.create<arith::MinimumFOp>(lhs, rhs);
         });
 }
 
