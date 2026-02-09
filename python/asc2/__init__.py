@@ -21,8 +21,9 @@ from asc.language.tile.binary_ops import (
     less,
     less_equal,
 )
-from asc.language.tile.unary_ops import negative, relu
 from asc.language.tile.memory_ops import load, store
+from asc.language.tile.unary_ops import (cos, sin, negative, tan, sinh, cosh, tanh, exp, exp2, log, log2, floor, ceil,
+                                         abs, erf, rsqrt, sqrt, relu)
 from asc.language.tile.range import range
 
 from .jit import jit
@@ -46,6 +47,22 @@ __all__ = [
     # unary_ops
     "negative",
     "relu",
+    "cos",
+    "sin",
+    "tan",
+    "sinh",
+    "cosh",
+    "tanh",
+    "exp",
+    "log",
+    "log2",
+    "exp2",
+    "floor",
+    "ceil",
+    "abs",
+    "erf",
+    "rsqrt",
+    "sqrt"
     # memory_ops
     "load",
     "store",
