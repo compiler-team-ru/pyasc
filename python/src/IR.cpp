@@ -18,6 +18,7 @@
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
+#include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/Func/Extensions/AllExtensions.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
@@ -213,7 +214,8 @@ void pyasc_bind_context_and_dialect(py::module &m)
         registry.insert<
             //
             arith::ArithDialect, ascendc::AscendCDialect, asctile::AscTileDialect, emitasc::EmitAscDialect,
-            emitc::EmitCDialect, func::FuncDialect, memref::MemRefDialect, scf::SCFDialect, vector::VectorDialect
+            emitc::EmitCDialect, func::FuncDialect, math::MathDialect, memref::MemRefDialect, scf::SCFDialect,
+            vector::VectorDialect
             //
             >();
         ascendc::registerExternalModels(registry);

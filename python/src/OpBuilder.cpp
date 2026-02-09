@@ -18,6 +18,7 @@
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/AffineMap.h"
@@ -619,6 +620,44 @@ void bind_create_airth_basic_operations(py::class_<PyOpBuilder> &clss)
              [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::MinimumFOp>(lhs, rhs); });
 }
 
+void bind_create_math_operations(py::class_<PyOpBuilder> &clss)
+{
+    using ret = py::return_value_policy;
+    using namespace pybind11::literals;
+    clss.def("create_math_CosOp",
+             [](PyOpBuilder &self, Value &value) -> Value { return self.create<math::CosOp>(value); })
+        .def("create_math_SinOp",
+             [](PyOpBuilder &self, Value &value) -> Value { return self.create<math::SinOp>(value); })
+        .def("create_math_TanOp",
+             [](PyOpBuilder &self, Value &value) -> Value { return self.create<math::TanOp>(value); })
+        .def("create_math_SinhOp",
+             [](PyOpBuilder &self, Value &value) -> Value { return self.create<math::SinhOp>(value); })
+        .def("create_math_CoshOp",
+             [](PyOpBuilder &self, Value &value) -> Value { return self.create<math::CoshOp>(value); })
+        .def("create_math_TanhOp",
+             [](PyOpBuilder &self, Value &value) -> Value { return self.create<math::TanhOp>(value); })
+        .def("create_math_ExpOp",
+             [](PyOpBuilder &self, Value &value) -> Value { return self.create<math::ExpOp>(value); })
+        .def("create_math_Exp2Op",
+             [](PyOpBuilder &self, Value &value) -> Value { return self.create<math::Exp2Op>(value); })
+        .def("create_math_LogOp",
+             [](PyOpBuilder &self, Value &value) -> Value { return self.create<math::LogOp>(value); })
+        .def("create_math_FloorOp",
+             [](PyOpBuilder &self, Value &value) -> Value { return self.create<math::FloorOp>(value); })
+        .def("create_math_CeilOp",
+             [](PyOpBuilder &self, Value &value) -> Value { return self.create<math::CeilOp>(value); })
+        .def("create_math_AbsFOp",
+             [](PyOpBuilder &self, Value &value) -> Value { return self.create<math::AbsFOp>(value); })
+        .def("create_math_AbsIOp",
+             [](PyOpBuilder &self, Value &value) -> Value { return self.create<math::AbsIOp>(value); })
+        .def("create_math_Erf",
+             [](PyOpBuilder &self, Value &value) -> Value { return self.create<math::ErfOp>(value); })
+        .def("create_math_RsqrtOp",
+             [](PyOpBuilder &self, Value &value) -> Value { return self.create<math::RsqrtOp>(value); })
+        .def("create_math_SqrtOp",
+             [](PyOpBuilder &self, Value &value) -> Value { return self.create<math::SqrtOp>(value); });
+}
+
 void bind_create_airth_special_operations(py::class_<PyOpBuilder> &clss)
 {
     using ret = py::return_value_policy;
@@ -992,6 +1031,7 @@ void pyasc_init_ir_builder(py::module &m)
     bind_create_unsigned_constants(clss);
     bind_create_float_constants(clss);
     bind_create_airth_basic_operations(clss);
+    bind_create_math_operations(clss);
     bind_create_airth_special_operations(clss);
     bind_create_airth_comparison_operations(clss);
     bind_create_airth_extended_operations(clss);
