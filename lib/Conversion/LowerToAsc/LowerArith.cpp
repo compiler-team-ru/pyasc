@@ -135,7 +135,7 @@ struct ConvertNegF : public ConvertOp<arith::NegFOp> {
         auto floatTy = cast<FloatType>(cast<ShapedType>(op.getType()).getElementType());
         auto cm1 =
             rewriter.create<arith::ConstantFloatOp>(loc, llvm::APFloat(floatTy.getFloatSemantics(), "-1"), floatTy);
-        rewriter.create<ascendc::MulsL2Op>(loc, dst, src, cm1, consts.i64(1));
+        rewriter.create<ascendc::MulsL2Op>(loc, dst, src, cm1, consts.i64(calCount(dst)));
         rewriter.replaceOp(op, dst);
         return success();
     }

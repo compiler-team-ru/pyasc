@@ -97,3 +97,19 @@ def sub(input: Tile, other: Union[Tile, RuntimeNumeric]) -> Tile:
 def mul(input: Tile, other: Union[Tile, RuntimeNumeric]) -> Tile:
     builder = global_builder.get_ir_builder()
     return op_binary_impl(input, other, builder.create_arith_MulIOp, builder.create_arith_MulFOp)
+
+
+@bind_tile_method(name="__truediv__")
+def div(input: Tile, other: Union[Tile, RuntimeNumeric]) -> Tile:
+    builder = global_builder.get_ir_builder()
+    return op_binary_impl(input, other, builder.create_arith_DivSIOp, builder.create_arith_DivFOp)
+
+
+def maximum(input: Tile, other: Union[Tile, RuntimeNumeric]) -> Tile:
+    builder = global_builder.get_ir_builder()
+    return op_binary_impl(input, other, builder.create_arith_MaxSIOp, builder.create_arith_MaximumFOp)
+
+
+def minimum(input: Tile, other: Union[Tile, RuntimeNumeric]) -> Tile:
+    builder = global_builder.get_ir_builder()
+    return op_binary_impl(input, other, builder.create_arith_MinSIOp, builder.create_arith_MinimumFOp)

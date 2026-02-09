@@ -15,3 +15,14 @@ def relu(input: Tile) -> Tile:
     builder = global_builder.get_ir_builder()
     handle = builder.create_asctile_ReluOp(input.to_ir().get_type(), input.to_ir())
     return Tile(handle)
+
+
+@bind_tile_method(name="__neg__")
+def negative(input: Tile) -> Tile:
+    builder = global_builder.get_ir_builder()
+    result_dtype = input.dtype
+    if result_dtype.is_int():
+        handle = input * (-1)
+    else:
+        handle = builder.create_arith_NegFOp(input.to_ir())
+    return Tile(handle)
