@@ -93,6 +93,7 @@ void defineAscendCPasses(py::module& mod)
 {
     using namespace ascendc;
     auto m = mod.def_submodule("ascendc");
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_allocate_buffer", createAllocateBufferPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_noop_pass", createNoopPass);
     DEFINE_ADD_PASS("add_detect_kernel_type", createDetectKernelTypePass);
     DEFINE_ADD_PASS("add_declare_py_struct", createDeclarePyStructPass);
@@ -102,6 +103,7 @@ void defineAscendCPasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_hoist_que_bind", createHoistQueBindPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_hoist_ub_allocation", createHoistUBAllocationPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_input_output_tensor", createInputOutputTensorPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_bufid_sync", createInsertBufIdSyncPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_sync", createInsertSyncPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_materialize_tensor", createMaterializeTensorPass);
     DEFINE_ADD_PASS("add_legalize_kernel_args", createLegalizeKernelArgsPass);

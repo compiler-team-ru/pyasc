@@ -48,3 +48,19 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::Cross
        << ascendc::stringifyEnum(op.getPipe()).upper() << ">(" << emitter.getOrCreateName(op.getFlagId()) << ")";
     return success();
 }
+
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GetBufOp op)
+{
+    auto& os = emitter.ostream();
+    os << op.getAPIName() << "(" << ascendc::stringifyEnum(op.getPipe()).upper() << ", "
+       << emitter.getOrCreateName(op.getBufId()) << ", " << op.getMode() << ")";
+    return success();
+}
+
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::RlsBufOp op)
+{
+    auto& os = emitter.ostream();
+    os << op.getAPIName() << "(" << ascendc::stringifyEnum(op.getPipe()).upper() << ", "
+       << emitter.getOrCreateName(op.getBufId()) << ", " << op.getMode() << ")";
+    return success();
+}

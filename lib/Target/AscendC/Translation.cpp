@@ -121,6 +121,7 @@ using PrintableOpTypes = std::tuple<
     ascendc::SetAippFunctionsOp,
     // Block synchronization operations
     ascendc::PipeBarrierOp, ascendc::WaitFlagOp, ascendc::CrossCoreSetFlagOp, ascendc::CrossCoreWaitFlagOp,
+    ascendc::GetBufOp, ascendc::RlsBufOp,
     // DataConversion operations
     ascendc::TransposeOp, ascendc::TransposeExtOp, ascendc::TransDataTo5HDTensorListOp,
     ascendc::TransDataTo5HDUintListOp, ascendc::TransDataTo5HDOp,
@@ -135,8 +136,8 @@ using PrintableOpTypes = std::tuple<
     ascendc::ListTensorDescV2Op, ascendc::ListTensorDescGetDataPtrOp,
     // Other operations
     ascendc::ConstructOp, ascendc::AscendIsAICOp, ascendc::AscendIsAIVOp, LLVM::UndefOp, ascendc::FftsCrossCoreSyncOp,
-    ascendc::SetFftsBaseAddrOp, ascendc::PopStackBufferOp, ascendc::GetMrgSortResultOp, ascendc::MrgSortOp,
-    ascendc::SortOp, ascendc::FixpipeOp, ascendc::FixpipeWithWorkspaceOp, ascendc::GetStoreAtomicConfigOp,
+    ascendc::SetFftsBaseAddrOp, ascendc::PopStackBufferOp, ascendc::MrgSortOp, ascendc::SortOp, ascendc::FixpipeOp,
+    ascendc::FixpipeWithWorkspaceOp, ascendc::GetMrgSortResultOp, ascendc::GetStoreAtomicConfigOp,
     // Scalar operations
     ascendc::ScalarCastOp,
     // Swap and workspace operations

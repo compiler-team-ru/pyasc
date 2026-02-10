@@ -13,6 +13,12 @@
 
 include "mlir/Pass/PassBase.td"
 
+def AllocateBuffer : Pass<"ascendc-allocate-buffer", "func::FuncOp"> {
+  let summary = "Allocate buffers for LocalTensorAuto";
+  let constructor = "mlir::ascendc::createAllocateBufferPass()";
+  let dependentDialects = ["ascendc::AscendCDialect"];
+}
+
 def DeclarePyStruct : Pass<"ascendc-declare-py-struct", "ModuleOp"> {
   let summary = "Insert emitasc.declare_py_struct";
   let constructor = "mlir::ascendc::createDeclarePyStructPass()";
@@ -54,6 +60,12 @@ def HoistUBAllocation : Pass<"ascendc-hoist-ub-allocation", "func::FuncOp"> {
 def InputOutputTensor : Pass<"ascendc-input-output-tensor", "func::FuncOp"> {
   let summary = "Set input and output operand for local_tensor_auto";
   let constructor = "mlir::ascendc::createInputOutputTensorPass()";
+}
+
+def InsertBufIdSync : Pass<"ascendc-insert-bufid-sync", "func::FuncOp"> {
+  let summary = "Insert get_buf and rls_buf synchronization";
+  let constructor = "mlir::ascendc::createInsertBufIdSyncPass()";
+  let dependentDialects = ["ascendc::AscendCDialect"];
 }
 
 def InsertSync : Pass<"ascendc-insert-sync", "func::FuncOp"> {

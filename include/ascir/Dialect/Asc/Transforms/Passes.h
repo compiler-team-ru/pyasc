@@ -19,6 +19,7 @@ namespace ascendc {
 #define GEN_PASS_DECL
 #include "ascir/Dialect/Asc/Transforms/Passes.h.inc"
 
+std::unique_ptr<Pass> createAllocateBufferPass();
 std::unique_ptr<Pass> createDeclarePyStructPass();
 std::unique_ptr<Pass> createDefineCubeOnlyPass();
 std::unique_ptr<Pass> createDetectKernelTypePass();
@@ -27,6 +28,7 @@ std::unique_ptr<Pass> createGenerateBoilerplatePass();
 std::unique_ptr<Pass> createHoistQueBindPass();
 std::unique_ptr<Pass> createHoistUBAllocationPass();
 std::unique_ptr<Pass> createInputOutputTensorPass();
+std::unique_ptr<Pass> createInsertBufIdSyncPass();
 std::unique_ptr<Pass> createInsertSyncPass();
 std::unique_ptr<Pass> createLegalizeKernelArgsPass();
 std::unique_ptr<Pass> createMaterializeTensorPass();
