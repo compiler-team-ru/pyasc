@@ -124,6 +124,7 @@ using PrintableOpTypes = std::tuple<
     ascendc::SetAippFunctionsOp,
     // Block synchronization operations
     ascendc::PipeBarrierOp, ascendc::WaitFlagOp, ascendc::CrossCoreSetFlagOp, ascendc::CrossCoreWaitFlagOp,
+    ascendc::GetBufOp, ascendc::RlsBufOp,
     // DataConversion operations
     ascendc::TransposeOp, ascendc::TransposeExtOp, ascendc::TransDataTo5HDTensorListOp,
     ascendc::TransDataTo5HDUintListOp, ascendc::TransDataTo5HDOp,
@@ -133,14 +134,13 @@ using PrintableOpTypes = std::tuple<
     // Dump tensor operations
     ascendc::PrintfOp,
     // TensorDesc operations
-    ascendc::TensorDescOp, ascendc::TensorDescSetShapeAddrOp, 
+    ascendc::TensorDescOp, ascendc::TensorDescSetShapeAddrOp,
     // ListTensorDesc operations
     ascendc::ListTensorDescV2Op, ascendc::ListTensorDescGetDataPtrOp,
     // Other operations
     ascendc::ConstructOp, ascendc::AscendIsAICOp, ascendc::AscendIsAIVOp, LLVM::UndefOp, ascendc::FftsCrossCoreSyncOp,
-    ascendc::SetFftsBaseAddrOp, ascendc::PopStackBufferOp,
-    ascendc::GetMrgSortResultOp, ascendc::MrgSortOp, ascendc::SortOp,
-    ascendc::FixpipeOp, ascendc::FixpipeWithWorkspaceOp, ascendc::GetStoreAtomicConfigOp, 
+    ascendc::SetFftsBaseAddrOp, ascendc::PopStackBufferOp, ascendc::MrgSortOp, ascendc::SortOp, ascendc::FixpipeOp,
+    ascendc::FixpipeWithWorkspaceOp, ascendc::GetMrgSortResultOp, ascendc::GetStoreAtomicConfigOp,
     // Scalar operations
     ascendc::ScalarCastOp,
     // Swap and workspace operations
@@ -190,8 +190,8 @@ using PrintableOpTypes = std::tuple<
     // VectorTernaryScalarL2Op
     ascendc::AxpyL2Op,
     // VecCmpSel (Select) operations
-    ascendc::CompareL1Op, ascendc::CompareRL1Op, ascendc::CompareScalarL1Op, 
-    ascendc::SelectScalarL1Op, ascendc::SelectL1Op,
+    ascendc::CompareL1Op, ascendc::CompareRL1Op, ascendc::CompareScalarL1Op, ascendc::SelectScalarL1Op,
+    ascendc::SelectL1Op,
     // Duplicate operations
     ascendc::DuplicateL0Op, ascendc::DuplicateL1Op, ascendc::DuplicateL2Op,
     // Vector gather operations

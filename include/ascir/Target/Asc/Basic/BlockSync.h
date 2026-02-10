@@ -28,6 +28,10 @@ LogicalResult printOperation(CodeEmitter &emitter, ascendc::CrossCoreSetFlagOp o
 
 LogicalResult printOperation(CodeEmitter &emitter, ascendc::CrossCoreWaitFlagOp op);
 
+LogicalResult printOperation(CodeEmitter &emitter, ascendc::GetBufOp op);
+
+LogicalResult printOperation(CodeEmitter &emitter, ascendc::RlsBufOp op);
+
 } // namespace ascendc
 } // namespace mlir
 

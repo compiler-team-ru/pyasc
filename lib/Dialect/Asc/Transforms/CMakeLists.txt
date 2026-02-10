@@ -7,6 +7,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 add_mlir_dialect_library(MLIRAscTransforms
+  AllocateBuffer.cpp
   DeclarePyStructPass.cpp
   DefineCubeOnlyPass.cpp
   DetectKernelTypePass.cpp
@@ -15,6 +16,7 @@ add_mlir_dialect_library(MLIRAscTransforms
   HoistQueBind.cpp
   HoistUBAllocation.cpp
   InputOutputTensor.cpp
+  InsertBufIdSync.cpp
   InsertSync.cpp
   LegalizeKernelArgs.cpp
   MaterializeTensor.cpp
