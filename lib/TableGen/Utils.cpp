@@ -40,6 +40,8 @@ void fetchResults(const DagInit* resultsDag, std::vector<VirtualArg>& dest)
         auto* init = dyn_cast<DefInit>(resultsDag->getArg(i));
         assert(init && "argument must have defined types");
         auto* resultDef = init->getDef();
+        if (resultDef->isSubClassOf("Res"))
+            resultDef = resultDef->getValueAsDef("constraint");
         if (resultDef->isSubClassOf("Variadic")) {
             result.cppType = "::std::vector< ::mlir::Type >";
         } else {
@@ -65,6 +67,8 @@ void fetchArguments(const DagInit* argsDag, std::vector<VirtualArg>& dest)
         auto* init = dyn_cast<DefInit>(argsDag->getArg(i));
         assert(init && "argument must have defined types");
         auto* argDef = init->getDef();
+        if (argDef->isSubClassOf("Arg"))
+            argDef = argDef->getValueAsDef("constraint");
         if (argDef->isSubClassOf("TypeConstraint")) {
             if (argDef->isSubClassOf("Variadic")) {
                 arg.cppType = "::std::vector< ::mlir::Value >";
