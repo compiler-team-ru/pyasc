@@ -48,6 +48,7 @@ class CompilePlatform(Enum):
     """get soc version"""
     Ascend910B = "Ascend910B"
     Ascend910_93 = "Ascend910_93"
+    Ascend910_95 = "Ascend910_95"
 
 
 @dataclass(frozen=True)
@@ -60,12 +61,16 @@ class CompilationTarget:
     cube_options: List[str] = field(default_factory=list)
 
     @staticmethod
-    def get(kernel_type: KernelType, arch: CompilationArch) -> CompilationTarget:
-        if arch in [CompilationArch.C220, CompilationArch.C310]:
+    def get(kernel_type: KernelType, platform: CompilePlatform) -> CompilationTarget:
+        if platform in [CompilePlatform.Ascend910B, CompilePlatform.Ascend910_93, CompilePlatform.Ascend910_95]:
             common_option = [
                 "-std=c++17", "--cce-disable-kernel-global-attr-check", "-mllvm", "-cce-aicore-stack-size=0x8000",
                 "-mllvm", "-cce-aicore-function-stack-size=0x8000", "-mllvm", "-cce-aicore-dcci-insert-for-scalar=false"
             ]
+            if platform == CompilePlatform.Ascend910B or platform == CompilePlatform.Ascend910_93:
+                arch = "c220"
+            elif platform == CompilePlatform.Ascend910_95:
+                arch = "c310"
             if kernel_type in [KernelType.MIX_AIC_1_1, KernelType.MIX_AIC_1_2]:
                 return CompilationTarget(vec_arch="dav-%s-vec" % arch, cube_arch="dav-%s-cube" % arch,
                                          common_options=common_option)
@@ -90,6 +95,12 @@ class Compiler:
         if self.options.vf_vec_len is None and self.arch == CompilationArch.C310:
             self.options.vf_vec_len = 256
         self.dump_dir: Optional[Path] = None
+        self.platform = CompilePlatform.Ascend910B
+        if self.soc_version.value.startswith("Ascend910_93"):
+            self.platform = CompilePlatform.Ascend910_93
+        elif self.soc_version.value.startswith("Ascend910_95"):
+            self.platform = CompilePlatform.Ascend910_95
+
         dump_dir = os.environ.get("PYASC_DUMP_PATH", None)
         if dump_dir is not None:
             try:
@@ -135,9 +146,10 @@ class Compiler:
             passes.common.add_canonicalizer(pm)
             passes.asclower.add_realize_conversion_cast(pm)
         passes.ascendc.add_input_output_tensor(pm)
-        passes.ascendc.add_hoist_tensor_allocation(pm, exclude_in_out=True)
-        passes.ascendc.add_materialize_tensor(pm, always_buf=False)
-        passes.ascendc.add_unify_pipe(pm)
+        passes.ascendc.add_hoist_ub_allocation(pm)
+        if self.platform != CompilePlatform.Ascend910_95:
+            passes.ascendc.add_materialize_tensor(pm)
+            passes.ascendc.add_unify_pipe(pm)
         passes.common.add_canonicalizer(pm)
         passes.common.add_cse(pm)
 
@@ -147,8 +159,12 @@ class Compiler:
         passes.common.add_canonicalizer(pm)
         if self.options.insert_sync:
             passes.ascendc.add_erase_sync(pm)
-            passes.ascendc.add_hoist_que_bind(pm)
-            passes.ascendc.add_insert_que_sync(pm)
+            if self.platform != CompilePlatform.Ascend910_95:
+                passes.ascendc.add_hoist_que_bind(pm)
+                passes.ascendc.add_insert_sync(pm)
+            else:
+                passes.ascendc.add_allocate_buffer(pm)
+                passes.ascendc.add_insert_bufid_sync(pm)    
             passes.ascendc.add_unify_pipe(pm)
             passes.common.add_canonicalizer(pm)
 
@@ -240,11 +256,10 @@ class Compiler:
         self._schedule_postprocessing(pm)
 
     def _check_compile_options(self) -> bool:
-        is_soc_version_valid = (self.soc_version.value.startswith("Ascend910B")
-                                or self.soc_version.value.startswith("Ascend910_93"))
-        is_core_type_valid = (self.options.kernel_type is None
-                              or (isinstance(self.options.kernel_type, KernelType)
-                                  and self.options.kernel_type.value <= 7 and self.options.kernel_type.value >= 0))
+        is_soc_version_valid = self.soc_version.value.startswith("Ascend910B") or \
+            self.soc_version.value.startswith("Ascend910_93") or self.soc_version.value.startswith("Ascend910_95")
+        is_core_type_valid = self.options.kernel_type is None or (isinstance(self.options.kernel_type, KernelType) and \
+            self.options.kernel_type.value <= 7 and self.options.kernel_type.value >= 0)
         is_opt_level_valid = self.options.opt_level in [1, 2, 3]
         return is_soc_version_valid and is_core_type_valid and is_opt_level_valid
 
