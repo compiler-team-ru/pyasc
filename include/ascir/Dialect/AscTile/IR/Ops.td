@@ -55,10 +55,11 @@ def LoadOp : AscTile_Op<"load", [
   OptionalTypesMatchWith<"type of 'padValue' matches element type of 'result'",
                          "result", "padValue",
                          "::llvm::cast<ShapedType>($_self).getElementType()">,
+  MemoryEffectsOpInterface,
 ]> {
   let summary = "Load from the tensor into a new tile";
-  let arguments = (ins Tensor:$base, Variadic<I32>:$offsets,
-                   Optional<AnyType>:$padValue);
+  let arguments = (ins Arg<Tensor, "tensor to load from", [MemRead]>:$base,
+                   Variadic<I32>:$offsets, Optional<AnyType>:$padValue);
   let results = (outs Tile:$result);
   let assemblyFormat = [{
     $base `[` $offsets `]` (`,` $padValue^)? attr-dict `:`
@@ -67,9 +68,13 @@ def LoadOp : AscTile_Op<"load", [
   let hasCanonicalizeMethod = 1;
 }
 
-def StoreOp : AscTile_Op<"store", [AllElementTypesMatch<["base", "value"]>]> {
+def StoreOp : AscTile_Op<"store", [
+  AllElementTypesMatch<["base", "value"]>, MemoryEffectsOpInterface
+]> {
   let summary = "Store a tile into a tensor";
-  let arguments = (ins Tile:$value, Tensor:$base, Variadic<I32>:$offsets);
+  let arguments = (ins Tile:$value,
+                   Arg<Tensor, "tensor to store to", [MemWrite]>:$base,
+                   Variadic<I32>:$offsets);
   let assemblyFormat = [{
     $value `,` $base `[` $offsets `]` attr-dict `:` qualified(type($value)) `,`
     qualified(type($base))
