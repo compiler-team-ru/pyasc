@@ -14,6 +14,7 @@
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Dominance.h"
+#include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "mlir/Support/LLVM.h"
 
 namespace mlir {
@@ -28,8 +29,29 @@ using namespace mlir::asctile;
 
 namespace {
 
+// See llvm-project@86b69c31/mlir/lib/Interfaces/SideEffectInterfaces.cpp
+template <typename... EffectTys>
+bool effect(Operation *op, Value value)
+{
+    auto memOp = dyn_cast<MemoryEffectOpInterface>(op);
+    if (!memOp)
+        return false;
+    SmallVector<SideEffects::EffectInstance<MemoryEffects::Effect>, 4> effects;
+    memOp.getEffects(effects);
+    return llvm::any_of(effects, [&](MemoryEffects::EffectInstance &effect) {
+        if (effect.getValue() != value)
+            return false;
+        return isa<EffectTys...>(effect.getEffect());
+    });
+}
+
 class Densifier {
     using UnrollGroup = SmallVector<Operation *>;
+
+    enum CanMoveKind {
+        Before,
+        After,
+    };
 
     DominanceInfo dom;
     std::unordered_map<int64_t, UnrollGroup> groups;
@@ -42,6 +64,39 @@ class Densifier {
         return !llvm::any_of(group, [block](Operation *op) { return op->getBlock() != block; });
     }
 
+    bool haveMemoryEffects(Operation *op1, Operation *op2, Value value) const
+    {
+        if (effect<MemoryEffects::Read, MemoryEffects::Write>(op1, value) && effect<MemoryEffects::Write>(op2, value))
+            return true;
+        if (effect<MemoryEffects::Write>(op1, value) && effect<MemoryEffects::Read>(op2, value))
+            return true;
+        return false;
+    }
+
+    template <CanMoveKind kind>
+    bool canMove(Operation *toMove, Operation *baseOp) const
+    {
+        if (toMove == baseOp)
+            return false;
+        Operation *op1, *op2;
+        if constexpr (kind == CanMoveKind::Before) {
+            op1 = baseOp;
+            op2 = toMove;
+        } else if constexpr (kind == CanMoveKind::After) {
+            op1 = toMove;
+            op2 = baseOp;
+        } else {
+            llvm_unreachable("unexpected CanMoveKind value");
+        }
+        for (Value opnd : toMove->getOperands()) {
+            if (!dom.dominates(opnd, baseOp))
+                return false;
+            if (haveMemoryEffects(op1, op2, opnd))
+                return false;
+        }
+        return true;
+    }
+
     // Densify an unroll group by moving all operations up to the earliest one
     void densifyAtTop(UnrollGroup &group)
     {
@@ -49,18 +104,33 @@ class Densifier {
             return;
         llvm::sort(group, [](Operation *lhs, Operation *rhs) { return lhs->isBeforeInBlock(rhs); });
         auto *firstOp = group.front();
-        auto toMove = ArrayRef(group).drop_front();
-        for (auto *op : toMove) {
-            if (llvm::all_of(op->getOperands(),
-                             [this, firstOp](Value operand) { return dom.dominates(operand, firstOp); }))
-                op->moveAfter(firstOp);
+        for (auto *toMove : ArrayRef(group).drop_front()) {
+            auto prevOps = llvm::make_range(Block::iterator(firstOp), Block::iterator(toMove));
+            auto it =
+                llvm::find_if(prevOps, [this, toMove](Operation &base) { return canMove<Before>(toMove, &base); });
+            if (it != prevOps.end())
+                toMove->moveBefore(&*it);
         }
     }
 
     // Densify an unroll group by moving all operations down to the latest one
     void densifyAtBottom(UnrollGroup &group)
     {
-        // TODO: implement
+        if (!allOpsSameBlock(group))
+            return;
+        llvm::sort(group, [](Operation *lhs, Operation *rhs) { return !lhs->isBeforeInBlock(rhs); });
+        auto *lastOp = group.front();
+        for (auto *toMove : ArrayRef(group).drop_front()) {
+            SmallVector<Operation *> nextOps;
+            for (auto &op : llvm::make_range(std::next(Block::iterator(toMove)), std::next(Block::iterator(lastOp))))
+                nextOps.push_back(&op);
+            if (nextOps.empty())
+                continue;
+            auto it = std::find_if(nextOps.rbegin(), nextOps.rend(),
+                                   [this, toMove](Operation *base) { return canMove<After>(toMove, base); });
+            if (it != nextOps.rend())
+                toMove->moveAfter(*it);
+        }
     }
 
   public:
