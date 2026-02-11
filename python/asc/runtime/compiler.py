@@ -135,6 +135,7 @@ class Compiler:
             passes.common.add_cse(pm)
             passes.asctile.add_promote_pure_operations(pm)
             passes.asctile.add_densify_unroll_groups(pm)
+            passes.asctile.add_transform_math_ops(pm)
             passes.asclower.add_expand_math(pm)
             passes.asclower.add_redress_i1_tile(pm)
             passes.asclower.add_lower_arith(pm)

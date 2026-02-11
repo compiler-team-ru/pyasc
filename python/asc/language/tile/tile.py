@@ -117,6 +117,12 @@ class Tile(IRValue):
 
     def rsqrt(self) -> Self:
         ...
+    
+    def __lshift__(self) -> Self:
+        ...
+    
+    def __rshift__(self) -> Self:
+        ...
 
 
 class Binder:

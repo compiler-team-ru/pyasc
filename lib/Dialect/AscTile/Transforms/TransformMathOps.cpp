@@ -160,6 +160,42 @@ struct ScalarizeSub : OpRewritePattern<SubOp> {
     }
 };
 
+struct ScalarizeShL : OpRewritePattern<arith::ShLIOp> {
+    using OpRewritePattern<arith::ShLIOp>::OpRewritePattern;
+
+    LogicalResult matchAndRewrite(arith::ShLIOp op, PatternRewriter& rewriter) const override
+    {
+        if (!isa<asctile::TileType>(op.getType()))
+            return failure();
+
+        Value scalar = materializeSplatValue(rewriter, op.getRhs());
+        if (!scalar)
+            return failure();
+
+        rewriter.replaceOpWithNewOp<asctile::ShLSOp>(op, op.getType(), op.getLhs(), scalar);
+
+        return success();
+    }
+};
+
+struct ScalarizeShR : OpRewritePattern<arith::ShRSIOp> {
+    using OpRewritePattern<arith::ShRSIOp>::OpRewritePattern;
+
+    LogicalResult matchAndRewrite(arith::ShRSIOp op, PatternRewriter& rewriter) const override
+    {
+        if (!isa<asctile::TileType>(op.getType()))
+            return failure();
+
+        Value scalar = materializeSplatValue(rewriter, op.getRhs());
+        if (!scalar)
+            return failure();
+
+        rewriter.replaceOpWithNewOp<asctile::ShRSOp>(op, op.getType(), op.getLhs(), scalar);
+
+        return success();
+    }
+};
+
 class TransformMathOpsPass : public asctile::impl::TransformMathOpsBase<TransformMathOpsPass> {
 public:
     TransformMathOpsPass() = default;
@@ -179,7 +215,7 @@ public:
             //
             ScalarizeArithOp<arith::AddFOp, asctile::AddsOp>, ScalarizeArithOp<arith::AddIOp, asctile::AddsOp>,
             ScalarizeSub<arith::SubFOp>, ScalarizeSub<arith::SubIOp>, ScalarizeArithOp<arith::MulFOp, asctile::MulsOp>,
-            ScalarizeArithOp<arith::MulIOp, asctile::MulsOp>
+            ScalarizeArithOp<arith::MulIOp, asctile::MulsOp>, ScalarizeShL, ScalarizeShR
             //
             >(context, /*benefit=*/1);
         if (applyPatternsAndFoldGreedily(op, std::move(patterns)).failed())

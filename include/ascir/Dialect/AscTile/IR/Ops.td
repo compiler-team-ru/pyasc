@@ -97,6 +97,8 @@ class AscTile_VecScalarOp<string mnemonic, list<Trait> traits = []>
 def AddsOp : AscTile_VecScalarOp<"adds">;
 def SubsOp : AscTile_VecScalarOp<"subs">;
 def MulsOp : AscTile_VecScalarOp<"muls">;
+def ShLSOp : AscTile_VecScalarOp<"shls">;
+def ShRSOp : AscTile_VecScalarOp<"shrs">;
 
 def ReluOp : AscTile_Op<"relu", [Pure, AllTypesMatch<["operand", "result"]>]> {
   let arguments = (ins Tile:$operand);

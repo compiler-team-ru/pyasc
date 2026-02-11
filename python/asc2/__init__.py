@@ -20,6 +20,8 @@ from asc.language.tile.binary_ops import (
     greater_equal,
     less,
     less_equal,
+    left_shift,
+    right_shift
 )
 from asc.language.tile.memory_ops import load, store
 from asc.language.tile.unary_ops import (cos, sin, negative, tan, sinh, cosh, tanh, exp, exp2, log, log2, floor, ceil,
@@ -33,7 +35,9 @@ __all__ = [
     "tensor",
     # binary_ops
     "add",
-    "div"
+    "left_shift",
+    "right_shift",
+    "div",
     "maximum"
     "minimum"
     "mul",
