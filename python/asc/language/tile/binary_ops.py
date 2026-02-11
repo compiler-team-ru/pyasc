@@ -11,7 +11,7 @@ from typing import Callable, Union
 
 from ..._C import ir
 from ...common.compat import isinstance
-from ..core.ir_value import IRHandle, PlainValue, RuntimeNumeric
+from ..core.ir_value import IRHandle, PlainValue, RuntimeNumeric, materialize_ir_value as _mat
 from ..core.utils import global_builder
 from .tile import Tile, bind_tile_method
 from .utils import constant_tile, splat_tile
@@ -113,3 +113,29 @@ def maximum(input: Tile, other: Union[Tile, RuntimeNumeric]) -> Tile:
 def minimum(input: Tile, other: Union[Tile, RuntimeNumeric]) -> Tile:
     builder = global_builder.get_ir_builder()
     return op_binary_impl(input, other, builder.create_arith_MinSIOp, builder.create_arith_MinimumFOp)
+
+
+@bind_tile_method(name="__lshift__")
+def left_shift(input: Tile, other: RuntimeNumeric) -> Tile:
+    builder = global_builder.get_ir_builder()
+    result_dtype = input.dtype
+    if isinstance(other, Real):
+        other = constant_tile(other, input.shape, result_dtype)
+    elif isinstance(other, PlainValue):
+        other = splat_tile(other, input.shape, result_dtype)
+
+    handle = builder.create_arith_ShLIOp(input.to_ir(), other.to_ir())
+    return Tile(handle)
+
+
+@bind_tile_method(name="__rshift__")
+def right_shift(input: Tile, other: RuntimeNumeric) -> Tile:
+    builder = global_builder.get_ir_builder()
+    result_dtype = input.dtype
+    if isinstance(other, Real):
+        other = constant_tile(other, input.shape, result_dtype)
+    elif isinstance(other, PlainValue):
+        other = splat_tile(other, input.shape, result_dtype)
+
+    handle = builder.create_arith_ShRSIOp(input.to_ir(), other.to_ir())
+    return Tile(handle)
