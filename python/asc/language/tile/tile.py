@@ -16,7 +16,7 @@ from typing_extensions import Self
 from ..._C import ir
 from ..core.dtype import DataType
 from ..core.tensor import TensorShape
-from ..core.ir_value import IRHandle, IRValue
+from ..core.ir_value import IRHandle, IRValue, RuntimeInt
 
 T = TypeVar("T")
 
@@ -49,7 +49,13 @@ class Tile(IRValue):
     def __truediv__(self, other: Self) -> Self:
         ...
 
-    def __neg__(self, other: Self) -> Self:
+    def __floordiv__(self, other: Self) -> Self:
+        return self / other
+
+    def __lshift__(self, other: RuntimeInt) -> Self:
+        ...
+
+    def __rshift__(self, other: RuntimeInt) -> Self:
         ...
 
     def __eq__(self, other: Self) -> Self:
@@ -69,6 +75,12 @@ class Tile(IRValue):
 
     def __le__(self, other: Self) -> Self:
         ...
+
+    def __neg__(self) -> Self:
+        ...
+
+    def __pos__(self) -> Self:
+        return self
 
     def sin(self) -> Self:
         ...
@@ -100,13 +112,13 @@ class Tile(IRValue):
     def log2(self) -> Self:
         ...
 
-    def __floor__(self) -> Self:
+    def floor(self) -> Self:
         ...
 
-    def __ceil__(self) -> Self:
+    def ceil(self) -> Self:
         ...
 
-    def __abs__(self) -> Self:
+    def abs(self) -> Self:
         ...
 
     def erf(self) -> Self:
@@ -116,12 +128,6 @@ class Tile(IRValue):
         ...
 
     def rsqrt(self) -> Self:
-        ...
-    
-    def __lshift__(self) -> Self:
-        ...
-    
-    def __rshift__(self) -> Self:
         ...
 
 

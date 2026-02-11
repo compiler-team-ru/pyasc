@@ -7,71 +7,94 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 from asc.language.tile.tensor import tensor
+from asc.language.tile.range import range
+
+# Tile operations
 from asc.language.tile.binary_ops import (
     add,
     div,
+    equal,
+    greater,
+    greater_equal,
+    left_shift,
+    less,
+    less_equal,
     maximum,
     minimum,
     mul,
-    sub,
-    equal,
     not_equal,
-    greater,
-    greater_equal,
-    less,
-    less_equal,
-    left_shift,
-    right_shift
+    right_shift,
+    sub,
 )
-from asc.language.tile.memory_ops import load, store
-from asc.language.tile.unary_ops import (cos, sin, negative, tan, sinh, cosh, tanh, exp, exp2, log, log2, floor, ceil,
-                                         abs, erf, rsqrt, sqrt, relu)
-from asc.language.tile.range import range
+from asc.language.tile.memory_ops import (
+    load,
+    store,
+)
+from asc.language.tile.unary_ops import (
+    abs,
+    ceil,
+    cos,
+    cosh,
+    erf,
+    exp,
+    exp2,
+    floor,
+    log,
+    log2,
+    negative,
+    relu,
+    rsqrt,
+    sin,
+    sinh,
+    sqrt,
+    tan,
+    tanh,
+)
 
 from .jit import jit
 
 __all__ = [
     # tensor
     "tensor",
+    # range
+    "range",
     # binary_ops
     "add",
-    "left_shift",
-    "right_shift",
     "div",
-    "maximum"
-    "minimum"
-    "mul",
-    "sub",
     "equal",
-    "not_equal",
     "greater",
     "greater_equal",
+    "left_shift",
     "less",
     "less_equal",
-    # unary_ops
-    "negative",
-    "relu",
-    "cos",
-    "sin",
-    "tan",
-    "sinh",
-    "cosh",
-    "tanh",
-    "exp",
-    "log",
-    "log2",
-    "exp2",
-    "floor",
-    "ceil",
-    "abs",
-    "erf",
-    "rsqrt",
-    "sqrt"
+    "maximum",
+    "minimum",
+    "mul",
+    "not_equal",
+    "right_shift",
+    "sub",
     # memory_ops
     "load",
     "store",
-    # range
-    "range",
+    # unary_ops
+    "abs",
+    "ceil",
+    "cos",
+    "cosh",
+    "erf",
+    "exp",
+    "exp2",
+    "floor",
+    "log",
+    "log2",
+    "negative",
+    "relu",
+    "rsqrt",
+    "sin",
+    "sinh",
+    "sqrt",
+    "tan",
+    "tanh",
     # .jit
     "jit",
 ]
