@@ -21,7 +21,7 @@ namespace asctile {
 
 std::unique_ptr<Pass> createDensifyUnrollGroupsPass();
 std::unique_ptr<Pass> createPromotePureOpsPass();
-std::unique_ptr<Pass> createTagUnrollGroupsPass();
+std::unique_ptr<Pass> createTagUnrollGroupsPass(bool smallGroups = false);
 std::unique_ptr<Pass> createTransformMathOpsPass();
 std::unique_ptr<Pass> createUnrollLoopPass();
 
