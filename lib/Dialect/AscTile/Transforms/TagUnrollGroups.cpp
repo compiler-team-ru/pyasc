@@ -28,30 +28,43 @@ using namespace mlir::asctile;
 
 namespace {
 
-template <typename OpT>
-void tagOps(Operation *root, int64_t &nextIndex)
+template <typename OpT, typename... OpTs>
+void tagOps(Operation *root, int64_t &nextIndex, bool smallGroups)
 {
     Builder builder(root);
-    root->walk([&](OpT op) { op->setAttr(attr::unrollGroup, builder.getI64IntegerAttr(nextIndex++)); });
+    root->walk([&](OpT op) {
+        op->setAttr(attr::unrollGroup, builder.getI64IntegerAttr(nextIndex));
+        if (smallGroups)
+            nextIndex++;
+    });
+    if (!smallGroups)
+        nextIndex++;
+    if constexpr (sizeof...(OpTs) == 0)
+        return;
+    else
+        tagOps<OpTs...>(root, nextIndex, smallGroups);
 }
 
 struct TagUnrollGroupsPass : public asctile::impl::TagUnrollGroupsBase<TagUnrollGroupsPass> {
+    TagUnrollGroupsPass(const TagUnrollGroupsOptions &options) : TagUnrollGroupsBase(options) {}
+
     void runOnOperation() override
     {
         auto op = getOperation();
-        int64_t i = 0;
-        op.walk([&i](scf::ForOp loop) {
+        int64_t nextIndex = 0;
+        op.walk([this, &nextIndex](scf::ForOp loop) {
             if (!loop->hasAttrOfType<IntegerAttr>(attr::unrollFactor))
                 return;
-            tagOps<asctile::LoadOp>(loop, i);
-            tagOps<asctile::StoreOp>(loop, i);
+            tagOps<asctile::LoadOp, asctile::StoreOp>(loop, nextIndex, smallGroups);
         });
     }
 };
 
 } // namespace
 
-std::unique_ptr<Pass> mlir::asctile::createTagUnrollGroupsPass()
+std::unique_ptr<Pass> mlir::asctile::createTagUnrollGroupsPass(bool smallGroups)
 {
-    return std::make_unique<TagUnrollGroupsPass>();
+    TagUnrollGroupsOptions options;
+    options.smallGroups = smallGroups;
+    return std::make_unique<TagUnrollGroupsPass>(options);
 }
