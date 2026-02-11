@@ -617,7 +617,11 @@ void bind_create_airth_basic_operations(py::class_<PyOpBuilder> &clss)
         .def("create_arith_MinSIOp",
              [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::MinSIOp>(lhs, rhs); })
         .def("create_arith_MinimumFOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::MinimumFOp>(lhs, rhs); });
+             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::MinimumFOp>(lhs, rhs); })
+        .def("create_arith_ShLIOp",
+             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::ShLIOp>(lhs, rhs); })
+        .def("create_arith_ShRSIOp",
+             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::ShRSIOp>(lhs, rhs); });
 }
 
 void bind_create_math_operations(py::class_<PyOpBuilder> &clss)
