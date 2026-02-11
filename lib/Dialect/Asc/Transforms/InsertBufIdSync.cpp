@@ -17,7 +17,6 @@
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/Value.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
 
 namespace mlir {
 namespace ascendc {
@@ -41,24 +40,32 @@ void insertGetRlsBuf(Operation *op, ascendc::Pipe pipe, int32_t bufId)
     builder.create<ascendc::RlsBufOp>(op->getLoc(), pipe, consts.i32(bufId), false);
 }
 
-void recursiveVisit(Value arg, int32_t bufId, VisitedOpsSet &visitedOps)
+void recursiveVisit(Operation *op, int32_t bufId, VisitedOpsSet &visitedOps)
 {
-    for (auto &use : arg.getUses()) {
-        auto userOp = use.getOwner();
-        if (visitedOps.find({userOp, bufId}) != visitedOps.end())
-            continue;
-        if (auto vecOp = dyn_cast<ascendc::VectorOp>(userOp)) {
-            visitedOps.insert({vecOp, bufId});
-            insertGetRlsBuf(vecOp, ascendc::Pipe::PIPE_V, bufId);
-            for (auto operand : vecOp->getOperands()) {
-                recursiveVisit(operand, bufId, visitedOps);
-            }
-        } else if (auto copyOp = dyn_cast<ascendc::DataCopyOp>(userOp)) {
-            if (copyOp.getDirection() == ascendc::CopyDirection::gm_ubuf) {
-                visitedOps.insert({copyOp, bufId});
-                insertGetRlsBuf(copyOp, ascendc::Pipe::PIPE_MTE2, bufId);
-            }
+    if (!op)
+        return;
+    if (visitedOps.find({op, bufId}) != visitedOps.end())
+        return;
+    visitedOps.insert({op, bufId});
+    if (auto vecOp = dyn_cast<ascendc::VectorOp>(op)) {
+        insertGetRlsBuf(vecOp, ascendc::Pipe::PIPE_V, bufId);
+    } else if (auto copyOp = dyn_cast<ascendc::DataCopyOp>(op)) {
+        auto direction = copyOp.getDirection();
+        if (direction == ascendc::CopyDirection::gm_ubuf) {
+            insertGetRlsBuf(copyOp, ascendc::Pipe::PIPE_MTE2, bufId);
+        } else if (direction == ascendc::CopyDirection::ubuf_gm) {
+            insertGetRlsBuf(copyOp, ascendc::Pipe::PIPE_MTE3, bufId);
+        } else if (direction == ascendc::CopyDirection::ubuf_ubuf) {
+            insertGetRlsBuf(copyOp, ascendc::Pipe::PIPE_V, bufId);
         }
+    }
+    for (auto operand : op->getOperands()) {
+        if (!isa<ascendc::LocalTensorType>(operand.getType()))
+            continue;
+        for (auto *user : operand.getUsers()) {
+            recursiveVisit(user, bufId, visitedOps);
+        }
+        recursiveVisit(operand.getDefiningOp(), bufId, visitedOps);
     }
 }
 
@@ -70,11 +77,10 @@ void syncOperations(Region &region, VisitedOpsSet &visitedOps, int32_t &bufId)
                 syncOperations(inner, visitedOps, bufId);
             }
             auto copyOp = dyn_cast<ascendc::DataCopyOp>(op);
-            if (!copyOp || copyOp.getDirection() == ascendc::CopyDirection::gm_ubuf)
+            if (!copyOp || copyOp.getDirection() == ascendc::CopyDirection::gm_ubuf ||
+                copyOp.getDirection() == ascendc::CopyDirection::ubuf_ubuf)
                 continue;
-            visitedOps.insert({copyOp, bufId});
-            insertGetRlsBuf(copyOp, ascendc::Pipe::PIPE_MTE3, bufId);
-            recursiveVisit(copyOp.getSrc(), bufId, visitedOps);
+            recursiveVisit(copyOp, bufId, visitedOps);
             bufId++;
         }
     }
