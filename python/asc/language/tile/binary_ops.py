@@ -11,7 +11,7 @@ from typing import Callable, Union
 
 from ..._C import ir
 from ...common.compat import isinstance
-from ..core.ir_value import IRHandle, PlainValue, RuntimeNumeric, materialize_ir_value as _mat
+from ..core.ir_value import IRHandle, PlainValue, RuntimeInt, RuntimeNumeric
 from ..core.utils import global_builder
 from .tile import Tile, bind_tile_method
 from .utils import constant_tile, splat_tile
@@ -116,26 +116,28 @@ def minimum(input: Tile, other: Union[Tile, RuntimeNumeric]) -> Tile:
 
 
 @bind_tile_method(name="__lshift__")
-def left_shift(input: Tile, other: RuntimeNumeric) -> Tile:
+def left_shift(input: Tile, other: RuntimeInt) -> Tile:
     builder = global_builder.get_ir_builder()
     result_dtype = input.dtype
-    if isinstance(other, Real):
+    if isinstance(other, int) and other >= 0:
         other = constant_tile(other, input.shape, result_dtype)
-    elif isinstance(other, PlainValue):
+    elif isinstance(other, PlainValue) and other.dtype.is_int():
         other = splat_tile(other, input.shape, result_dtype)
-
+    else:
+        raise RuntimeError(f"Left shift requires positive integer operand, got {other!r}")
     handle = builder.create_arith_ShLIOp(input.to_ir(), other.to_ir())
     return Tile(handle)
 
 
 @bind_tile_method(name="__rshift__")
-def right_shift(input: Tile, other: RuntimeNumeric) -> Tile:
+def right_shift(input: Tile, other: RuntimeInt) -> Tile:
     builder = global_builder.get_ir_builder()
     result_dtype = input.dtype
-    if isinstance(other, Real):
+    if isinstance(other, int) and other >= 0:
         other = constant_tile(other, input.shape, result_dtype)
-    elif isinstance(other, PlainValue):
+    elif isinstance(other, PlainValue) and other.dtype.is_int():
         other = splat_tile(other, input.shape, result_dtype)
-
+    else:
+        raise RuntimeError(f"Right shift requires positive integer operand, got {other!r}")
     handle = builder.create_arith_ShRSIOp(input.to_ir(), other.to_ir())
     return Tile(handle)
