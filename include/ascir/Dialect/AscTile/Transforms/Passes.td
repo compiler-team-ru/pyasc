@@ -26,6 +26,10 @@ def PromotePureOps : Pass<"asctile-promote-pure-ops", "func::FuncOp"> {
 def TagUnrollGroups : Pass<"asctile-tag-unroll-groups", "func::FuncOp"> {
   let summary = "Tag operations of interest to find them after loop unroll";
   let constructor = "mlir::asctile::createTagUnrollGroupsPass()";
+  let options = [
+    Option<"smallGroups", "small-groups", "bool", "false",
+           "Tag as small groups (single op in each group)">,
+  ];
 }
 
 def TransformMathOps : Pass<"asctile-transform-math-ops", "func::FuncOp"> {

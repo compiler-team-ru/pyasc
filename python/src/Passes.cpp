@@ -116,12 +116,19 @@ void defineAscendCPasses(py::module& mod)
 void defineAscTilePasses(py::module& mod)
 {
     using namespace asctile;
+    using namespace pybind11::literals;
     auto m = mod.def_submodule("asctile");
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_densify_unroll_groups", createDensifyUnrollGroupsPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_promote_pure_operations", createPromotePureOpsPass);
-    DEFINE_ADD_PASS_ON(func::FuncOp, "add_tag_unroll_groups", createTagUnrollGroupsPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_transform_math_ops", createTransformMathOpsPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_unroll_loop", createUnrollLoopPass);
+
+    m.def(
+        "add_tag_unroll_groups",
+        [](PassManager& pm, bool smallGroups) {
+            pm.addNestedPass<func::FuncOp>(createTagUnrollGroupsPass(smallGroups));
+        },
+        "pm"_a, "small_groups"_a = false);
 }
 
 void defineLowerToAscPasses(py::module& mod)
