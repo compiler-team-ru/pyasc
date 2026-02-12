@@ -683,6 +683,9 @@ void bind_create_math_operations(py::class_<PyOpBuilder>& clss)
             "create_math_LogOp",
             [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::LogOp>(value); })
         .def(
+            "create_math_Log2Op",
+            [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::Log2Op>(value); })
+        .def(
             "create_math_FloorOp",
             [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::FloorOp>(value); })
         .def(
@@ -695,7 +698,8 @@ void bind_create_math_operations(py::class_<PyOpBuilder>& clss)
             "create_math_AbsIOp",
             [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::AbsIOp>(value); })
         .def(
-            "create_math_Erf", [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::ErfOp>(value); })
+            "create_math_ErfOp",
+            [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::ErfOp>(value); })
         .def(
             "create_math_RsqrtOp",
             [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::RsqrtOp>(value); })
