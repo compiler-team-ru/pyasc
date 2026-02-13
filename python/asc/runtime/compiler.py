@@ -150,7 +150,9 @@ class Compiler:
         passes.ascendc.add_hoist_ub_allocation(pm)
         if self.platform != CompilePlatform.Ascend910_95:
             passes.ascendc.add_materialize_tensor(pm)
-            passes.ascendc.add_unify_pipe(pm)
+        else:
+            passes.ascendc.add_allocate_buffer(pm)
+        passes.ascendc.add_unify_pipe(pm)
         passes.common.add_canonicalizer(pm)
         passes.common.add_cse(pm)
 
@@ -160,11 +162,10 @@ class Compiler:
         passes.common.add_canonicalizer(pm)
         if self.options.insert_sync:
             passes.ascendc.add_erase_sync(pm)
+            passes.ascendc.add_hoist_que_bind(pm)
             if self.platform != CompilePlatform.Ascend910_95:
-                passes.ascendc.add_hoist_que_bind(pm)
                 passes.ascendc.add_insert_sync(pm)
             else:
-                passes.ascendc.add_allocate_buffer(pm)
                 passes.ascendc.add_insert_bufid_sync(pm)    
             passes.ascendc.add_unify_pipe(pm)
             passes.common.add_canonicalizer(pm)
