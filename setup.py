@@ -340,6 +340,7 @@ packages = [
     "asc/language/basic",
     "asc/language/core",
     "asc/language/fwk",
+    "asc/language/tile",
     "asc/lib",
     "asc/lib/host",
     "asc/lib/runtime",
