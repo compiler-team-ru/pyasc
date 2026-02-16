@@ -17,6 +17,7 @@ from ..._C import ir
 from ..core.dtype import DataType
 from ..core.tensor import TensorShape
 from ..core.ir_value import IRHandle, IRValue, RuntimeInt
+from ..core.utils import global_builder
 
 T = TypeVar("T")
 
@@ -36,6 +37,25 @@ class Tile(IRValue):
 
     def to_ir(self) -> IRHandle:
         return self.handle
+
+    def to(self: Tile, dtype: DataType) -> Tile:
+        if self.dtype == dtype:
+            return self
+        from_i = self.dtype.is_signed()
+        from_f = self.dtype.is_float()
+        to_i = dtype.is_signed()
+        to_f = dtype.is_float()
+        if (not from_f and not from_i) or (not to_f and not to_i):
+            cast_supported = False
+        elif self.dtype.bitwidth == dtype.bitwidth and (from_f and to_i or from_i and to_f):
+            cast_supported = True
+        elif self.dtype.bitwidth != dtype.bitwidth and (from_i and to_i) or (from_f and to_f):
+            cast_supported = True
+        if not cast_supported:
+            raise RuntimeError(f"Cast from {self.dtype} to {dtype} is not supported")
+        ir_type = ir.clone_shaped_type(self.to_ir().get_type(), dtype.to_ir())
+        handle = global_builder.get_ir_builder().create_asctile_CastOp(ir_type, self.to_ir())
+        return Tile(handle)
 
     def __add__(self, other: Self) -> Self:
         ...
@@ -131,10 +151,16 @@ class Tile(IRValue):
         ...
 
 
+class BinaryOperandTypeError(TypeError):
+    """Exception for dunder methods implementing binary operators"""
+    pass
+
+
 class Binder:
 
-    def __init__(self, name: Optional[str] = None) -> None:
+    def __init__(self, name: Optional[str] = None, binary_op: bool = False) -> None:
         self.name = name
+        self.binary_op = binary_op
 
     def __call__(self, fn: T) -> T:
         name = self.name or fn.__name__
@@ -145,9 +171,20 @@ class Binder:
         params[0] = params[0].replace(name="self")
         new_sig = sig.replace(parameters=params)
 
-        @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
-            return fn(*args, **kwargs)
+        if self.binary_op:
+
+            @functools.wraps(fn)
+            def wrapper(*args, **kwargs):
+                try:
+                    return fn(*args, **kwargs)
+                except BinaryOperandTypeError:
+                    return NotImplemented
+
+        else:
+
+            @functools.wraps(fn)
+            def wrapper(*args, **kwargs):
+                return fn(*args, **kwargs)
 
         wrapper.__signature__ = new_sig
         setattr(Tile, name, wrapper)
@@ -160,12 +197,12 @@ def bind_tile_method(fn: T) -> T:
 
 
 @overload
-def bind_tile_method(name: str) -> Callable[[T], T]:
+def bind_tile_method(name: str, binary_op: bool = False) -> Callable[[T], T]:
     ...
 
 
-def bind_tile_method(fn: Optional[T] = None, *, name: Optional[str] = None):
-    binder = Binder(name)
+def bind_tile_method(fn: Optional[T] = None, *, name: Optional[str] = None, binary_op: bool = False):
+    binder = Binder(name, binary_op)
     if fn is None:
         return binder
     return binder(fn)
