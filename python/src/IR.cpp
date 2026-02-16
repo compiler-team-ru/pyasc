@@ -285,6 +285,18 @@ void pyasc_bind_memref(py::module& m)
         return type.getShape().vec();
     });
 
+    m.def(
+        "clone_shaped_type",
+        [](Type shapedType, Type elementType, const std::optional<std::vector<int64_t>>& shape) -> Type {
+            auto type = llvm::dyn_cast_if_present<ShapedType>(shapedType);
+            if (!type)
+                throw std::runtime_error("clone_shaped_type(): must be shaped type");
+            if (shape.has_value())
+                return type.cloneWith(*shape, elementType);
+            return type.cloneWith(std::nullopt, elementType);
+        },
+        "shaped_type"_a, "element_type"_a, "shape"_a = py::none());
+
     m.def("get_vector_type", [](Type& elementType, std::vector<int64_t>& shape) -> Type {
         return VectorType::get(shape, elementType);
     });
@@ -344,6 +356,7 @@ void pyasc_bind_tensor_type(py::module& m)
 void pyasc_bind_asctile_type(py::module& m)
 {
     using namespace pybind11::literals;
+
     m.def(
         "get_asctile_TensorType",
         [](std::vector<int64_t>& shape, Type& elementType) -> Type {

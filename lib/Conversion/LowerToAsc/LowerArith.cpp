@@ -34,8 +34,7 @@ struct LoweringConversionTarget : public ConversionTarget {
     {
         addDynamicallyLegalOp<
             //
-            arith::ConstantOp, arith::BitcastOp, arith::TruncFOp, arith::TruncIOp, arith::UIToFPOp, arith::ExtSIOp,
-            arith::ExtFOp, arith::SIToFPOp, arith::FPToSIOp, arith::NegFOp
+            arith::ConstantOp, arith::BitcastOp, arith::NegFOp
             //
             >([&](Operation* op) { return converter.isLegal(op); });
         addLegalDialect<ascendc::AscendCDialect>();
@@ -94,33 +93,6 @@ struct ConvertBitcast : public ConvertOp<arith::BitcastOp> {
     }
 };
 
-template <typename ArithOp>
-struct ConvertCast : public ConvertOp<ArithOp> {
-    using ConvertOp<ArithOp>::ConvertOp;
-    using ConvertOp<ArithOp>::createTensorOp;
-
-    static Type getElementType(Value tensor) { return cast<ShapedType>(tensor.getType()).getElementType(); }
-
-    static ascendc::RoundMode getRoundMode(Type in, Type out)
-    {
-        if (isa<FloatType>(in) && isa<IntegerType>(out))
-            return ascendc::RoundMode::CAST_TRUNC;
-        return ascendc::RoundMode::CAST_NONE;
-    }
-
-    LogicalResult convert(ArithOp op, ConvertRewriter& rewriter) const override
-    {
-        Location loc = op.getLoc();
-        Value dst = createTensorOp(rewriter, loc, op.getType());
-        ascir::ConstantOpBuilder consts(rewriter);
-        Value src = rewriter.getRemappedValue(op.getIn());
-        auto roundMode = getRoundMode(getElementType(src), getElementType(dst));
-        rewriter.create<ascendc::CastL2Op>(loc, dst, src, roundMode, consts.i64(1));
-        rewriter.replaceOp(op, dst);
-        return success();
-    }
-};
-
 struct ConvertNegF : public ConvertOp<arith::NegFOp> {
     using ConvertOp::converter;
     using ConvertOp::ConvertOp;
@@ -151,9 +123,7 @@ struct LowerArithPass : public asclower::impl::LowerArithBase<LowerArithPass> {
         RewritePatternSet patterns(context);
         patterns.insert<
             //
-            ConvertSplatConstant, ConvertDenseConstant, ConvertBitcast, ConvertNegF, ConvertCast<arith::TruncFOp>,
-            ConvertCast<arith::TruncIOp>, ConvertCast<arith::ExtFOp>, ConvertCast<arith::ExtSIOp>,
-            ConvertCast<arith::SIToFPOp>, ConvertCast<arith::UIToFPOp>, ConvertCast<arith::FPToSIOp>
+            ConvertSplatConstant, ConvertDenseConstant, ConvertBitcast, ConvertNegF
             //
             >(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())
