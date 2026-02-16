@@ -31,6 +31,7 @@ class Platform(Enum):
     Ascend910_9382 = "Ascend910_9382"
     Ascend910_9391 = "Ascend910_9391"
     Ascend910_9392 = "Ascend910_9392"
+    Ascend910_9579 = "Ascend910_9579"
     Ascend910_9599 = "Ascend910_9599"
 
 
