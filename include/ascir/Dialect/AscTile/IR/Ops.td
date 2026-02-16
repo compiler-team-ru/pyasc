@@ -106,4 +106,14 @@ def ReluOp : AscTile_Op<"relu", [Pure, AllTypesMatch<["operand", "result"]>]> {
   let assemblyFormat = "$operand attr-dict `:` qualified(type($result))";
 }
 
+def CastOp : AscTile_Op<"cast", [
+  Pure, SameOperandsAndResultShape, DeclareOpInterfaceMethods<CastOpInterface>
+]> {
+  let arguments = (ins Tile:$in);
+  let results = (outs Tile:$out);
+  let assemblyFormat = [{
+    $in attr-dict `:` qualified(type($in)) `to` qualified(type($out))
+  }];
+}
+
 #endif // ASCTILE_OPS_TD

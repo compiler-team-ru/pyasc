@@ -213,6 +213,32 @@ struct ConvertRelu : ConvertOp<asctile::ReluOp> {
     }
 };
 
+struct ConvertCast : ConvertOp<asctile::CastOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    static Type getElementType(Value shaped) { return cast<ShapedType>(shaped.getType()).getElementType(); }
+
+    static ascendc::RoundMode getRoundMode(Type in, Type out)
+    {
+        if (isa<FloatType>(in) && isa<IntegerType>(out))
+            return ascendc::RoundMode::CAST_TRUNC;
+        return ascendc::RoundMode::CAST_NONE;
+    }
+
+    LogicalResult convert(asctile::CastOp op, ConvertRewriter &rewriter) const override
+    {
+        Location loc = op.getLoc();
+        Value dst = createTensorOp(rewriter, loc, op.getType());
+        ascir::ConstantOpBuilder consts(rewriter);
+        Value src = rewriter.getRemappedValue(op.getIn());
+        auto roundMode = getRoundMode(getElementType(src), getElementType(dst));
+        rewriter.create<ascendc::CastL2Op>(loc, dst, src, roundMode, consts.i64(calCount(dst)));
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
 template <typename TileOp, typename L2Op>
 struct ConvertToL2 : ConvertOp<TileOp> {
     using ConvertOp<TileOp>::ConvertOp;
@@ -242,7 +268,7 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         RewritePatternSet patterns(context);
         patterns.insert<
             //
-            ConvertTensor, ConvertLoad, ConvertStore, ConvertSplat, ConvertRelu,
+            ConvertTensor, ConvertLoad, ConvertStore, ConvertSplat, ConvertRelu, ConvertCast,
             ConvertToL2<asctile::AddsOp, ascendc::AddsL2Op>, ConvertToL2<asctile::MulsOp, ascendc::MulsL2Op>,
             ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>, ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>
             //

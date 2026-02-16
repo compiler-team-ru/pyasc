@@ -179,17 +179,15 @@ void pyasc_bind_enums(py::module &m)
         .value("LE", ascendc::CMPMODE::LE)
         .value("GE", ascendc::CMPMODE::GE)
         .value("NE", ascendc::CMPMODE::NE)
-        .def_static("symbolize", [](uint8_t cmp_mode) -> ascendc::CMPMODE {
-            return static_cast<ascendc::CMPMODE>(cmp_mode);
-        });
+        .def_static("symbolize",
+                    [](uint8_t cmp_mode) -> ascendc::CMPMODE { return static_cast<ascendc::CMPMODE>(cmp_mode); });
 
     py::enum_<ascendc::SELMODE>(m, "SELMODE", py::module_local())
         .value("VSEL_CMPMASK_SPR", ascendc::SELMODE::VSEL_CMPMASK_SPR)
         .value("VSEL_TENSOR_SCALAR_MODE", ascendc::SELMODE::VSEL_TENSOR_SCALAR_MODE)
         .value("VSEL_TENSOR_TENSOR_MODE", ascendc::SELMODE::VSEL_TENSOR_TENSOR_MODE)
-        .def_static("symbolize", [](uint8_t sel_mode) -> ascendc::SELMODE {
-            return static_cast<ascendc::SELMODE>(sel_mode);
-        });
+        .def_static("symbolize",
+                    [](uint8_t sel_mode) -> ascendc::SELMODE { return static_cast<ascendc::SELMODE>(sel_mode); });
 
     py::enum_<asctile::TileLocation>(m, "TileLocation", py::module_local())
         .value("L0A", asctile::TileLocation::L0A)
@@ -198,9 +196,8 @@ void pyasc_bind_enums(py::module &m)
         .value("L1", asctile::TileLocation::L1)
         .value("UB", asctile::TileLocation::UB)
         .value("FIX", asctile::TileLocation::FIX)
-        .def_static("symbolize", [](int32_t loc) -> asctile::TileLocation {
-            return static_cast<asctile::TileLocation>(loc);
-        });
+        .def_static("symbolize",
+                    [](int32_t loc) -> asctile::TileLocation { return static_cast<asctile::TileLocation>(loc); });
 }
 
 void pyasc_bind_context_and_dialect(py::module &m)
@@ -285,6 +282,18 @@ void pyasc_bind_memref(py::module &m)
         return type.getShape().vec();
     });
 
+    m.def(
+        "clone_shaped_type",
+        [](Type shapedType, Type elementType, const std::optional<std::vector<int64_t>> &shape) -> Type {
+            auto type = llvm::dyn_cast_if_present<ShapedType>(shapedType);
+            if (!type)
+                throw std::runtime_error("clone_shaped_type(): must be shaped type");
+            if (shape.has_value())
+                return type.cloneWith(*shape, elementType);
+            return type.cloneWith(std::nullopt, elementType);
+        },
+        "shaped_type"_a, "element_type"_a, "shape"_a = py::none());
+
     m.def("get_vector_type",
           [](Type &elementType, std::vector<int64_t> &shape) -> Type { return VectorType::get(shape, elementType); });
 
@@ -341,12 +350,19 @@ void pyasc_bind_tensor_type(py::module &m)
 void pyasc_bind_asctile_type(py::module &m)
 {
     using namespace pybind11::literals;
-    m.def("get_asctile_TensorType", [](std::vector<int64_t> &shape, Type &elementType) -> Type {
-        return asctile::TensorType::get(shape, elementType);
-    }, "shape"_a, "element_type"_a);
-    m.def("get_asctile_TileType", [](std::vector<int64_t> &shape, Type &elementType, asctile::TileLocation loc) -> Type {
-        return asctile::TileType::get(shape, elementType, loc);
-    }, "shape"_a, "element_type"_a, "loc"_a = asctile::TileLocation::UB);
+
+    m.def(
+        "get_asctile_TensorType",
+        [](std::vector<int64_t> &shape, Type &elementType) -> Type {
+            return asctile::TensorType::get(shape, elementType);
+        },
+        "shape"_a, "element_type"_a);
+    m.def(
+        "get_asctile_TileType",
+        [](std::vector<int64_t> &shape, Type &elementType, asctile::TileLocation loc) -> Type {
+            return asctile::TileType::get(shape, elementType, loc);
+        },
+        "shape"_a, "element_type"_a, "loc"_a = asctile::TileLocation::UB);
 }
 
 void pyasc_bind_location(py::module &m)
@@ -478,8 +494,7 @@ void pyasc_bind_attritube(py::module &m)
 
     py::class_<ArrayAttr, Attribute>(m, "ArrayAttr", py::module_local());
 
-    py::class_<TypedAttr>(m, "TypedAttr", py::module_local())
-        .def("get_type", &TypedAttr::getType);
+    py::class_<TypedAttr>(m, "TypedAttr", py::module_local()).def("get_type", &TypedAttr::getType);
 
     m.def("get_type_attr", [](const Type &type) -> Attribute { return TypeAttr::get(type); });
 
@@ -642,8 +657,7 @@ void pyasc_bind_scfop(py::module &m)
     using ret = py::return_value_policy;
     py::class_<scf::ForOp, OpState>(m, "ForOp", py::module_local())
         .def("get_induction_var", &scf::ForOp::getInductionVar)
-        .def(
-            "get_body", [](scf::ForOp &self) -> Block * { return self.getBody(); }, ret::reference);
+        .def("get_body", [](scf::ForOp &self) -> Block * { return self.getBody(); }, ret::reference);
     py::class_<scf::IfOp, OpState>(m, "IfOp", py::module_local())
         .def("get_then_block", &scf::IfOp::thenBlock, ret::reference)
         .def("get_else_block", &scf::IfOp::elseBlock, ret::reference)

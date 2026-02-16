@@ -46,6 +46,25 @@ LogicalResult LoadOp::canonicalize(LoadOp op, PatternRewriter &rewriter)
 }
 
 //===----------------------------------------------------------------------===//
+// CastOp
+//===----------------------------------------------------------------------===//
+
+bool CastOp::areCastCompatible(TypeRange inputs, TypeRange outputs)
+{
+    if (inputs.size() != 1 || outputs.size() != 1)
+        return false;
+    auto inType = dyn_cast_if_present<TileType>(inputs.front());
+    auto outType = dyn_cast_if_present<TileType>(outputs.front());
+    if (!inType || !outType || inType.getLoc() != outType.getLoc() || inType.getShape() != outType.getShape())
+        return false;
+    auto inElType = inType.getElementType();
+    auto outElType = outType.getElementType();
+    if (!inElType.isIntOrFloat() || !outElType.isIntOrFloat())
+        return false;
+    return true;
+}
+
+//===----------------------------------------------------------------------===//
 // AscTileDialect
 //===----------------------------------------------------------------------===//
 
