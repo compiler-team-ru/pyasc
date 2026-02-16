@@ -16,6 +16,7 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/Value.h"
+#include "mlir/Interfaces/LoopLikeInterface.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
 namespace mlir {
@@ -57,6 +58,13 @@ void recursiveVisit(Operation *op, int32_t bufId, VisitedOpsSet &visitedOps)
             insertGetRlsBuf(copyOp, ascendc::Pipe::PIPE_MTE3, bufId);
         } else if (direction == ascendc::CopyDirection::ubuf_ubuf) {
             insertGetRlsBuf(copyOp, ascendc::Pipe::PIPE_V, bufId);
+        }
+    }
+    if (auto loopOp = dyn_cast<LoopLikeOpInterface>(op)) {
+        for (auto *region : loopOp.getLoopRegions()) {
+            for (Operation &blockOp : region->getOps()) {
+                recursiveVisit(&blockOp, bufId, visitedOps);
+            }
         }
     }
     for (auto operand : op->getOperands()) {
