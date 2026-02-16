@@ -369,6 +369,8 @@ def synchronize_device() -> None:
 def c2c_ctrl_addr() -> int:
     if is_model():
         return 255086295400448  # magic value for camodel
+    if get_soc_version() in [config.Platform.Ascend910_9579, config.Platform.Ascend910_9599]:
+        return 0
     _lazy_init(need_stream=False)
     addr = (ctypes.c_uint64 * 8)()
     state.lib.call(
