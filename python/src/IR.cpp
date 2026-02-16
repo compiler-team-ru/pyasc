@@ -308,14 +308,13 @@ void bindMemref(py::module& m)
 
     m.def(
         "clone_shaped_type",
-        [](Type shapedType, const std::vector<int64_t>& shape) -> Type {
-            return cloneShapedType(shapedType, std::nullopt, shape);
-        },
-        "shaped_type"_a, "shape"_a);
-    m.def(
-        "clone_shaped_type",
         [](Type shapedType, Type elementType, const std::optional<std::vector<int64_t>>& shape) -> Type {
-            return cloneShapedType(shapedType, elementType, shape);
+            auto type = llvm::dyn_cast_if_present<ShapedType>(shapedType);
+            if (!type)
+                throw std::runtime_error("clone_shaped_type(): must be shaped type");
+            if (shape.has_value())
+                return type.cloneWith(*shape, elementType);
+            return type.cloneWith(std::nullopt, elementType);
         },
         "shaped_type"_a, "element_type"_a, "shape"_a = py::none());
 
@@ -378,6 +377,7 @@ void bindTensorType(py::module& m)
 void bindAscTileType(py::module& m)
 {
     using namespace pybind11::literals;
+
     m.def(
         "get_asctile_TensorType",
         [](std::vector<int64_t>& shape, Type& elementType) -> Type {
