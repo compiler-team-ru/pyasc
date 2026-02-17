@@ -125,4 +125,19 @@ def SelectOp : AscTile_Op<"select", [Pure, AllTypesMatch<["src0", "src1", "resul
   }];
 }
 
+class AscTile_ReduceAs1dOp<string mnemonic> : AscTile_Op<mnemonic, [
+  Pure,
+  TypesMatchWith<"type of 'value' matches element type of 'base'",
+                 "operand", "result",
+                 "::llvm::cast<ShapedType>($_self).getElementType()">,
+]> {
+  let arguments = (ins Tile:$operand);
+  let results = (outs AnyType:$result);
+  let assemblyFormat = "$operand attr-dict `:` qualified(type($operand))";
+}
+
+def ReduceSumAs1dOp : AscTile_ReduceAs1dOp<"reduce_sum_as_1d">;
+def ReduceMaxAs1dOp : AscTile_ReduceAs1dOp<"reduce_max_as_1d">;
+def ReduceMinAs1dOp : AscTile_ReduceAs1dOp<"reduce_min_as_1d">;
+
 #endif // ASCTILE_OPS_TD
