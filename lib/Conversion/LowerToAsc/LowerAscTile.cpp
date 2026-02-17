@@ -143,8 +143,7 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
             loc, ascendc::DataCopyPadExtParamsType::get(context, cast<ShapedType>(dstType).getElementType()),
             ValueRange{const1, const0, rightPad, padValue},
             rewriter.getTypeArrayAttr(
-                {rewriter.getI32Type(), rewriter.getI32Type(), rewriter.getIntegerType(8, false),
-                 rewriter.getI32Type()}));
+                {rewriter.getI32Type(), rewriter.getI32Type(), rewriter.getIntegerType(8, false), padValue.getType()}));
         rewriter.create<ascendc::DataCopyPadExtL0Op>(loc, dst, src, dataCopyExtParams, dataCopyPadExtParams);
         rewriter.replaceOp(op, dst);
         return success();

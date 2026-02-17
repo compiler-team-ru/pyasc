@@ -24,30 +24,6 @@ binary_ops = [
         (torch.float32, (torch.float32, torch.float32)),
         (torch.int32, (torch.int32, torch.int32)),
     ]),
-    (asc2.equal, torch.eq, [VV], [
-        (torch.int16, (torch.float32, torch.float32)),
-        (torch.int16, (torch.int32, torch.int32)),
-    ]),
-    (asc2.greater, torch.gt, [VV], [
-        (torch.int16, (torch.float32, torch.float32)),
-        (torch.int16, (torch.int32, torch.int32)),
-    ]),
-    (asc2.greater_equal, torch.ge, [VV], [
-        (torch.int16, (torch.float32, torch.float32)),
-        (torch.int16, (torch.int32, torch.int32)),
-    ]),
-    (asc2.less, torch.lt, [VV], [
-        (torch.int16, (torch.float32, torch.float32)),
-        (torch.int16, (torch.int32, torch.int32)),
-    ]),
-    (asc2.less_equal, torch.le, [VV], [
-        (torch.int16, (torch.float32, torch.float32)),
-        (torch.int16, (torch.int32, torch.int32)),
-    ]),
-    (asc2.not_equal, torch.ne, [VV], [
-        (torch.int16, (torch.float32, torch.float32)),
-        (torch.int16, (torch.int32, torch.int32)),
-    ]),
     (asc2.left_shift, torch.bitwise_left_shift, [VS], [
         (torch.int32, (torch.int32, torch.int32)),
     ]),
@@ -105,9 +81,6 @@ def test_binary_operations(asc_op, torch_op, fmt, dtypes):
                 res = int(2)
 
         return res
-
-    if asc_op in [asc2.equal, asc2.greater, asc2.greater_equal, asc2.less, asc2.less_equal, asc2.not_equal]:
-        pytest.skip(f"{asc_op} is not enabled")
 
     dtype_z, (dtype_x, dtype_y) = dtypes
     size = 32
