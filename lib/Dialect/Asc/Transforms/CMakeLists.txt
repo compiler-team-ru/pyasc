@@ -13,6 +13,7 @@ add_mlir_dialect_library(MLIRAscTransforms
   DetectEnableDebugPass.cpp
   DetectKernelTypePass.cpp
   EraseSync.cpp
+  FuseBufIdSync.cpp
   GenerateBoilerplatePass.cpp
   HoistQueBind.cpp
   HoistTensorAllocation.cpp

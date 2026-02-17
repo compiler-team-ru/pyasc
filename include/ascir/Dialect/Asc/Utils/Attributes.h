@@ -17,7 +17,9 @@ namespace ascendc {
 
 namespace attr {
 LITERAL aicore = "ascendc.aicore";
-LITERAL compilationArch = "asc.compilation_arch";
+LITERAL api = "ascendc.api";
+LITERAL bufId = "ascendc.buf_id";
+LITERAL compile_mix = "asc.compile_mix";
 LITERAL emitAsUnsigned = "ascendc.emit_as_unsigned";
 LITERAL global = "ascendc.global";
 LITERAL enableDebug = "asc.enable_debug";
