@@ -50,6 +50,7 @@ from asc.language.tile.unary_ops import (
     tan,
     tanh,
 )
+from asc.language.tile.indexing_ops import where
 
 from .jit import jit
 
@@ -95,6 +96,8 @@ __all__ = [
     "sqrt",
     "tan",
     "tanh",
+    # indexing_ops
+    "where",
     # .jit
     "jit",
 ]

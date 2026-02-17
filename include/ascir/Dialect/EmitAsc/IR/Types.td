@@ -19,6 +19,13 @@ class EmitAsc_Type<string name, string typeMnemonic, list<Trait> traits = []>
   let mnemonic = typeMnemonic;
 }
 
+def EmitAsc_Mask : EmitAsc_Type<"Mask", "mask"> {
+  let description = "Represents 2-element array with high and low mask";
+  let extraClassDeclaration = [{
+    IntegerType getValueType() { return IntegerType::get(getContext(), 64U); }
+  }];
+}
+
 def PyStruct : EmitAsc_Type<"PyStruct", "py_struct", [MemRefElementTypeInterface]> {
   let parameters = (ins "StringAttr":$nameAttr, "ArrayAttr":$typesAttr, "ArrayAttr":$namesAttr);
   let assemblyFormat = [{  `<` $nameAttr `,` $typesAttr `,` $namesAttr `>` }];

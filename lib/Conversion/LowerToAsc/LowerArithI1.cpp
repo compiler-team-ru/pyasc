@@ -11,6 +11,7 @@
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Conversion/LowerToAsc/Passes.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
+#include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
@@ -33,7 +34,7 @@ namespace {
 struct LoweringConversionTarget : public ConversionTarget {
     LoweringConversionTarget(TensorTypeConverter& converter, MLIRContext* context) : ConversionTarget(*context)
     {
-        addLegalDialect<ascendc::AscendCDialect, arith::ArithDialect>();
+        addLegalDialect<ascendc::AscendCDialect, arith::ArithDialect, emitasc::EmitAscDialect>();
         addDynamicallyLegalOp<arith::SelectOp, arith::CmpFOp, arith::CmpIOp>(
             [&](Operation* op) { return converter.isLegal(op); });
         addLegalOp<arith::ConstantOp, arith::ExtUIOp, UnrealizedConversionCastOp>();
@@ -130,7 +131,15 @@ struct ConvertCmpI : public ConvertOp<arith::CmpIOp> {
         default:
             llvm_unreachable("Unexpected predicate type!");
         }
-        rewriter.create<ascendc::CompareL2Op>(loc, dst, src0, src1, cmpMode, consts.i64(srcNumElems));
+        auto [maskH, maskL] = getMask(srcVecTy);
+        auto mask = rewriter.create<emitasc::MaskOp>(loc, consts.i64(maskH), consts.i64(maskL));
+        auto repeatParams = rewriter.create<ascendc::ConstructOp>(
+            loc, rewriter.getType<ascendc::BinaryRepeatParamsType>(),
+            ValueRange{
+                consts.i64(dstBlkStride), consts.i64(src0BlkStride), consts.i64(src1BlkStride),
+                consts.i64(dstRepStride), consts.i64(src0RepStride), consts.i64(src1RepStride)});
+        rewriter.create<ascendc::CompareL0Op>(
+            loc, dst, src0, src1, cmpMode, mask, consts.i64(getRepeatTimes(srcVecTy)), repeatParams);
         rewriter.replaceOp(op, dst);
         return success();
     }
@@ -181,7 +190,16 @@ struct ConvertCmpF : public ConvertOp<arith::CmpFOp> {
         default:
             llvm_unreachable("Unexpected predicate type!");
         }
-        rewriter.create<ascendc::CompareL2Op>(loc, dst, src0, src1, cmpMode, consts.i64(srcNumElems));
+
+        auto [maskH, maskL] = getMask(srcVecTy);
+        auto mask = rewriter.create<emitasc::MaskOp>(loc, consts.i64(maskH), consts.i64(maskL));
+        auto repeatParams = rewriter.create<ascendc::ConstructOp>(
+            loc, rewriter.getType<ascendc::BinaryRepeatParamsType>(),
+            ValueRange{
+                consts.i64(dstBlkStride), consts.i64(src0BlkStride), consts.i64(src1BlkStride),
+                consts.i64(dstRepStride), consts.i64(src0RepStride), consts.i64(src1RepStride)});
+        rewriter.create<ascendc::CompareL0Op>(
+            loc, dst, src0, src1, cmpMode, mask, consts.i64(getRepeatTimes(srcVecTy)), repeatParams);
         rewriter.replaceOp(op, dst);
         return success();
     }

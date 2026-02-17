@@ -29,6 +29,8 @@ LogicalResult printOperation(CodeEmitter& emitter, emitasc::DeclarePyStructOp op
 
 LogicalResult printOperation(CodeEmitter& emitter, emitasc::DereferenceOp op);
 
+LogicalResult printOperation(CodeEmitter& emitter, emitasc::MaskOp op);
+
 LogicalResult printOperation(CodeEmitter& emitter, emitasc::MemberOp op);
 
 LogicalResult printOperation(CodeEmitter& emitter, emitasc::MemberPtrOp op);
