@@ -61,6 +61,14 @@ Value linearizeOffset(OpBuilder &builder, Location loc, SmallVector<Value> tenso
     return linearOffset;
 }
 
+unsigned int calculateFinalTensorSize(const unsigned int &typeSize, int64_t calCount) {
+    unsigned int repeatBlockSize = 256;
+    unsigned int elementsPerBlock = 32 / typeSize;
+    unsigned int elementsPerRepeat = repeatBlockSize / typeSize;
+    unsigned int firstMaxRepeat = calCount / elementsPerRepeat;
+    return llvm::divideCeilSigned(firstMaxRepeat, elementsPerBlock) * elementsPerBlock;
+}
+
 struct LoweringConversionTarget : public ConversionTarget {
     LoweringConversionTarget(TensorTypeConverter &converter, MLIRContext *context) : ConversionTarget(*context)
     {
@@ -286,6 +294,31 @@ struct ConvertToL2 : ConvertOp<TileOp> {
     }
 };
 
+template <typename TileOp, typename L2Op>
+struct ConvertReduce : ConvertOp<TileOp> {
+    using ConvertOp<TileOp>::ConvertOp;
+    using ConvertOp<TileOp>::createTensorOp;
+    using ConvertOp<TileOp>::calCount;
+
+    LogicalResult convert(TileOp op, ConvertRewriter &rewriter) const override
+    {
+        unsigned int typeSize = op.getType().getIntOrFloatBitWidth() / CHAR_BIT;
+        unsigned int finalSize = calculateFinalTensorSize(typeSize, calCount(op.getOperand()));
+        ascir::ConstantOpBuilder consts(rewriter);
+        Location loc = op.getLoc();
+        Value dst = createTensorOp(rewriter, loc, static_cast<int64_t>(typeSize), op.getType());
+        Value src = rewriter.getRemappedValue(op.getOperand());
+
+        Value tmpBuff = createTensorOp(rewriter, loc, static_cast<int64_t>(finalSize), op.getType());
+        if constexpr (std::is_same_v<L2Op, ascendc::ReduceSumL2Op>)
+            rewriter.create<L2Op>(loc, dst, src, tmpBuff, consts.i64(calCount(op.getOperand())));
+        else
+            rewriter.create<L2Op>(loc, dst, src, tmpBuff, consts.i64(calCount(op.getOperand())), consts.i64(0));
+        rewriter.replaceOpWithNewOp<ascendc::LocalTensorGetValueOp>(op, op.getType(), dst, consts.i64(0));
+        return success();
+    }
+};
+
 struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePass> {
     void runOnOperation() override
     {
@@ -298,7 +331,10 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
             //
             ConvertTensor, ConvertLoad, ConvertStore, ConvertSplat, ConvertRelu, ConvertCast, ConvertSelect,
             ConvertToL2<asctile::AddsOp, ascendc::AddsL2Op>, ConvertToL2<asctile::MulsOp, ascendc::MulsL2Op>,
-            ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>, ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>
+            ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>, ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>,
+            ConvertReduce<asctile::ReduceSumAs1dOp, ascendc::ReduceSumL2Op>,
+            ConvertReduce<asctile::ReduceMaxAs1dOp, ascendc::ReduceMaxL2Op>,
+            ConvertReduce<asctile::ReduceMinAs1dOp, ascendc::ReduceMinL2Op>
             //
             >(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())
