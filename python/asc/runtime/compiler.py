@@ -166,7 +166,9 @@ class Compiler:
             if self.platform != CompilePlatform.Ascend910_95:
                 passes.ascendc.add_insert_sync(pm)
             else:
-                passes.ascendc.add_insert_bufid_sync(pm)    
+                passes.ascendc.add_insert_bufid_sync(pm)
+                passes.common.add_canonicalizer(pm)
+                passes.ascendc.add_fuse_bufid_sync(pm) 
             passes.ascendc.add_unify_pipe(pm)
             passes.common.add_canonicalizer(pm)
 

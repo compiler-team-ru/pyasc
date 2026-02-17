@@ -41,6 +41,11 @@ def EraseSync : Pass<"ascendc-erase-sync", "func::FuncOp"> {
   let constructor = "mlir::ascendc::createEraseSyncPass()";
 }
 
+def FuseBufIdSync : Pass<"ascendc-fuse-bufid-sync", "func::FuncOp"> {
+  let summary = "Erase unnecessary get_buf and rls_buf";
+  let constructor = "mlir::ascendc::createFuseBufIdSyncPass()";
+}
+
 def GenerateBoilerplate : Pass<"ascendc-generate-boilerplate", "ModuleOp"> {
   let summary = "Insert emitc.include and additional boilerplate code";
   let constructor = "mlir::ascendc::createGenerateBoilerplatePass()";

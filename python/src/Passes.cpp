@@ -96,6 +96,7 @@ void defineAscendCPasses(py::module &mod)
     DEFINE_ADD_PASS("add_declare_py_struct", createDeclarePyStructPass);
     DEFINE_ADD_PASS("add_define_cube_only", createDefineCubeOnlyPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_erase_sync", createEraseSyncPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_fuse_bufid_sync", createFuseBufIdSyncPass);
     DEFINE_ADD_PASS("add_generate_boilerplate", createGenerateBoilerplatePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_hoist_que_bind", createHoistQueBindPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_hoist_ub_allocation", createHoistUBAllocationPass);

@@ -12,6 +12,7 @@ add_mlir_dialect_library(MLIRAscTransforms
   DefineCubeOnlyPass.cpp
   DetectKernelTypePass.cpp
   EraseSync.cpp
+  FuseBufIdSync.cpp
   GenerateBoilerplatePass.cpp
   HoistQueBind.cpp
   HoistUBAllocation.cpp

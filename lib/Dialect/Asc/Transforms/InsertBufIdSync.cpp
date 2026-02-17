@@ -10,14 +10,12 @@
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
+#include "ascir/Dialect/Asc/Utils/Attributes.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Builders.h"
-#include "mlir/IR/PatternMatch.h"
-#include "mlir/IR/Value.h"
 #include "mlir/Interfaces/LoopLikeInterface.h"
-#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
 namespace mlir {
 namespace ascendc {
@@ -31,6 +29,7 @@ using namespace mlir;
 namespace {
 
 using VisitedOpsSet = std::set<std::pair<Operation *, int32_t>>;
+using VisitedBufIdMap = DenseMap<Operation *, SmallVector<int32_t>>;
 
 void insertGetRlsBuf(Operation *op, ascendc::Pipe pipe, int32_t bufId)
 {
@@ -41,7 +40,7 @@ void insertGetRlsBuf(Operation *op, ascendc::Pipe pipe, int32_t bufId)
     builder.create<ascendc::RlsBufOp>(op->getLoc(), pipe, consts.i32(bufId), false);
 }
 
-void recursiveVisit(Operation *op, int32_t bufId, VisitedOpsSet &visitedOps)
+void recursiveVisit(Operation *op, int32_t bufId, VisitedOpsSet &visitedOps, VisitedBufIdMap &bufIdMap)
 {
     if (!op)
         return;
@@ -49,8 +48,10 @@ void recursiveVisit(Operation *op, int32_t bufId, VisitedOpsSet &visitedOps)
         return;
     visitedOps.insert({op, bufId});
     if (auto vecOp = dyn_cast<ascendc::VectorOp>(op)) {
+        bufIdMap[vecOp].push_back(bufId);
         insertGetRlsBuf(vecOp, ascendc::Pipe::PIPE_V, bufId);
     } else if (auto copyOp = dyn_cast<ascendc::DataCopyOp>(op)) {
+        bufIdMap[copyOp].push_back(bufId);
         auto direction = copyOp.getDirection();
         if (direction == ascendc::CopyDirection::gm_ubuf) {
             insertGetRlsBuf(copyOp, ascendc::Pipe::PIPE_MTE2, bufId);
@@ -63,7 +64,7 @@ void recursiveVisit(Operation *op, int32_t bufId, VisitedOpsSet &visitedOps)
     if (auto loopOp = dyn_cast<LoopLikeOpInterface>(op)) {
         for (auto *region : loopOp.getLoopRegions()) {
             for (Operation &blockOp : region->getOps()) {
-                recursiveVisit(&blockOp, bufId, visitedOps);
+                recursiveVisit(&blockOp, bufId, visitedOps, bufIdMap);
             }
         }
     }
@@ -71,24 +72,24 @@ void recursiveVisit(Operation *op, int32_t bufId, VisitedOpsSet &visitedOps)
         if (!isa<ascendc::LocalTensorType>(operand.getType()))
             continue;
         for (auto *user : operand.getUsers()) {
-            recursiveVisit(user, bufId, visitedOps);
+            recursiveVisit(user, bufId, visitedOps, bufIdMap);
         }
-        recursiveVisit(operand.getDefiningOp(), bufId, visitedOps);
+        recursiveVisit(operand.getDefiningOp(), bufId, visitedOps, bufIdMap);
     }
 }
 
-void syncOperations(Region &region, VisitedOpsSet &visitedOps, int32_t &bufId)
+void syncOperations(Region &region, VisitedOpsSet &visitedOps, int32_t &bufId, VisitedBufIdMap &bufIdMap)
 {
     for (Block &block : region) {
         for (Operation &op : llvm::make_early_inc_range(block)) {
             for (Region &inner : op.getRegions()) {
-                syncOperations(inner, visitedOps, bufId);
+                syncOperations(inner, visitedOps, bufId, bufIdMap);
             }
             auto copyOp = dyn_cast<ascendc::DataCopyOp>(op);
             if (!copyOp || copyOp.getDirection() == ascendc::CopyDirection::gm_ubuf ||
                 copyOp.getDirection() == ascendc::CopyDirection::ubuf_ubuf)
                 continue;
-            recursiveVisit(copyOp, bufId, visitedOps);
+            recursiveVisit(copyOp, bufId, visitedOps, bufIdMap);
             bufId++;
         }
     }
@@ -102,10 +103,14 @@ class InsertBufIdSyncPass : public ascendc::impl::InsertBufIdSyncBase<InsertBufI
             return;
         }
         MLIRContext *context = &getContext();
-        RewritePatternSet patterns(context);
         VisitedOpsSet visitedOps;
+        VisitedBufIdMap bufIdMap;
         int32_t bufId = 0;
-        syncOperations(funcOp.getRegion(), visitedOps, bufId);
+        syncOperations(funcOp.getRegion(), visitedOps, bufId, bufIdMap);
+        for (auto &[op, bufIdVec] : bufIdMap) {
+            OpBuilder builder(op);
+            op->setAttr(ascendc::attr::bufId, builder.getI32ArrayAttr(bufIdVec));
+        }
     }
 };
 } // namespace
