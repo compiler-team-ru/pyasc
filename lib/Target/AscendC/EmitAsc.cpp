@@ -61,6 +61,16 @@ LogicalResult mlir::emitasc::printOperation(CodeEmitter &emitter, emitasc::Deref
     return success();
 }
 
+LogicalResult mlir::emitasc::printOperation(CodeEmitter &emitter, emitasc::MaskOp op)
+{
+    // Mask in AscendC: [maskL, maskH]
+    auto &os = emitter.ostream();
+    os << "uint64_t " << emitter.getOrCreateName(op.getResult()) << "[2] = {static_cast<uint64_t>("
+       << emitter.getOrCreateName(op.getMaskL()) << "), static_cast<uint64_t>("
+       << emitter.getOrCreateName(op.getMaskH()) << ")}";
+    return success();
+}
+
 LogicalResult mlir::emitasc::printOperation(CodeEmitter &emitter, emitasc::MemberOp op)
 {
     auto &os = emitter.ostream();

@@ -58,6 +58,18 @@ def EmitAsc_DereferenceOp : EmitAsc_Op<"dereference", [Pure]> {
   let assemblyFormat = "$base attr-dict `:` type($base) `,` type($result)";
 }
 
+def EmitAsc_MaskOp : EmitAsc_Op<"mask", [Pure]> {
+  let summary = "Creates a mask in bit-by-bit mode (pair of 64-bit integers)";
+  let arguments = (ins I64 : $maskH, I64 : $maskL);
+  let results = (outs EmitAsc_Mask : $mask);
+  let assemblyFormat = "$maskH `,` $maskL attr-dict";
+  let builders = [
+    OpBuilder<(ins "Value":$maskH, "Value":$maskL), [{
+      build($_builder, $_state, MaskType::get($_builder.getContext()), maskH, maskL);
+    }]>,
+  ];
+}
+
 def EmitAsc_MemberOp : EmitAsc_Op<"member"> {
   let arguments = (ins AnyType:$base, StrAttr:$field);
   let results = (outs AnyType:$result);

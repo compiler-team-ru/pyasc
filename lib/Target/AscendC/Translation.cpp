@@ -94,9 +94,9 @@ using PrintableOpTypes = std::tuple<
     math::AbsFOp, math::CopySignOp, math::SqrtOp, math::Atan2Op, math::ExpOp, math::LogOp, math::Log2Op, math::ErfOp,
     math::CosOp, math::SinOp, math::CeilOp, math::FloorOp, math::RsqrtOp, math::Exp2Op, math::FmaOp, math::RoundOp,
     // EmitAsc operations
-    emitasc::CallOpaqueOp, emitasc::DeclarePyStructOp, emitasc::DereferenceOp, emitasc::MemberOp, emitasc::MemberPtrOp,
-    emitasc::MemberRefOp, emitasc::PtrOffsetOp, emitasc::ReinterpretCastOp, emitasc::SetMemberOp, emitasc::VariableOp,
-    emitasc::VerbatimOp, emitasc::CopyStructOp,
+    emitasc::CallOpaqueOp, emitasc::DeclarePyStructOp, emitasc::DereferenceOp, emitasc::MaskOp, emitasc::MemberOp,
+    emitasc::MemberPtrOp, emitasc::MemberRefOp, emitasc::PtrOffsetOp, emitasc::ReinterpretCastOp, emitasc::SetMemberOp,
+    emitasc::VariableOp, emitasc::VerbatimOp, emitasc::CopyStructOp,
 
     // Adv
     // Activation operations

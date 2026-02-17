@@ -12,6 +12,7 @@
 #include "ascir/Conversion/LowerToAsc/Passes.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
+#include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -64,7 +65,7 @@ struct LoweringConversionTarget : public ConversionTarget {
     LoweringConversionTarget(TensorTypeConverter &converter, MLIRContext *context) : ConversionTarget(*context)
     {
         addIllegalDialect<asctile::AscTileDialect>();
-        addLegalDialect<ascendc::AscendCDialect, arith::ArithDialect>();
+        addLegalDialect<ascendc::AscendCDialect, arith::ArithDialect, emitasc::EmitAscDialect>();
         addLegalOp<UnrealizedConversionCastOp>();
     }
 };
@@ -239,6 +240,33 @@ struct ConvertCast : ConvertOp<asctile::CastOp> {
     }
 };
 
+struct ConvertSelect : ConvertOp<asctile::SelectOp> {
+    using ConvertOp<asctile::SelectOp>::ConvertOp;
+    using ConvertOp<asctile::SelectOp>::createTensorOp;
+
+    LogicalResult convert(asctile::SelectOp op, ConvertRewriter &rewriter) const override
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto loc = op.getLoc();
+        auto dst = createTensorOp(rewriter, loc, op.getType());
+        auto selMask = rewriter.getRemappedValue(op.getSelMask());
+        auto src0 = rewriter.getRemappedValue(op.getSrc0());
+        auto src1 = rewriter.getRemappedValue(op.getSrc1());
+        auto selMode = ascendc::SELMODE::VSEL_TENSOR_TENSOR_MODE;
+        auto srcVecType = dyn_cast<ShapedType>(op.getSrc0().getType());
+        auto [maskH, maskL] = getMask(srcVecType);
+        auto mask = rewriter.create<emitasc::MaskOp>(loc, consts.i64(maskH), consts.i64(maskL));
+        auto repeatTimes = consts.i64(getRepeatTimes(srcVecType));
+        auto repeatParams = rewriter.create<ascendc::ConstructOp>(
+            loc, rewriter.getType<ascendc::BinaryRepeatParamsType>(),
+            ValueRange {consts.i64(dstBlkStride), consts.i64(src0BlkStride), consts.i64(src1BlkStride),
+                        consts.i64(dstRepStride), consts.i64(src0RepStride), consts.i64(src1RepStride)});
+        rewriter.create<ascendc::SelectL0Op>(loc, dst, selMask, src0, src1, selMode, mask, repeatTimes, repeatParams);
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
 template <typename TileOp, typename L2Op>
 struct ConvertToL2 : ConvertOp<TileOp> {
     using ConvertOp<TileOp>::ConvertOp;
@@ -268,7 +296,7 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         RewritePatternSet patterns(context);
         patterns.insert<
             //
-            ConvertTensor, ConvertLoad, ConvertStore, ConvertSplat, ConvertRelu, ConvertCast,
+            ConvertTensor, ConvertLoad, ConvertStore, ConvertSplat, ConvertRelu, ConvertCast, ConvertSelect,
             ConvertToL2<asctile::AddsOp, ascendc::AddsL2Op>, ConvertToL2<asctile::MulsOp, ascendc::MulsL2Op>,
             ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>, ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>
             //
