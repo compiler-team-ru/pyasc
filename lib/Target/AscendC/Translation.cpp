@@ -110,8 +110,8 @@ using PrintableOpTypes = std::tuple<
     // EmitAsc operations
     emitasc::CallOpaqueOp, emitasc::DeclarePyStructOp, emitasc::DereferenceOp, emitasc::MaskOp, emitasc::MemberOp,
     emitasc::MemberPtrOp, emitasc::MemberRefOp, emitasc::PtrOffsetOp, emitasc::ReinterpretCastOp, emitasc::SetMemberOp,
-    emitasc::VariableOp, emitasc::VerbatimOp, emitasc::CopyStructOp, emitasc::InitStructOp, emitasc::VecScopeOp,
-    emitasc::VFForOp, emitasc::YieldOp,
+    emitasc::VariableOp, emitasc::VerbatimOp, emitasc::CopyStructOp,
+
     // Adv
     // Activation operations
     ascendc::SimpleSoftMaxOp, ascendc::SoftMaxOp, ascendc::SoftmaxFlashV2Op, ascendc::SwiGLUOp,

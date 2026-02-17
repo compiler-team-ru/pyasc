@@ -116,4 +116,13 @@ def CastOp : AscTile_Op<"cast", [
   }];
 }
 
+def SelectOp : AscTile_Op<"select", [Pure, AllTypesMatch<["src0", "src1", "result"]>]> {
+  let arguments = (ins Tile:$selMask, Tile:$src0, Tile:$src1);
+  let results = (outs Tile:$result);
+  let assemblyFormat = [{
+    $selMask `,` $src0 `,` $src1 `,` attr-dict `:` qualified(type($selMask)) `,`
+    qualified(type($result))
+  }];
+}
+
 #endif // ASCTILE_OPS_TD
