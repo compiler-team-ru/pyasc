@@ -52,6 +52,12 @@ from asc.language.tile.unary_ops import (
 )
 from asc.language.tile.indexing_ops import where
 
+from asc.language.tile.reduction_ops import (
+    reduce_sum,
+    reduce_max,
+    reduce_min
+)
+
 from .jit import jit
 
 __all__ = [
@@ -98,6 +104,10 @@ __all__ = [
     "tanh",
     # indexing_ops
     "where",
+    # reduction
+    "reduce_sum",
+    "reduce_max",
+    "reduce_min",
     # .jit
     "jit",
 ]
