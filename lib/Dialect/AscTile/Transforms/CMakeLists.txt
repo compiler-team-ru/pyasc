@@ -24,4 +24,5 @@ add_mlir_dialect_library(MLIRAscTileTransforms
   MLIRIR
   MLIRPass
   MLIRAscTile
+  MLIRAscUtils
 )
