@@ -7,13 +7,13 @@
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-#ifndef ASCENDC_DOC_TD
-#define ASCENDC_DOC_TD
+#ifndef ASCTILE_DOC_TD
+#define ASCTILE_DOC_TD
 
 include "Dialect.td"
 
-include "Base.td"
-include "Interfaces.td"
+include "Attributes.td"
 include "Ops.td"
+include "Types.td"
 
-#endif // ASCENDC_DOC_TD
+#endif // ASCTILE_DOC_TD
