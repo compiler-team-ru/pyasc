@@ -362,7 +362,7 @@ extras_require = {
     ],
     "docs": [
         "myst-parser==4.0.0",
-        "Sphinx==8.2.3",
+        "Sphinx",
         "sphinx-rtd-theme==3.0.2",
         "sphinx-markdown-builder==0.6.8",
     ],
