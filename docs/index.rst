@@ -11,9 +11,19 @@ Python API
 
 .. toctree::
    :maxdepth: 1
+   :caption: Python API
 
    python-api/rst/language/adv
    python-api/rst/language/basic
    python-api/rst/language/core
    python-api/rst/language/fwk
+   python-api/rst/language/tile
    python-api/rst/lib/host
+
+
+.. toctree::
+   :maxdepth: 1
+   :caption: MLIR
+
+   mlir/dialects/index
+   mlir/passes/index

@@ -28,8 +28,7 @@ def render_toc(src_file, dst_file, heading_levels):
     content = []
     read_content = False
     with open(src_file) as f:
-        line = f.readline()
-        while line:
+        while line := f.readline():
             if "[TOC]" in line:
                 read_content = True
                 continue
@@ -37,7 +36,6 @@ def render_toc(src_file, dst_file, heading_levels):
                 content.append(line)
             else:
                 preamble.append(line)
-            line = f.readline()
     toc = []
     re_heading = re.compile(r"^(#+) (.+)$")
     re_anchor = re.compile(r"[^0-9a-zA-Z]+")
@@ -68,6 +66,7 @@ def setup_generated_mlir_docs():
 
     dialects_docs = [
         ("Dialects/AscendC.md", "ascendc.md"),
+        ("Dialects/AscTile.md", "asctile.md"),
         ("Dialects/EmitAsc.md", "emitasc.md"),
     ]
     mlir_docs_dir = Path("mlir")
@@ -76,6 +75,8 @@ def setup_generated_mlir_docs():
 
     passes_docs = [
         ("AscendCPasses.md", "ascendc.md", "AscendC"),
+        ("AscTilePasses.md", "asctile.md", "AscTile"),
+        ("LowerToAsc.md", "lowertoasc.md", "LowerToAsc"),
     ]
     for src_md, dst_md, title in passes_docs:
         # Add top-level heading, TOC, and descrease other headings level by 1
@@ -126,7 +127,7 @@ extensions = [
 ]
 autosummary_generate = True
 templates_path = ['_templates']
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'development', 'installation', 'mlir']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 napoleon_preprocess_types = True
 
 # -- Options for HTML output -------------------------------------------------
@@ -145,3 +146,4 @@ suppress_warnings = [
 
 def setup(app):
     app.connect("autodoc-process-signature", autodoc_process_signature, process_docstring)
+    setup_generated_mlir_docs()
