@@ -134,6 +134,7 @@ class Compiler:
             passes.common.add_canonicalizer(pm)
             passes.common.add_cse(pm)
             passes.asctile.add_promote_pure_operations(pm)
+            passes.common.add_canonicalizer(pm)
             passes.asctile.add_densify_unroll_groups(pm)
             passes.asctile.add_transform_math_ops(pm)
             passes.asclower.add_expand_math(pm)
@@ -168,7 +169,7 @@ class Compiler:
             else:
                 passes.ascendc.add_insert_bufid_sync(pm)
                 passes.common.add_canonicalizer(pm)
-                passes.ascendc.add_fuse_bufid_sync(pm) 
+                passes.ascendc.add_fuse_bufid_sync(pm)
             passes.ascendc.add_unify_pipe(pm)
             passes.common.add_canonicalizer(pm)
 

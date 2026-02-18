@@ -9,9 +9,10 @@
  */
 
 #include "ascir/Dialect/AscTile/Transforms/Passes.h"
+#include "ascir/Dialect/Asc/Utils/Utils.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/IR/Dominance.h"
 
 namespace mlir {
 namespace asctile {
@@ -26,41 +27,38 @@ using namespace mlir::asctile;
 namespace {
 
 class Promoter {
+    DominanceInfo dom;
+
     static bool canPromote(Operation *op) { return isPure(op) && !op->mightHaveTrait<OpTrait::IsTerminator>(); }
 
-    // If any of the operands is defined within the same block as op then op can
-    // be moved immediately after the last one of them. Otherwise, op can be moved
-    // to the beginning of its parent block.
-    void promote(Operation *op)
+    void promote(Operation *op, Block &block)
     {
-        Block *block = op->getBlock();
-        SmallVector<Value> opndInBlock;
-        llvm::copy_if(op->getOperands(), std::back_inserter(opndInBlock),
-                      [block](Value operand) { return operand.getDefiningOp() && block == operand.getParentBlock(); });
-        if (opndInBlock.empty()) {
-            auto &frontOp = *block->begin();
-            op->moveBefore(&frontOp);
-            return;
+        for (auto &prevOp : llvm::make_range(block.begin(), Block::iterator(op))) {
+            if (llvm::all_of(op->getOperands(), [this, &prevOp](Value opnd) {
+                    if (auto *defOp = opnd.getDefiningOp())
+                        return ascendc::opPrecedes(defOp, &prevOp, dom);
+                    return dom.dominates(opnd, &prevOp);
+                }))
+            {
+                op->moveBefore(&prevOp);
+                return;
+            }
         }
-        auto *lastOp = llvm::max_element(opndInBlock, [](const Value &lhs, const Value &rhs) {
-                           return lhs.getDefiningOp()->isBeforeInBlock(rhs.getDefiningOp());
-                       })->getDefiningOp();
-        op->moveAfter(lastOp);
     }
 
   public:
     Promoter() = default;
     ~Promoter() = default;
 
-    void runWithinBlock(Block *block)
+    void runWithinBlock(Block &block)
     {
         SmallVector<Operation *> ops;
-        for (auto &op : *block) {
+        for (auto &op : block) {
             if (canPromote(&op))
                 ops.push_back(&op);
         }
         for (auto *op : ops)
-            promote(op);
+            promote(op, block);
     }
 };
 
@@ -69,7 +67,7 @@ struct PromotePureOpsPass : public asctile::impl::PromotePureOpsBase<PromotePure
     {
         auto op = getOperation();
         Promoter promoter;
-        op.walk([&](scf::ForOp op) { promoter.runWithinBlock(op.getBody()); });
+        op.walk([&](Block *block) { promoter.runWithinBlock(*block); });
     }
 };
 
