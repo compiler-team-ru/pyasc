@@ -117,6 +117,9 @@ void bindEnums(py::module& m)
 {
     using ret = py::return_value_policy;
 
+    m.attr("dynshape") = py::int_(ShapedType::kDynamic);
+    m.attr("ub_block_size") = py::int_(ascendc::ubBlockSize);
+
     py::enum_<ascendc::AddressSpace>(m, "AddressSpace", py::module_local())
         .value("ca", ascendc::AddressSpace::ca)
         .value("cb", ascendc::AddressSpace::cb)
