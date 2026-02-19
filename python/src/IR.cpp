@@ -217,6 +217,13 @@ void bindEnums(py::module& m)
         .value("FIX", asctile::TileLocation::FIX)
         .def_static(
             "symbolize", [](int32_t loc) -> asctile::TileLocation { return static_cast<asctile::TileLocation>(loc); });
+
+    py::enum_<asctile::AtomicKind>(m, "AtomicKind", py::module_local())
+        .value("Add", asctile::AtomicKind::Add)
+        .value("Max", asctile::AtomicKind::Max)
+        .value("Min", asctile::AtomicKind::Min)
+        .def_static(
+            "symbolize", [](int32_t kind) -> asctile::AtomicKind { return static_cast<asctile::AtomicKind>(kind); });
 }
 
 void bindContextAndDialect(py::module& m)

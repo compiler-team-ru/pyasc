@@ -34,4 +34,13 @@ def AscTile_TileLocationAttr : I32EnumAttr<"TileLocation", "tile location", [
   let description = "Tile memory location";
 }
 
+def AscTile_AtomicKindAttr : I32EnumAttr<"AtomicKind", "kind of atomic", [
+  I32EnumAttrCase<"Add", 0>,
+  I32EnumAttrCase<"Max", 1>,
+  I32EnumAttrCase<"Min", 2>,
+]> {
+  let cppNamespace = "::mlir::asctile";
+  let description = "Kind of atomic operation";
+}
+
 #endif // ASCTILE_ATTRIBUTES_TD
