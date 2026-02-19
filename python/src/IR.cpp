@@ -97,6 +97,7 @@ void pyasc_bind_enums(py::module& m)
     using namespace pybind11::literals;
 
     m.attr("dynshape") = py::int_(ShapedType::kDynamic);
+    m.attr("ub_block_size") = py::int_(ascendc::ubBlockSize);
 
     py::enum_<ascendc::AddressSpace>(m, "AddressSpace", py::module_local())
         .value("ca", ascendc::AddressSpace::ca)
