@@ -21,6 +21,10 @@
 namespace mlir {
 namespace ascendc {
 
+constexpr unsigned ubBlockSize = 32;      // In bytes
+constexpr unsigned repeatBlockSize = 256; // In bytes
+constexpr unsigned bitmaskSize = 64;
+
 template <typename OpT>
 struct HoistOpPattern : public OpRewritePattern<OpT> {
     using OpRewritePattern<OpT>::OpRewritePattern;
@@ -46,8 +50,6 @@ struct HoistOpPattern : public OpRewritePattern<OpT> {
 };
 
 int64_t getTypeSize(Type type);
-
-int64_t getTypeSizeCubeBlockAlign(ShapedType type, TPosition position);
 
 int64_t getElementTypeSize(ShapedType type);
 
