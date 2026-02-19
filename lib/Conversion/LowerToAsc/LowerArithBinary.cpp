@@ -99,7 +99,7 @@ struct ConvertBitwiseToL3 : public ConvertOp<ArithOp> {
         needCast &= !cast<ShapedType>(dst.getType()).getElementType().isInteger(16);
         if (needCast) {
             SmallVector<int64_t> newShape(shapedTy.getShape());
-            newShape[0] *= shapedTy.getElementType().getIntOrFloatBitWidth();
+            newShape[0] *= shapedTy.getElementTypeBitWidth();
             newShape[0] /= supportedElemTy.getIntOrFloatBitWidth();
             src0 = createReCastOp(rewriter, loc, src0, newShape, supportedElemTy);
             src1 = createReCastOp(rewriter, loc, src1, newShape, supportedElemTy);
@@ -139,7 +139,7 @@ struct ConvertBitwiseToL2 : public ConvertOp<ArithOp> {
         if (needCast) {
             Type supportedElemTy = rewriter.getI16Type();
             SmallVector<int64_t> newShape(shapedTy.getShape());
-            newShape[0] *= shapedTy.getElementType().getIntOrFloatBitWidth();
+            newShape[0] *= shapedTy.getElementTypeBitWidth();
             newShape[0] /= supportedElemTy.getIntOrFloatBitWidth();
             src0 = createReCastOp(rewriter, loc, src0, newShape, supportedElemTy);
             src1 = createReCastOp(rewriter, loc, src1, newShape, supportedElemTy);

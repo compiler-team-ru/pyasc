@@ -9,6 +9,7 @@
 #define LIB_CONVERSION_LOWERTOASC_COMMON_H
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
+#include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 
 #include "mlir/IR/BuiltinAttributes.h"
@@ -17,14 +18,10 @@
 #include "mlir/Transforms/DialectConversion.h"
 
 #include <optional>
-#include <numeric>
 
 namespace mlir {
 namespace asclower {
 
-constexpr unsigned ubBlockSize = 32;      // In bytes
-constexpr unsigned repeatBlockSize = 256; // In bytes
-constexpr unsigned bitmaskSize = 64;
 constexpr int64_t dstBlkStride = 1;
 constexpr int64_t src0BlkStride = 1;
 constexpr int64_t src1BlkStride = 1;
@@ -32,21 +29,19 @@ constexpr int64_t dstRepStride = 8;
 constexpr int64_t src0RepStride = 8;
 constexpr int64_t src1RepStride = 8;
 
-inline int64_t getRepeatTimes(const ShapedType& type)
+inline int64_t getRepeatTimes(ShapedType type)
 {
-    auto sizeType = type.getElementType().getIntOrFloatBitWidth() / CHAR_BIT;
-    if (sizeType != 2 && sizeType != 4)
-        assert("Unsupported element type");
-    auto numElemsPerRepeat = repeatBlockSize / sizeType;
+    auto sizeType = ascendc::getElementTypeSize(type);
+    assert((sizeType == 2 || sizeType == 4) && "Unsupported element type");
+    auto numElemsPerRepeat = ascendc::repeatBlockSize / sizeType;
     return llvm::divideCeil(type.getNumElements(), numElemsPerRepeat);
 }
 
-inline std::pair<uint64_t, uint64_t> getMask(const ShapedType& type)
+inline std::pair<uint64_t, uint64_t> getMask(ShapedType type)
 {
-    auto sizeType = type.getElementTypeBitWidth() / CHAR_BIT;
-    if (sizeType != 2 && sizeType != 4)
-        assert("Unsupported element type");
-    auto mask = llvm::maskTrailingOnes<uint64_t>(bitmaskSize);
+    auto sizeType = ascendc::getElementTypeSize(type);
+    assert((sizeType == 2 || sizeType == 4) && "Unsupported element type");
+    auto mask = llvm::maskTrailingOnes<uint64_t>(ascendc::bitmaskSize);
     if (sizeType == 2)
         return {mask, mask};
     return {0ul, mask};

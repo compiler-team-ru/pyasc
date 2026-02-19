@@ -27,69 +27,11 @@ using AllowInline = ascir::AllowlistInlinerInterface<T...>;
 
 namespace ascendc {
 
-namespace {
-
-void appendImplicitUsers(Value value, SmallVectorImpl<Operation*>& allUsers)
-{
-    llvm::copy(value.getUsers(), std::back_inserter(allUsers));
-    for (auto* user : value.getUsers()) {
-        if (isa<CastOpInterface>(user) || isa<LocalTensorSubIndexOp>(user)) {
-            auto users = user->getUsers();
-            if (!users.empty()) {
-                allUsers.append(users.begin(), users.end());
-                appendImplicitUsers(user->getResult(0), allUsers);
-            }
-        }
-        // if value use as init value then this memory use for first iteration and life interval must include
-        // lifeInterval iterArg
-        if (auto forOp = dyn_cast<scf::ForOp>(user)) {
-            auto inits = forOp.getInits();
-            auto iterArgs = forOp.getRegionIterArgs();
-            for (int i = 0; i < inits.size(); ++i) {
-                if (inits[i] == value) {
-                    appendImplicitUsers(iterArgs[i], allUsers);
-                }
-            }
-        }
-        // if value return in yield op then it is accumulator and he used as return value in forOp
-        if (auto yieldOp = dyn_cast<scf::YieldOp>(user)) {
-            auto forOp = cast<scf::ForOp>(yieldOp->getParentOp());
-            allUsers.push_back(forOp);
-            auto opnds = yieldOp.getOperands();
-            auto iterArgs = forOp.getRegionIterArgs();
-            for (int i = 0; i < opnds.size(); ++i) {
-                if (opnds[i] == value) {
-                    appendImplicitUsers(iterArgs[i], allUsers);
-                    appendImplicitUsers(forOp->getResult(i), allUsers);
-                }
-            }
-        }
-    }
-}
-
-} // namespace
-
 int64_t getTypeSize(Type type)
 {
     if (auto shaped = dyn_cast<ShapedType>(type))
         return shaped.getNumElements() * getTypeSize(shaped.getElementType());
     return type.getIntOrFloatBitWidth() / CHAR_BIT;
-}
-
-int64_t getTypeSizeCubeBlockAlign(ShapedType type, TPosition position)
-{
-    auto shape = type.getShape();
-    int64_t elemSize = getElementTypeSize(type);
-    int64_t elemAlign = cubeKBlockBytes / elemSize;
-    int64_t size = 1;
-    for (size_t i = 0; i < shape.size(); ++i) {
-        int64_t align = cubeBlockSize;
-        if (((position == TPosition::A1 || position == TPosition::A2) && i == 1) ||
-            ((position == TPosition::B1 || position == TPosition::B2) && i == 0))
-            align = elemAlign;
-        size *= static_cast<int64_t>(llvm::alignTo(shape[i], align));
-    }
-    return size * elemSize;
 }
 
 int64_t getElementTypeSize(ShapedType type) { return getTypeSize(type.getElementType()); }
