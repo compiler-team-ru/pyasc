@@ -12,6 +12,7 @@
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
+#include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -50,10 +51,10 @@ struct MaterializeLocalTensor : OpRewritePattern<ascendc::LocalTensorAutoOp> {
         ascir::ConstantOpBuilder consts(rewriter);
         Value length;
         if (type.hasStaticShape()) {
-            length = consts.i64(type.getNumElements() * type.getElementTypeBitWidth() / CHAR_BIT);
+            length = consts.i64(ascendc::getTypeSize(type));
         } else {
             assert(op->getNumOperands() != 0 && "must have operands for dynamic shape");
-            length = consts.i64(type.getElementTypeBitWidth() / CHAR_BIT);
+            length = consts.i64(ascendc::getElementTypeSize(type));
             for (auto dim : op.getDynamicShape()) {
                 length = rewriter.create<arith::MulIOp>(loc, length, dim);
             }

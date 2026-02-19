@@ -95,8 +95,8 @@ struct ConvertCmpI : public ConvertOp<arith::CmpIOp> {
         auto srcVecTy = cast<ShapedType>(srcTy);
         auto srcNumElems = srcVecTy.getNumElements();
         // Each dest tensor i16 element contains 16 comparison results.
-        auto dstShape = llvm::divideCeil(srcNumElems, 16);
-        unsigned bitWidth = srcVecTy.getElementType().getIntOrFloatBitWidth();
+        auto dstShape = llvm::divideCeil(srcNumElems, I1ReplacementType::width);
+        unsigned bitWidth = srcVecTy.getElementTypeBitWidth();
         assert((bitWidth == 16 || bitWidth == 32) && "Only cast for i16 and i32 is supported");
         auto castToType = bitWidth == 16 ? rewriter.getF16Type() : rewriter.getF32Type();
         auto src0Casted = createTensorOp(rewriter, loc, srcVecTy.getShape(), castToType);
