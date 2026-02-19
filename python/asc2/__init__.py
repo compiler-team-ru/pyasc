@@ -10,6 +10,11 @@ from asc.language.tile.tensor import tensor
 from asc.language.tile.range import range
 
 # Tile operations
+from asc.language.tile.atomic_ops import (
+    atomic_add,
+    atomic_max,
+    atomic_min
+)
 from asc.language.tile.binary_ops import (
     add,
     div,
@@ -61,6 +66,10 @@ from asc.language.tile.reduction_ops import (
 from .jit import jit
 
 __all__ = [
+    # atomic_ops
+    "atomic_add",
+    "atomic_max",
+    "atomic_min",
     # tensor
     "tensor",
     # range

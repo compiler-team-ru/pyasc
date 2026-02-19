@@ -24,6 +24,7 @@ std::unique_ptr<Pass> createLowerArithPass();
 std::unique_ptr<Pass> createLowerArithBinaryPass();
 std::unique_ptr<Pass> createLowerArithI1Pass();
 std::unique_ptr<Pass> createLowerAscTilePass();
+std::unique_ptr<Pass> createLowerAtomicPass();
 std::unique_ptr<Pass> createLowerMathPass();
 std::unique_ptr<Pass> createLowerSCFPass();
 std::unique_ptr<Pass> createRealizeConversionCastPass();
