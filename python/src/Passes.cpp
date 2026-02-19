@@ -140,6 +140,7 @@ void defineLowerToAscPasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_arith", createLowerArithPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_arith_binary", createLowerArithBinaryPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_arith_i1", createLowerArithI1Pass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_atomic", createLowerAtomicPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_asctile", createLowerAscTilePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_math", createLowerMathPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_scf", createLowerSCFPass);
