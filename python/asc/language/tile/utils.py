@@ -7,13 +7,14 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 from numbers import Real
+from typing import Union
 
 from ..._C import ir
-from ..core.dtype import DataType
-from ..core.ir_value import PlainValue
+from ..core.dtype import DataType, KnownTypes as KT
+from ..core.ir_value import PlainValue, RuntimeNumeric
 from ..core.tensor import TensorShape
 from ..core.utils import check_type, global_builder
-from .tile import Tile
+from .tile import BinaryOperandTypeError, Tile
 
 
 def constant_tile(value: Real, shape: TensorShape, dtype: DataType, loc: ir.TileLocation = ir.TileLocation.UB) -> Tile:
@@ -42,3 +43,43 @@ def splat_tile(value: PlainValue, shape: TensorShape, dtype: DataType,
     ir_type = ir.get_asctile_TileType(shape, dtype.to_ir(), loc)
     handle = global_builder.get_ir_builder().create_asctile_SplatOp(ir_type, value.cast(dtype).to_ir())
     return Tile.from_ir(handle)
+
+
+def create_tile(value: Union[Tile, RuntimeNumeric], dtype: DataType) -> Tile:
+    if isinstance(value, Tile):
+        return value.to(dtype)
+    if isinstance(value, Real):
+        return constant_tile(value, input.shape, dtype)
+    if isinstance(value, PlainValue):
+        return splat_tile(value, input.shape, dtype)
+    raise BinaryOperandTypeError(f"Tile cannot be created from {value.__class__.__name__}")
+
+
+def infer_tile_dtype(value: Union[Tile, PlainValue, Real]) -> DataType:
+    if isinstance(value, (Tile, PlainValue)):
+        return value.dtype
+    if isinstance(value, bool):
+        return KT.int1
+    if isinstance(value, int):
+        return KT.int32
+    if isinstance(value, float):
+        return KT.float32
+    raise BinaryOperandTypeError(f"Unable to obtain dtype of {value.__class__.__name__}")
+
+
+def infer_common_dtype(lhs: Union[Tile, RuntimeNumeric], rhs: Union[Tile, RuntimeNumeric]) -> DataType:
+    lhs_dtype = infer_tile_dtype(lhs)
+    rhs_dtype = infer_tile_dtype(rhs)
+    if lhs_dtype == rhs_dtype:
+        return lhs_dtype
+    if not lhs_dtype.is_numeric() or not rhs_dtype.is_numeric():
+        raise RuntimeError(f"Operand dtypes must be numeric, got {lhs_dtype} and {rhs_dtype}")
+    if lhs_dtype.is_unsigned() or rhs_dtype.is_unsigned():
+        raise NotImplementedError(f"Unsigned dtype operands not supported, got {lhs_dtype} and {rhs_dtype}")
+    if lhs_dtype.is_signed() and rhs_dtype.is_signed() and lhs_dtype.bitwidth != rhs_dtype.bitwidth:
+        return lhs_dtype if lhs_dtype.bitwidth > rhs_dtype.bitwidth else rhs_dtype
+    if lhs_dtype.is_float() and rhs_dtype.is_float() and lhs_dtype.bitwidth != rhs_dtype.bitwidth:
+        return lhs_dtype if lhs_dtype.bitwidth > rhs_dtype.bitwidth else rhs_dtype
+    if lhs_dtype.bitwidth == rhs_dtype.bitwidth:
+        return lhs_dtype if lhs_dtype.is_float() else rhs_dtype
+    raise RuntimeError(f"Unable to infer common dtype between {lhs_dtype} and {rhs_dtype}")

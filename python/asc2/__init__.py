@@ -13,7 +13,7 @@ from asc.language.tile.range import range
 from asc.language.tile.atomic_ops import (
     atomic_add,
     atomic_max,
-    atomic_min
+    atomic_min,
 )
 from asc.language.tile.binary_ops import (
     add,
@@ -30,6 +30,12 @@ from asc.language.tile.binary_ops import (
     not_equal,
     right_shift,
     sub,
+)
+from asc.language.tile.creation_ops import (
+    full,
+    full_like,
+    zeros,
+    zeros_like,
 )
 from asc.language.tile.memory_ops import (
     load,
@@ -56,24 +62,23 @@ from asc.language.tile.unary_ops import (
     tanh,
 )
 from asc.language.tile.indexing_ops import where
-
 from asc.language.tile.reduction_ops import (
     reduce_sum,
     reduce_max,
-    reduce_min
+    reduce_min,
 )
 
 from .jit import jit
 
 __all__ = [
-    # atomic_ops
-    "atomic_add",
-    "atomic_max",
-    "atomic_min",
     # tensor
     "tensor",
     # range
     "range",
+    # atomic_ops
+    "atomic_add",
+    "atomic_max",
+    "atomic_min",
     # binary_ops
     "add",
     "div",
@@ -89,6 +94,11 @@ __all__ = [
     "not_equal",
     "right_shift",
     "sub",
+    # creation_ops
+    "full",
+    "full_like",
+    "zeros",
+    "zeros_like",
     # memory_ops
     "load",
     "store",
@@ -113,7 +123,7 @@ __all__ = [
     "tanh",
     # indexing_ops
     "where",
-    # reduction
+    # reduction_ops
     "reduce_sum",
     "reduce_max",
     "reduce_min",
