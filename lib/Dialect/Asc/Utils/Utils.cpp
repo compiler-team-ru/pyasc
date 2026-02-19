@@ -24,6 +24,18 @@ using AllowInline = ascir::AllowlistInlinerInterface<T...>;
 
 namespace ascendc {
 
+int64_t getTypeSize(Type type)
+{
+    if (auto shaped = dyn_cast<ShapedType>(type))
+        return shaped.getNumElements() * getTypeSize(shaped.getElementType());
+    return type.getIntOrFloatBitWidth() / CHAR_BIT;
+}
+
+int64_t getElementTypeSize(ShapedType type)
+{
+    return getTypeSize(type.getElementType());
+}
+
 bool opPrecedes(Operation *lhs, Operation *rhs)
 {
     return lhs != rhs && lhs->isBeforeInBlock(rhs);

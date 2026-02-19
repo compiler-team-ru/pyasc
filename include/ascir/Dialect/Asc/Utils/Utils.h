@@ -20,14 +20,15 @@
 namespace mlir {
 namespace ascendc {
 
+constexpr unsigned ubBlockSize = 32;      // In bytes
+constexpr unsigned repeatBlockSize = 256; // In bytes
+constexpr unsigned bitmaskSize = 64;
+
 template <typename OpT>
 struct HoistOpPattern : public OpRewritePattern<OpT> {
     using OpRewritePattern<OpT>::OpRewritePattern;
 
-    virtual bool hoistable(OpT) const
-    {
-        return true;
-    }
+    virtual bool hoistable(OpT) const { return true; }
 
     LogicalResult matchAndRewrite(OpT op, PatternRewriter &rewriter) const override
     {
@@ -46,6 +47,10 @@ struct HoistOpPattern : public OpRewritePattern<OpT> {
         return success();
     }
 };
+
+int64_t getTypeSize(Type type);
+
+int64_t getElementTypeSize(ShapedType type);
 
 bool opPrecedes(Operation *lhs, Operation *rhs);
 

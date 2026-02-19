@@ -9,6 +9,7 @@
  */
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
+#include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Conversion/LowerToAsc/Passes.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
@@ -61,10 +62,10 @@ Value linearizeOffset(OpBuilder &builder, Location loc, SmallVector<Value> tenso
     return linearOffset;
 }
 
-unsigned int calculateFinalTensorSize(const unsigned int &typeSize, int64_t calCount) {
-    unsigned int repeatBlockSize = 256;
-    unsigned int elementsPerBlock = 32 / typeSize;
-    unsigned int elementsPerRepeat = repeatBlockSize / typeSize;
+unsigned int calculateFinalTensorSize(const unsigned int &typeSize, int64_t calCount)
+{
+    unsigned int elementsPerBlock = ascendc::ubBlockSize / typeSize;
+    unsigned int elementsPerRepeat = ascendc::repeatBlockSize / typeSize;
     unsigned int firstMaxRepeat = calCount / elementsPerRepeat;
     return llvm::divideCeilSigned(firstMaxRepeat, elementsPerBlock) * elementsPerBlock;
 }
@@ -114,7 +115,7 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
         ascir::ConstantOpBuilder consts(rewriter);
         src = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, srcType, src, linearOffset);
         auto padValue = rewriter.getRemappedValue(op.getPadValue());
-        auto typeSize = cast<ShapedType>(dstType).getElementType().getIntOrFloatBitWidth() / CHAR_BIT;
+        auto typeSize = ascendc::getElementTypeSize(cast<ShapedType>(dstType));
         auto const0 = consts.i32(0);
         auto const1 = consts.i32(1);
         Value dstNumElements = consts.i32(calCount(dst));
@@ -125,7 +126,7 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
         Value strideElements = rewriter.create<arith::SubIOp>(loc, srcLastDim, dstLastDim);
         auto typeSizeValue = consts.i32(typeSize);
         Value srcStride = rewriter.create<arith::MulIOp>(loc, strideElements, typeSizeValue);
-        Value numElementsInBlock = consts.i32(asclower::ubBlockSize / typeSize);
+        Value numElementsInBlock = consts.i32(ascendc::ubBlockSize / typeSize);
         Value totalElementsInBlock = rewriter.create<arith::MulIOp>(loc, blockCount, numElementsInBlock);
         Value minTailElements = rewriter.create<arith::MinSIOp>(loc, dstLastDim, tailElements);
         Value blockLen = rewriter.create<arith::MulIOp>(loc, minTailElements, typeSizeValue);
@@ -169,7 +170,7 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
         ascir::ConstantOpBuilder consts(rewriter);
         auto const0 = consts.i32(0);
         auto numElements = cast<ShapedType>(dstType).getNumElements();
-        auto typeSize = cast<ShapedType>(srcType).getElementType().getIntOrFloatBitWidth() / CHAR_BIT;
+        auto typeSize = ascendc::getElementTypeSize(cast<ShapedType>(srcType));
         auto typeSizeValue = consts.i32(typeSize);
         Value srcNumElements = consts.i32(calCount(src));
         Value tailElements = rewriter.create<arith::SubIOp>(loc, consts.i32(numElements), linearOffset);
@@ -302,7 +303,7 @@ struct ConvertReduce : ConvertOp<TileOp> {
 
     LogicalResult convert(TileOp op, ConvertRewriter &rewriter) const override
     {
-        unsigned int typeSize = op.getType().getIntOrFloatBitWidth() / CHAR_BIT;
+        unsigned int typeSize = ascendc::getTypeSize(op.getType());
         unsigned int finalSize = calculateFinalTensorSize(typeSize, calCount(op.getOperand()));
         ascir::ConstantOpBuilder consts(rewriter);
         Location loc = op.getLoc();
