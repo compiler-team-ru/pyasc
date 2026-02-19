@@ -6,23 +6,21 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-from numbers import Real
 from typing import Union
 
-from ..._C import ir
-from ..core.ir_value import PlainValue, RuntimeNumeric
-from ..core.utils import global_builder
+from ..core.ir_value import RuntimeNumeric
+from ..core.utils import check_type, global_builder
 from .tile import Tile
-from .utils import constant_tile, splat_tile
+from .utils import create_tile, infer_common_dtype
 
 
-def where(mask: Tile, src0: Tile, src1: Union[Tile, RuntimeNumeric]) -> Tile:
-    dtype = src0.dtype
-    shape = src0.shape
-    if isinstance(src1, Real):
-        src1 = constant_tile(src1, shape, dtype)
-    elif isinstance(src1, PlainValue):
-        src1 = splat_tile(src1, shape, dtype)
+def where(mask: Tile, src0: Union[Tile, RuntimeNumeric], src1: Union[Tile, RuntimeNumeric]) -> Tile:
+    check_type("mask", mask, Tile)
+    if not isinstance(src0, Tile) and not isinstance(src1, Tile):
+        raise RuntimeError(f"At least one operand must be tile, got {type(src0)} and {type(src1)}")
+    src_dtype = infer_common_dtype(src0, src1)
+    src0 = create_tile(src0, src_dtype)
+    src1 = create_tile(src1, src_dtype)
     handle = global_builder.get_ir_builder().create_asctile_SelectOp(src0.to_ir().get_type(), mask.to_ir(),
                                                                      src0.to_ir(), src1.to_ir())
     return Tile(handle)
