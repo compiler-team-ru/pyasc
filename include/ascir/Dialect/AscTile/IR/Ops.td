@@ -19,6 +19,8 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 
+include "Attributes.td"
+
 class AscTile_Op<string mnemonic, list<Trait> traits = []>
     : Op<AscTile_Dialect, mnemonic, traits> {
   let cppNamespace = "::mlir::asctile";
@@ -139,5 +141,18 @@ class AscTile_ReduceAs1dOp<string mnemonic> : AscTile_Op<mnemonic, [
 def ReduceSumAs1dOp : AscTile_ReduceAs1dOp<"reduce_sum_as_1d">;
 def ReduceMaxAs1dOp : AscTile_ReduceAs1dOp<"reduce_max_as_1d">;
 def ReduceMinAs1dOp : AscTile_ReduceAs1dOp<"reduce_min_as_1d">;
+
+def AtomicRMWOp : AscTile_Op<"atomic_rmw", [
+  AllElementTypesMatch<["base", "value"]>, MemoryEffectsOpInterface
+]> {
+  let summary = "Atomic accumulation the tile data into a tensor";
+  let arguments = (ins Tile:$value,
+                   Arg<Tensor, "tensor to store to", [MemWrite]>:$base,
+                   Variadic<I32>:$offsets, AscTile_AtomicKindAttr:$kind);
+  let assemblyFormat = [{
+    `<` $kind `>` $value `,` $base `[` $offsets `]` attr-dict `:` qualified(type($value)) `,`
+    qualified(type($base))
+  }];
+}
 
 #endif // ASCTILE_OPS_TD
