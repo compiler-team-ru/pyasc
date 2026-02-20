@@ -54,7 +54,8 @@ class Densifier {
     };
 
     DominanceInfo dom;
-    std::unordered_map<int64_t, UnrollGroup> groups;
+    std::unordered_map<int64_t, std::unordered_map<Block *, UnrollGroup>> groups;
+    bool separateBlocks;
 
     static bool allOpsSameBlock(const UnrollGroup &group)
     {
@@ -97,30 +98,35 @@ class Densifier {
         return true;
     }
 
-    // Densify an unroll group by moving all operations up to the earliest one
     void densifyAtTop(UnrollGroup &group)
     {
         if (!allOpsSameBlock(group))
             return;
         llvm::sort(group, [](Operation *lhs, Operation *rhs) { return lhs->isBeforeInBlock(rhs); });
         auto *firstOp = group.front();
-        for (auto *toMove : ArrayRef(group).drop_front()) {
+        auto remainingOps = MutableArrayRef(group).drop_front();
+        while (!remainingOps.empty()) {
+            auto *toMove = remainingOps.front();
+            remainingOps = remainingOps.drop_front();
             auto prevOps = llvm::make_range(Block::iterator(firstOp), Block::iterator(toMove));
             auto it =
                 llvm::find_if(prevOps, [this, toMove](Operation &base) { return canMove<Before>(toMove, &base); });
             if (it != prevOps.end())
                 toMove->moveBefore(&*it);
+            firstOp = toMove;
         }
     }
 
-    // Densify an unroll group by moving all operations down to the latest one
     void densifyAtBottom(UnrollGroup &group)
     {
         if (!allOpsSameBlock(group))
             return;
         llvm::sort(group, [](Operation *lhs, Operation *rhs) { return !lhs->isBeforeInBlock(rhs); });
         auto *lastOp = group.front();
-        for (auto *toMove : ArrayRef(group).drop_front()) {
+        auto remainingOps = MutableArrayRef(group).drop_front();
+        while (!remainingOps.empty()) {
+            auto *toMove = remainingOps.front();
+            remainingOps = remainingOps.drop_front();
             SmallVector<Operation *> nextOps;
             for (auto &op : llvm::make_range(std::next(Block::iterator(toMove)), std::next(Block::iterator(lastOp))))
                 nextOps.push_back(&op);
@@ -130,6 +136,7 @@ class Densifier {
                                    [this, toMove](Operation *base) { return canMove<After>(toMove, base); });
             if (it != nextOps.rend())
                 toMove->moveAfter(*it);
+            lastOp = toMove;
         }
     }
 
@@ -140,23 +147,31 @@ class Densifier {
         AtBottom,
     };
 
-    Densifier() = default;
+    explicit Densifier(bool separateBlocks = true) : separateBlocks(separateBlocks) {}
     ~Densifier() = default;
 
-    void add(int64_t group, Operation *op) { groups[group].push_back(op); }
+    void add(int64_t group, Operation *op)
+    {
+        Block *block = separateBlocks ? op->getBlock() : nullptr;
+        groups[group][block].push_back(op);
+    }
 
     void run(function_ref<Target(ArrayRef<Operation *>)> selectTargetFn)
     {
-        for (auto it : groups) {
-            auto target = selectTargetFn(it.second);
-            if (target == Skip)
-                continue;
-            if (target == AtTop)
-                densifyAtTop(it.second);
-            else if (target == AtBottom)
-                densifyAtBottom(it.second);
-            else
-                llvm_unreachable("unexpected Densifier::Target value");
+        for (auto groupIt = groups.begin(); groupIt != groups.end(); ++groupIt) {
+            auto &groupBlocks = groupIt->second;
+            for (auto blockIt = groupBlocks.begin(); blockIt != groupBlocks.end(); ++blockIt) {
+                UnrollGroup &group = blockIt->second;
+                auto target = selectTargetFn(group);
+                if (target == Skip)
+                    continue;
+                if (target == AtTop)
+                    densifyAtTop(group);
+                else if (target == AtBottom)
+                    densifyAtBottom(group);
+                else
+                    llvm_unreachable("unexpected Densifier::Target value");
+            }
         }
     }
 };
