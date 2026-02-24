@@ -30,7 +30,7 @@ def infer_offsets(tensor_shape: Tuple[RuntimeInt], shape: Iterable[int], tile_id
     return [_mat(v, KT.int32).to_ir() for v in offsets]
 
 
-def load(tensor: Tensor, shape: Iterable[int], tile_id: Optional[Iterable[RuntimeInt]] = None,
+def load(tensor: Tensor, shape: Iterable[int], *, tile_id: Optional[Iterable[RuntimeInt]] = None,
          offsets: Optional[Iterable[RuntimeInt]] = None, pad_value: RuntimeNumeric = 0) -> Tile:
     if not all(isinstance(dim, int) for dim in shape):
         raise RuntimeError("shape must be integers")
@@ -41,7 +41,7 @@ def load(tensor: Tensor, shape: Iterable[int], tile_id: Optional[Iterable[Runtim
     return Tile(handle)
 
 
-def store(tile: Tile, tensor: Tensor, tile_id: Optional[Iterable[RuntimeInt]] = None,
+def store(tile: Tile, tensor: Tensor, *, tile_id: Optional[Iterable[RuntimeInt]] = None,
           offsets: Optional[Iterable[RuntimeInt]] = None) -> None:
     if not all(isinstance(dim, int) for dim in tile.shape):
         raise RuntimeError("shape must be integers")

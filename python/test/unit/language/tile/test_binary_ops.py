@@ -48,17 +48,17 @@ def setup_function():
 @asc2.jit(always_compile=True)
 def kernel(x_ptr, y_ptr, z_ptr, block_length: asc.ConstExpr, fmt: asc.ConstExpr, op: asc.ConstExpr) -> None:
     if fmt == VV:
-        xt = asc2.load(asc2.tensor(x_ptr, [32]), [0], [block_length])
-        yt = asc2.load(asc2.tensor(y_ptr, [32]), [0], [block_length])
+        xt = asc2.load(asc2.tensor(x_ptr, [32]), [block_length], offsets=[0])
+        yt = asc2.load(asc2.tensor(y_ptr, [32]), [block_length], offsets=[0])
     elif fmt == VS:
-        xt = asc2.load(asc2.tensor(x_ptr, [32]), [0], [block_length])
+        xt = asc2.load(asc2.tensor(x_ptr, [32]), [block_length], offsets=[0])
         yt = y_ptr
     elif fmt == SV:
         xt = x_ptr
-        yt = asc2.load(asc2.tensor(y_ptr, [32]), [0], [block_length])
+        yt = asc2.load(asc2.tensor(y_ptr, [32]), [block_length], offsets=[0])
 
     zt = op(xt, yt)
-    asc2.store(zt, asc2.tensor(z_ptr, [32]), [0])
+    asc2.store(zt, asc2.tensor(z_ptr, [32]), offsets=[0])
 
 
 @pytest.mark.parametrize("asc_op, torch_op, fmt, dtypes", [(asc_op, torch_op, f, d)
