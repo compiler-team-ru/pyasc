@@ -6,26 +6,22 @@ from asc.runtime import config
 import asc2
 
 SIZE = 32
-USE_CORE_NUM = 1
 
 
 @asc2.jit
-def where_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, z_ptr: asc.GlobalAddress,
-                 block_length: asc.ConstExpr, op: asc.ConstExpr):
+def where_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, z_ptr: asc.GlobalAddress, op: asc.ConstExpr):
     x = asc2.tensor(x_ptr, [SIZE])
     y = asc2.tensor(y_ptr, [SIZE])
     z = asc2.tensor(z_ptr, [SIZE])
-    xt = asc2.load(x, [block_length * asc.get_block_idx()], [block_length])
-    yt = asc2.load(y, [block_length * asc.get_block_idx()], [block_length])
+    xt = asc2.load(x, [SIZE], offsets=[0])
+    yt = asc2.load(y, [SIZE], offsets=[0])
     zt = asc2.where(op(xt, yt), xt, yt)
-    asc2.store(zt, z, [block_length * asc.get_block_idx()])
+    asc2.store(zt, z, offsets=[0])
 
 
 def where_launch(x: torch.Tensor, y: torch.Tensor, op) -> torch.Tensor:
     z = torch.zeros_like(x)
-    total_length = z.numel()
-    block_length = total_length // USE_CORE_NUM
-    where_kernel[USE_CORE_NUM](x, y, z, block_length, op)
+    where_kernel[1](x, y, z, op)
     return z
 
 
@@ -47,7 +43,3 @@ def test_where_ops(asc_op, torch_op, dtype):
     result = where_launch(x, y, asc_op)
     expected = torch.where(torch_op(x, y), x, y)
     torch.testing.assert_close(result, expected)
-
-
-if __name__ == "__main__":
-    pytest.main([__file__])
