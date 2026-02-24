@@ -37,12 +37,14 @@ SmallVector<Value> getTensorShape(OpBuilder &builder, asctile::TensorOp tensorOp
 {
     ascir::ConstantOpBuilder consts(builder);
     auto type = tensorOp.getType();
+    auto dynamicSizes = tensorOp.getSizes();
+    size_t dynamicSizeIndex = 0;
     SmallVector<Value> tensorShape;
-    if (type.hasStaticShape()) {
-        for (auto dim : type.getShape())
+    for (auto dim : type.getShape()) {
+        if (ShapedType::isDynamic(dim))
+            tensorShape.push_back(dynamicSizes[dynamicSizeIndex++]);
+        else
             tensorShape.push_back(consts.i32(dim));
-    } else {
-        tensorShape = tensorOp.getSizes();
     }
     return tensorShape;
 }

@@ -27,8 +27,34 @@ using namespace mlir::asctile;
 
 LogicalResult TensorOp::verify()
 {
-    if (!getType().hasStaticShape() && getSizes().empty())
-        return emitOpError("must have sizes if tensor has dynamic shape");
+    if (getType().getNumDynamicDims() != getSizes().size())
+        return emitOpError("must have value in 'sizes' for each dynamic dimension");
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
+// DimOp
+//===----------------------------------------------------------------------===//
+
+OpFoldResult DimOp::fold([[maybe_unused]] FoldAdaptor adaptor)
+{
+    auto index = getIndex();
+    auto type = getBase().getType();
+    auto dim = type.getDimSize(index);
+    if (!ShapedType::isDynamic(dim))
+        return IntegerAttr::get(IntegerType::get(getContext(), 32), dim);
+    auto tensorOp = getBase().getDefiningOp<TensorOp>();
+    if (!tensorOp)
+        return OpFoldResult {};
+    auto dynamicIndex = type.getDynamicDimIndex(index);
+    assert(dynamicIndex < tensorOp.getSizes().size() && "dim index must be less than number of dynamic sizes");
+    return tensorOp.getSizes()[dynamicIndex];
+}
+
+LogicalResult DimOp::verify()
+{
+    if (getIndex() >= getBase().getType().getRank())
+        return emitOpError("'index' must not exceed the tensor rank");
     return success();
 }
 
