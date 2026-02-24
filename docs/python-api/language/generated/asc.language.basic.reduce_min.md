@@ -59,8 +59,8 @@
 
 **约束说明**
 
-- 操作数地址对齐要求请参见通用地址对齐约束。
-- 操作数地址重叠约束请参考通用地址重叠约束。需要使用shared_tmp_buffer的情况下，支持dst与shared_tmp_buffer地址重叠（通常情况下dst比shared_tmp_buffer所需的空间要小），此时shared_tmp_buffer必须满足最小所需空间要求，否则不支持地址重叠。
+- 操作数地址对齐要求请参见 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址对齐约束”。
+- 操作数地址重叠约束请参考 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址重叠约束”。需要使用shared_tmp_buffer的情况下，支持dst与shared_tmp_buffer地址重叠（通常情况下dst比shared_tmp_buffer所需的空间要小），此时shared_tmp_buffer必须满足最小所需空间要求，否则不支持地址重叠。
 - dst结果存储顺序为最小值，最小值索引，若不需要索引，只会存储最小值。返回结果中索引index数据是按照dst的数据类型进行存储的，比如dst使用half类型时，index按照half类型进行存储，如果按照half格式进行读取，index的值是不对的，因此index的读取需要使用reinterpret_cast方法转换到整数类型。
 - 返回最小值索引时，如果存在多个最小值，返回第一个最小值的索引。
 - 当输入类型是half的时候，只支持获取最大不超过65535（uint16_t能表示的最大值）的索引值。

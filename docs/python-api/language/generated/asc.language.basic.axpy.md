@@ -56,8 +56,8 @@ dst[i] = src[i] \* scalar + dst[i]
 
 **约束说明**
 
-- 操作数地址对齐要求请参见通用地址对齐约束。
-- 操作数地址重叠约束请参考通用地址重叠约束。
+- 操作数地址对齐要求请参见 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址对齐约束”。
+- 操作数地址重叠约束请参考 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址重叠约束”。
 
 使用tensor高维切分计算接口时，src和scalar的数据类型为half、dst的数据类型为float的情况下，
 一个迭代处理的源操作数元素个数需要和目的操作数保持一致，所以每次迭代选取前4个data_block参与计算。

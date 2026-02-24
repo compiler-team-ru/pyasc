@@ -45,7 +45,7 @@ __aicore__ inline void TransDataTo5HD(const LocalTensor<uint64_t>& dst,
 
 **约束说明**
 
-- 操作数地址对齐要求请参见通用地址对齐约束。
+- 操作数地址对齐要求请参见 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址对齐约束”。
 - 普通转置接口支持src和dst复用。
 - 增强转置接口，transposeType为TRANSPOSE_ND2ND_B16时支持src和dst复用，transposeType为TRANSPOSE_NCHW2NHWC、TRANSPOSE_NHWC2NCHW时不支持src和dst复用。
 

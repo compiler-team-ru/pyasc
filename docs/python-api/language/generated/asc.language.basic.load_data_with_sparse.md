@@ -32,7 +32,7 @@ __aicore__ inline void LoadDataWithSparse(const LocalTensor<T> &dst, const Local
 
 **约束说明**
 
-- 操作数地址对齐要求请参见通用地址对齐约束。
+- 操作数地址对齐要求请参见 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址对齐约束”。
 - repeat_times=0表示不执行。
 - 每次迭代中的start_index不能小于零。
 - 不支持转置功能。

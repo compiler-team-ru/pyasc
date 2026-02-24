@@ -53,8 +53,8 @@ __aicore__ inline void WholeReduceSum(const LocalTensor<T>& dst, const LocalTens
 
 **约束说明**
 
-- 操作数地址对齐要求请参见通用地址对齐约束。
-- 操作数地址重叠约束请参考通用地址重叠约束。
+- 操作数地址对齐要求请参见 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址对齐约束”。
+- 操作数地址重叠约束请参考 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址重叠约束”。
 - 对于whole_reduce_sum，其内部的相加方式采用二叉树方式，两两相加
   假设源操作数为128个half类型的数据[data0,data1,data2…data127]，一个repeat可以计算完，计算过程如下。
   1. data0和data1相加得到data00，data2和data3相加得到data01…data124和data125相加得到data62，data126和data127相加得到data63；

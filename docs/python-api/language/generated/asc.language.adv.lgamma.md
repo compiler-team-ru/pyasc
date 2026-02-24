@@ -30,7 +30,7 @@ __aicore__ inline void Lgamma(const LocalTensor<T>& dstTensor, const LocalTensor
 
 - 不支持源操作数与目的操作数地址重叠。
 - 不支持temp_buffer与源操作数和目的操作数地址重叠。
-- 操作数地址对齐要求请参见通用地址对齐约束。
+- 操作数地址对齐要求请参见 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址对齐约束”。
 
 **调用示例**
 

@@ -28,7 +28,7 @@ __aicore__ inline void ProposalConcat(const LocalTensor<T>& dst, const LocalTens
 
 - 用户需保证dst中存储的proposal数目大于等于实际所需数目，否则会存在tensor越界错误。
 - 用户需保证src中存储的元素大于等于实际所需数目，否则会存在tensor越界错误。
-- 操作数地址对齐要求请参见通用地址对齐约束。
+- 操作数地址对齐要求请参见 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址对齐约束”。
 
 **调用示例**
 

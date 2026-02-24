@@ -50,7 +50,7 @@ __aicore__ inline void CompareScalar(const LocalTensor<U>& dst, const LocalTenso
 
 **约束说明**
 
-- 操作数地址对齐要求请参见通用地址对齐约束。
+- 操作数地址对齐要求请参见 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址对齐约束”。
 - dst按照小端顺序排序成二进制结果，对应src中相应位置的数据比较结果。
 - 使用tensor前n个数据参与计算的接口，设置count时，需要保证count个元素所占空间256字节对齐。
 

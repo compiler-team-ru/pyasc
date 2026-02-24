@@ -50,7 +50,7 @@ __aicore__ inline void PairReduceSum(const LocalTensor<T>& dst, const LocalTenso
 
 **约束说明**
 
-- 操作数地址对齐要求请参见通用地址对齐约束。
+- 操作数地址对齐要求请参见 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址对齐约束”。
 - 如果两两相加的两个元素mask位未配置（即当前两个元素不参与运算）。
   - 对于 Atlas 200I/500 A2 推理产品 ，对应的目的操作数中的值会置为0。
   - 对于其他产品型号，对应的目的操作数中的值不会变化。

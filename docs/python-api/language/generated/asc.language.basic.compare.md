@@ -65,7 +65,7 @@ __aicore__ inline void Compare(const LocalTensor<T>& src0, const LocalTensor<T>&
 
 **约束说明**
 
-- 操作数地址对齐要求请参见通用地址对齐约束。
+- 操作数地址对齐要求请参见 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址对齐约束”。
 - dst按照小端顺序排序成二进制结果，对应src中相应位置的数据比较结果。
 - 使用整个tensor参与计算的运算符重载功能，src0和src1需满足256字节对齐；使用tensor前n个数据参与计算的接口，设置count时，需要保证count个元素所占空间256字节对齐。
 - 将结果存入寄存器的接口没有repeat输入，repeat默认为1，即一条指令计算256B的数据。

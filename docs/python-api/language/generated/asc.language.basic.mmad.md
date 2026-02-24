@@ -62,7 +62,7 @@ __aicore__ inline void Mmad(const LocalTensor<T>& dst,
 - dst只支持位于CO1，fm只支持位于A2，filter只支持位于B2。
 - 当M、K、N中的任意一个值为0时，该指令不会被执行。
 - 当M = 1时，会默认开启GEMV（General Matrix-Vector Multiplication）功能。在这种情况下，Mmad API从L0A Buffer读取数据时，会以ND格式进行读取，而不会将其视为ZZ格式。所以此时左矩阵需要直接按照ND格式进行排布。
-- 操作数地址对齐要求请参见通用地址对齐约束。
+- 操作数地址对齐要求请参见 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址对齐约束”。
 
 **调用示例**
 

@@ -53,10 +53,10 @@ __aicore__ inline void LoadDataWithTranspose(const LocalTensor<T>& dst,
 
 - repeatTimes 为 0 时表示不执行搬运操作。
 - 开发者需要保证目的操作数转置后的分形没有重叠。
-- 操作数地址对齐要求请参见通用地址对齐约束。
+- 操作数地址对齐要求请参见 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址对齐约束”。
 - repeat_times 为 0 时表示不执行搬运操作。
 - 开发者需要保证目的操作数转置后的分形没有重叠。
-- 操作数地址对齐要求请参见通用地址对齐约束。
+- 操作数地址对齐要求请参见 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址对齐约束”。
 
 **调用示例**
 

@@ -48,7 +48,7 @@ class MrgSortSrcList:
 
 **约束说明**
 
-- 操作数地址对齐要求请参见通用地址对齐约束。
+- 操作数地址对齐要求请参见 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址对齐约束”。
 - 不支持源操作数与目的操作数之间存在地址重叠。
 
 **调用示例**

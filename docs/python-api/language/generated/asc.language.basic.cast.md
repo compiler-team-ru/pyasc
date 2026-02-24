@@ -47,8 +47,8 @@ __aicore__ inline void Cast(const LocalTensor<T>& dst, const LocalTensor<U>& src
 
 **约束说明**
 
-- 操作数地址对齐要求请参见通用地址对齐约束。
-- 操作数地址重叠约束请参考通用地址重叠约束。特别地，对于长度较小的数据类型转换为长度较大的数据类型时，地址重叠可能会导致结果错误。
+- 操作数地址对齐要求请参见 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址对齐约束”。
+- 操作数地址重叠约束请参考 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址重叠约束”。特别地，对于长度较小的数据类型转换为长度较大的数据类型时，地址重叠可能会导致结果错误。
 - 每个repeat能处理的数据量取决于数据精度、AI处理器型号。
 - 当源操作数和目的操作数位数不同时，计算输入参数以数据类型的字节较大的为准。
 - 当dst或src为int4b_t时，申请Tensor空间时只需申请相同数量的int8_t数据空间的一半。

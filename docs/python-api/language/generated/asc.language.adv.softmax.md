@@ -88,7 +88,7 @@ def softmax(src):
 - src和dst的Tensor空间可以复用。
 - sum和max为输出，并且last轴长度必须固定32Byte，非last轴大小需要和src以及dst保持一致。
 - sum和max的数据类型需要保持一致。
-- 操作数地址对齐要求请参见通用地址对齐约束。
+- 操作数地址对齐要求请参见 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址对齐约束”。
 - 不支持tmp_buffer与源操作数和目的操作数地址重叠。
 
 开发者需要对GM上的原始输入(ori_src_M, ori_src_K)在M或K方向补齐数据到(src_M, src_K)，补齐的数据会参与部分运算，

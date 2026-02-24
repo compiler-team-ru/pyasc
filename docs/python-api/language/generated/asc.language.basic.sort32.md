@@ -22,7 +22,7 @@ __aicore__ inline void Sort32(const LocalTensor<T>& dst, const LocalTensor<T>& s
 
 - 当存在score[i]与score[j]相同时，如果i>j，则score[j]将首先被选出来，排在前面。
 - 每次迭代内的数据会进行排序，不同迭代间的数据不会进行排序。
-- 操作数地址对齐要求请参见通用地址对齐约束。
+- 操作数地址对齐要求请参见 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址对齐约束”。
 
 **调用示例**
 

@@ -36,7 +36,7 @@ __aicore__ inline void LoadImageToLocal(const LocalTensor<T>& dst, const LoadIma
 
 **约束说明**
 
-- 操作数地址对齐要求请参见通用地址对齐约束。
+- 操作数地址对齐要求请参见 [《Ascend C算子开发接口》](https://hiascend.com/document/redirect/CannCommunityAscendCApi) 中的“通用说明和约束-通用地址对齐约束”。
 - 加载到dst的图片的大小加padding的大小必须小于等于L1的大小。
 - 对于XRGB输入格式的数据，芯片在处理的时候会默认丢弃掉第四个通道的数据，所以需要在set_aipp_functions接口里设置好通道交换的参数后输出RGB格式的数据。
 

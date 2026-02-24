@@ -245,8 +245,8 @@ def cast_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
-    - 操作数地址重叠约束请参考通用地址重叠约束。特别地，对于长度较小的数据类型转换为长度较大的数据类型时，地址重叠可能会导致结果错误。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
+    - 操作数地址重叠约束请参考 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址重叠约束”。特别地，对于长度较小的数据类型转换为长度较大的数据类型时，地址重叠可能会导致结果错误。
     - 每个repeat能处理的数据量取决于数据精度、AI处理器型号。
     - 当源操作数和目的操作数位数不同时，计算输入参数以数据类型的字节较大的为准。
     - 当dst或src为int4b_t时，申请Tensor空间时只需申请相同数量的int8_t数据空间的一半。
@@ -1282,7 +1282,7 @@ def dump_tensor_docstring():
       - 通过单算子API调用方式调用算子。
       - 间接调用单算子API(aclnnxxx)接口：Pytorch框架单算子直调的场景。
     - 当前仅支持打印存储位置为Unified Buffer/L1 Buffer/L0C Buffer/Global Memory的Tensor信息。
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     - 该接口使用Dump功能，所有使用Dump功能的接口在每个核上Dump的数据总量（包括信息头）不可超过1M。请开发者自行控制待打印的内容数据量，超出则不会打印。
     """
 
@@ -1968,7 +1968,7 @@ def init_const_value_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     """
 
     py_example = """
@@ -2397,11 +2397,11 @@ def load_data_with_transpose_docstring():
 
     - repeatTimes 为 0 时表示不执行搬运操作。
     - 开发者需要保证目的操作数转置后的分形没有重叠。
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
 
     - repeat_times 为 0 时表示不执行搬运操作。
     - 开发者需要保证目的操作数转置后的分形没有重叠。
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     """
 
     py_example = """
@@ -2517,7 +2517,7 @@ def mmad_docstring():
     - dst只支持位于CO1，fm只支持位于A2，filter只支持位于B2。
     - 当M、K、N中的任意一个值为0时，该指令不会被执行。
     - 当M = 1时，会默认开启GEMV（General Matrix-Vector Multiplication）功能。在这种情况下，Mmad API从L0A Buffer读取数据时，会以ND格式进行读取，而不会将其视为ZZ格式。所以此时左矩阵需要直接按照ND格式进行排布。
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     """
 
     py_example = """
@@ -2619,7 +2619,7 @@ def load_image_to_local_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     - 加载到dst的图片的大小加padding的大小必须小于等于L1的大小。
     - 对于XRGB输入格式的数据，芯片在处理的时候会默认丢弃掉第四个通道的数据，所以需要在set_aipp_functions接口里设置好通道交换的参数后输出RGB格式的数据。
     """
@@ -2672,7 +2672,7 @@ def proposal_concat_docstring():
 
     - 用户需保证dst中存储的proposal数目大于等于实际所需数目，否则会存在tensor越界错误。
     - 用户需保证src中存储的元素大于等于实际所需数目，否则会存在tensor越界错误。
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     """
 
     py_example = """
@@ -2803,7 +2803,7 @@ def duplicate_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     """
 
     py_example = """
@@ -2898,7 +2898,7 @@ def mmad_with_sparse_docstring():
 
     - 原始稀疏矩阵B每4个元素中应保证最多2个非零元素，如果存在3个或更多非零元素，则仅使用前2个非零元素。
     - 当M、K、N中的任意一个值为0时，该指令不会被执行。
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     """
 
     py_example = """
@@ -2987,7 +2987,7 @@ def pair_reduce_sum_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     - 如果两两相加的两个元素mask位未配置（即当前两个元素不参与运算）。
 
       - 对于 Atlas 200I/500 A2 推理产品 ，对应的目的操作数中的值会置为0。
@@ -3081,8 +3081,8 @@ def repeat_reduce_sum_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
-    - 操作数地址重叠约束请参考通用地址重叠约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
+    - 操作数地址重叠约束请参考 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址重叠约束”。
     - 对于RepeatReduceSum，其内部的相加方式采用二叉树方式，两两相加
       假设源操作数为128个half类型的数据[data0,data1,data2...data127]，一个repeat可以计算完，计算过程如下。
       1. data0和data1相加得到data00，data2和data3相加得到data01...data124和data125相加得到data62，data126和data127相加得到data63；
@@ -3190,8 +3190,8 @@ def whole_reduce_max_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
-    - 操作数地址重叠约束请参考通用地址重叠约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
+    - 操作数地址重叠约束请参考 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址重叠约束”。
     - dst结果存储顺序由order决定，默认为最值、最值索引。返回结果中索引index数据按照dst的数据类型进行存储，比如dst使用half类型时，index按照half类型进行存储，读取时需要使用reinterpret_cast方法转换到整数类型。若输入数据类型是half，需要使用reinterpret_cast<uint16_t*>，若输入是float，需要使用reinterpret_cast<uint32_t*>。比如完整样例中，前两个计算结果为[9.980e-01 5.364e-06]，5.364e-06需要使用reinterpret_cast方法转换得到索引值90。
     - 针对不同场景合理使用归约指令可以带来性能提升，相关介绍请参考选择低延迟指令，优化归约操作性能，具体样例请参考ReduceCustom。
     """
@@ -3326,8 +3326,8 @@ def whole_reduce_min_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
-    - 操作数地址重叠约束请参考通用地址重叠约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
+    - 操作数地址重叠约束请参考 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址重叠约束”。
     - dst结果存储顺序由order决定，默认为最值、最值索引。返回结果中索引index数据按照dst的数据类型进行存储，比如dst使用half类型时，index按照half类型进行存储，读取时需要使用reinterpret_cast方法转换到整数类型。若输入数据类型是half，需要使用reinterpret_cast<uint16_t*>，若输入是float，需要使用reinterpret_cast<uint32_t*>。比如完整样例中，前两个计算结果为[9.980e-01 5.364e-06]，5.364e-06需要使用reinterpret_cast方法转换得到索引值90。
     - 针对不同场景合理使用归约指令可以带来性能提升，相关介绍请参考选择低延迟指令，优化归约操作性能，具体样例请参考ReduceCustom。
     """
@@ -3444,8 +3444,8 @@ def whole_reduce_sum_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
-    - 操作数地址重叠约束请参考通用地址重叠约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
+    - 操作数地址重叠约束请参考 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址重叠约束”。
     - 对于whole_reduce_sum，其内部的相加方式采用二叉树方式，两两相加
       假设源操作数为128个half类型的数据[data0,data1,data2...data127]，一个repeat可以计算完，计算过程如下。
       1. data0和data1相加得到data00，data2和data3相加得到data01...data124和data125相加得到data62，data126和data127相加得到data63；
@@ -3523,7 +3523,7 @@ def load_data_with_sparse_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     - repeat_times=0表示不执行。
     - 每次迭代中的start_index不能小于零。
     - 不支持转置功能。
@@ -4026,7 +4026,7 @@ def transpose_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     - 普通转置接口支持src和dst复用。
     - 增强转置接口，transposeType为TRANSPOSE_ND2ND_B16时支持src和dst复用，transposeType为TRANSPOSE_NCHW2NHWC、TRANSPOSE_NHWC2NCHW时不支持src和dst复用。
     """
@@ -4120,7 +4120,7 @@ def trans_data_to_5hd_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     - 普通转置接口支持src和dst复用。
     - 增强转置接口，transposeType为TRANSPOSE_ND2ND_B16时支持src和dst复用，transposeType为TRANSPOSE_NCHW2NHWC、TRANSPOSE_NHWC2NCHW时不支持src和dst复用。
     """
@@ -4371,8 +4371,8 @@ def set_binary_docstring(cpp_name: Optional[str] = None, append_text: str = "") 
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
-    - 操作数地址重叠约束请参考通用地址重叠约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
+    - 操作数地址重叠约束请参考 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址重叠约束”。
     - 使用整个tensor参与计算接口符号重载时，运算量为目的LocalTensor的总长度。
     """
     docstr = f"""
@@ -4473,8 +4473,8 @@ def set_binary_scalar_docstring(cpp_name: Optional[str] = None, append_text: str
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
-    - 操作数地址重叠约束请参考通用地址重叠约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
+    - 操作数地址重叠约束请参考 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址重叠约束”。
     """
 
     docstr = f"""
@@ -4756,8 +4756,8 @@ def set_unary_docstring(cpp_name: Optional[str] = None, append_text: str = "") -
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
-    - 操作数地址重叠约束请参考通用地址重叠约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
+    - 操作数地址重叠约束请参考 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址重叠约束”。
     """
 
     docstr = f"""
@@ -4849,8 +4849,8 @@ def gather_mask_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
-    - 操作数地址重叠约束请参考通用地址重叠约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
+    - 操作数地址重叠约束请参考 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址重叠约束”。
     - 若调用该接口前为Counter模式，在调用该接口后需要显式设置回Counter模式（接口内部执行结束后会设置为Normal模式）。
     """
 
@@ -5508,7 +5508,7 @@ def compare_docstring() -> Callable[[T], T]:
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     - dst按照小端顺序排序成二进制结果，对应src中相应位置的数据比较结果。
     - 使用整个tensor参与计算的运算符重载功能，src0和src1需满足256字节对齐；使用tensor前n个数据参与计算的接口，设置count时，需要保证count个元素所占空间256字节对齐。
     - 将结果存入寄存器的接口没有repeat输入，repeat默认为1，即一条指令计算256B的数据。
@@ -5615,7 +5615,7 @@ def mrg_sort_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     - 不支持源操作数与目的操作数之间存在地址重叠。
     """
 
@@ -5680,7 +5680,7 @@ def mrg_sort4_docstring():
     **约束说明**
 
     - 当存在proposal[i]与proposal[j]的score值相同时，如果i>j，则proposal[j]将首先被选出来，排在前面。
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     - 不支持源操作数与目的操作数之间存在地址重叠。
     """
 
@@ -5726,7 +5726,7 @@ def rp_sort16_docstring():
 
     - 用户需保证src和dst中存储的Region Proposal数目大于实际所需数据，否则会存在tensor越界错误。
     - 当存在proposal[i]与proposal[j]的score值相同时，如果i>j，则proposal[j]将首先被选出来，排在前面。
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     """
 
     py_example = """
@@ -5769,7 +5769,7 @@ def sort32_docstring():
 
     - 当存在score[i]与score[j]相同时，如果i>j，则score[j]将首先被选出来，排在前面。
     - 每次迭代内的数据会进行排序，不同迭代间的数据不会进行排序。
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     """
 
     py_example = """
@@ -5816,7 +5816,7 @@ def sort_docstring():
 
     - 当存在score[i]与score[j]相同时，如果i>j，则score[j]将首先被选出来，排在前面，即index的顺序与输入顺序一致。
     - 非全排序模式下，每次迭代内的数据会进行排序，不同迭代间的数据不会进行排序。
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     """
 
     py_example = """
@@ -5887,7 +5887,7 @@ def compare_scalar_docstring() -> Callable[[T], T]:
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     - dst按照小端顺序排序成二进制结果，对应src中相应位置的数据比较结果。
     - 使用tensor前n个数据参与计算的接口，设置count时，需要保证count个元素所占空间256字节对齐。
     """
@@ -6240,8 +6240,8 @@ def select_docstring() -> Callable[[T], T]:
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
-    - 操作数地址重叠约束请参考通用地址重叠约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
+    - 操作数地址重叠约束请参考 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址重叠约束”。
     - 对于模式1和模式2，使用时需要预留8K的Unified Buffer空间，作为接口的临时数据存放区。
     """
 
@@ -6737,8 +6737,8 @@ def axpy_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
-    - 操作数地址重叠约束请参考通用地址重叠约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
+    - 操作数地址重叠约束请参考 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址重叠约束”。
     使用tensor高维切分计算接口时，src和scalar的数据类型为half、dst的数据类型为float的情况下，
     一个迭代处理的源操作数元素个数需要和目的操作数保持一致，所以每次迭代选取前4个data_block参与计算。
     设置repeat_stride参数和mask参数以及地址重叠时，需要考虑该限制。
@@ -6858,8 +6858,8 @@ def cast_deq_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
-    - 操作数地址重叠约束请参考通用地址重叠约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
+    - 操作数地址重叠约束请参考 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址重叠约束”。
     """
 
     py_example = """
@@ -6964,8 +6964,8 @@ def gather_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
-    - 操作数地址重叠约束请参考通用地址重叠约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
+    - 操作数地址重叠约束请参考 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址重叠约束”。
     """
 
     py_example = """
@@ -7090,7 +7090,7 @@ def block_reduce_sum_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     - 为了节省地址空间，您可以定义一个Tensor，供源操作数与目的操作数同时使用（即地址重叠），需要注意计算后的目的操作数数据不能覆盖未参与计算的源操作数，需要谨慎使用。
     """
 
@@ -7172,7 +7172,7 @@ def block_reduce_max_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     - 为了节省地址空间，您可以定义一个Tensor，供源操作数与目的操作数同时使用（即地址重叠），需要注意计算后的目的操作数数据不能覆盖未参与计算的源操作数，需要谨慎使用。
     - 针对不同场景合理使用归约指令可以带来性能提升, 相关介绍请参考选择低延迟指令，优化归约操作性能。
     """
@@ -7255,7 +7255,7 @@ def block_reduce_min_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     - 为了节省地址空间，您可以定义一个Tensor，供源操作数与目的操作数同时使用（即地址重叠），需要注意计算后的目的操作数数据不能覆盖未参与计算的源操作数，需要谨慎使用。
     - 针对不同场景合理使用归约指令可以带来性能提升, 相关介绍请参考选择低延迟指令，优化归约操作性能。
     """
@@ -7352,8 +7352,8 @@ def reduce_min_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
-    - 操作数地址重叠约束请参考通用地址重叠约束。需要使用shared_tmp_buffer的情况下，支持dst与shared_tmp_buffer地址重叠（通常情况下dst比shared_tmp_buffer所需的空间要小），此时shared_tmp_buffer必须满足最小所需空间要求，否则不支持地址重叠。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
+    - 操作数地址重叠约束请参考 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址重叠约束”。需要使用shared_tmp_buffer的情况下，支持dst与shared_tmp_buffer地址重叠（通常情况下dst比shared_tmp_buffer所需的空间要小），此时shared_tmp_buffer必须满足最小所需空间要求，否则不支持地址重叠。
     - dst结果存储顺序为最小值，最小值索引，若不需要索引，只会存储最小值。返回结果中索引index数据是按照dst的数据类型进行存储的，比如dst使用half类型时，index按照half类型进行存储，如果按照half格式进行读取，index的值是不对的，因此index的读取需要使用reinterpret_cast方法转换到整数类型。
     - 返回最小值索引时，如果存在多个最小值，返回第一个最小值的索引。
     - 当输入类型是half的时候，只支持获取最大不超过65535（uint16_t能表示的最大值）的索引值。
@@ -7457,8 +7457,8 @@ def reduce_max_docstring():
     constraint_list = """
     **约束说明**
 
-    - 操作数地址对齐要求请参见通用地址对齐约束。
-    - 操作数地址重叠约束请参考通用地址重叠约束。需要使用shared_tmp_buffer的情况下，支持dst与shared_tmp_buffer地址重叠（通常情况下dst比shared_tmp_buffer所需的空间要小），此时shared_tmp_buffer必须满足最小所需空间要求，否则不支持地址重叠。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
+    - 操作数地址重叠约束请参考 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址重叠约束”。需要使用shared_tmp_buffer的情况下，支持dst与shared_tmp_buffer地址重叠（通常情况下dst比shared_tmp_buffer所需的空间要小），此时shared_tmp_buffer必须满足最小所需空间要求，否则不支持地址重叠。
     - dst结果存储顺序为最大值，最大值索引，若不需要索引，只会存储最大值。返回结果中索引index数据是按照dst的数据类型进行存储的，比如dst使用half类型时，index按照half类型进行存储，如果按照half格式进行读取，index的值是不对的，因此index的读取需要使用reinterpret_cast方法转换到整数类型。
     - 返回最大值索引时，如果存在多个最大值，返回第一个最大值的索引。
     - 当输入类型是half的时候，只支持获取最大不超过65535（uint16_t能表示的最大值）的索引值。
@@ -7563,8 +7563,8 @@ def reduce_sum_docstring():
     constraint_list = """
     **约束说明**
 
-    - [操作数地址对齐要求请参见通用地址对齐约束](https://www.hiascend.com/document/detail/zh/CANNCommunityEdition/850/API/ascendcopapi/atlasascendc_api_07_0004.html#ZH-CN_TOPIC_0000002534493277__section796754519912)。
-    - 操作数地址重叠约束请参考通用地址重叠约束。需要使用shared_tmp_buffer的情况下，支持dst与shared_tmp_buffer地址重叠（通常情况下dst比shared_tmp_buffer所需的空间要小），此时shared_tmp_buffer必须满足最小所需空间要求，否则不支持地址重叠。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
+    - 操作数地址重叠约束请参考 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址重叠约束”。需要使用shared_tmp_buffer的情况下，支持dst与shared_tmp_buffer地址重叠（通常情况下dst比shared_tmp_buffer所需的空间要小），此时shared_tmp_buffer必须满足最小所需空间要求，否则不支持地址重叠。
     - 该接口内部通过软件仿真来实现reduce_sum功能，某些场景下，性能可能不及直接使用硬件指令实现的block_reduce_sum和whole_reduce_sum接口。针对不同场景合理使用归约指令可以带来性能提升，相关介绍请参考选择低延迟指令，优化归约操作性能。
     """
 

@@ -222,7 +222,7 @@ def exp(dst: LocalTensor, src: LocalTensor, count: RuntimeInt, taylor_expand_lev
 
     - 不支持源操作数与目的操作数地址重叠。
     - 不支持temp_buffer与源操作数和目的操作数地址重叠。
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
 
     **调用示例**
 
@@ -433,7 +433,7 @@ def power(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, count: Optiona
     **约束说明**
 
     - 不支持源操作数与目的操作数地址重叠。
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
 
     **调用示例**
 
@@ -494,7 +494,7 @@ def xor(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, count: Optional[
     - count需要保证小于或等于src0Tensor和src1Tensor和dstTensor存储的元素范围。
     - 对于不带count参数的接口，需要保证src0Tensor和src1Tensor的shape大小相等。
     - 不支持temp_buffer与源操作数和目的操作数地址重叠。
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
 
     **调用示例**
 
@@ -541,7 +541,7 @@ def axpy(dst: LocalTensor, src: LocalTensor, scalar: RuntimeNumeric, count: Opti
 
     - 不支持源操作数与目的操作数地址重叠。
     - 不支持temp_buffer与源操作数和目的操作数地址重叠。
-    - 操作数地址对齐要求请参见通用地址对齐约束。
+    - 操作数地址对齐要求请参见 `《Ascend C算子开发接口》 <https://hiascend.com/document/redirect/CannCommunityAscendCApi>`_ 中的“通用说明和约束-通用地址对齐约束”。
     - 该接口支持的精度组合如下：
 
       - half精度组合：src_local数据类型=half；scalar数据类型=half；dst_local数据类型=half；PAR=128
