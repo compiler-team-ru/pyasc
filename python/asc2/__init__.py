@@ -39,6 +39,7 @@ from asc.language.tile.creation_ops import (
 )
 from asc.language.tile.memory_ops import (
     load,
+    num_tiles,
     store,
 )
 from asc.language.tile.unary_ops import (
@@ -101,6 +102,7 @@ __all__ = [
     "zeros_like",
     # memory_ops
     "load",
+    "num_tiles",
     "store",
     # unary_ops
     "abs",
