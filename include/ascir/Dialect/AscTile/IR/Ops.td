@@ -37,6 +37,15 @@ def TensorOp : AscTile_Op<"tensor", [Pure]> {
   let hasVerifier = 1;
 }
 
+def DimOp : AscTile_Op<"dim", [Pure]> {
+  let summary = "Obtain dimension of given tensor";
+  let arguments = (ins Tensor:$base, I32Attr:$index);
+  let results = (outs I32:$result);
+  let assemblyFormat = "$base `,` $index attr-dict `:` qualified(type($base))";
+  let hasFolder = 1;
+  let hasVerifier = 1;
+}
+
 def SplatOp : AscTile_Op<"splat", [
   Pure,
   TypesMatchWith<"type of 'value' matches element type of 'result'",
