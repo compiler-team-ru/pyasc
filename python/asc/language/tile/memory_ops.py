@@ -24,7 +24,7 @@ def infer_offsets(tensor_shape: Tuple[RuntimeInt], shape: Iterable[int], tile_id
         raise ValueError("either 'tile_id' or 'offsets' must be provided")
     shape = tuple(shape)
     if len(tensor_shape) != len(shape):
-        raise RuntimeError(f"rank of 'tensor_shape' must match rank of 'shape'")
+        raise RuntimeError("rank of 'tensor_shape' must match rank of 'shape'")
     if tile_id is not None:
         return [_mat(idx * size, KT.int32).to_ir() for idx, size in zip(tile_id, shape)]
     return [_mat(v, KT.int32).to_ir() for v in offsets]
@@ -47,3 +47,17 @@ def store(tile: Tile, tensor: Tensor, tile_id: Optional[Iterable[RuntimeInt]] = 
         raise RuntimeError("shape must be integers")
     offsets = infer_offsets(tensor.shape, tile.shape, tile_id, offsets)
     global_builder.get_ir_builder().create_asctile_StoreOp(tile.to_ir(), tensor.to_ir(), offsets)
+
+
+def num_tiles(tensor: Tensor, axis: RuntimeInt, shape: Iterable[int]) -> RuntimeInt:
+    if not all(isinstance(dim, int) for dim in shape):
+        raise RuntimeError("shape must be integers")
+    shape = tuple(shape)
+    tensor_shape = tensor.shape
+    if len(tensor_shape) != len(shape):
+        raise RuntimeError("rank of 'tensor_shape' must match rank of 'shape'")
+    if axis >= len(shape) or axis >= len(tensor_shape):
+        raise ValueError(f"axis ({axis}) exceeds number of dimensions")
+    dim_size = tensor_shape[axis]
+    tile_size = shape[axis]
+    return (dim_size + tile_size - 1) // tile_size
