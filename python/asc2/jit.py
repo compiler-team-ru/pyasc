@@ -26,8 +26,9 @@ def jit(**options) -> Callable[[Callable[P, T]], JITFunction[P, T]]:
 
 
 def jit(fn: Optional[Callable[P, T]] = None, **options):
-    options["insert_sync"] = True
-    options["run_asc2_passes"] = True
+    options.setdefault("insert_sync", True)
+    options.setdefault("run_asc2_passes", True)
+    options.setdefault("densify_load_store", True)
 
     def decorator(fn: Callable[P, T]) -> JITFunction[P, T]:
         return JITFunction(fn, **options)
