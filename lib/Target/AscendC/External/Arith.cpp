@@ -161,3 +161,11 @@ LogicalResult mlir::printOperation(CodeEmitter &emitter, arith::IndexCastOp op)
     os << ">(" << emitter.getOrCreateName(op.getIn()) << ")";
     return success();
 }
+
+LogicalResult mlir::printOperation(CodeEmitter &emitter, arith::NegFOp op)
+{
+    FAIL_OR(emitter.emitAssignPrefix(*op.getOperation()));
+    auto &os = emitter.ostream();
+    os << "-" << emitter.getOrCreateName(op.getOperand());
+    return success();
+}

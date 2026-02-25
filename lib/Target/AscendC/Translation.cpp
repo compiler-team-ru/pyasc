@@ -90,6 +90,7 @@ using PrintableOpTypes = std::tuple<
     arith::MinSIOp, arith::MaxSIOp, arith::MulFOp, arith::SubFOp, arith::ExtUIOp, arith::ExtSIOp, arith::ExtFOp,
     arith::TruncIOp, arith::TruncFOp, arith::FPToSIOp, arith::FPToUIOp, arith::SIToFPOp, arith::UIToFPOp,
     arith::BitcastOp, arith::ShRUIOp, arith::OrIOp, arith::XOrIOp, arith::DivUIOp, arith::MulUIExtendedOp,
+    arith::NegFOp,
     // Math ops
     math::AbsFOp, math::CopySignOp, math::SqrtOp, math::Atan2Op, math::ExpOp, math::LogOp, math::Log2Op, math::ErfOp,
     math::CosOp, math::SinOp, math::CeilOp, math::FloorOp, math::RsqrtOp, math::Exp2Op, math::FmaOp, math::RoundOp,
