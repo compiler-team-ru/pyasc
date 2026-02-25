@@ -15,7 +15,6 @@ from typing_extensions import Self
 
 from ..._C import ir
 from ..core.dtype import DataType
-from ..core.tensor import TensorShape
 from ..core.ir_value import IRHandle, IRValue, RuntimeInt
 from ..core.utils import global_builder
 
@@ -29,7 +28,7 @@ class Tile(IRValue):
         self.handle: Final = handle
         ir_type = handle.get_type()
         self.dtype: Final = DataType.from_ir(ir.get_element_type(ir_type))
-        self.shape: Final = TensorShape(ir.get_shape(ir_type))
+        self.shape: Final = tuple(ir.get_shape(ir_type))
         if len(self.shape) < 1:
             raise RuntimeError("Tile shape must have at least one dimension")
         try:
