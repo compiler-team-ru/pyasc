@@ -12,7 +12,6 @@ from typing import Iterable, Optional
 from ..._C import ir
 from ..core.dtype import DataType, KnownTypes as KT
 from ..core.ir_value import RuntimeNumeric
-from ..core.tensor import TensorShape
 from ..core.utils import check_type
 from .tile import Tile
 from .utils import constant_tile, splat_tile
@@ -21,7 +20,7 @@ from .utils import constant_tile, splat_tile
 def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] = None) -> Tile:
     if not all(isinstance(dim, int) for dim in shape):
         raise RuntimeError("shape must be integers")
-    shape = TensorShape(shape)
+    shape = tuple(shape)
     if isinstance(value, Real):
         if dtype is None:
             dtype = KT.int32 if isinstance(value, int) else KT.float32

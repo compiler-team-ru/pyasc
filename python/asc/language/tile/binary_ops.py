@@ -13,7 +13,7 @@ from ...common.compat import isinstance
 from ..core.ir_value import IRHandle, PlainValue, RuntimeInt, RuntimeNumeric
 from ..core.utils import global_builder
 from .tile import BinaryOperandTypeError, Tile, bind_tile_method
-from .utils import constant_tile, create_tile, infer_common_dtype, splat_tile
+from .utils import constant_tile, create_tile, infer_common_dtype, infer_common_shape, splat_tile
 
 
 def op_binary_impl(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric],
@@ -21,8 +21,9 @@ def op_binary_impl(input: Union[Tile, RuntimeNumeric], other: Union[Tile, Runtim
     if not isinstance(input, Tile) and not isinstance(other, Tile):
         raise BinaryOperandTypeError(f"At least one operand must be tile, got {type(input)} and {type(other)}")
     result_dtype = infer_common_dtype(input, other)
-    input = create_tile(input, result_dtype)
-    other = create_tile(other, result_dtype)
+    result_shape = infer_common_shape(input, other)
+    input = create_tile(input, result_dtype, result_shape)
+    other = create_tile(other, result_dtype, result_shape)
     if result_dtype.is_int():
         handle = build_int(input.to_ir(), other.to_ir())
     elif result_dtype.is_float():
@@ -37,8 +38,9 @@ def op_compare_impl(input: Tile, other: Union[Tile, RuntimeNumeric], pred_int: i
     if not isinstance(input, Tile) and not isinstance(other, Tile):
         raise BinaryOperandTypeError(f"At least one operand must be tile, got {type(input)} and {type(other)}")
     result_dtype = infer_common_dtype(input, other)
-    input = create_tile(input, result_dtype)
-    other = create_tile(other, result_dtype)
+    result_shape = infer_common_shape(input, other)
+    input = create_tile(input, result_dtype, result_shape)
+    other = create_tile(other, result_dtype, result_shape)
     builder = global_builder.get_ir_builder()
     if result_dtype.is_int():
         handle = builder.create_arith_CmpIOp(pred_int, input.to_ir(), other.to_ir())

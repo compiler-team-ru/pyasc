@@ -7,7 +7,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 from numbers import Real
-from typing import Union
+from typing import Tuple, Union
 
 from ..._C import ir
 from ..core.dtype import DataType, KnownTypes as KT
@@ -45,13 +45,15 @@ def splat_tile(value: PlainValue, shape: TensorShape, dtype: DataType,
     return Tile.from_ir(handle)
 
 
-def create_tile(value: Union[Tile, RuntimeNumeric], dtype: DataType) -> Tile:
+def create_tile(value: Union[Tile, RuntimeNumeric], dtype: DataType, shape: Tuple[int, ...]) -> Tile:
     if isinstance(value, Tile):
+        if value.shape != shape:
+            raise RuntimeError("Tile shape doesn't match the required shape")
         return value.to(dtype)
     if isinstance(value, Real):
-        return constant_tile(value, input.shape, dtype)
+        return constant_tile(value, shape, dtype)
     if isinstance(value, PlainValue):
-        return splat_tile(value, input.shape, dtype)
+        return splat_tile(value, shape, dtype)
     raise BinaryOperandTypeError(f"Tile cannot be created from {value.__class__.__name__}")
 
 
@@ -83,3 +85,13 @@ def infer_common_dtype(lhs: Union[Tile, RuntimeNumeric], rhs: Union[Tile, Runtim
     if lhs_dtype.bitwidth == rhs_dtype.bitwidth:
         return lhs_dtype if lhs_dtype.is_float() else rhs_dtype
     raise RuntimeError(f"Unable to infer common dtype between {lhs_dtype} and {rhs_dtype}")
+
+
+def infer_common_shape(lhs: Union[Tile, RuntimeNumeric], rhs: Union[Tile, RuntimeNumeric]) -> Tuple[int, ...]:
+    lhs_is_tile = isinstance(lhs, Tile)
+    rhs_is_tile = isinstance(rhs, Tile)
+    if lhs_is_tile and rhs_is_tile:
+        if lhs.shape == rhs.shape:
+            return lhs.shape
+        raise RuntimeError(f"Shape mismatch: {lhs.shape} vs. {rhs.shape}")
+    return lhs.shape if lhs_is_tile else rhs.shape
