@@ -100,6 +100,8 @@ LogicalResult printOperation(CodeEmitter& emitter, arith::SelectOp op);
 
 LogicalResult printOperation(CodeEmitter& emitter, arith::IndexCastOp op);
 
+LogicalResult printOperation(CodeEmitter& emitter, arith::NegFOp op);
+
 } // namespace mlir
 
 #endif // ASCIR_TARGET_ASC_MLIR_ARITH_H
