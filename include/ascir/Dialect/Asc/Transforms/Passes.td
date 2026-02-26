@@ -41,6 +41,11 @@ def EraseSync : Pass<"ascendc-erase-sync", "func::FuncOp"> {
   let constructor = "mlir::ascendc::createEraseSyncPass()";
 }
 
+def FillAscOperands : Pass<"ascendc-fill-asc-operands", "func::FuncOp"> {
+  let summary = "Filling AscendC operands";
+  let constructor = "mlir::ascendc::createFillAscOperandsPass()";
+}
+
 def FuseBufIdSync : Pass<"ascendc-fuse-bufid-sync", "func::FuncOp"> {
   let summary = "Erase unnecessary get_buf and rls_buf";
   let constructor = "mlir::ascendc::createFuseBufIdSyncPass()";

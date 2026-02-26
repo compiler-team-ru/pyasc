@@ -18,18 +18,25 @@ def AscendC_CalCount : AnyTypeOf<[I8, I16, I32, I64]>;
 class GetMethod<string fieldName, string methodName, string returnType = "::mlir::Value">
     : InterfaceMethod<"Obtain `" # fieldName # "` parameter", returnType, methodName>;
 
+class GetMutableMethod<string fieldName, string methodName>
+    : InterfaceMethod<"Obtain the mutable `" # fieldName # "` operand", "::mlir::OpOperand&", methodName>;
+
 class AscendC_InterfaceMethods {
   // Method list should be kept sorted by name.
   InterfaceMethod getAPIName = InterfaceMethod<"Obtain Ascend C library name", "::llvm::StringRef", "getAPIName">;
   InterfaceMethod getCalCount = GetMethod<"calCount", "getCalCount">;
+  InterfaceMethod getCalCountMutable = GetMutableMethod<"calCount", "getCalCountMutable">;
   InterfaceMethod getComment = InterfaceMethod<"Obtain describing comment", "::llvm::StringRef", "getComment">;
   InterfaceMethod getDst = GetMethod<"dst", "getDst">;
   InterfaceMethod getDstBlkStride = GetMethod<"dstBlkStride", "getDstBlkStride">;
   InterfaceMethod getDstRepStride = GetMethod<"dstRepStride", "getDstRepStride">;
   InterfaceMethod getMask = GetMethod<"mask", "getMask">;
+  InterfaceMethod getMaskMutable = GetMutableMethod<"mask", "getMaskMutable">;
   InterfaceMethod getParams = GetMethod<"params", "getParams">;
   InterfaceMethod getRepeatParams = GetMethod<"repeatParams", "getRepeatParams">;
+  InterfaceMethod getRepeatParamsMutable = GetMutableMethod<"repeatParams", "getRepeatParamsMutable">;
   InterfaceMethod getRepeatTimes = GetMethod<"repeatTimes", "getRepeatTimes">;
+  InterfaceMethod getRepeatTimesMutable = GetMutableMethod<"repeatTimes", "getRepeatTimesMutable">;
   InterfaceMethod getIsSetMask = GetMethod<"isSetMask", "getIsSetMask", "bool">;
   InterfaceMethod getScalar = GetMethod<"scalar", "getScalar">;
   InterfaceMethod getSharedTmpBuffer = GetMethod<"sharedTmpBuffer", "getSharedTmpBuffer">;
@@ -114,12 +121,15 @@ def UnaryOpInterface
 
 def UnaryL0OpInterface : AscendC_OpInterface<"UnaryL0Op", [UnaryOpInterface]> {
   let description = "Vector unary operation (L0 API)";
-  let methods = [getMask, getRepeatTimes, getRepeatParams];
+  let methods = [
+    getMask, getRepeatTimes, getRepeatParams,
+    getMaskMutable, getRepeatTimesMutable, getRepeatParamsMutable,
+  ];
 }
 
 def UnaryL2OpInterface : AscendC_OpInterface<"UnaryL2Op", [UnaryOpInterface]> {
   let description = "Vector unary operation (L2 API)";
-  let methods = [getCalCount];
+  let methods = [getCalCount, getCalCountMutable];
 }
 
 //===----------------------------------------------------------------------===//
@@ -130,6 +140,19 @@ def BinaryOpInterface
     : AscendC_OpInterface<"BinaryOp", [VectorOpInterface, OpWithDstInterface]> {
   let description = "Vector binary operation";
   let methods = [getSrc0, getSrc1];
+}
+
+def BinaryL0OpInterface : AscendC_OpInterface<"BinaryL0Op", [BinaryOpInterface]> {
+  let description = "Vector binary operation (L0 API)";
+  let methods = [
+    getMask, getRepeatTimes, getRepeatParams,
+    getMaskMutable, getRepeatTimesMutable, getRepeatParamsMutable,
+  ];
+}
+
+def BinaryL2OpInterface : AscendC_OpInterface<"BinaryL2Op", [BinaryOpInterface]> {
+  let description = "Vector binary operation (L2 API)";
+  let methods = [getCalCount, getCalCountMutable];
 }
 
 def BinaryL3OpInterface : AscendC_OpInterface<"BinaryL3Op", [BinaryOpInterface]> {
