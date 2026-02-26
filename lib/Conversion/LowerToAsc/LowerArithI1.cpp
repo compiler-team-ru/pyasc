@@ -131,15 +131,11 @@ struct ConvertCmpI : public ConvertOp<arith::CmpIOp> {
         default:
             llvm_unreachable("Unexpected predicate type!");
         }
-        auto [maskH, maskL] = getMask(srcVecTy);
-        auto mask = rewriter.create<emitasc::MaskOp>(loc, consts.i64(maskH), consts.i64(maskL));
-        auto repeatParams = rewriter.create<ascendc::ConstructOp>(
-            loc, rewriter.getType<ascendc::BinaryRepeatParamsType>(),
-            ValueRange{
-                consts.i64(dstBlkStride), consts.i64(src0BlkStride), consts.i64(src1BlkStride),
-                consts.i64(dstRepStride), consts.i64(src0RepStride), consts.i64(src1RepStride)});
+        auto zero = consts.i64(0);
+        auto repeatParams =
+            rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::BinaryRepeatParamsType>());
         rewriter.create<ascendc::CompareL0Op>(
-            loc, dst, src0, src1, cmpMode, mask, consts.i64(getRepeatTimes(srcVecTy)), repeatParams);
+            loc, dst, src0, src1, cmpMode, rewriter.create<emitasc::MaskOp>(loc, zero, zero), zero, repeatParams);
         rewriter.replaceOp(op, dst);
         return success();
     }
@@ -190,16 +186,11 @@ struct ConvertCmpF : public ConvertOp<arith::CmpFOp> {
         default:
             llvm_unreachable("Unexpected predicate type!");
         }
-
-        auto [maskH, maskL] = getMask(srcVecTy);
-        auto mask = rewriter.create<emitasc::MaskOp>(loc, consts.i64(maskH), consts.i64(maskL));
-        auto repeatParams = rewriter.create<ascendc::ConstructOp>(
-            loc, rewriter.getType<ascendc::BinaryRepeatParamsType>(),
-            ValueRange{
-                consts.i64(dstBlkStride), consts.i64(src0BlkStride), consts.i64(src1BlkStride),
-                consts.i64(dstRepStride), consts.i64(src0RepStride), consts.i64(src1RepStride)});
+        auto zero = consts.i64(0);
+        auto repeatParams =
+            rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::BinaryRepeatParamsType>());
         rewriter.create<ascendc::CompareL0Op>(
-            loc, dst, src0, src1, cmpMode, mask, consts.i64(getRepeatTimes(srcVecTy)), repeatParams);
+            loc, dst, src0, src1, cmpMode, rewriter.create<emitasc::MaskOp>(loc, zero, zero), zero, repeatParams);
         rewriter.replaceOp(op, dst);
         return success();
     }

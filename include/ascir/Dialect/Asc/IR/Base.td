@@ -125,7 +125,7 @@ class BinaryOp<string mnemonic, string apiName, list<Trait> traits = []>
 }
 
 class BinaryL0Op<string mnemonic, string apiName, list<Trait> traits = []>
-    : BinaryOp<mnemonic, apiName, traits> {
+    : BinaryOp<mnemonic, apiName, [BinaryL0OpInterface] # traits> {
   let description = "`AscendC::" # apiName # "` is a vector binary operation (L0 API).\n";
   let arguments = (ins AnyType:$dst, AnyType:$src0, AnyType:$src1,
                    AnyType:$mask, AnyType:$repeatTimes, 
@@ -141,7 +141,7 @@ class BinaryL1Op<string mnemonic, string apiName, list<Trait> traits = []>
 }
 
 class BinaryL2Op<string mnemonic, string apiName, list<Trait> traits = []>
-    : BinaryOp<mnemonic, apiName, traits> {
+    : BinaryOp<mnemonic, apiName, [BinaryL2OpInterface] # traits> {
   let description = "`AscendC::" # apiName # "` is a vector binary operation (L2 API).\n";
   let arguments = (ins AnyType:$dst, AnyType:$src0, AnyType:$src1,
                    AnyType:$calCount);

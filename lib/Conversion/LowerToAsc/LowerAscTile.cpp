@@ -265,17 +265,11 @@ struct ConvertSelect : ConvertOp<asctile::SelectOp> {
         auto selMask = rewriter.getRemappedValue(op.getSelMask());
         auto src0 = rewriter.getRemappedValue(op.getSrc0());
         auto src1 = rewriter.getRemappedValue(op.getSrc1());
-        auto selMode = ascendc::SELMODE::VSEL_TENSOR_TENSOR_MODE;
-        auto srcVecType = dyn_cast<ShapedType>(op.getSrc0().getType());
-        auto [maskH, maskL] = getMask(srcVecType);
-        auto mask = rewriter.create<emitasc::MaskOp>(loc, consts.i64(maskH), consts.i64(maskL));
-        auto repeatTimes = consts.i64(getRepeatTimes(srcVecType));
-        auto repeatParams = rewriter.create<ascendc::ConstructOp>(
-            loc, rewriter.getType<ascendc::BinaryRepeatParamsType>(),
-            ValueRange{
-                consts.i64(dstBlkStride), consts.i64(src0BlkStride), consts.i64(src1BlkStride),
-                consts.i64(dstRepStride), consts.i64(src0RepStride), consts.i64(src1RepStride)});
-        rewriter.create<ascendc::SelectL0Op>(loc, dst, selMask, src0, src1, selMode, mask, repeatTimes, repeatParams);
+        auto zero = consts.i64(0);
+        rewriter.create<ascendc::SelectL0Op>(
+            loc, dst, selMask, src0, src1, ascendc::SELMODE::VSEL_TENSOR_TENSOR_MODE,
+            rewriter.create<emitasc::MaskOp>(loc, zero, zero), zero,
+            rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::BinaryRepeatParamsType>()));
         rewriter.replaceOp(op, dst);
         return success();
     }
