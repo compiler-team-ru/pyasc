@@ -142,11 +142,11 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
         Value minTailElements = rewriter.create<arith::MinSIOp>(loc, dstLastDim, tailElements);
         Value blockLen = rewriter.create<arith::MulIOp>(loc, minTailElements, typeSizeValue);
         auto context = op.getContext();
+        auto ui32Type = rewriter.getIntegerType(32, false);
         auto dataCopyExtParams = rewriter.create<ascendc::ConstructOp>(
             loc, rewriter.getType<ascendc::DataCopyExtParamsType>(),
             ValueRange {blockCount, blockLen, srcStride, const0, const0},
-            rewriter.getTypeArrayAttr({rewriter.getI32Type(), rewriter.getIntegerType(32, false), rewriter.getI32Type(),
-                                       rewriter.getI32Type(), rewriter.getI32Type()}));
+            rewriter.getTypeArrayAttr({rewriter.getIntegerType(16, false), ui32Type, ui32Type, ui32Type, ui32Type}));
         Value numPaddingElements = rewriter.create<arith::SubIOp>(loc, totalElementsInBlock, tailElements);
         Value rightPad = rewriter.create<arith::MaxSIOp>(loc, numPaddingElements, const0);
         auto dataCopyPadExtParams = rewriter.create<ascendc::ConstructOp>(
@@ -193,11 +193,11 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
         Value minTailElements = rewriter.create<arith::MinSIOp>(loc, srcLastDim, tailElements);
         Value blockLen = rewriter.create<arith::MulIOp>(loc, minTailElements, typeSizeValue);
         auto context = op.getContext();
+        auto ui32Type = rewriter.getIntegerType(32, false);
         auto dataCopyExtParams = rewriter.create<ascendc::ConstructOp>(
             loc, rewriter.getType<ascendc::DataCopyExtParamsType>(),
             ValueRange {blockCount, blockLen, const0, dstStride, const0},
-            rewriter.getTypeArrayAttr({rewriter.getI32Type(), rewriter.getIntegerType(32, false), rewriter.getI32Type(),
-                                       rewriter.getI32Type(), rewriter.getI32Type()}));
+            rewriter.getTypeArrayAttr({rewriter.getIntegerType(16, false), ui32Type, ui32Type, ui32Type, ui32Type}));
         rewriter.replaceOpWithNewOp<ascendc::DataCopyPadExtL2Op>(op, dst, src, dataCopyExtParams);
         return success();
     }
