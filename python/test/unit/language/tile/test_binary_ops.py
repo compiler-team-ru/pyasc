@@ -9,18 +9,18 @@ VV, VS, SV = 0, 1, 2
 USE_CORE_NUM = 1
 
 binary_ops = [
-    (asc2.add, torch.add, [VV], [
+    (asc2.add, torch.add, [VV, VS, SV], [
         (torch.float32, (torch.float32, torch.float32)),
         (torch.int32, (torch.int32, torch.int32)),
     ]),
-    (asc2.div, torch.div, [VV], [
+    (asc2.div, torch.div, [VV, VS, SV], [
         (torch.float32, (torch.float32, torch.float32)),
     ]),
-    (asc2.mul, torch.mul, [VV], [
+    (asc2.mul, torch.mul, [VV, VS, SV], [
         (torch.float32, (torch.float32, torch.float32)),
         (torch.int32, (torch.int32, torch.int32)),
     ]),
-    (asc2.sub, torch.sub, [VV], [
+    (asc2.sub, torch.sub, [VV, VS, SV], [
         (torch.float32, (torch.float32, torch.float32)),
         (torch.int32, (torch.int32, torch.int32)),
     ]),
@@ -30,11 +30,11 @@ binary_ops = [
     (asc2.right_shift, torch.bitwise_right_shift, [VS], [
         (torch.int32, (torch.int32, torch.int32)),
     ]),
-    (asc2.maximum, torch.maximum, [VV], [
+    (asc2.maximum, torch.maximum, [VV, VS, SV], [
         (torch.float32, (torch.float32, torch.float32)),
         (torch.int32, (torch.int32, torch.int32)),
     ]),
-    (asc2.minimum, torch.minimum, [VV], [
+    (asc2.minimum, torch.minimum, [VV, VS, SV], [
         (torch.float32, (torch.float32, torch.float32)),
         (torch.int32, (torch.int32, torch.int32)),
     ]),
@@ -100,7 +100,10 @@ def test_binary_operations(asc_op, torch_op, fmt, dtypes):
     z = torch.zeros(size, dtype=dtype_z)
 
     kernel[1](x, y, z, block_length, fmt, asc_op)
-
+    if isinstance(x, (int, float)):
+        x = torch.tensor(x, dtype=dtype_x)
+    if isinstance(y, (int, float)):
+        y = torch.tensor(y, dtype=dtype_y)
     if dtype_z == torch.float32:
         assert torch.allclose(z, torch_op(x, y), atol=1e-3), f"Failed {asc_op.__name__}"
     else:
