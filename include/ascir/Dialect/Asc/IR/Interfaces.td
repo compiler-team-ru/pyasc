@@ -35,7 +35,6 @@ class AscendC_InterfaceMethods {
   InterfaceMethod getDstRepStrideMutable = GetMutableMethod<"dstRepStride", "getDstRepStrideMutable">;
   InterfaceMethod getMask = GetMethod<"mask", "getMask">;
   InterfaceMethod getMaskMutable = GetMutableMethod<"mask", "getMaskMutable">;
-  InterfaceMethod getMaskReg = GetMethod<"maskReg", "getMaskReg">;
   InterfaceMethod getParams = GetMethod<"params", "getParams">;
   InterfaceMethod getPattern = GetMethod<"pattern", "getPattern", "::mlir::ascendc::ReducePattern">;
   InterfaceMethod getRepeatParams = GetMethod<"repeatParams", "getRepeatParams">;
@@ -173,14 +172,8 @@ def UnaryOpInterface : AscendC_OpInterface<"UnaryOp", [
 def UnaryL0OpInterface : AscendC_OpInterface<"UnaryL0Op", [UnaryOpInterface]> {
   let description = "Vector unary operation (L0 API)";
   let methods = [
-      getMask,
-      getRepeatTimes,
-      getRepeatParams,
-      getMaskMutable,
-      getRepeatTimesMutable,
-      getRepeatParamsMutable,
-      getIsSetMask,
-      setIsSetMask,
+    getMask, getRepeatTimes, getRepeatParams,
+    getMaskMutable, getRepeatTimesMutable, getRepeatParamsMutable,
   ];
 }
 
@@ -203,14 +196,8 @@ def BinaryOpInterface : AscendC_OpInterface<"BinaryOp", [
 def BinaryL0OpInterface : AscendC_OpInterface<"BinaryL0Op", [BinaryOpInterface]> {
   let description = "Vector binary operation (L0 API)";
   let methods = [
-      getMask,
-      getRepeatTimes,
-      getRepeatParams,
-      getMaskMutable,
-      getRepeatTimesMutable,
-      getRepeatParamsMutable,
-      getIsSetMask,
-      setIsSetMask,
+    getMask, getRepeatTimes, getRepeatParams,
+    getMaskMutable, getRepeatTimesMutable, getRepeatParamsMutable,
   ];
 }
 
