@@ -49,7 +49,7 @@ SmallVector<Value> getTensorShape(OpBuilder &builder, asctile::TensorOp tensorOp
     return tensorShape;
 }
 
-Value linearizeOffset(OpBuilder &builder, Location loc, SmallVector<Value> tensorShape, ValueRange offsets)
+Value linearizeOffset(OpBuilder &builder, Location loc, ArrayRef<Value> tensorShape, ValueRange offsets)
 {
     ascir::ConstantOpBuilder consts(builder);
     assert(offsets.size() == tensorShape.size() && "must be one offset for each dimension");
@@ -62,6 +62,15 @@ Value linearizeOffset(OpBuilder &builder, Location loc, SmallVector<Value> tenso
         stride = builder.create<arith::MulIOp>(loc, tensorShape[i], stride);
     }
     return linearOffset;
+}
+
+Value calculateNumElements(OpBuilder &builder, Location loc, ArrayRef<Value> shape)
+{
+    assert(!shape.empty() && "shape must contain values");
+    Value acc = shape.front();
+    for (auto next : shape.drop_front())
+        acc = builder.create<arith::MulIOp>(loc, acc, next);
+    return acc;
 }
 
 unsigned int calculateFinalTensorSize(const unsigned int &typeSize, int64_t calCount)
@@ -104,24 +113,24 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
         auto base = op.getBase();
         auto loc = op.getLoc();
         auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
-        Value dst = createTensorOp(rewriter, loc, op.getType());
-        auto dstTensorOp = dst.getDefiningOp<ascendc::LocalTensorAutoOp>();
         assert(tensorOp && "tensor must be created by asctile.tensor op");
+        auto dstTensorOp = createTensorOp(rewriter, loc, op.getType());
+        auto dst = dstTensorOp.getResult();
         SmallVector<Value> srcTensorShape = getTensorShape(rewriter, tensorOp);
         auto dstTensorShape = dstTensorOp.getType().getShape();
         Value linearOffset = linearizeOffset(rewriter, loc, srcTensorShape, op.getOffsets());
         Value src = rewriter.getRemappedValue(base);
-        auto srcType = src.getType();
+        auto srcType = cast<ascendc::BaseTensorType>(src.getType());
         auto dstType = dst.getType();
-        auto numElements = cast<ShapedType>(srcType).getNumElements();
+        auto numElements = calculateNumElements(rewriter, loc, srcTensorShape);
         ascir::ConstantOpBuilder consts(rewriter);
         src = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, srcType, src, linearOffset);
         auto padValue = rewriter.getRemappedValue(op.getPadValue());
-        auto typeSize = ascendc::getElementTypeSize(cast<ShapedType>(dstType));
+        auto typeSize = ascendc::getElementTypeSize(dstType);
         auto const0 = consts.i32(0);
         auto const1 = consts.i32(1);
         Value dstNumElements = consts.i32(calCount(dst));
-        Value tailElements = rewriter.create<arith::SubIOp>(loc, consts.i32(numElements), linearOffset);
+        Value tailElements = rewriter.create<arith::SubIOp>(loc, numElements, linearOffset);
         Value blockCount = dstTensorShape.size() == 1 ? const1 : consts.i32(dstTensorShape[0]);
         Value dstLastDim = consts.i32(dstTensorShape[dstTensorShape.size() - 1]);
         Value srcLastDim = srcTensorShape[srcTensorShape.size() - 1];
@@ -163,19 +172,19 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
         auto loc = op.getLoc();
         Value src = rewriter.getRemappedValue(op.getValue());
         Value dst = rewriter.getRemappedValue(op.getBase());
-        auto srcType = src.getType();
-        auto dstType = dst.getType();
-        auto srcTensorShape = cast<ascendc::LocalTensorType>(srcType).getShape();
+        auto srcType = cast<ascendc::BaseTensorType>(src.getType());
+        auto dstType = cast<ascendc::BaseTensorType>(dst.getType());
+        auto srcTensorShape = srcType.getShape();
         SmallVector<Value> dstTensorShape = getTensorShape(rewriter, tensorOp);
         Value linearOffset = linearizeOffset(rewriter, loc, dstTensorShape, op.getOffsets());
         dst = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, dstType, dst, linearOffset);
         ascir::ConstantOpBuilder consts(rewriter);
         auto const0 = consts.i32(0);
-        auto numElements = cast<ShapedType>(dstType).getNumElements();
-        auto typeSize = ascendc::getElementTypeSize(cast<ShapedType>(srcType));
+        auto numElements = calculateNumElements(rewriter, loc, dstTensorShape);
+        auto typeSize = ascendc::getElementTypeSize(srcType);
         auto typeSizeValue = consts.i32(typeSize);
         Value srcNumElements = consts.i32(calCount(src));
-        Value tailElements = rewriter.create<arith::SubIOp>(loc, consts.i32(numElements), linearOffset);
+        Value tailElements = rewriter.create<arith::SubIOp>(loc, numElements, linearOffset);
         Value blockCount = srcTensorShape.size() == 1 ? consts.i32(1) : consts.i32(srcTensorShape[0]);
         Value srcLastDim = consts.i32(srcTensorShape[srcTensorShape.size() - 1]);
         Value dstLastDim = dstTensorShape[dstTensorShape.size() - 1];
