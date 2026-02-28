@@ -15,6 +15,46 @@ from .utils import set_common_docstring
 
 
 @overload
+def get_sort_len(elem_count: int) -> RuntimeInt:
+    ...
+
+
+@overload
+def get_sort_len(elem_count: RuntimeInt) -> RuntimeInt:
+    ...
+
+
+@require_jit
+@set_common_docstring(api_name="get_sort_len")
+def get_sort_len(elem_count):
+    builder = global_builder.get_ir_builder()
+    return builder.create_asc_GetSortLenOp(
+        builder.get_ui32_type(),
+        _mat(elem_count, KT.uint32).to_ir()
+    )
+
+
+@overload
+def get_sort_offset(elem_offset: int) -> RuntimeInt:
+    ...
+
+
+@overload
+def get_sort_offset(elem_offset: RuntimeInt) -> RuntimeInt:
+    ...
+
+
+@require_jit
+@set_common_docstring(api_name="get_sort_offset")
+def get_sort_offset(elem_offset):
+    builder = global_builder.get_ir_builder()
+    return builder.create_asc_GetSortOffsetOp(
+        builder.get_ui32_type(),
+        _mat(elem_offset, KT.uint32).to_ir()
+    )
+
+
+@overload
 def get_mrg_sort_result() -> tuple[int, int, int, int]:
     ...
 

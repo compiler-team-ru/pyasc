@@ -338,7 +338,7 @@ def test_get_data_block_size_in_bytes(mock_launcher_run):
 
     kernel_get_data_block_size_in_bytes[1]()
     assert mock_launcher_run.call_count == 1
-    
+
 
 def test_get_sub_block_idx(mock_launcher_run):
 

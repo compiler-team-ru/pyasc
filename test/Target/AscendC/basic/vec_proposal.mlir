@@ -7,6 +7,24 @@
 // See LICENSE in the root of the software repository for the full text of the License.
 
 // RUN: ascir-translate -mlir-to-ascendc %s | FileCheck %s
+ 
+// CHECK-LABEL: void emit_get_sort_len(uint32_t v1) {
+// CHECK-NEXT:  AscendC::GetSortLen<float>(v1);
+// CHECK-NEXT:  return;
+// CHECK-NEXT: }
+func.func @emit_get_sort_len(%arg0: ui32) {
+ 	%0 = ascendc.get_sort_len %arg0 : ui32
+ 	return
+}
+
+// CHECK-LABEL: void emit_get_sort_offset(uint32_t v1) {
+// CHECK-NEXT:  AscendC::GetSortOffset<float>(v1);
+// CHECK-NEXT:  return;
+// CHECK-NEXT: }
+func.func @emit_get_sort_offset(%arg0: ui32) {
+  %0 = ascendc.get_sort_offset %arg0 : ui32
+ 	return
+}
 
 // CHECK-LABEL:void emit_mrg_sort(AscendC::LocalTensor<float> v1, AscendC::LocalTensor<float> v2, AscendC::LocalTensor<float> v3, AscendC::LocalTensor<float> v4, AscendC::LocalTensor<float> v5, uint16_t v6, uint16_t v7, uint16_t v8, uint16_t v9, uint32_t v10, uint32_t v11, uint32_t v12, uint32_t v13, int16_t v14, int32_t v15) {
 // CHECK-NEXT:   AscendC::MrgSortSrcList<float> v16{v2, v3, v4, v5};

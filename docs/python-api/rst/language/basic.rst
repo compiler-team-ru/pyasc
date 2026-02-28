@@ -47,6 +47,8 @@ Common operations
     get_mrg_sort_result
     get_program_counter
     get_store_atomic_config
+    get_sort_len
+    get_sort_offset
     get_sub_block_idx
     get_system_cycle
     get_sys_workspace

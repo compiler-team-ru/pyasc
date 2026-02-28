@@ -137,6 +137,8 @@ from .basic.vec_gather_mask import gather_mask, get_gather_mask_remain_count
 from .basic.vec_transpose import transpose, trans_data_to_5hd
 from .basic.proposal import (
     get_mrg_sort_result,
+    get_sort_len,
+    get_sort_offset,
     mrg_sort,
     mrg_sort4,
     proposal_concat,

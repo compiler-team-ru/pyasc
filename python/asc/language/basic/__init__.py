@@ -130,6 +130,8 @@ from .vec_gather import (
 from .vec_gather_mask import gather_mask, get_gather_mask_remain_count
 from .proposal import (
     get_mrg_sort_result,
+    get_sort_len,
+    get_sort_offset,
     mrg_sort,
     mrg_sort4,
     proposal_concat,
@@ -242,6 +244,9 @@ __all__ = [
     "set_load_data_boundary",
     "set_load_data_padding_value",
     "set_load_data_repeat",
+    # .proposal
+    "get_sort_len",
+    "get_sort_offset",
     # .scalar
     "count_bits_cnt_same_as_sign_bit",
     "scalar_cast", 

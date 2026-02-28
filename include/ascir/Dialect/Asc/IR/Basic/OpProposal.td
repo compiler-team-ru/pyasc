@@ -20,6 +20,19 @@ include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/OpBase.td"
 
+def AscendC_GetSortOffsetOp : VectorOp<"get_sort_offset", "GetSortOffset<float>", [AscFunc]> {
+ 	let description = "Get sort offset in the sorted structure";
+ 	let arguments = (ins UI32:$elemOffset);
+ 	let results = (outs UI32:$result);
+}
+ 	 
+ 	 
+def AscendC_GetSortLenOp : VectorOp<"get_sort_len", "GetSortLen<float>", [AscFunc]> {
+  let description = "Get sort length in the sorted structure"; 
+  let arguments = (ins UI32:$elemCount);
+  let results = (outs UI32:$result);
+}
+
 def AscendC_MrgSortSrcListOp : AscendC_Op<"mrg_sort_src_list", [AscConstructor]> {
   let summary = "Instantiate MrgSortSrcList";
   let results = (outs AscendC_MrgSortSrcList:$params);

@@ -1736,6 +1736,98 @@ def get_program_counter_docstring():
     return [func_introduction, cpp_signature, param_list, "", "", py_example]
 
 
+def get_sort_len_docstring():
+    func_introduction = """
+    Get sort length in the sorted structure.
+    """
+
+    cpp_signature = """
+    **对应的 Ascend C 函数原型**
+
+    .. code-block:: c++
+
+       namespace AscendC {
+
+       template <typename T>
+       __aicore__ inline uint32_t GetSortLen(const uint32_t elemCount);
+
+       } // namespace AscendC
+    """
+
+    param_list = """
+    **参数说明**
+
+    无。
+    """
+
+    return_list = """
+    **返回值说明**
+
+        int: The sort length.
+    """
+
+    constraint_list = """
+    **约束说明**
+
+        - elem_count must be a 32-bit unsigned integer.
+    """
+
+    py_example = """
+    **调用示例**
+    
+        .. code-block:: python
+
+           length = asc.get_sort_len(100)
+    """
+    return [func_introduction, cpp_signature, param_list, return_list, constraint_list, py_example]
+
+
+def get_sort_offset_docstring():
+    func_introduction = """
+    Get sort offset in the sorted structure.
+    """
+
+    cpp_signature = """
+    **对应的 Ascend C 函数原型**
+
+    .. code-block:: c++
+
+       namespace AscendC {
+
+       template <typename T>
+       __aicore__ inline uint32_t GetSortOffset(const uint32_t elemOffset);
+
+       } // namespace AscendC
+    """
+
+    param_list = """
+    **参数说明**
+
+    无。
+    """
+
+    return_list = """
+    **返回值说明**
+
+        int: The sort offset.
+    """
+
+    constraint_list = """
+    **约束说明**
+
+        - elem_offset must be a 32-bit unsigned integer.
+    """
+
+    py_example = """
+    **调用示例**
+
+        .. code-block:: python
+
+           offset = asc.get_sort_offset(10)
+    """
+    return [func_introduction, cpp_signature, param_list, return_list, constraint_list, py_example]
+
+
 def get_sub_block_idx_docstring():
     func_introduction = """
     获取 AI Core 上 Vector 核的 ID。
@@ -7855,6 +7947,8 @@ DOC_HANDLES = {
     "get_mrg_sort_result": get_mrg_sort_result_docstring, 
     "get_program_counter": get_program_counter_docstring,
     "get_store_atomic_config": get_store_atomic_config_docstring,
+    "get_sort_len": get_sort_len_docstring,
+    "get_sort_offset": get_sort_offset_docstring,
     "get_sub_block_idx": get_sub_block_idx_docstring,
     "get_sys_workspace": get_sys_workspace_docstring,
     "get_system_cycle": get_system_cycle_docstring,
