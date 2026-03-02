@@ -244,7 +244,7 @@ using PrintableOpTypes = std::tuple<
     ascendc::GlobalTensorSubIndexOp, ascendc::GlobalTensorBracketOp,
     // LocalTensor operations
     ascendc::LocalTensorV2Op, ascendc::LocalTensorV3Op, ascendc::LocalTensorBracketOp,
-    ascendc::LocalTensorReinterpretCastOp, ascendc::LocalTensorSubIndexOp, ascendc::LocalTensorGetPhyAddrV2Op,
+    ascendc::LocalTensorReinterpretCastOp, ascendc::LocalTensorSubIndexOp,
     // ShapeInfo
     ascendc::ShapeInfoShapeOp, ascendc::ShapeInfoOriginalShapeOp,
 
