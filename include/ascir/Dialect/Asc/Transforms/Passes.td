@@ -13,6 +13,12 @@
 
 include "mlir/Pass/PassBase.td"
 
+def AllocateTensor : Pass<"ascendc-allocate-tensor", "func::FuncOp"> {
+  let summary = "Allocate tensors for LocalTensorAuto";
+  let constructor = "mlir::ascendc::createAllocateTensorPass()";
+  let dependentDialects = ["ascendc::AscendCDialect"];
+}
+
 def AllocateBuffer : Pass<"ascendc-allocate-buffer", "func::FuncOp"> {
   let summary = "Allocate buffers for LocalTensorAuto";
   let constructor = "mlir::ascendc::createAllocateBufferPass()";
