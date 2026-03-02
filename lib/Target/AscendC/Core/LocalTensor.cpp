@@ -22,13 +22,21 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Local
     FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
     auto &os = emitter.ostream();
     auto resultType = op.getResult().getType().getElementType();
-    os << " = "
-       << "AscendC::LocalTensor"
-       << "<";
+    os << " = " << "AscendC::LocalTensor" << "<";
     FAIL_OR(emitter.emitType(op.getLoc(), resultType));
     os << ">(";
     CodeEmitter::emitTPosition(os, op.getPos());
     os << ", " << emitter.getOrCreateName(op.getAddr()) << ", " << emitter.getOrCreateName(op.getTileSize()) << ")";
+    return success();
+}
+
+LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::LocalTensorV3Op op)
+{
+    FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
+    auto &os = emitter.ostream();
+    os << "{";
+    emitter.emitTPosition(os, op.getPos());
+    os << ", " << op.getAddr() << ", " << op.getTileSize() << "}";
     return success();
 }
 

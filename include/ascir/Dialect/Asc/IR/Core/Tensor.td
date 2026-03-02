@@ -165,6 +165,13 @@ def AscendC_LocalTensorV2Op : AscendC_Op<"local_tensor_v2"> {
   let assemblyFormat = "$pos `,` $addr `,` $tileSize attr-dict `:` qualified(type($result))";
 }
 
+def AscendC_LocalTensorV3Op : AscendC_Op<"local_tensor_v3"> {
+  let summary = "Instantiate local tensor";
+  let arguments = (ins AscendC_TPositionAttr:$pos, I32Attr:$addr, I32Attr:$tileSize);
+  let results = (outs AscendC_LocalTensor:$result);
+  let assemblyFormat = "$pos `,` $addr `,` $tileSize attr-dict `:` qualified(type($result))";
+}
+
 def AscendC_LocalTensorBracketOp
     : AscendC_Op<"local_tensor.bracket", [Pure]> {
   let summary = "Call `AscendC::LocalTensor::operator()` method";

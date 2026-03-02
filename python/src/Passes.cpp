@@ -90,6 +90,7 @@ void defineAscendCPasses(py::module &mod)
 {
     using namespace ascendc;
     auto m = mod.def_submodule("ascendc");
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_allocate_tensor", createAllocateTensorPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_allocate_buffer", createAllocateBufferPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_noop_pass", createNoopPass);
     DEFINE_ADD_PASS("add_detect_kernel_type", createDetectKernelTypePass);

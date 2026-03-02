@@ -22,6 +22,8 @@ namespace ascendc {
 
 LogicalResult printOperation(CodeEmitter &emitter, ascendc::LocalTensorV2Op op);
 
+LogicalResult printOperation(CodeEmitter &emitter, ascendc::LocalTensorV3Op op);
+
 LogicalResult printOperation(CodeEmitter &emitter, ascendc::LocalTensorReinterpretCastOp op);
 
 LogicalResult printOperation(CodeEmitter &emitter, ascendc::LocalTensorSubIndexOp op);

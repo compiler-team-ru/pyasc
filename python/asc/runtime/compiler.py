@@ -156,7 +156,7 @@ class Compiler:
         if self.platform != CompilePlatform.Ascend910_95:
             passes.ascendc.add_materialize_tensor(pm)
         else:
-            passes.ascendc.add_allocate_buffer(pm)
+            passes.ascendc.add_allocate_tensor(pm)
         passes.ascendc.add_unify_pipe(pm)
         passes.common.add_canonicalizer(pm)
         passes.common.add_cse(pm)
