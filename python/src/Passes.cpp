@@ -96,7 +96,6 @@ void defineAscendCPasses(py::module& mod)
     using namespace pybind11::literals;
     auto m = mod.def_submodule("ascendc");
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_allocate_tensor", createAllocateTensorPass);
-    DEFINE_ADD_PASS_ON(func::FuncOp, "add_allocate_buffer", createAllocateBufferPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_noop_pass", createNoopPass);
     DEFINE_ADD_PASS("add_detect_kernel_type", createDetectKernelTypePass);
     DEFINE_ADD_PASS("add_declare_py_struct", createDeclarePyStructPass);
@@ -110,22 +109,11 @@ void defineAscendCPasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_input_output_tensor", createInputOutputTensorPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_bufid_sync", createInsertBufIdSyncPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_sync", createInsertSyncPass);
-    DEFINE_ADD_PASS_ON(func::FuncOp, "add_materialize_tensor", createMaterializeTensorPass);
     DEFINE_ADD_PASS("add_legalize_kernel_args", createLegalizeKernelArgsPass);
     DEFINE_ADD_PASS("add_privatize_func", createPrivatizeFuncPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_unify_pipe", createUnifyPipePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_verify_sync", createVerifySyncPass);
 
-    m.def(
-        "add_hoist_tensor_allocation",
-        [](PassManager& pm, bool excludeInOut) {
-            pm.addNestedPass<func::FuncOp>(createHoistTensorAllocationPass(excludeInOut));
-        },
-        "pm"_a, "exclude_in_out"_a = false);
-    m.def(
-        "add_legalize_kernel_args",
-        [](PassManager& pm, bool setFftsAddr) { pm.addPass(createLegalizeKernelArgsPass(setFftsAddr)); }, "pm"_a,
-        "set_ffts_addr"_a = false);
     m.def(
         "add_materialize_tensor",
         [](PassManager& pm, bool alwaysBuf) { pm.addNestedPass<func::FuncOp>(createMaterializeTensorPass(alwaysBuf)); },

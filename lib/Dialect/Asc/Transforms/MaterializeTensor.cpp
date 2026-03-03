@@ -66,7 +66,7 @@ struct MaterializeLocalTensor : OpRewritePattern<ascendc::LocalTensorAutoOp> {
         }
         Value pipe = rewriter.create<ascendc::PipeOp>(loc);
         if (alwaysBuf || !op.getInput() && !op.getOutput()) {
-            auto bufferTy = ascendc::TBufType::get(op.getContext(), op.getPosition());
+            auto bufferTy = ascendc::TBufType::get(op.getContext(), ascendc::TPosition::VECCALC);
             Value buffer = rewriter.create<ascendc::TBufOp>(loc, bufferTy);
             rewriter.create<ascendc::TPipeInitBufferOp>(loc, pipe, buffer, length);
             rewriter.replaceOpWithNewOp<ascendc::TBufGetTensorOp>(op, type, buffer);
@@ -102,9 +102,13 @@ struct MaterializeTensorPass : public ascendc::impl::MaterializeTensorBase<Mater
 };
 } // namespace
 
-std::unique_ptr<Pass> mlir::ascendc::createMaterializeTensorPass(bool alwaysBuf)
+namespace mlir {
+namespace ascendc {
+std::unique_ptr<Pass> createMaterializeTensorPass(bool alwaysBuf)
 {
     MaterializeTensorOptions options;
     options.alwaysBuf = alwaysBuf;
     return std::make_unique<MaterializeTensorPass>(options);
 }
+} // namespace ascendc
+} // namespace mlir
