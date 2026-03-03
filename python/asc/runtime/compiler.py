@@ -40,6 +40,7 @@ class CompileOptions:
     insert_sync: Optional[bool] = None
     run_asc2_passes: bool = False
     densify_load_store: bool = True
+    use_pipe: bool = True
 
 
 class CompilePlatform(Enum):
@@ -150,8 +151,9 @@ class Compiler:
             passes.ascendc.add_fill_asc_operands(pm)
         passes.ascendc.add_input_output_tensor(pm)
         passes.ascendc.add_hoist_ub_allocation(pm)
-        if self.platform != CompilePlatform.Ascend910_95:
-            passes.ascendc.add_materialize_tensor(pm)
+        if self.options.use_pipe:
+            always_buf = self.platform == CompilePlatform.Ascend910_95
+            passes.ascendc.add_materialize_tensor(pm, always_buf)
         else:
             passes.ascendc.add_allocate_tensor(pm)
         passes.ascendc.add_unify_pipe(pm)
