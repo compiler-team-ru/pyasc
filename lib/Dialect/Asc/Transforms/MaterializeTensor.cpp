@@ -8,8 +8,6 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include <climits>
-
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
@@ -33,7 +31,9 @@ using namespace mlir;
 namespace {
 
 struct MaterializeLocalTensor : OpRewritePattern<ascendc::LocalTensorAutoOp> {
-    using OpRewritePattern::OpRewritePattern;
+    bool alwaysBuf;
+
+    MaterializeLocalTensor(MLIRContext* context, bool alwaysBuf) : alwaysBuf(alwaysBuf), OpRewritePattern(context) {}
 
     static ascendc::TPosition getPosition(ascendc::LocalTensorAutoOp op)
     {
@@ -60,7 +60,7 @@ struct MaterializeLocalTensor : OpRewritePattern<ascendc::LocalTensorAutoOp> {
             }
         }
         Value pipe = rewriter.create<ascendc::PipeOp>(loc);
-        if (!op.getInput() && !op.getOutput()) {
+        if (alwaysBuf || !op.getInput() && !op.getOutput()) {
             auto bufferTy = ascendc::TBufType::get(op.getContext(), ascendc::TPosition::VECCALC);
             Value buffer = rewriter.create<ascendc::TBufOp>(loc, bufferTy);
             rewriter.create<ascendc::TPipeInitBufferOp>(loc, pipe, buffer, length);
@@ -78,7 +78,9 @@ struct MaterializeLocalTensor : OpRewritePattern<ascendc::LocalTensorAutoOp> {
     }
 };
 
-class MaterializeTensorPass : public ascendc::impl::MaterializeTensorBase<MaterializeTensorPass> {
+struct MaterializeTensorPass : public ascendc::impl::MaterializeTensorBase<MaterializeTensorPass> {
+    MaterializeTensorPass(const ascendc::MaterializeTensorOptions& options) : MaterializeTensorBase(options) {}
+
     void runOnOperation() override
     {
         func::FuncOp funcOp = getOperation();
@@ -87,7 +89,7 @@ class MaterializeTensorPass : public ascendc::impl::MaterializeTensorBase<Materi
         }
         MLIRContext* context = &getContext();
         RewritePatternSet patterns(context);
-        patterns.add<MaterializeLocalTensor>(context);
+        patterns.add<MaterializeLocalTensor>(context, alwaysBuf);
         if (applyPatternsAndFoldGreedily(funcOp, std::move(patterns)).failed()) {
             signalPassFailure();
         }
@@ -97,6 +99,11 @@ class MaterializeTensorPass : public ascendc::impl::MaterializeTensorBase<Materi
 
 namespace mlir {
 namespace ascendc {
-std::unique_ptr<Pass> createMaterializeTensorPass() { return std::make_unique<MaterializeTensorPass>(); }
+std::unique_ptr<Pass> createMaterializeTensorPass(bool alwaysBuf)
+{
+    MaterializeTensorOptions options;
+    options.alwaysBuf = alwaysBuf;
+    return std::make_unique<MaterializeTensorPass>(options);
+}
 } // namespace ascendc
 } // namespace mlir

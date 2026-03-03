@@ -8,7 +8,6 @@
 
 add_mlir_dialect_library(MLIRAscTransforms
   AllocateTensor.cpp
-  AllocateBuffer.cpp
   DeclarePyStructPass.cpp
   DefineCubeOnlyPass.cpp
   DetectKernelTypePass.cpp
