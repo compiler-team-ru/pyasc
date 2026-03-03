@@ -19,12 +19,6 @@ def AllocateTensor : Pass<"ascendc-allocate-tensor", "func::FuncOp"> {
   let dependentDialects = ["ascendc::AscendCDialect"];
 }
 
-def AllocateBuffer : Pass<"ascendc-allocate-buffer", "func::FuncOp"> {
-  let summary = "Allocate buffers for LocalTensorAuto";
-  let constructor = "mlir::ascendc::createAllocateBufferPass()";
-  let dependentDialects = ["ascendc::AscendCDialect"];
-}
-
 def DeclarePyStruct : Pass<"ascendc-declare-py-struct", "ModuleOp"> {
   let summary = "Insert emitasc.declare_py_struct";
   let constructor = "mlir::ascendc::createDeclarePyStructPass()";
@@ -94,6 +88,10 @@ def MaterializeTensor : Pass<"ascendc-materialize-tensor", "func::FuncOp"> {
   let summary = "Insert ascendc.tbuf, ascendc.queue and ascendc.alloca for local_tensor_auto";
   let constructor = "mlir::ascendc::createMaterializeTensorPass()";
   let dependentDialects = ["arith::ArithDialect", "ascendc::AscendCDialect"];
+  let options = [
+    Option<"alwaysBuf", "always-buf", "bool", "false",
+           "Always use TBuf to materialize tensors">,
+  ];
 }
 
 def LegalizeKernelArgs : Pass<"ascendc-legalize-kernel-args", "ModuleOp"> {
