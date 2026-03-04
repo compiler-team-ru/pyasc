@@ -126,6 +126,7 @@ class Compiler:
         return translation.ir_to_ascendc(mod)
 
     def _schedule_lowering(self, pm: passes.PassManager) -> None:
+        platform_95 = self.platform == CompilePlatform.Ascend910_95
         passes.ascendc.add_privatize_func(pm)
         passes.common.add_inliner(pm)
         passes.common.add_symbol_dce(pm)
@@ -154,10 +155,9 @@ class Compiler:
             passes.asclower.add_realize_conversion_cast(pm)
             passes.ascendc.add_fill_asc_operands(pm)
         passes.ascendc.add_input_output_tensor(pm)
-        passes.ascendc.add_hoist_ub_allocation(pm)
+        passes.ascendc.add_hoist_ub_allocation(pm, exclude_in_out=not platform_95)
         if self.options.use_pipe:
-            always_buf = self.platform == CompilePlatform.Ascend910_95
-            passes.ascendc.add_materialize_tensor(pm, always_buf)
+            passes.ascendc.add_materialize_tensor(pm, always_buf=platform_95)
         else:
             passes.ascendc.add_allocate_tensor(pm)
         passes.ascendc.add_unify_pipe(pm)

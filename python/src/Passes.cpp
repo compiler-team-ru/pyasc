@@ -102,7 +102,6 @@ void defineAscendCPasses(py::module &mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_fuse_bufid_sync", createFuseBufIdSyncPass);
     DEFINE_ADD_PASS("add_generate_boilerplate", createGenerateBoilerplatePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_hoist_que_bind", createHoistQueBindPass);
-    DEFINE_ADD_PASS_ON(func::FuncOp, "add_hoist_ub_allocation", createHoistUBAllocationPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_input_output_tensor", createInputOutputTensorPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_bufid_sync", createInsertBufIdSyncPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_sync", createInsertSyncPass);
@@ -112,6 +111,12 @@ void defineAscendCPasses(py::module &mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_unify_pipe", createUnifyPipePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_verify_sync", createVerifySyncPass);
 
+    m.def(
+        "add_hoist_ub_allocation",
+        [](PassManager &pm, bool excludeInOut) {
+            pm.addNestedPass<func::FuncOp>(createHoistUBAllocationPass(excludeInOut));
+        },
+        "pm"_a, "exclude_in_out"_a = false);
     m.def(
         "add_materialize_tensor",
         [](PassManager &pm, bool alwaysBuf) { pm.addNestedPass<func::FuncOp>(createMaterializeTensorPass(alwaysBuf)); },

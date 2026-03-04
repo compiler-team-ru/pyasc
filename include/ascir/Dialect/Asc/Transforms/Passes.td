@@ -70,6 +70,10 @@ def HoistQueBind : Pass<"ascendc-hoist-que-bind", "func::FuncOp"> {
 def HoistUBAllocation : Pass<"ascendc-hoist-ub-allocation", "func::FuncOp"> {
   let summary = "Hoist tensor allocations to the function root";
   let constructor = "mlir::ascendc::createHoistUBAllocationPass()";
+  let options = [
+    Option<"excludeInOut", "exclude-in-out", "bool", "false",
+           "Prevent input/output tensors from hoisting">,
+  ];
 }
 
 def InputOutputTensor : Pass<"ascendc-input-output-tensor", "func::FuncOp"> {
