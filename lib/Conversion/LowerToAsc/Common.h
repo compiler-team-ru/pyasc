@@ -106,17 +106,28 @@ struct ConvertOp : public ConversionPattern {
         return convert(cast<OpType>(op), operands, rewriter);
     }
 
-    ascendc::LocalTensorAutoOp
-    createTensorOp(OpBuilder& builder, Location loc, ArrayRef<int64_t> shape, Type elementType) const
+    ascendc::LocalTensorAutoOp createTensorOp(
+        OpBuilder& builder, Location loc, ArrayRef<int64_t> shape, Type elementType,
+        asctile::TileLocationAttr attr = nullptr) const
     {
-        return builder.create<ascendc::LocalTensorAutoOp>(loc, ascendc::LocalTensorType::get(shape, elementType));
+        auto localTensorAuto =
+            builder.create<ascendc::LocalTensorAutoOp>(loc, ascendc::LocalTensorType::get(shape, elementType));
+        if (attr) {
+            localTensorAuto->setAttr("memoryLocation", attr);
+        }
+        return localTensorAuto;
     }
 
-    ascendc::LocalTensorAutoOp createTensorOp(OpBuilder& builder, Location loc, Type convertibleType) const
+    ascendc::LocalTensorAutoOp createTensorOp(
+        OpBuilder& builder, Location loc, Type convertibleType, asctile::TileLocationAttr attr = nullptr) const
     {
         auto convertedType = converter().convertType(convertibleType);
         assert(isa<ascendc::LocalTensorType>(convertedType) && "must be convertible");
         auto tensorType = cast<ascendc::LocalTensorType>(convertedType);
+        if (auto tileType = dyn_cast<asctile::TileType>(convertibleType)) {
+            asctile::TileLocationAttr tileAttr = attr ? attr : tileType.getLocAttr();
+            return createTensorOp(builder, loc, tensorType.getShape(), tensorType.getElementType(), tileAttr);
+        }
         return createTensorOp(builder, loc, tensorType.getShape(), tensorType.getElementType());
     }
 
