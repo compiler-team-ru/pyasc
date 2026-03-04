@@ -262,7 +262,7 @@ class Compiler:
         passes.ascendc.add_generate_boilerplate(pm)
         if self.options.matmul_cube_only:
             passes.ascendc.add_define_cube_only(pm)
-        passes.ascendc.add_legalize_kernel_args(pm)
+        passes.ascendc.add_legalize_kernel_args(pm, set_ffts_addr=(self.platform != CompilePlatform.Ascend910_95))
         passes.ascendc.add_detect_kernel_type(pm)
         passes.ascendc.add_detect_enable_debug(pm)
         if self.options.verify_sync:
