@@ -11,7 +11,7 @@ from __future__ import annotations
 import functools
 import inspect
 from typing import Callable, Final, Optional, TypeVar, overload
-from typing_extensions import Self
+from typing_extensions import Self, TypeAlias
 
 from ..._C import ir
 from ..core.dtype import DataType
@@ -19,6 +19,8 @@ from ..core.ir_value import IRHandle, IRValue, RuntimeInt
 from ..core.utils import global_builder
 
 T = TypeVar("T")
+
+TileLocation: TypeAlias = ir.TileLocation
 
 
 class Tile(IRValue):
