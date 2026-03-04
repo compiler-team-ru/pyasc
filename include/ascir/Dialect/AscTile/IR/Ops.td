@@ -92,6 +92,33 @@ def StoreOp : AscTile_Op<"store", [
   }];
 }
 
+def GetValueOp : AscTile_Op<"get_value", [
+  AllElementTypesMatch<["base", "result"]>,
+  MemoryEffectsOpInterface,
+]> {
+  let summary = "Load value from tensor";
+  let arguments = (ins Arg<Tensor, "tensor to read from", [MemRead]>:$base,
+                   Variadic<I32>:$offsets);
+  let results = (outs AnyType:$result);
+  let assemblyFormat = [{
+    $base `[` $offsets `]` attr-dict `:` qualified(type($base)) `,` qualified(type($result))
+  }];
+}
+
+def SetValueOp : AscTile_Op<"set_value", [
+  AllElementTypesMatch<["base", "value"]>,
+  MemoryEffectsOpInterface,
+]> {
+  let summary = "Store value into a tensor";
+  let arguments = (ins AnyType:$value,
+                   Arg<Tensor, "tensor to be updated", [MemWrite]>:$base,
+                   Variadic<I32>:$offsets);
+  let assemblyFormat = [{
+    $value `,` $base `[` $offsets `]` attr-dict `:` qualified(type($value)) `,`
+    qualified(type($base))
+  }];
+}
+
 class AscTile_VecScalarOp<string mnemonic, list<Trait> traits = []>
     : AscTile_Op<mnemonic, traits # [
   Pure,
