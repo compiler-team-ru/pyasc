@@ -42,7 +42,7 @@ BlockArgument appendKernelArgument(func::FuncOp op, emitasc::KernelArgument kind
     return op.getArgument(idx);
 }
 
-void processKernel(func::FuncOp op)
+void processKernel(func::FuncOp op, bool setFftsAddr)
 {
     auto builder = OpBuilder::atBlockBegin(&op.getFunctionBody().front());
     for (unsigned i = 0; i < op.getNumArguments(); i++) {
@@ -50,12 +50,14 @@ void processKernel(func::FuncOp op)
             i, emitasc::attr::kernelArg,
             builder.getAttr<emitasc::KernelArgumentAttr>(emitasc::KernelArgument::Explicit));
     }
-    auto as = builder.getI64IntegerAttr(static_cast<int64_t>(ascendc::AddressSpace::gm));
     auto loc = builder.getUnknownLoc();
-    auto fftsAddr = appendKernelArgument(
-        op, emitasc::KernelArgument::FftsAddr, "ffts_addr",
-        MemRefType::get(ShapedType::kDynamic, builder.getIntegerType(64, false), AffineMap(), as));
-    builder.create<ascendc::SetFftsBaseAddrOp>(loc, fftsAddr);
+    if (setFftsAddr) {
+        auto as = builder.getI64IntegerAttr(static_cast<int64_t>(ascendc::AddressSpace::gm));
+        auto fftsAddr = appendKernelArgument(
+            op, emitasc::KernelArgument::FftsAddr, "ffts_addr",
+            MemRefType::get(ShapedType::kDynamic, builder.getIntegerType(64, false), AffineMap(), as));
+        builder.create<ascendc::SetFftsBaseAddrOp>(loc, fftsAddr);
+    }
     bool hasMatmul = op.walk([](ascendc::RegistMatmulObjOp) { return WalkResult::interrupt(); }).wasInterrupted();
     bool matmulCubeOnly = op->getParentOfType<ModuleOp>()->hasAttrOfType<UnitAttr>(ascendc::attr::matmulCubeOnly);
     if (hasMatmul && !matmulCubeOnly) {
@@ -69,12 +71,14 @@ void processKernel(func::FuncOp op)
 }
 
 struct LegalizeKernelArgsPass : public ascendc::impl::LegalizeKernelArgsBase<LegalizeKernelArgsPass> {
+    LegalizeKernelArgsPass(const ascendc::LegalizeKernelArgsOptions& options) : LegalizeKernelArgsBase(options) {}
+
     void runOnOperation() override
     {
         auto mod = getOperation();
-        mod.walk([](func::FuncOp op) {
+        mod.walk([this](func::FuncOp op) {
             if (op->hasAttrOfType<UnitAttr>(ascendc::attr::global)) {
-                processKernel(op);
+                processKernel(op, setFftsAddr);
             }
         });
     }
@@ -84,6 +88,11 @@ struct LegalizeKernelArgsPass : public ascendc::impl::LegalizeKernelArgsBase<Leg
 
 namespace mlir {
 namespace ascendc {
-std::unique_ptr<Pass> createLegalizeKernelArgsPass() { return std::make_unique<LegalizeKernelArgsPass>(); }
+std::unique_ptr<Pass> createLegalizeKernelArgsPass(bool setFftsAddr)
+{
+    LegalizeKernelArgsOptions options;
+    options.setFftsAddr = setFftsAddr;
+    return std::make_unique<LegalizeKernelArgsPass>(options);
+}
 } // namespace ascendc
 } // namespace mlir

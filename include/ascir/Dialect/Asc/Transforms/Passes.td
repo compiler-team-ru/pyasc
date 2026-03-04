@@ -110,6 +110,10 @@ def LegalizeKernelArgs : Pass<"ascendc-legalize-kernel-args", "ModuleOp"> {
     "arith::ArithDialect", "ascendc::AscendCDialect", "emitasc::EmitAscDialect",
     "scf::SCFDialect",
   ];
+  let options = [
+    Option<"setFftsAddr", "set-ffts-addr", "bool", "false",
+           "Append ffts_addr to kernel arguments and call set_ffts_addr">,
+  ];
 }
 
 def Noop : Pass<"ascendc-noop", "func::FuncOp"> {
