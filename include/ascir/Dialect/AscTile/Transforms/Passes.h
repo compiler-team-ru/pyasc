@@ -19,6 +19,7 @@ namespace asctile {
 #define GEN_PASS_DECL
 #include "ascir/Dialect/AscTile/Transforms/Passes.h.inc"
 
+std::unique_ptr<Pass> createComputeMemoryConsumptionPass();
 std::unique_ptr<Pass> createDensifyUnrollGroupsPass();
 std::unique_ptr<Pass> createPromotePureOpsPass();
 std::unique_ptr<Pass> createTagUnrollGroupsPass(bool smallGroups = false);

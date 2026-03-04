@@ -80,7 +80,16 @@ class CompilationTarget:
                 return CompilationTarget(common_arch="dav-%s-vec" % arch, common_options=common_option)
             else:
                 return CompilationTarget(common_arch="dav-%s-cube" % arch, common_options=common_option)
-        raise RuntimeError(f"Compilation is not supported for {arch.value} platform")
+        raise RuntimeError(f"Compilation is not supported for {CompilePlatform.value} platform")
+
+
+@dataclass(frozen=True)
+class CompiledKernel:
+    binary: Optional[bytes] = None
+    core_type: CoreType = CoreType.VectorCore
+    kernel_args: Optional[Tuple[ir.KernelArgument]] = None
+    enable_debug: bool = False
+    ub_consumed: Optional[int] = None
 
 
 class Compiler:
@@ -230,7 +239,7 @@ class Compiler:
         utils.FileUtils.dump_file(self.dump_dir, "ascendc.cpp", source)
         kernel_args = ir.get_kernel_arg_attrs(mod)
         return self.run_compilation(source, kernel_args, enable_debug=self.enable_debug,
-                                    memory_consumed=mod.op.get_dict_of_int_attr(ir.attr.memory_consumed))
+                                    ub_consumed=mod.op.get_integer_attr("asc.ub_consumed"))
 
     def run_passes(self, mod: ir.ModuleOp) -> None:
         pm = passes.PassManager(mod.get_context())
@@ -259,12 +268,7 @@ class Compiler:
                 core_type = CoreType.VectorCore
             else:
                 core_type = CoreType.CubeCore
-            return CompiledKernel(dst.read_bytes(), KernelMeta(core_type, kernel_args, **compiled_kernel_args))
-
-    def schedule_passes(self, pm: passes.PassManager) -> None:
-        self._schedule_lowering(pm)
-        self._schedule_optimizing(pm)
-        self._schedule_postprocessing(pm)
+            return CompiledKernel(dst.read_bytes(), core_type, kernel_args, **compiled_kernel_args)
 
     def _check_compile_options(self) -> bool:
         is_soc_version_valid = self.soc_version.value.startswith("Ascend910B") or \
@@ -286,6 +290,8 @@ class Compiler:
             passes.ascendc.add_verify_sync(pm)
         if self.options.strip_loc:
             passes.common.add_strip_debug_info(pm)
+        if self.options.run_asc2_passes:
+            passes.ascendc.add_compute_memory_consumption(pm)
 
     def _gen_init_dump_code(self, source: str, func_name: str) -> str:
         dump_code = ""
