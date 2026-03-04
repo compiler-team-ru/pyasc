@@ -29,7 +29,7 @@ std::unique_ptr<Pass> createFillAscOperandsPass();
 std::unique_ptr<Pass> createFuseBufIdSyncPass();
 std::unique_ptr<Pass> createGenerateBoilerplatePass();
 std::unique_ptr<Pass> createHoistQueBindPass();
-std::unique_ptr<Pass> createHoistUBAllocationPass();
+std::unique_ptr<Pass> createHoistUBAllocationPass(bool excludeInOut = false);
 std::unique_ptr<Pass> createInputOutputTensorPass();
 std::unique_ptr<Pass> createInsertBufIdSyncPass();
 std::unique_ptr<Pass> createInsertSyncPass();
