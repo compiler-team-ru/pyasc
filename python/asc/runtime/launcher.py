@@ -18,6 +18,7 @@ from .._C import ir
 from ..language.core.struct import Struct
 from ..lib import runtime as rt
 from .compiler import CompiledKernel
+from .config import Platform
 from .memory_handle import MemoryHandle, resolve_memory_handle
 
 
@@ -45,6 +46,24 @@ class MsprofLauncher(object):
         self.utils.msprof_report_api(self.start_time, end_time, kernel_name)
 
 
+ub_capacity = {
+    Platform.Ascend910B1: 192 * 1024,
+    Platform.Ascend910B2: 192 * 1024,
+    Platform.Ascend910B2C: 192 * 1024,
+    Platform.Ascend910B3: 192 * 1024,
+    Platform.Ascend910B4: 192 * 1024,
+    Platform.Ascend910B4_1: 192 * 1024,
+    Platform.Ascend910_9362: 192 * 1024,
+    Platform.Ascend910_9372: 192 * 1024,
+    Platform.Ascend910_9381: 192 * 1024,
+    Platform.Ascend910_9382: 192 * 1024,
+    Platform.Ascend910_9391: 192 * 1024,
+    Platform.Ascend910_9392: 192 * 1024,
+    Platform.Ascend910_9579: 248 * 1024,
+    Platform.Ascend910_9599: 248 * 1024,
+}
+
+
 @dataclass(frozen=True)
 class LaunchOptions:
     core_num: int = 0
@@ -61,6 +80,10 @@ class Launcher:
     def get_core_num(device_id: Optional[int] = None) -> int:
         return rt.device_info(rt.DeviceModuleType.RT_MODULE_TYPE_AICORE, rt.DeviceInfoType.INFO_TYPE_CORE_NUM,
                               device_id)
+
+    @staticmethod
+    def get_ub_capacity() -> int:
+        return ub_capacity[Platform(rt.current_platform())]
 
     @staticmethod
     def expand_kernel_args(args: Iterable[Any]) -> List[Union[np.generic, MemoryHandle]]:
@@ -125,6 +148,8 @@ class Launcher:
                 arg.release_memory()
 
     def run(self, kernel: CompiledKernel, function_name: str, user_args: Tuple[Any]) -> None:
+        if kernel.ub_consumed is not None and kernel.ub_consumed > self.get_ub_capacity():
+            raise RuntimeError(f"UB overflow: {self.get_ub_capacity()} is available, {kernel.ub_consumed} is used.")
         dry_run = os.environ.get('DRY_RUN')
         if dry_run:
             return
