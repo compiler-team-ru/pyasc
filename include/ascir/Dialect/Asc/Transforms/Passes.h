@@ -20,6 +20,7 @@ namespace ascendc {
 #include "ascir/Dialect/Asc/Transforms/Passes.h.inc"
 
 std::unique_ptr<Pass> createAllocateTensorPass();
+std::unique_ptr<Pass> createComputeMemoryConsumptionPass();
 std::unique_ptr<Pass> createDeclarePyStructPass();
 std::unique_ptr<Pass> createDefineCubeOnlyPass();
 std::unique_ptr<Pass> createDetectKernelTypePass();

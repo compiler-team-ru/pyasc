@@ -85,8 +85,9 @@ class CompilationTarget:
 class CompiledKernel:
     binary: Optional[bytes] = None
     core_type: CoreType = CoreType.VectorCore
-    enable_debug: bool = False
     kernel_args: Optional[Tuple[ir.KernelArgument]] = None
+    enable_debug: bool = False
+    ub_consumed: Optional[int] = None
 
 
 class Compiler:
@@ -208,7 +209,8 @@ class Compiler:
             source = self._gen_init_dump_code(source, func_name)
         utils.FileUtils.dump_file(self.dump_dir, "ascendc.cpp", source)
         kernel_args = ir.get_kernel_arg_attrs(mod)
-        return self.run_compilation(source, kernel_args)
+        return self.run_compilation(source, kernel_args, enable_debug=self.enable_debug,
+                                    ub_consumed=mod.op.get_integer_attr("asc.ub_consumed"))
 
     def run_passes(self, mod: ir.ModuleOp) -> None:
         pm = passes.PassManager(mod.get_context())
@@ -228,7 +230,8 @@ class Compiler:
         self.enable_debug = mod.op.has_unit_attr("asc.enable_debug") and\
             str(os.environ.get("ASCENDC_DUMP", "True")).lower() == "true"
 
-    def run_compilation(self, source: str, kernel_args: Optional[Tuple[ir.KernelArgument]] = None) -> CompiledKernel:
+    def run_compilation(self, source: str, kernel_args: Optional[Tuple[ir.KernelArgument]] = None,
+                        **compiled_kernel_args) -> CompiledKernel:
         with tempfile.TemporaryDirectory(prefix="pyasc_compiler_") as tmp_dir:
             src = Path(tmp_dir) / "input.cce"
             src.write_text(source)
@@ -244,7 +247,7 @@ class Compiler:
                 core_type = CoreType.VectorCore
             else:
                 core_type = CoreType.CubeCore
-            return CompiledKernel(dst.read_bytes(), core_type, self.enable_debug, kernel_args)
+            return CompiledKernel(dst.read_bytes(), core_type, kernel_args, **compiled_kernel_args)
 
     def _check_compile_options(self) -> bool:
         is_soc_version_valid = self.soc_version.value.startswith("Ascend910B") or \
@@ -266,6 +269,8 @@ class Compiler:
             passes.ascendc.add_verify_sync(pm)
         if self.options.strip_loc:
             passes.common.add_strip_debug_info(pm)
+        if self.options.run_asc2_passes:
+            passes.ascendc.add_compute_memory_consumption(pm)
 
     def _schedule_passes(self, pm: passes.PassManager) -> None:
         self._schedule_lowering(pm)

@@ -19,6 +19,11 @@ def AllocateTensor : Pass<"ascendc-allocate-tensor", "func::FuncOp"> {
   let dependentDialects = ["ascendc::AscendCDialect"];
 }
 
+def ComputeMemoryConsumption : Pass<"ascendc-compute-memory-consumption", "ModuleOp"> {
+  let summary = "Compute memory consumption for kernel functions";
+  let constructor = "mlir::ascendc::createComputeMemoryConsumptionPass()";
+}
+
 def DeclarePyStruct : Pass<"ascendc-declare-py-struct", "ModuleOp"> {
   let summary = "Insert emitasc.declare_py_struct";
   let constructor = "mlir::ascendc::createDeclarePyStructPass()";
