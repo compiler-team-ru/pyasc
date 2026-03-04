@@ -50,6 +50,8 @@ void recursiveVisit(Operation *op, int32_t bufId, VisitedOpsSet &visitedOps, Vis
     if (auto vecOp = dyn_cast<ascendc::VectorOp>(op)) {
         bufIdMap[vecOp].push_back(bufId);
         insertGetRlsBuf(vecOp, ascendc::Pipe::PIPE_V, bufId);
+    } else if (auto loadDataOp = dyn_cast<ascendc::LoadDataG2LOp>(op)) {
+        insertGetRlsBuf(loadDataOp, ascendc::Pipe::PIPE_MTE1, bufId);
     } else if (auto copyOp = dyn_cast<ascendc::DataCopyOp>(op)) {
         bufIdMap[copyOp].push_back(bufId);
         auto direction = copyOp.getDirection();
@@ -60,6 +62,10 @@ void recursiveVisit(Operation *op, int32_t bufId, VisitedOpsSet &visitedOps, Vis
         } else if (direction == ascendc::CopyDirection::ubuf_ubuf) {
             insertGetRlsBuf(copyOp, ascendc::Pipe::PIPE_V, bufId);
         }
+    } else if (auto fixPipeOp = dyn_cast<ascendc::FixpipeOp>(op)) {
+        insertGetRlsBuf(fixPipeOp, ascendc::Pipe::PIPE_FIX, bufId);
+    } else if (auto mmadOp = dyn_cast<ascendc::MmadOp>(op)) {
+        insertGetRlsBuf(mmadOp, ascendc::Pipe::PIPE_M, bufId);
     }
     if (auto loopOp = dyn_cast<LoopLikeOpInterface>(op)) {
         for (auto *region : loopOp.getLoopRegions()) {
@@ -86,6 +92,12 @@ void syncOperations(Region &region, VisitedOpsSet &visitedOps, int32_t &bufId, V
                 syncOperations(inner, visitedOps, bufId, bufIdMap);
             }
             auto copyOp = dyn_cast<ascendc::DataCopyOp>(op);
+            auto fixPipeOp = dyn_cast<ascendc::FixpipeOp>(op);
+            if (fixPipeOp) {
+                recursiveVisit(fixPipeOp, bufId, visitedOps, bufIdMap);
+                bufId++;
+                continue;
+            }
             if (!copyOp || copyOp.getDirection() == ascendc::CopyDirection::gm_ubuf ||
                 copyOp.getDirection() == ascendc::CopyDirection::ubuf_ubuf)
                 continue;

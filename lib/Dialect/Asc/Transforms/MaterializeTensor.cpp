@@ -11,6 +11,7 @@
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
+#include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -61,7 +62,30 @@ struct MaterializeLocalTensor : OpRewritePattern<ascendc::LocalTensorAutoOp> {
         }
         Value pipe = rewriter.create<ascendc::PipeOp>(loc);
         if (alwaysBuf || !op.getInput() && !op.getOutput()) {
+            auto attr = op->getAttrOfType<asctile::TileLocationAttr>("memoryLocation");
             auto bufferTy = ascendc::TBufType::get(op.getContext(), ascendc::TPosition::VECCALC);
+            if (attr) {
+                switch (attr.getValue()) {
+                    case asctile::TileLocation::UB:
+                        bufferTy = ascendc::TBufType::get(op.getContext(), ascendc::TPosition::VECCALC);
+                        break;
+                    case asctile::TileLocation::L1:
+                        bufferTy = ascendc::TBufType::get(op.getContext(), ascendc::TPosition::A1);
+                        break;
+                    case asctile::TileLocation::L0A:
+                        bufferTy = ascendc::TBufType::get(op.getContext(), ascendc::TPosition::A2);
+                        break;
+                    case asctile::TileLocation::L0B:
+                        bufferTy = ascendc::TBufType::get(op.getContext(), ascendc::TPosition::B2);
+                        break;
+                    case asctile::TileLocation::L0C:
+                        bufferTy = ascendc::TBufType::get(op.getContext(), ascendc::TPosition::CO1);
+                        break;
+                    default:
+                        llvm_unreachable("Unsupported TileLocation");
+                        break;
+                }
+            }
             Value buffer = rewriter.create<ascendc::TBufOp>(loc, bufferTy);
             rewriter.create<ascendc::TPipeInitBufferOp>(loc, pipe, buffer, length);
             rewriter.replaceOpWithNewOp<ascendc::TBufGetTensorOp>(op, type, buffer);

@@ -67,10 +67,7 @@ auto printFixpipeTemplate(CodeEmitter &emitter, FixpipeOp op)
     os << ", ";
     FAIL_OR(emitter.emitType(op.getLoc(), srcType));
     os << ", ";
-    auto constructOp = cast<ascendc::ConstructOp>(op.getFixpipeConfig().getDefiningOp());
-    auto constOp = cast<arith::ConstantOp>(constructOp->getOperand(0).getDefiningOp());
-    int64_t value = cast<IntegerAttr>(constOp.getValue()).getInt();
-    os << ascNamespace << "::" << (value == 0 ? "CFG_NZ" : "CFG_ROW_MAJOR");
+    os << emitter.getOrCreateName(op.getFixpipeConfig());
     os << ">";
     return success();
 }
