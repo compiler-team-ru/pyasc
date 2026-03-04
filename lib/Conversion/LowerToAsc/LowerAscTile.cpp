@@ -113,18 +113,43 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
     {
         auto base = op.getBase();
         auto loc = op.getLoc();
+        ascir::ConstantOpBuilder consts(rewriter);
         auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
         assert(tensorOp && "tensor must be created by asctile.tensor op");
-        auto dstTensorOp = createTensorOp(rewriter, loc, op.getType());
-        auto dst = dstTensorOp.getResult();
+        auto opType = op.getType();
+        Value src = rewriter.getRemappedValue(base);
         SmallVector<Value> srcTensorShape = getTensorShape(rewriter, tensorOp);
+        auto dstTensorOp = createTensorOp(rewriter, loc, opType);
+        auto dst = dstTensorOp.getResult();
+        if (opType.getLoc() == asctile::TileLocation::L0A || opType.getLoc() == asctile::TileLocation::L0B) {
+            auto const0 = consts.i64(0);
+            auto const1 = consts.i64(1);
+            auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
+                loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
+                ValueRange{
+                    const1, srcTensorShape[0], srcTensorShape[1], const0, srcTensorShape[1], srcTensorShape[0], const1,
+                    const0});
+            auto l1Dst = createTensorOp(
+                rewriter, loc, opType, asctile::TileLocationAttr::get(op.getContext(), asctile::TileLocation::L1));
+            rewriter.create<ascendc::DataCopyL2Op>(loc, l1Dst, src, nd2NzParams);
+            Value loadDataParams =
+                rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::LoadData2DParamsType>());
+            Value repeatTimes = rewriter.create<arith::CeilDivSIOp>(loc, srcTensorShape[1], consts.i32(16));
+            Value srcStride = rewriter.create<arith::CeilDivSIOp>(loc, srcTensorShape[0], consts.i32(16));
+            rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "repeatTimes", repeatTimes);
+            rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "srcStride", srcStride);
+            rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "dstGap", consts.i32(0));
+            rewriter.create<emitasc::SetMemberOp>(
+                loc, loadDataParams, "ifTranspose", consts.i1(opType.getLoc() == asctile::TileLocation::L0B));
+            rewriter.create<ascendc::LoadDataG2LOp>(loc, dst, l1Dst, loadDataParams);
+            rewriter.replaceOp(op, dst);
+            return success();
+        }
         auto dstTensorShape = dstTensorOp.getType().getShape();
         Value linearOffset = linearizeOffset(rewriter, loc, srcTensorShape, op.getOffsets());
-        Value src = rewriter.getRemappedValue(base);
         auto srcType = cast<ascendc::BaseTensorType>(src.getType());
         auto dstType = dst.getType();
         auto numElements = calculateNumElements(rewriter, loc, srcTensorShape);
-        ascir::ConstantOpBuilder consts(rewriter);
         src = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, srcType, src, linearOffset);
         auto padValue = rewriter.getRemappedValue(op.getPadValue());
         auto typeSize = ascendc::getElementTypeSize(dstType);
@@ -189,16 +214,32 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
         auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
         assert(tensorOp && "tensor must be created by asctile.tensor op");
         auto loc = op.getLoc();
-        Value src = rewriter.getRemappedValue(op.getValue());
-        Value dst = rewriter.getRemappedValue(op.getBase());
+        auto value = op.getValue();
+        Value src = rewriter.getRemappedValue(value);
+        Value dst = rewriter.getRemappedValue(base);
         auto srcType = cast<ascendc::BaseTensorType>(src.getType());
         auto dstType = cast<ascendc::BaseTensorType>(dst.getType());
         auto srcTensorShape = srcType.getShape();
+        ascir::ConstantOpBuilder consts(rewriter);
         SmallVector<Value> dstTensorShape = getTensorShape(rewriter, tensorOp);
+        auto const0 = consts.i32(0);
+        auto const1 = consts.i32(1);
+        if (value.getType().getLoc() == asctile::TileLocation::L0C) {
+            auto fixPipeParams =
+                rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::FixpipeParamsV220Type>());
+            rewriter.create<emitasc::SetMemberOp>(loc, fixPipeParams, "nSize", dstTensorShape[1]);
+            rewriter.create<emitasc::SetMemberOp>(loc, fixPipeParams, "mSize", dstTensorShape[0]);
+            rewriter.create<emitasc::SetMemberOp>(loc, fixPipeParams, "srcStride", dstTensorShape[0]);
+            rewriter.create<emitasc::SetMemberOp>(loc, fixPipeParams, "dstStride", dstTensorShape[1]);
+            Value layout = rewriter.create<ascendc::ConstructOp>(
+                loc, rewriter.getType<ascendc::CO2LayoutType>(), ValueRange{consts.i32(1)}, ArrayAttr{}, true, true);
+            auto fixPipeConfig = rewriter.create<ascendc::ConstructOp>(
+                loc, rewriter.getType<ascendc::FixpipeConfigType>(), ValueRange{layout}, ArrayAttr{}, true, true);
+            rewriter.replaceOpWithNewOp<ascendc::FixpipeOp>(op, dst, src, fixPipeParams, fixPipeConfig);
+            return success();
+        }
         Value linearOffset = linearizeOffset(rewriter, loc, dstTensorShape, op.getOffsets());
         dst = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, dstType, dst, linearOffset);
-        ascir::ConstantOpBuilder consts(rewriter);
-        auto const0 = consts.i32(0);
         auto numElements = calculateNumElements(rewriter, loc, dstTensorShape);
         auto typeSize = ascendc::getElementTypeSize(srcType);
         auto typeSizeValue = consts.i32(typeSize);
@@ -321,6 +362,31 @@ struct ConvertSelect : ConvertOp<asctile::SelectOp> {
     }
 };
 
+struct ConvertMatmul : ConvertOp<asctile::MatmulOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    LogicalResult convert(asctile::MatmulOp op, ConvertRewriter& rewriter) const override
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto loc = op.getLoc();
+        auto dst = createTensorOp(rewriter, loc, op.getType());
+        auto matrixA = rewriter.getRemappedValue(op.getMatrixA());
+        auto matrixB = rewriter.getRemappedValue(op.getMatrixB());
+        auto matrixATensorShape = cast<ascendc::LocalTensorType>(matrixA.getType()).getShape();
+        auto matrixBTensorShape = cast<ascendc::LocalTensorType>(matrixB.getType()).getShape();
+        assert(matrixATensorShape.size() == 2 && "matrix must be have dim = 2");
+        assert(matrixBTensorShape.size() == 2 && "matrix must be have dim = 2");
+        auto mmadParams = rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::MmadParamsType>());
+        rewriter.create<emitasc::SetMemberOp>(loc, mmadParams, "m", consts.i32(matrixATensorShape[0]));
+        rewriter.create<emitasc::SetMemberOp>(loc, mmadParams, "n", consts.i32(matrixBTensorShape[1]));
+        rewriter.create<emitasc::SetMemberOp>(loc, mmadParams, "k", consts.i32(matrixBTensorShape[0]));
+        rewriter.create<ascendc::MmadOp>(loc, dst, matrixA, matrixB, mmadParams);
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
 template <typename TileOp, typename L2Op>
 struct ConvertToL2 : ConvertOp<TileOp> {
     using ConvertOp<TileOp>::ConvertOp;
@@ -381,7 +447,7 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
             ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>,
             ConvertReduce<asctile::ReduceSumAs1dOp, ascendc::ReduceSumL2Op>,
             ConvertReduce<asctile::ReduceMaxAs1dOp, ascendc::ReduceMaxL2Op>,
-            ConvertReduce<asctile::ReduceMinAs1dOp, ascendc::ReduceMinL2Op>
+            ConvertReduce<asctile::ReduceMinAs1dOp, ascendc::ReduceMinL2Op>, ConvertMatmul
             //
             >(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())

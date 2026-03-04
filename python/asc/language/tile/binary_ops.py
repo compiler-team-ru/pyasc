@@ -10,9 +10,10 @@ from typing import Callable, Union
 
 from ..._C import ir
 from ...common.compat import isinstance
+from ..core.dtype import KnownTypes as KT
 from ..core.ir_value import IRHandle, PlainValue, RuntimeInt, RuntimeNumeric
 from ..core.utils import global_builder
-from .tile import BinaryOperandTypeError, Tile, bind_tile_method
+from .tile import BinaryOperandTypeError, Tile, TileLocation, bind_tile_method
 from .utils import constant_tile, create_tile, infer_common_dtype, infer_common_shape, splat_tile
 
 
@@ -140,4 +141,20 @@ def right_shift(input: Tile, other: RuntimeInt) -> Tile:
     else:
         raise BinaryOperandTypeError(f"Right shift requires positive integer operand, got {other!r}")
     handle = builder.create_arith_ShRSIOp(input.to_ir(), other.to_ir())
+    return Tile(handle)
+
+
+@bind_tile_method(name="__matmul__", binary_op=True)
+def matmul(input: Tile, other: Tile) -> Tile:
+    if input.dtype != other.dtype:
+        raise BinaryOperandTypeError(f"Input tiles must have the same types, got {input.dtype} and {other.dtype}")
+    if input.dtype != KT.float32 and input.dtype != KT.float16:
+        raise BinaryOperandTypeError(f"Input tiles have unsupported types: {input.dtype}")
+    if len(input.shape) != 2 or len(other.shape) != 2:
+        raise BinaryOperandTypeError(f"Input tiles must have two dims=2: got {len(input.shape)} and {len(other.shape)}")
+    if input.shape[1] != other.shape[0]:
+        raise BinaryOperandTypeError(f"Input tiles have incompatibility shapes: got {input.shape} and {other.shape}")
+    builder = global_builder.get_ir_builder()
+    ir_type = ir.get_asctile_TileType([input.shape[0], other.shape[1]], KT.float32.to_ir(), TileLocation.L0C)
+    handle = builder.create_asctile_MatmulOp(ir_type, input.to_ir(), other.to_ir())
     return Tile(handle)

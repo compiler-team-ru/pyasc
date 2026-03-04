@@ -7,6 +7,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 from asc.language.tile.tensor import tensor
+from asc.language.tile.tile import TileLocation
 from asc.language.tile.range import range
 
 # Tile operations
@@ -24,6 +25,7 @@ from asc.language.tile.binary_ops import (
     left_shift,
     less,
     less_equal,
+    matmul,
     maximum,
     minimum,
     mul,
@@ -74,6 +76,8 @@ from .jit import jit
 __all__ = [
     # tensor
     "tensor",
+    # tile
+    "TileLocation",
     # range
     "range",
     # atomic_ops
@@ -89,6 +93,7 @@ __all__ = [
     "left_shift",
     "less",
     "less_equal",
+    "matmul",
     "maximum",
     "minimum",
     "mul",
