@@ -18,8 +18,8 @@ from . import utils
 from .._C import ir
 from ..language.core.struct import Struct
 from ..lib import runtime as rt
+from .compiler import CompiledKernel
 from .config import Platform
-from .kernel_meta import CompiledKernel, LaunchedKernel
 from .memory_handle import MemoryHandle, resolve_memory_handle
 
 KernelCallback: TypeAlias = Callable[[rt.Function], None]
@@ -47,6 +47,24 @@ class MsprofLauncher(object):
 
         end_time = self.utils.msprof_sys_cycle_time()
         self.utils.msprof_report_api(self.start_time, end_time, kernel_name)
+
+
+ub_capacity = {
+    Platform.Ascend910B1: 192 * 1024,
+    Platform.Ascend910B2: 192 * 1024,
+    Platform.Ascend910B2C: 192 * 1024,
+    Platform.Ascend910B3: 192 * 1024,
+    Platform.Ascend910B4: 192 * 1024,
+    Platform.Ascend910B4_1: 192 * 1024,
+    Platform.Ascend910_9362: 192 * 1024,
+    Platform.Ascend910_9372: 192 * 1024,
+    Platform.Ascend910_9381: 192 * 1024,
+    Platform.Ascend910_9382: 192 * 1024,
+    Platform.Ascend910_9391: 192 * 1024,
+    Platform.Ascend910_9392: 192 * 1024,
+    Platform.Ascend910_9579: 248 * 1024,
+    Platform.Ascend910_9599: 248 * 1024,
+}
 
 
 @dataclass(frozen=True)
@@ -120,40 +138,11 @@ class Launcher:
             return False
 
     @staticmethod
-    def scalar_to_bytes(value: Any) -> Optional[bytes]:
-        if isinstance(value, np.generic):
-            return value.tobytes()
-        try:
-            import torch
-            if isinstance(value, torch.Tensor):
-                return bytes(value.view(value.numel()).view(torch.uint8))
-        except ModuleNotFoundError:
-            pass
-        return None
+    def get_ub_capacity() -> int:
+        return ub_capacity[Platform(rt.current_platform())]
 
     @staticmethod
-    def get_core_num() -> int:
-        return rt.device_info(rt.DeviceModuleType.RT_MODULE_TYPE_AICORE, rt.DeviceInfoType.INFO_TYPE_CORE_NUM)
-
-    @staticmethod
-    def check_memory_overflow(memory_consumed: Dict[str, int]) -> None:
-        platform_info = get_platform_info(rt.get_soc_version())
-        key_to_attr = (
-            ("UB", "ub_size"),
-            ("L1", "l1_size"),
-            ("L0A", "l0a_size"),
-            ("L0B", "l0b_size"),
-            ("L0C", "l0c_size"),
-            ("BT", "bt_size"),
-        )
-        for key, attr in key_to_attr:
-            consumed = memory_consumed.get(key, 0)
-            capacity = getattr(platform_info, attr)
-            if consumed > capacity:
-                raise RuntimeError(f"{key} overflow: {capacity} bytes are available, {consumed} bytes are used.")
-
-    @classmethod
-    def expand_kernel_args(cls, args: Iterable[Any]) -> List[Union[np.generic, MemoryHandle]]:
+    def expand_kernel_args(args: Iterable[Any]) -> List[Union[np.generic, MemoryHandle]]:
         kernel_args = []
         for arg in args:
             if isinstance(arg, int):
@@ -212,12 +201,11 @@ class Launcher:
             finally:
                 arg.release_memory()
 
-    def run(self, kernel: CompiledKernel, function_name: str, user_args: Tuple[Any], discard_handles: bool = True,
-            kernel_callback: Optional[KernelCallback] = None) -> None:
-        is_launched = isinstance(kernel, LaunchedKernel)
-        if not is_launched and kernel.meta.memory_consumed is not None:
-            self.check_memory_overflow(kernel.meta.memory_consumed)
-        if os.environ.get("PYASC_DRY_RUN"):
+    def run(self, kernel: CompiledKernel, function_name: str, user_args: Tuple[Any]) -> None:
+        if kernel.ub_consumed is not None and kernel.ub_consumed > self.get_ub_capacity():
+            raise RuntimeError(f"UB overflow: {self.get_ub_capacity()} is available, {kernel.ub_consumed} is used.")
+        dry_run = os.environ.get('DRY_RUN')
+        if dry_run:
             return
         if not isinstance(kernel.binary, bytes):
             raise RuntimeError("Compiled binary is required to launch the kernel")
