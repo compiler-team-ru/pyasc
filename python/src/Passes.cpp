@@ -116,6 +116,12 @@ void defineAscendCPasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_verify_sync", createVerifySyncPass);
 
     m.def(
+        "add_hoist_ub_allocation",
+        [](PassManager& pm, bool excludeInOut) {
+            pm.addNestedPass<func::FuncOp>(createHoistUBAllocationPass(excludeInOut));
+        },
+        "pm"_a, "exclude_in_out"_a = false);
+    m.def(
         "add_materialize_tensor",
         [](PassManager& pm, bool alwaysBuf) { pm.addNestedPass<func::FuncOp>(createMaterializeTensorPass(alwaysBuf)); },
         "pm"_a, "always_buf"_a = false);

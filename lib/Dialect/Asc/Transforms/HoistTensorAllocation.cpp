@@ -34,8 +34,8 @@ struct HoistTensorExceptInOut : HoistTensor {
     bool hoistable(ascendc::LocalTensorAutoOp op) const override { return !op.getInput() && !op.getOutput(); }
 };
 
-struct HoistTensorAllocationPass : public ascendc::impl::HoistTensorAllocationBase<HoistTensorAllocationPass> {
-    HoistTensorAllocationPass(const ascendc::HoistTensorAllocationOptions& opt) : HoistTensorAllocationBase(opt) {}
+struct HoistUBAllocationPass : public ascendc::impl::HoistUBAllocationBase<HoistUBAllocationPass> {
+    HoistUBAllocationPass(const ascendc::HoistUBAllocationOptions& options) : HoistUBAllocationBase(options) {}
 
     void runOnOperation() override
     {
@@ -54,9 +54,13 @@ struct HoistTensorAllocationPass : public ascendc::impl::HoistTensorAllocationBa
 
 } // namespace
 
-std::unique_ptr<Pass> mlir::ascendc::createHoistTensorAllocationPass(bool excludeInOut)
+namespace mlir {
+namespace ascendc {
+std::unique_ptr<Pass> createHoistUBAllocationPass(bool excludeInOut)
 {
-    HoistTensorAllocationOptions options;
+    HoistUBAllocationOptions options;
     options.excludeInOut = excludeInOut;
-    return std::make_unique<HoistTensorAllocationPass>(options);
+    return std::make_unique<HoistUBAllocationPass>(options);
 }
+} // namespace ascendc
+} // namespace mlir
