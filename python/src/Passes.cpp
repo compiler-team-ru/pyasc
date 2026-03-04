@@ -110,7 +110,6 @@ void defineAscendCPasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_input_output_tensor", createInputOutputTensorPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_bufid_sync", createInsertBufIdSyncPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_sync", createInsertSyncPass);
-    DEFINE_ADD_PASS("add_legalize_kernel_args", createLegalizeKernelArgsPass);
     DEFINE_ADD_PASS("add_privatize_func", createPrivatizeFuncPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_unify_pipe", createUnifyPipePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_verify_sync", createVerifySyncPass);
@@ -121,6 +120,10 @@ void defineAscendCPasses(py::module& mod)
             pm.addNestedPass<func::FuncOp>(createHoistUBAllocationPass(excludeInOut));
         },
         "pm"_a, "exclude_in_out"_a = false);
+    m.def(
+        "add_legalize_kernel_args",
+        [](PassManager& pm, bool setFftsAddr) { pm.addPass(createLegalizeKernelArgsPass(setFftsAddr)); }, "pm"_a,
+        "set_ffts_addr"_a = false);
     m.def(
         "add_materialize_tensor",
         [](PassManager& pm, bool alwaysBuf) { pm.addNestedPass<func::FuncOp>(createMaterializeTensorPass(alwaysBuf)); },
