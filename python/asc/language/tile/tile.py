@@ -10,12 +10,12 @@ from __future__ import annotations
 
 import functools
 import inspect
-from typing import Callable, Final, Optional, TypeVar, overload
+from typing import Callable, Final, Optional, TypeVar, Union, overload
 from typing_extensions import Self, TypeAlias
 
 from ..._C import ir
 from ..core.dtype import DataType
-from ..core.ir_value import IRHandle, IRValue, RuntimeInt
+from ..core.ir_value import IRHandle, IRValue, PlainValue, RuntimeInt, RuntimeNumeric
 from ..core.utils import global_builder
 
 T = TypeVar("T")
@@ -67,19 +67,21 @@ class Tile(IRValue):
         handle = global_builder.get_ir_builder().create_asctile_CastOp(ir_type, self.to_ir())
         return Tile(handle)
 
-    def __add__(self, other: Self) -> Self:
+    # Binary operations
+
+    def __add__(self, other: Union[Self, RuntimeNumeric]) -> Self:
         ...
 
-    def __sub__(self, other: Self) -> Self:
+    def __sub__(self, other: Union[Self, RuntimeNumeric]) -> Self:
         ...
 
-    def __mul__(self, other: Self) -> Self:
+    def __mul__(self, other: Union[Self, RuntimeNumeric]) -> Self:
         ...
 
-    def __truediv__(self, other: Self) -> Self:
+    def __truediv__(self, other: Union[Self, RuntimeNumeric]) -> Self:
         ...
 
-    def __floordiv__(self, other: Self) -> Self:
+    def __floordiv__(self, other: Union[Self, RuntimeNumeric]) -> Self:
         return self / other
 
     def __lshift__(self, other: RuntimeInt) -> Self:
@@ -88,23 +90,39 @@ class Tile(IRValue):
     def __rshift__(self, other: RuntimeInt) -> Self:
         ...
 
-    def __eq__(self, other: Self) -> Self:
+    def __matmul__(self, other: Self) -> Self:
         ...
 
-    def __ne__(self, other: Self) -> Self:
+    def __eq__(self, other: Union[Self, RuntimeNumeric]) -> Self:
         ...
 
-    def __gt__(self, other: Self) -> Self:
+    def __ne__(self, other: Union[Self, RuntimeNumeric]) -> Self:
         ...
 
-    def __ge__(self, other: Self) -> Self:
+    def __gt__(self, other: Union[Self, RuntimeNumeric]) -> Self:
         ...
 
-    def __lt__(self, other: Self) -> Self:
+    def __ge__(self, other: Union[Self, RuntimeNumeric]) -> Self:
         ...
 
-    def __le__(self, other: Self) -> Self:
+    def __lt__(self, other: Union[Self, RuntimeNumeric]) -> Self:
         ...
+
+    def __le__(self, other: Union[Self, RuntimeNumeric]) -> Self:
+        ...
+
+    # Reduction operations
+
+    def sum(self) -> PlainValue:
+        ...
+
+    def max(self) -> PlainValue:
+        ...
+
+    def min(self) -> PlainValue:
+        ...
+
+    # Unary operations
 
     def __neg__(self) -> Self:
         ...
@@ -133,9 +151,6 @@ class Tile(IRValue):
     def exp(self) -> Self:
         ...
 
-    def exp2(self) -> Self:
-        ...
-
     def log(self) -> Self:
         ...
 
@@ -154,10 +169,16 @@ class Tile(IRValue):
     def erf(self) -> Self:
         ...
 
+    def exp2(self) -> Self:
+        ...
+
     def sqrt(self) -> Self:
         ...
 
     def rsqrt(self) -> Self:
+        ...
+
+    def relu(self) -> Self:
         ...
 
 

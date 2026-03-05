@@ -18,8 +18,7 @@ from .tile import Tile
 
 def op_atomic_impl(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt], kind: ir.AtomicKind):
     offsets = [_mat(v, KT.int32).to_ir() for v in offsets]
-    global_builder.get_ir_builder().create_asctile_AtomicRMWOp(
-        tile.to_ir(), tensor.to_ir(), offsets, kind)
+    global_builder.get_ir_builder().create_asctile_AtomicRMWOp(tile.to_ir(), tensor.to_ir(), offsets, kind)
 
 
 def atomic_add(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt]) -> None:
