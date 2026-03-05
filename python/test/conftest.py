@@ -12,8 +12,8 @@ from asc.runtime import config
 
 
 def pytest_addoption(parser: pytest.Parser):
-    parser.addoption("--backend", default=config.Backend.Model, help="Runtime backend for testing")
-    parser.addoption("--platform", default=config.Platform.Ascend910B1, help="Runtime platform for testing")
+    parser.addoption("--backend", type=config.Backend, default=config.Backend.Model, help="Runtime backend")
+    parser.addoption("--platform", type=config.Platform, default=config.Platform.Ascend910B1, help="Runtime platform")
 
 
 @pytest.fixture
