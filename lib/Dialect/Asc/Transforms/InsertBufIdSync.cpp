@@ -74,6 +74,11 @@ void recursiveVisit(Operation *op, int32_t bufId, VisitedOpsSet &visitedOps, Vis
             }
         }
     }
+    if (auto localSubIndex = dyn_cast<ascendc::LocalTensorSubIndexOp>(op)) {
+        for (auto *user : localSubIndex->getUsers()) {
+            recursiveVisit(user, bufId, visitedOps, bufIdMap);
+        }
+    }
     for (auto operand : op->getOperands()) {
         if (!isa<ascendc::LocalTensorType>(operand.getType()))
             continue;
