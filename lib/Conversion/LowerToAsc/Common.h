@@ -9,7 +9,6 @@
 #define LIB_CONVERSION_LOWERTOASC_COMMON_H
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
-#include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 
 #include "mlir/IR/BuiltinAttributes.h"
@@ -106,29 +105,45 @@ struct ConvertOp : public ConversionPattern {
         return convert(cast<OpType>(op), operands, rewriter);
     }
 
+    static ascendc::TPosition locationToPosition(asctile::TileLocation loc)
+    {
+        switch (loc) {
+        case asctile::TileLocation::L1:
+            return ascendc::TPosition::A1;
+        case asctile::TileLocation::L0A:
+            return ascendc::TPosition::A2;
+        case asctile::TileLocation::L0B:
+            return ascendc::TPosition::B2;
+        case asctile::TileLocation::FIX:
+            [[fallthrough]];
+        case asctile::TileLocation::L0C:
+            return ascendc::TPosition::CO1;
+        case asctile::TileLocation::UB:
+            return ascendc::TPosition::VECCALC;
+        }
+        llvm_unreachable("unexpected TileLocation value");
+    }
+
     ascendc::LocalTensorAutoOp createTensorOp(
         OpBuilder& builder, Location loc, ArrayRef<int64_t> shape, Type elementType,
-        asctile::TileLocationAttr attr = nullptr) const
+        std::optional<ascendc::TPosition> position = std::nullopt) const
     {
-        auto localTensorAuto =
-            builder.create<ascendc::LocalTensorAutoOp>(loc, ascendc::LocalTensorType::get(shape, elementType));
-        if (attr) {
-            localTensorAuto->setAttr("memoryLocation", attr);
-        }
+        auto localTensorAuto = builder.create<ascendc::LocalTensorAutoOp>(
+            loc, ascendc::LocalTensorType::get(shape, elementType), position.value_or(ascendc::TPosition::VECCALC));
         return localTensorAuto;
     }
 
     ascendc::LocalTensorAutoOp createTensorOp(
-        OpBuilder& builder, Location loc, Type convertibleType, asctile::TileLocationAttr attr = nullptr) const
+        OpBuilder& builder, Location loc, Type convertibleType,
+        std::optional<ascendc::TPosition> position = std::nullopt) const
     {
         auto convertedType = converter().convertType(convertibleType);
         assert(isa<ascendc::LocalTensorType>(convertedType) && "must be convertible");
         auto tensorType = cast<ascendc::LocalTensorType>(convertedType);
         if (auto tileType = dyn_cast<asctile::TileType>(convertibleType)) {
-            asctile::TileLocationAttr tileAttr = attr ? attr : tileType.getLocAttr();
-            return createTensorOp(builder, loc, tensorType.getShape(), tensorType.getElementType(), tileAttr);
+            position = position.has_value() ? position : locationToPosition(tileType.getLoc());
         }
-        return createTensorOp(builder, loc, tensorType.getShape(), tensorType.getElementType());
+        return createTensorOp(builder, loc, tensorType.getShape(), tensorType.getElementType(), position);
     }
 
     ascendc::LocalTensorReinterpretCastOp createReCastOp(
