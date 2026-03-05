@@ -146,14 +146,16 @@ def right_shift(input: Tile, other: RuntimeInt) -> Tile:
 
 @bind_tile_method(name="__matmul__", binary_op=True)
 def matmul(input: Tile, other: Tile) -> Tile:
+    if not isinstance(input, Tile) or not isinstance(other, Tile):
+        raise BinaryOperandTypeError(f"Input operands must be tiles, got {type(input)} and {type(other)}")
     if input.dtype != other.dtype:
-        raise BinaryOperandTypeError(f"Input tiles must have the same types, got {input.dtype} and {other.dtype}")
+        raise RuntimeError(f"Input tiles must have the same types, got {input.dtype} and {other.dtype}")
     if input.dtype != KT.float32 and input.dtype != KT.float16:
-        raise BinaryOperandTypeError(f"Input tiles have unsupported types: {input.dtype}")
+        raise RuntimeError(f"Input tiles have unsupported types: {input.dtype}")
     if len(input.shape) != 2 or len(other.shape) != 2:
-        raise BinaryOperandTypeError(f"Input tiles must have two dims=2: got {len(input.shape)} and {len(other.shape)}")
+        raise RuntimeError(f"Input tiles must have two dims, got {len(input.shape)} and {len(other.shape)}")
     if input.shape[1] != other.shape[0]:
-        raise BinaryOperandTypeError(f"Input tiles have incompatibility shapes: got {input.shape} and {other.shape}")
+        raise RuntimeError(f"Input tiles have incompatible shapes: {input.shape}, {other.shape}")
     builder = global_builder.get_ir_builder()
     ir_type = ir.get_asctile_TileType([input.shape[0], other.shape[1]], KT.float32.to_ir(), TileLocation.L0C)
     handle = builder.create_asctile_MatmulOp(ir_type, input.to_ir(), other.to_ir())

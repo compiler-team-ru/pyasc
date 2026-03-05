@@ -6,7 +6,7 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-from typing import Iterable, Optional, Tuple, List, Union, overload
+from typing import Iterable, List, Optional, Tuple, Union, overload
 
 from ..._C import ir
 from ..core.dtype import KnownTypes as KT
