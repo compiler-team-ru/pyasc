@@ -116,6 +116,11 @@ def LegalizeKernelArgs : Pass<"ascendc-legalize-kernel-args", "ModuleOp"> {
   ];
 }
 
+def LowerToL0 : Pass<"ascendc-lower-to-l0", "func::FuncOp"> {
+  let summary = "Lowering L2 and L3 to L0 AscendC operations";
+  let constructor = "mlir::ascendc::createLowerToL0Pass()";
+}
+
 def Noop : Pass<"ascendc-noop", "func::FuncOp"> {
   let summary = "This pass does nothing";
   let constructor = "mlir::ascendc::createNoopPass()";

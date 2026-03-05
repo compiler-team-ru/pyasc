@@ -148,7 +148,7 @@ class BinaryL2Op<string mnemonic, string apiName, list<Trait> traits = []>
 }
 
 class BinaryTemplateL0Op<string mnemonic, string apiName, list<Trait> traits = []>
-    : BinaryOp<mnemonic, apiName, traits> {
+    : BinaryOp<mnemonic, apiName, [BinaryL0OpInterface] # traits> {
   let description = "`AscendC::" # apiName # "` is a vector binary operation (L0 API).\n";
   let arguments = (ins AnyType:$dst, AnyType:$src0, AnyType:$src1,
                    AnyType:$mask, AnyType:$repeatTimes, 
@@ -164,14 +164,14 @@ class BinaryTemplateL1Op<string mnemonic, string apiName, list<Trait> traits = [
 }
 
 class BinaryTemplateL2Op<string mnemonic, string apiName, list<Trait> traits = []>
-    : BinaryOp<mnemonic, apiName, traits> {
+    : BinaryOp<mnemonic, apiName, [BinaryL2OpInterface] # traits> {
   let description = "`AscendC::" # apiName # "` is a vector binary operation (L2 API).\n";
   let arguments = (ins AnyType:$dst, AnyType:$src0, AnyType:$src1,
                    AnyType:$calCount, UnitAttr:$isSetMask);
 }
 
 class BinaryCastL0Op<string mnemonic, string apiName, list<Trait> traits = []>
-    : BinaryOp<mnemonic, apiName, traits> {
+    : BinaryOp<mnemonic, apiName, [BinaryL0OpInterface] # traits> {
   let description = "`AscendC::" # apiName # "` is a vector binary operation (L0 API).\n";
   let arguments = (ins AnyType:$dst, AnyType:$src0, AnyType:$src1,
                    AnyType:$mask, AnyType:$repeatTimes, 
@@ -187,7 +187,7 @@ class BinaryCastL1Op<string mnemonic, string apiName, list<Trait> traits = []>
 }
 
 class BinaryCastL2Op<string mnemonic, string apiName, list<Trait> traits = []>
-    : BinaryOp<mnemonic, apiName, traits> {
+    : BinaryOp<mnemonic, apiName, [BinaryL2OpInterface] # traits> {
   let description = "`AscendC::" # apiName # "` is a vector binary operation (L2 API).\n";
   let arguments = (ins AnyType:$dst, AnyType:$src0, AnyType:$src1,
                    AnyType:$calCount, UnitAttr:$isSetMask);
