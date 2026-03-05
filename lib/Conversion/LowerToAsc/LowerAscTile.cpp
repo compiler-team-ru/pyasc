@@ -18,6 +18,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Pass/Pass.h"
 
 #include "Common.h"
@@ -86,7 +87,9 @@ struct LoweringConversionTarget : public ConversionTarget {
     LoweringConversionTarget(TensorTypeConverter& converter, MLIRContext* context) : ConversionTarget(*context)
     {
         addIllegalDialect<asctile::AscTileDialect>();
-        addLegalDialect<ascendc::AscendCDialect, arith::ArithDialect, emitasc::EmitAscDialect, emitc::EmitCDialect>();
+        addLegalDialect<
+            ascendc::AscendCDialect, arith::ArithDialect, emitasc::EmitAscDialect, emitc::EmitCDialect,
+            scf::SCFDialect>();
         addLegalOp<UnrealizedConversionCastOp>();
     }
 };
@@ -121,9 +124,10 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
         SmallVector<Value> srcTensorShape = getTensorShape(rewriter, tensorOp);
         auto dstTensorOp = createTensorOp(rewriter, loc, opType);
         auto dst = dstTensorOp.getResult();
+        auto numElements = calculateNumElements(rewriter, loc, srcTensorShape);
+        auto const0 = consts.i32(0);
+        auto const1 = consts.i32(1);
         if (opType.getLoc() == asctile::TileLocation::L0A || opType.getLoc() == asctile::TileLocation::L0B) {
-            auto const0 = consts.i64(0);
-            auto const1 = consts.i64(1);
             auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
                 loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
                 ValueRange{
@@ -134,14 +138,36 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
             rewriter.create<ascendc::DataCopyL2Op>(loc, l1Dst, src, nd2NzParams);
             Value loadDataParams =
                 rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::LoadData2DParamsType>());
-            Value repeatTimes = rewriter.create<arith::CeilDivSIOp>(loc, srcTensorShape[1], consts.i32(16));
-            Value srcStride = rewriter.create<arith::CeilDivSIOp>(loc, srcTensorShape[0], consts.i32(16));
-            rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "repeatTimes", repeatTimes);
-            rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "srcStride", srcStride);
-            rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "dstGap", consts.i32(0));
-            rewriter.create<emitasc::SetMemberOp>(
-                loc, loadDataParams, "ifTranspose", consts.i1(opType.getLoc() == asctile::TileLocation::L0B));
-            rewriter.create<ascendc::LoadDataG2LOp>(loc, dst, l1Dst, loadDataParams);
+            auto cubeBlockSize = consts.i32(16 * 16);
+            if (opType.getLoc() == asctile::TileLocation::L0A) {
+                Value repeatTimes = rewriter.create<arith::CeilDivSIOp>(loc, numElements, cubeBlockSize);
+                rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "repeatTimes", repeatTimes);
+                rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "srcStride", const1);
+                rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "dstGap", const0);
+                rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "ifTranspose", consts.i1(0));
+                rewriter.create<ascendc::LoadDataG2LOp>(loc, dst, l1Dst, loadDataParams);
+            } else {
+                auto cubeBlock = consts.i32(16);
+                Value repeatTimes = rewriter.create<arith::CeilDivSIOp>(loc, srcTensorShape[1], cubeBlock);
+                Value srcStride = rewriter.create<arith::CeilDivSIOp>(loc, srcTensorShape[0], cubeBlock);
+                rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "repeatTimes", repeatTimes);
+                rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "srcStride", srcStride);
+                rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "dstGap", const0);
+                rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "ifTranspose", consts.i1(1));
+                auto forOp = rewriter.create<scf::ForOp>(loc, const0, srcStride, const1);
+                rewriter.setInsertionPointToStart(forOp.getBody());
+                auto indVar = forOp.getInductionVar();
+                auto dstOffset = rewriter.create<arith::MulIOp>(loc, cubeBlockSize, repeatTimes);
+                auto srcOffset = cubeBlockSize;
+                auto iterDstOffset = rewriter.create<arith::MulIOp>(loc, indVar, dstOffset);
+                auto iterSrcOffset = rewriter.create<arith::MulIOp>(loc, indVar, srcOffset);
+                auto subLocalL1 =
+                    rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, l1Dst.getType(), l1Dst, iterSrcOffset);
+                auto subLocalL0 =
+                    rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dst.getType(), dst, iterDstOffset);
+                rewriter.create<ascendc::LoadDataG2LOp>(loc, subLocalL0, subLocalL1, loadDataParams);
+                rewriter.setInsertionPointAfter(forOp);
+            }
             rewriter.replaceOp(op, dst);
             return success();
         }
@@ -149,12 +175,9 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
         Value linearOffset = linearizeOffset(rewriter, loc, srcTensorShape, op.getOffsets());
         auto srcType = cast<ascendc::BaseTensorType>(src.getType());
         auto dstType = dst.getType();
-        auto numElements = calculateNumElements(rewriter, loc, srcTensorShape);
         src = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, srcType, src, linearOffset);
         auto padValue = rewriter.getRemappedValue(op.getPadValue());
         auto typeSize = ascendc::getElementTypeSize(dstType);
-        auto const0 = consts.i32(0);
-        auto const1 = consts.i32(1);
         Value dstNumElements = consts.i32(calCount(dst));
         Value tailElements = rewriter.create<arith::SubIOp>(loc, numElements, linearOffset);
         Value blockCount = dstTensorShape.size() == 1 ? const1 : consts.i32(dstTensorShape[0]);
