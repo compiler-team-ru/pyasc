@@ -133,8 +133,7 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
                 ValueRange{
                     const1, srcTensorShape[0], srcTensorShape[1], const0, srcTensorShape[1], srcTensorShape[0], const1,
                     const0});
-            auto l1Dst = createTensorOp(
-                rewriter, loc, opType, asctile::TileLocationAttr::get(op.getContext(), asctile::TileLocation::L1));
+            auto l1Dst = createTensorOp(rewriter, loc, opType, ascendc::TPosition::A1);
             rewriter.create<ascendc::DataCopyL2Op>(loc, l1Dst, src, nd2NzParams);
             Value loadDataParams =
                 rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::LoadData2DParamsType>());
@@ -465,12 +464,12 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         patterns.insert<
             //
             ConvertTensor, ConvertLoad, ConvertGetValue, ConvertStore, ConvertSetValue, ConvertSplat, ConvertRelu,
-            ConvertCast, ConvertSelect, ConvertToL2<asctile::AddsOp, ascendc::AddsL2Op>,
+            ConvertCast, ConvertSelect, ConvertMatmul, ConvertToL2<asctile::AddsOp, ascendc::AddsL2Op>,
             ConvertToL2<asctile::MulsOp, ascendc::MulsL2Op>, ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>,
             ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>,
             ConvertReduce<asctile::ReduceSumAs1dOp, ascendc::ReduceSumL2Op>,
             ConvertReduce<asctile::ReduceMaxAs1dOp, ascendc::ReduceMaxL2Op>,
-            ConvertReduce<asctile::ReduceMinAs1dOp, ascendc::ReduceMinL2Op>, ConvertMatmul
+            ConvertReduce<asctile::ReduceMinAs1dOp, ascendc::ReduceMinL2Op>
             //
             >(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())
