@@ -105,6 +105,7 @@ class FunctionVisitor(ast.NodeVisitor):
             ast.BitAnd: '__and__',
             ast.BitOr: '__or__',
             ast.BitXor: '__xor__',
+            ast.MatMult: '__matmul__',
         }
         name = names.get(op_class)
         if name:
