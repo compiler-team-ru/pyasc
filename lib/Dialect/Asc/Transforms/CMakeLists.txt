@@ -22,6 +22,7 @@ add_mlir_dialect_library(MLIRAscTransforms
   InsertBufIdSync.cpp
   InsertSync.cpp
   LegalizeKernelArgs.cpp
+  LowerToL0.cpp
   MaterializeTensor.cpp
   Noop.cpp
   PrivatizeFunc.cpp
