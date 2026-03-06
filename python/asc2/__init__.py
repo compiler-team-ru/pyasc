@@ -64,7 +64,7 @@ from asc.language.tile.unary_ops import (
     tan,
     tanh,
 )
-from asc.language.tile.indexing_ops import where
+from asc.language.tile.indexing_ops import mask, where
 from asc.language.tile.reduction_ops import (
     reduce_sum,
     reduce_max,
@@ -129,6 +129,7 @@ __all__ = [
     "tan",
     "tanh",
     # indexing_ops
+    "mask",
     "where",
     # reduction_ops
     "reduce_sum",
