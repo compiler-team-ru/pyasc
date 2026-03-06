@@ -6,9 +6,11 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-from typing import Union
+from contextlib import contextmanager
+from typing import Any, Generator, Iterable, Optional, Union, overload
 
-from ..core.ir_value import RuntimeNumeric
+from ..core.dtype import KnownTypes as KT
+from ..core.ir_value import RuntimeInt, RuntimeNumeric, materialize_ir_value as _mat
 from ..core.utils import check_type, global_builder
 from .tile import Tile
 from .utils import create_tile, infer_common_dtype
@@ -24,3 +26,36 @@ def where(mask: Tile, src0: Union[Tile, RuntimeNumeric], src1: Union[Tile, Runti
     handle = global_builder.get_ir_builder().create_asctile_SelectOp(src0.to_ir().get_type(), mask.to_ir(),
                                                                      src0.to_ir(), src1.to_ir())
     return Tile(handle)
+
+
+@overload
+def mask(*, count: RuntimeInt) -> Generator[None, Any, None]:
+    ...
+
+
+@overload
+def mask(*, bits: Iterable[RuntimeInt]) -> Generator[None, Any, None]:
+    ...
+
+
+@contextmanager
+def mask(*, count: Optional[RuntimeInt] = None, bits: Optional[Iterable[RuntimeInt]] = None) -> Generator:
+    builder = global_builder.get_ir_builder()
+    if count is not None:
+        mask_op = builder.create_asctile_CountMaskOp(_mat(count, KT.int32).to_ir())
+    elif bits is not None:
+        bits = tuple(bits)
+        if len(bits) != 2:
+            raise RuntimeError(f"Expected two integers in 'bits', got {len(bits)}")
+        mask_op = builder.create_asctile_BitwiseMaskOp(_mat(bits[0], KT.int32).to_ir(), _mat(bits[1], KT.int32).to_ir())
+    else:
+        raise ValueError("One of 'count', 'bits' must be provided")
+    old_insertion_point = global_builder.get_ir_builder().save_insertion_point()
+    mask_region = mask_op.get_region()
+    new_block = builder.create_block(mask_region)
+    builder.set_insertion_point_to_start(new_block)
+    try:
+        yield
+    finally:
+        builder.create_asctile_YieldOp()
+        builder.restore_insertion_point(old_insertion_point)
