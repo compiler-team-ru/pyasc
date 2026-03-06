@@ -1014,7 +1014,14 @@ void bind_create_asctile_operations(py::class_<PyOpBuilder> &clss)
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss
+    clss.def("create_asctile_CountMaskOp",
+        [](PyOpBuilder &self, Value &value) -> asctile::CountMaskOp {
+            return self.create<asctile::CountMaskOp>(value);
+    })
+    .def("create_asctile_BitwiseMaskOp",
+        [](PyOpBuilder &self, Value &highBits, Value &lowBits) -> asctile::BitwiseMaskOp {
+            return self.create<asctile::BitwiseMaskOp>(highBits, lowBits);
+    })
 #include "ascir/Dialect/AscTile/IR/AscTileOpBindings.h.inc"
         ;
 }

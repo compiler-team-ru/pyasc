@@ -678,6 +678,15 @@ void pyasc_bind_scfop(py::module &m)
     py::class_<scf::ConditionOp, OpState>(m, "ConditionOp", py::module_local());
 }
 
+void pyasc_bind_asctile(py::module &m)
+{
+    using ret = py::return_value_policy;
+    py::class_<asctile::CountMaskOp, OpState>(m, "CountMaskOp", py::module_local())
+        .def("get_region", &asctile::CountMaskOp::getRegion, ret::reference);
+    py::class_<asctile::BitwiseMaskOp, OpState>(m, "BitwiseMaskOp", py::module_local())
+        .def("get_region", &asctile::BitwiseMaskOp::getRegion, ret::reference);
+}
+
 void pyasc_bind_kernel_argument(py::module &m)
 {
     py::enum_<emitasc::KernelArgument>(m, "KernelArgument", py::module_local())
@@ -716,6 +725,7 @@ void pyasc_init_ir(py::module &&m)
     pyasc_bind_moduleop(m);
     pyasc_bind_funcop(m);
     pyasc_bind_scfop(m);
+    pyasc_bind_asctile(m);
     pyasc_bind_kernel_argument(m);
     py::class_<OpBuilder::InsertPoint>(m, "InsertPoint", py::module_local());
 
