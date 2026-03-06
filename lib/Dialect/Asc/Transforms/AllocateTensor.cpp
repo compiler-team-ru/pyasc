@@ -14,6 +14,8 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Pass/Pass.h"
 
+#include <unordered_map>
+
 namespace mlir {
 namespace ascendc {
 #define GEN_PASS_DEF_ALLOCATETENSOR
@@ -22,8 +24,30 @@ namespace ascendc {
 } // namespace mlir
 
 using namespace mlir;
+using namespace mlir::ascendc;
 
 namespace {
+
+AddressSpace positionToAddressSpace(TPosition position)
+{
+    switch (position) {
+        case TPosition::A1:
+        case TPosition::B1:
+            return AddressSpace::cbuf;
+        case TPosition::A2:
+            return AddressSpace::ca;
+        case TPosition::B2:
+            return AddressSpace::cb;
+        case TPosition::CO1:
+            return AddressSpace::cc;
+        case TPosition::VECCALC:
+        case TPosition::VECIN:
+        case TPosition::VECOUT:
+            return AddressSpace::ubuf;
+        default:
+            llvm_unreachable("unexpected TPosition value");
+    }
+}
 
 class AllocateTensorPass : public ascendc::impl::AllocateTensorBase<AllocateTensorPass> {
     void runOnOperation() override
@@ -32,19 +56,20 @@ class AllocateTensorPass : public ascendc::impl::AllocateTensorBase<AllocateTens
         if (funcOp.isDeclaration()) {
             return;
         }
-        uint32_t addr = 0;
-        funcOp.walk<WalkOrder::PreOrder>([this, &addr](ascendc::LocalTensorAutoOp op) {
+        std::unordered_map<ascendc::AddressSpace, uint32_t> offsets;
+        funcOp.walk<WalkOrder::PreOrder>([this, &offsets](LocalTensorAutoOp op) {
             auto type = op.getType();
             if (!type.hasStaticShape()) {
-                op.emitError() << "must be static shape";
+                op.emitOpError() << "must be static shape";
                 signalPassFailure();
             }
             OpBuilder builder(op);
-            auto localTensorV3Op = builder.create<ascendc::LocalTensorV3Op>(
-                op.getLoc(), type, ascendc::TPosition::VECCALC, addr, type.getNumElements());
-            op->replaceAllUsesWith(localTensorV3Op);
+            uint32_t &addr = offsets[positionToAddressSpace(op.getPosition())];
+            auto tensor =
+                builder.create<LocalTensorV3Op>(op.getLoc(), type, op.getPosition(), addr, type.getNumElements());
+            op->replaceAllUsesWith(tensor);
             op.erase();
-            addr += ascendc::getTypeSize(type);
+            addr += llvm::alignTo<ubBlockSize>(getTypeSize(type));
         });
     }
 };
