@@ -38,7 +38,10 @@ int64_t getSizeInBytes(LocalTensorType type)
 int64_t calculateUBConsumed(ModuleOp moduleOp)
 {
     int64_t ubConsumed = 0;
-    moduleOp.walk([&ubConsumed](ascendc::LocalTensorV3Op op) { ubConsumed += getSizeInBytes(op.getType()); });
+    moduleOp.walk([&ubConsumed](ascendc::LocalTensorV3Op op) {
+        if (op.getPos() == TPosition::VECCALC)
+            ubConsumed += getSizeInBytes(op.getType());
+    });
     return ubConsumed;
 }
 
