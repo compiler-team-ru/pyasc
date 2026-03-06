@@ -19,7 +19,6 @@
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
-#include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/Func/Extensions/AllExtensions.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Math/IR/Math.h"
@@ -740,6 +739,15 @@ void bindScfop(py::module& m)
     py::class_<scf::ConditionOp, OpState>(m, "ConditionOp", py::module_local());
 }
 
+void bindAscTile(py::module& m)
+{
+    using ret = py::return_value_policy;
+    py::class_<asctile::CountMaskOp, OpState>(m, "CountMaskOp", py::module_local())
+        .def("get_region", &asctile::CountMaskOp::getRegion, ret::reference);
+    py::class_<asctile::BitwiseMaskOp, OpState>(m, "BitwiseMaskOp", py::module_local())
+        .def("get_region", &asctile::BitwiseMaskOp::getRegion, ret::reference);
+}
+
 void bindKernelArgument(py::module& m)
 {
     py::enum_<emitasc::KernelArgument>(m, "KernelArgument", py::module_local())
@@ -783,6 +791,7 @@ void initIRModule(py::module&& m)
     bindModuleop(m);
     bindFuncop(m);
     bindScfop(m);
+    bindAscTile(m);
     bindKernelArgument(m);
     py::class_<OpBuilder::InsertPoint>(m, "InsertPoint", py::module_local());
 

@@ -119,6 +119,24 @@ def SetValueOp : AscTile_Op<"set_value", [
   }];
 }
 
+def YieldOp : AscTile_Op<"yield", [Terminator]> {
+  let assemblyFormat = "attr-dict";
+}
+
+def CountMaskOp
+    : AscTile_Op<"count_mask", [SingleBlockImplicitTerminator<"YieldOp">]> {
+  let arguments = (ins I64:$count);
+  let regions = (region SizedRegion<1>:$region);
+  let assemblyFormat = "$count $region attr-dict";
+}
+
+def BitwiseMaskOp
+    : AscTile_Op<"bitwise_mask", [SingleBlockImplicitTerminator<"YieldOp">]> {
+  let arguments = (ins I64:$highBits, I64:$lowBits);
+  let regions = (region SizedRegion<1>:$region);
+  let assemblyFormat = "$highBits `,` $lowBits $region attr-dict";
+}
+
 class AscTile_VecScalarOp<string mnemonic, list<Trait> traits = []>
     : AscTile_Op<mnemonic, traits # [
   Pure,
