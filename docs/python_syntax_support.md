@@ -557,24 +557,25 @@
     ```python
     import numpy as np
     @asc.jit
-    def cmpi_function(mask1: np.uint64, mask2: np.uint64):
-        if mask1 > 0 and mask2 > 0:
-            mask = [mask1, mask2]
+    def cmpi_function(mask_low: np.uint64, mask_high: np.uint64):
+        if mask_low > 0 and mask_high > 0:  # 数字0也为无符号整数类型
+            mask = [mask_low, mask_high]
             asc.add(z, x, y, mask=mask, repeat_time=1, repeat_params=asc.BinaryRepeatParams(1, 1, 1, 8, 8, 8))
 
-    mask1 = np.uint64(2**64-1)
-    mask2 = np.uint64(2**64-1)
+    mask_low = np.uint64(2**64-1)
+    mask_high = np.uint64(2**64-1)
     ```
-  注：mask作为一个特殊的uint64场景，由框架进行处理，在进行`if mask1 > 0 and mask2 > 0`逻辑判断时可以使用 `if mask1 and mask2`，或使用np.int64代替，
-  代码如下：
+  注：mask作为一个特殊的uint64场景，由框架进行处理，在进行`if mask_low > 0 and mask_high > 0`逻辑判断时可以使用 `if mask_low and mask_high`，
+  如果和非0数字进行比较则只能使用np.int64代替。
+  上述代码使用np.int64后代码如下：
     ```python
     import numpy as np
     @asc.jit
-    def cmpi_function(mask1: np.int64, mask2: np.int64):
-        if mask1 != 0 and mask2 != 0:
-            mask = [mask1, mask2]
+    def cmpi_function(mask_low: np.int64, mask_high: np.int64):
+        if mask_low != 0 and mask_high != 0:
+            mask = [mask_low, mask_high]
             asc.add(z, x, y, mask=mask, repeat_time=1, repeat_params=asc.BinaryRepeatParams(1, 1, 1, 8, 8, 8))
 
-    mask1 = np.int64(-1)    # int64(-1)在强转为uint64时等于2**64-1
-    mask2 = np.int64(-1)
+    mask_low = np.int64(-1)    # int64(-1)在强转为uint64时等于2**64-1
+    mask_high = np.int64(-1)
     ```
