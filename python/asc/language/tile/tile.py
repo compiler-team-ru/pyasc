@@ -181,6 +181,17 @@ class Tile(IRValue):
     def relu(self) -> Self:
         ...
 
+    # Shape operations
+
+    def reshape(self, *shape: int) -> Self:
+        ...
+
+    def expand_dims(self, *axis: int) -> Self:
+        ...
+
+    def squeeze(self, *axis: int) -> Self:
+        ...
+
 
 class BinaryOperandTypeError(TypeError):
     """Exception for dunder methods implementing binary operators"""
