@@ -8,6 +8,11 @@ import asc2
 SIZE = 32
 
 
+@pytest.fixture(autouse=True)
+def set_platform(backend: config.Backend, platform: config.Platform):
+    config.set_platform(backend, platform, check=False)
+
+
 @asc2.jit
 def where_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, z_ptr: asc.GlobalAddress, op: asc.ConstExpr):
     x = asc2.tensor(x_ptr, [SIZE])
@@ -35,7 +40,6 @@ def where_launch(x: torch.Tensor, y: torch.Tensor, op) -> torch.Tensor:
     (asc2.less_equal, torch.le),
 ])
 def test_where_ops(asc_op, torch_op, dtype):
-    config.set_platform(config.Backend.Model, check=False)
 
     x = torch.rand(SIZE, dtype=dtype)
     y = torch.rand(SIZE, dtype=dtype)
