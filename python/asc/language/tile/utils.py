@@ -7,7 +7,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 from numbers import Real
-from typing import Tuple, Union
+from typing import Iterable, Tuple, Union
 
 from ..._C import ir
 from ..core.dtype import DataType, KnownTypes as KT
@@ -95,3 +95,15 @@ def infer_common_shape(lhs: Union[Tile, RuntimeNumeric], rhs: Union[Tile, Runtim
             return lhs.shape
         raise RuntimeError(f"Shape mismatch: {lhs.shape} vs. {rhs.shape}")
     return lhs.shape if lhs_is_tile else rhs.shape
+
+
+def verify_shape(shape: Iterable[int], name: str = "shape") -> Tuple[int]:
+    if not isinstance(shape, tuple):
+        shape = tuple(shape)
+    if len(shape) < 1:
+        raise RuntimeError(f"'{name}' must have at least one value")
+    if not all(isinstance(dim, int) for dim in shape):
+        raise RuntimeError(f"All values in '{name}' must be integers")
+    if any(dim <= 0 for dim in shape):
+        raise RuntimeError(f"All values in '{name}' must be positive")
+    return shape

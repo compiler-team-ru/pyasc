@@ -21,6 +21,23 @@
 using namespace mlir;
 using namespace mlir::asctile;
 
+template <typename OpT>
+OpFoldResult foldCastLike(OpT op)
+{
+    Value in = op.getIn();
+    Type resultType = op.getResult().getType();
+    if (in.getType() == resultType)
+        return in;
+    if (auto defOp = in.getDefiningOp<OpT>()) {
+        Value defIn = defOp.getIn();
+        if (resultType == defIn.getType())
+            return defIn;
+        op.setOperand(defIn);
+        return op.getResult();
+    }
+    return {};
+}
+
 //===----------------------------------------------------------------------===//
 // TensorOp
 //===----------------------------------------------------------------------===//
@@ -79,15 +96,34 @@ bool CastOp::areCastCompatible(TypeRange inputs, TypeRange outputs)
 {
     if (inputs.size() != 1 || outputs.size() != 1)
         return false;
-    auto inType = dyn_cast_if_present<TileType>(inputs.front());
-    auto outType = dyn_cast_if_present<TileType>(outputs.front());
-    if (!inType || !outType || inType.getLoc() != outType.getLoc() || inType.getShape() != outType.getShape())
+    auto inType = dyn_cast<TileType>(inputs.front());
+    auto outType = dyn_cast<TileType>(outputs.front());
+    return inType && outType && inType.getLoc() == outType.getLoc() && inType.getShape() == outType.getShape() &&
+           inType.getElementType().isIntOrFloat() && outType.getElementType().isIntOrFloat();
+}
+
+OpFoldResult CastOp::fold(FoldAdaptor)
+{
+    return foldCastLike(*this);
+}
+
+//===----------------------------------------------------------------------===//
+// ReshapeOp
+//===----------------------------------------------------------------------===//
+
+bool ReshapeOp::areCastCompatible(TypeRange inputs, TypeRange outputs)
+{
+    if (inputs.size() != 1 || outputs.size() != 1)
         return false;
-    auto inElType = inType.getElementType();
-    auto outElType = outType.getElementType();
-    if (!inElType.isIntOrFloat() || !outElType.isIntOrFloat())
-        return false;
-    return true;
+    auto inType = dyn_cast<TileType>(inputs.front());
+    auto outType = dyn_cast<TileType>(outputs.front());
+    return inType && outType && inType.getLoc() == outType.getLoc() &&
+           inType.getElementType() == outType.getElementType() && inType.getNumElements() == outType.getNumElements();
+}
+
+OpFoldResult ReshapeOp::fold(FoldAdaptor)
+{
+    return foldCastLike(*this);
 }
 
 //===----------------------------------------------------------------------===//
