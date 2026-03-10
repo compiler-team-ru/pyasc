@@ -14,6 +14,7 @@ from ..core.ir_value import PlainValue, RuntimeInt, RuntimeNumeric, materialize_
 from ..core.utils import global_builder
 from .tensor import Tensor
 from .tile import Tile, TileLocation
+from .utils import verify_shape
 
 
 def to_ir_list(values):
@@ -56,8 +57,7 @@ def load(tensor: Tensor, shape: Optional[Iterable[int]] = None, *, tile_id: Opti
         handle = global_builder.get_ir_builder().create_asctile_GetValueOp(tensor.dtype.to_ir(), tensor.to_ir(),
                                                                            to_ir_list(offsets))
         return PlainValue(handle)
-    if not all(isinstance(dim, int) for dim in shape):
-        raise RuntimeError("shape must be integers")
+    shape = verify_shape(shape)
     offsets = infer_offsets(tensor.shape, shape, tile_id, offsets)
     ir_type = ir.get_asctile_TileType(list(shape), tensor.dtype.to_ir(), location)
     pad_value = _mat(pad_value, tensor.dtype).to_ir() if pad_value is not None else None
@@ -88,17 +88,12 @@ def store(value: Union[Tile, RuntimeNumeric], tensor: Tensor, *, tile_id: Option
         global_builder.get_ir_builder().create_asctile_SetValueOp(
             _mat(value, tensor.dtype).to_ir(), tensor.to_ir(), to_ir_list(offsets))
         return
-
-    if not all(isinstance(dim, int) for dim in value.shape):
-        raise RuntimeError("shape must be integers")
     offsets = infer_offsets(tensor.shape, value.shape, tile_id, offsets)
     global_builder.get_ir_builder().create_asctile_StoreOp(value.to_ir(), tensor.to_ir(), offsets)
 
 
 def num_tiles(tensor: Tensor, axis: RuntimeInt, shape: Iterable[int]) -> RuntimeInt:
-    if not all(isinstance(dim, int) for dim in shape):
-        raise RuntimeError("shape must be integers")
-    shape = tuple(shape)
+    shape = verify_shape(shape)
     tensor_shape = tensor.shape
     if len(tensor_shape) != len(shape):
         raise RuntimeError("rank of 'tensor_shape' must match rank of 'shape'")
