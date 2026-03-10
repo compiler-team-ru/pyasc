@@ -409,6 +409,22 @@ struct ConvertMatmul : ConvertOp<asctile::MatmulOp> {
     }
 };
 
+struct ConvertReshape : ConvertOp<asctile::ReshapeOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    LogicalResult convert(asctile::ReshapeOp op, ConvertRewriter& rewriter) const override
+    {
+        Location loc = op.getLoc();
+        Value dst = createTensorOp(rewriter, loc, op.getType());
+        Value src = rewriter.getRemappedValue(op.getIn());
+        ascir::ConstantOpBuilder consts(rewriter);
+        rewriter.create<ascendc::DataCopyL2Op>(loc, dst, src, consts.i64(calCount(dst)));
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
 template <typename TileOp, typename L2Op>
 struct ConvertToL2 : ConvertOp<TileOp> {
     using ConvertOp<TileOp>::ConvertOp;
@@ -464,7 +480,7 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         patterns.insert<
             //
             ConvertTensor, ConvertLoad, ConvertGetValue, ConvertStore, ConvertSetValue, ConvertSplat, ConvertRelu,
-            ConvertCast, ConvertSelect, ConvertMatmul, ConvertToL2<asctile::AddsOp, ascendc::AddsL2Op>,
+            ConvertCast, ConvertSelect, ConvertMatmul, ConvertReshape, ConvertToL2<asctile::AddsOp, ascendc::AddsL2Op>,
             ConvertToL2<asctile::MulsOp, ascendc::MulsL2Op>, ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>,
             ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>,
             ConvertReduce<asctile::ReduceSumAs1dOp, ascendc::ReduceSumL2Op>,

@@ -170,6 +170,18 @@ def CastOp : AscTile_Op<"cast", [
   let assemblyFormat = [{
     $in attr-dict `:` qualified(type($in)) `to` qualified(type($out))
   }];
+  let hasFolder = 1;
+}
+
+def ReshapeOp : AscTile_Op<"reshape", [
+  Pure, SameOperandsAndResultElementType, DeclareOpInterfaceMethods<CastOpInterface>
+]> {
+  let arguments = (ins Tile:$in);
+  let results = (outs Tile:$out);
+  let assemblyFormat = [{
+    $in attr-dict `:` qualified(type($in)) `to` qualified(type($out))
+  }];
+  let hasFolder = 1;
 }
 
 def SelectOp : AscTile_Op<"select", [Pure, AllTypesMatch<["src0", "src1", "result"]>]> {

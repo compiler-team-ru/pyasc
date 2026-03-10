@@ -44,6 +44,11 @@ from asc.language.tile.memory_ops import (
     num_tiles,
     store,
 )
+from asc.language.tile.shape_ops import (
+    expand_dims,
+    reshape,
+    squeeze,
+)
 from asc.language.tile.unary_ops import (
     abs,
     ceil,
@@ -109,6 +114,10 @@ __all__ = [
     "load",
     "num_tiles",
     "store",
+    # shape_ops
+    "expand_dims",
+    "reshape",
+    "squeeze",
     # unary_ops
     "abs",
     "ceil",
