@@ -11,6 +11,7 @@
 #include "ascir/Target/Asc/Translation.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Target/Asc/Adv/Activation.h"
+#include "ascir/Target/Asc/Adv/Broadcast.h"
 #include "ascir/Target/Asc/Adv/Kfc.h"
 #include "ascir/Target/Asc/Adv/Math.h"
 #include "ascir/Target/Asc/Adv/Matmul.h"
@@ -120,6 +121,8 @@ using PrintableOpTypes = std::tuple<
     ascendc::RmsNormOp,
     // Quantization
     ascendc::QuantOp,
+    // Broadcast
+    ascendc::BroadcastOp,
     // Basic
     // AIPP operations
     ascendc::SetAippFunctionsOp,

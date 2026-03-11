@@ -45,6 +45,7 @@ from asc.language.tile.memory_ops import (
     store,
 )
 from asc.language.tile.shape_ops import (
+    broadcast_to,
     expand_dims,
     reshape,
     squeeze,
@@ -115,6 +116,7 @@ __all__ = [
     "num_tiles",
     "store",
     # shape_ops
+    "broadcast_to",
     "expand_dims",
     "reshape",
     "squeeze",

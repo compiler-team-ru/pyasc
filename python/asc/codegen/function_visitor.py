@@ -439,7 +439,12 @@ class FunctionVisitor(ast.NodeVisitor):
         fn = self.visit(node.func)
         if not callable(fn):
             self.raise_unsupported(node, f"{fn.__class__.__name__} instance is not callable")
-        args = [self.visit(arg) for arg in node.args]
+        args = []
+        for arg in node.args:
+            if isinstance(arg, ast.Starred):
+                args.extend(self.visit(arg.value))
+            else:
+                args.append(self.visit(arg))
         kwargs = dict(self.visit(keyword) for keyword in node.keywords)
         if isinstance(fn, Function):
             return self.call_jit_function(fn, args, kwargs)
