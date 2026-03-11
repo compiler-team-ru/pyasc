@@ -12,6 +12,7 @@
 #define ASC_OPS_TD
 
 include "Adv/Activation.td"
+include "Adv/Broadcast.td"
 include "Adv/Kfc.td"
 include "Adv/Math.td"
 include "Adv/Matmul.td"

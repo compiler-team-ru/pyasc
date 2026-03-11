@@ -7,11 +7,33 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 import math
+from typing import Tuple
 
 from ..._C import ir
 from ..core.utils import global_builder
 from .tile import Tile, bind_tile_method
 from .utils import verify_shape
+
+
+def shapes_match(shape: Tuple[int, ...], target_shape: Tuple[int, ...]) -> bool:
+    if len(shape) > len(target_shape):
+        return False
+    src = shape[::-1]
+    dst = target_shape[::-1]
+    for i in range(0, len(dst)):
+        if i < len(src) and dst[i] != src[i] and src[i] != 1:
+            return False
+    return True
+
+
+@bind_tile_method
+def broadcast_to(input: Tile, *shape: int) -> Tile:
+    shape = verify_shape(shape)
+    if not shapes_match(input.shape, shape):
+        raise RuntimeError(f"Cannot broadcast tile with shape {input.shape} to {shape}")
+    result_type = ir.clone_shaped_type(input.to_ir().get_type(), input.dtype.to_ir(), shape)
+    handle = global_builder.get_ir_builder().create_asctile_BroadcastOp(result_type, input.to_ir())
+    return Tile(handle)
 
 
 @bind_tile_method

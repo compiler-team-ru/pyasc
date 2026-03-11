@@ -183,6 +183,9 @@ class Tile(IRValue):
 
     # Shape operations
 
+    def broadcast_to(self, *shape: int) -> Self:
+        ...
+
     def reshape(self, *shape: int) -> Self:
         ...
 

@@ -222,12 +222,26 @@ def AtomicRMWOp : AscTile_Op<"atomic_rmw", [
 }
 
 def MatmulOp : AscTile_Op<"matmul", [
-  Pure, AllElementTypesMatch<["matrixA", "matrixB"]>,
-  MemoryEffectsOpInterface]> {
+  Pure, AllElementTypesMatch<["matrixA", "matrixB"]>, MemoryEffectsOpInterface
+]> {
   let summary = "Low-level matrix multiplication the tile data";
   let arguments = (ins Tile:$matrixA, Tile:$matrixB);
   let results = (outs Tile:$result);
-  let assemblyFormat = "$matrixA `,` $matrixB attr-dict `:` type($matrixA) `,` type($matrixB) `->` type($result)";
+  let assemblyFormat = [{
+    $matrixA `,` $matrixB attr-dict `:` type($matrixA) `,` type($matrixB) `->`
+    type($result)
+  }];
+}
+
+def BroadcastOp : AscTile_Op<"broadcast", [
+  Pure, AllElementTypesMatch<["input", "result"]>
+]> {
+  let summary = "Broadcast tile to the provided shape";
+  let arguments = (ins Tile:$input);
+  let results = (outs Tile:$result);
+  let assemblyFormat = [{
+    $input attr-dict `:` qualified(type($input)) `to` qualified(type($result))
+  }];
 }
 
 #endif // ASCTILE_OPS_TD
