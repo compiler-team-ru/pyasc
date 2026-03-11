@@ -94,19 +94,6 @@ def setup_generated_mlir_docs():
         os.unlink(temp_md)
 
 
-def autodoc_process_signature(app, what, name: str, obj, options, signature: str, return_annotation):
-    if name.startswith("asc.language.") and signature and "builder" in signature:
-        signature = signature.split("builder")[0] + ")"
-    return signature, return_annotation
-
-
-def process_docstring(app, what, name, obj, options, lines):
-    for i, line in enumerate(lines):
-        pattern = r'`([^<]+) <([^>]+)>`_'
-        replacement = r'[\1](\2)'
-        lines[i] = re.sub(pattern, replacement, line)
-
-
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
@@ -145,5 +132,4 @@ suppress_warnings = [
 
 
 def setup(app):
-    app.connect("autodoc-process-signature", autodoc_process_signature, process_docstring)
     setup_generated_mlir_docs()
