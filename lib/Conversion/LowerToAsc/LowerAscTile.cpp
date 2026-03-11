@@ -425,6 +425,48 @@ struct ConvertReshape : ConvertOp<asctile::ReshapeOp> {
     }
 };
 
+struct ConvertBroadcast : ConvertOp<asctile::BroadcastOp> {
+    using ConvertOp<asctile::BroadcastOp>::ConvertOp;
+    using ConvertOp<asctile::BroadcastOp>::createTensorOp;
+
+    LogicalResult convert(asctile::BroadcastOp op, ConvertRewriter& rewriter) const override
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto loc = op.getLoc();
+        auto dstTy = op.getResult().getType();
+        auto dstSize = cast<ShapedType>(dstTy);
+        auto src = rewriter.getRemappedValue(op.getInput());
+        auto dst = createTensorOp(rewriter, loc, dstSize.getShape(), dstTy.getElementType());
+        const auto& srcShapeVec = op.getInput().getType().getShape();
+        const auto& dstShapeVec = dstTy.getShape();
+        if (srcShapeVec.size() > dstShapeVec.size() || srcShapeVec.size() == 0 || dstShapeVec.size() == 0)
+            return op.emitError("Incompatible tensor shapes for Broadcast: [")
+                .append(srcShapeVec)
+                .append("] and [")
+                .append(dstShapeVec)
+                .append("]");
+        SmallVector<Value> dstShape, srcShape;
+        // Workaround: when dim<3 old Broadcast algorithm used (it need aligned data)
+        for (size_t i = 0; i < 3U - dstShapeVec.size(); ++i) {
+            dstShape.push_back(consts.i32(1));
+        }
+        // Pad srcShape with `1` to match dstShape
+        for (size_t i = srcShapeVec.size(); i < dstShapeVec.size() + dstShape.size(); ++i) {
+            srcShape.push_back(consts.i32(1));
+        }
+        for (size_t i = 0; i < srcShapeVec.size(); ++i) {
+            srcShape.push_back(consts.i32(srcShapeVec[i]));
+        }
+        for (size_t i = 0; i < dstShapeVec.size(); ++i) {
+            dstShape.push_back(consts.i32(dstShapeVec[i]));
+        }
+        assert(srcShape.size() == dstShape.size());
+        rewriter.create<ascendc::BroadcastOp>(loc, dst, src, dstShape, srcShape);
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
 template <typename TileOp, typename L2Op>
 struct ConvertToL2 : ConvertOp<TileOp> {
     using ConvertOp<TileOp>::ConvertOp;
@@ -480,9 +522,9 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         patterns.insert<
             //
             ConvertTensor, ConvertLoad, ConvertGetValue, ConvertStore, ConvertSetValue, ConvertSplat, ConvertRelu,
-            ConvertCast, ConvertSelect, ConvertMatmul, ConvertReshape, ConvertToL2<asctile::AddsOp, ascendc::AddsL2Op>,
-            ConvertToL2<asctile::MulsOp, ascendc::MulsL2Op>, ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>,
-            ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>,
+            ConvertCast, ConvertSelect, ConvertMatmul, ConvertReshape, ConvertBroadcast,
+            ConvertToL2<asctile::AddsOp, ascendc::AddsL2Op>, ConvertToL2<asctile::MulsOp, ascendc::MulsL2Op>,
+            ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>, ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>,
             ConvertReduce<asctile::ReduceSumAs1dOp, ascendc::ReduceSumL2Op>,
             ConvertReduce<asctile::ReduceMaxAs1dOp, ascendc::ReduceMaxL2Op>,
             ConvertReduce<asctile::ReduceMinAs1dOp, ascendc::ReduceMinL2Op>
