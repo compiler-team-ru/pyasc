@@ -42,6 +42,7 @@ class CompileOptions:
     run_asc2_passes: bool = False
     densify_load_store: bool = True
     use_pipe: bool = True
+    reuse_ub: bool = False
 
 
 class CompilePlatform(Enum):
@@ -155,6 +156,9 @@ class Compiler:
             passes.asclower.add_realize_conversion_cast(pm)
             passes.ascendc.add_fill_asc_operands(pm)
         passes.ascendc.add_input_output_tensor(pm)
+        if self.options.reuse_ub:
+            passes.ascendc.add_reuse_ub_allocation(pm)
+            passes.common.add_canonicalizer(pm)
         passes.ascendc.add_hoist_ub_allocation(pm, exclude_in_out=not platform_95)
         if self.options.use_pipe:
             passes.ascendc.add_materialize_tensor(pm, always_buf=platform_95)
