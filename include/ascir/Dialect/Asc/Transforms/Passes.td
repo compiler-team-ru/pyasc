@@ -138,6 +138,11 @@ def PrivatizeFunc : Pass<"ascendc-privatize-func", "ModuleOp"> {
   let constructor = "mlir::ascendc::createPrivatizeFuncPass()";
 }
 
+def ReuseUBAllocation : Pass<"ascendc-reuse-ub-allocation", "func::FuncOp"> {
+  let summary = "Perform analysis and reuse temporary UB allocations";
+  let constructor = "mlir::ascendc::createReuseUBAllocationPass()";
+}
+
 def UnifyPipe : Pass<"ascendc-unify-pipe", "func::FuncOp"> {
   let summary = "Unify pipe opertation";
   let constructor = "mlir::ascendc::createUnifyPipePass()";
