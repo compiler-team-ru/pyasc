@@ -42,7 +42,7 @@ struct RedressTypeConverter : public LoweringTypeConverter {
                 I1ReplacementType replType(type.getContext());
                 auto numElements = static_cast<int64_t>(llvm::divideCeil(type.getNumElements(), replType.width));
                 shape = {numElements};
-                elType = replType.type;
+                elType = replType.iType;
             }
             return asctile::TileType::get(shape, elType, type.getLoc());
         });
@@ -75,11 +75,11 @@ struct RedressSplatConstant : ConvertOp<arith::ConstantOp> {
         assert(oldType.getElementType().isInteger(1));
         auto dense = dyn_cast<SplatElementsAttr>(op.getValue());
         I1ReplacementType replType(op.getContext());
-        uint16_t value = 0;
+        I1ReplacementType::UInt value = 0;
         if (!dense.getSplatValue<IntegerAttr>().getValue().isZero())
             value = replType.max();
         auto newType = cast<ShapedType>(converter().convertType(oldType));
-        auto attr = SplatElementsAttr::get(newType, static_cast<uint16_t>(value));
+        auto attr = SplatElementsAttr::get(newType, static_cast<I1ReplacementType::UInt>(value));
         rewriter.replaceOpWithNewOp<arith::ConstantOp>(op, attr);
         return success();
     }
@@ -100,30 +100,9 @@ struct RedressDenseConstant : ConvertOp<arith::ConstantOp> {
         BitVector rawData(oldType.getNumElements(), false);
         for (auto [i, item] : llvm::enumerate(dense.getValues<BoolAttr>()))
             rawData[i] = item.getValue();
-        std::vector<int16_t> reinterp(newType.getNumElements(), 0U);
+        std::vector<I1ReplacementType::Int> reinterp(newType.getNumElements(), 0U);
         std::memcpy(reinterp.data(), rawData.getData().data(), rawData.getMemorySize());
         rewriter.replaceOpWithNewOp<arith::ConstantOp>(op, DenseElementsAttr::get(newType, ArrayRef(reinterp)));
-        return success();
-    }
-};
-
-struct RedressBroadcast : ConvertOp<vector::BroadcastOp> {
-    using ConvertOp::converter;
-    using ConvertOp::ConvertOp;
-
-    LogicalResult convert(vector::BroadcastOp op, ConvertRewriter& rewriter) const override
-    {
-        if (!op.getSourceType().isInteger(1))
-            return failure();
-        I1ReplacementType replType(op.getContext());
-        Location loc = op.getLoc();
-        // Use (X << 16) - X formula to get 00..0 (X is 0) or 11..1 (X is 1)
-        Value extOp = rewriter.create<arith::ExtUIOp>(loc, replType.type, op.getSource());
-        Value cstOp = rewriter.create<arith::ConstantIntOp>(loc, replType.width, replType.type);
-        Value shlOp = rewriter.create<arith::ShLIOp>(loc, extOp, cstOp);
-        Value subOp = rewriter.create<arith::SubIOp>(loc, shlOp, extOp);
-        auto newVecType = converter().convertType(op.getType());
-        rewriter.replaceOpWithNewOp<vector::BroadcastOp>(op, newVecType, subOp);
         return success();
     }
 };
@@ -136,7 +115,7 @@ struct RedressI1TilePass : public asclower::impl::RedressI1TileBase<RedressI1Til
         MLIRContext* context = &getContext();
         RedressConversionTarget target(converter, context);
         RewritePatternSet patterns(context);
-        patterns.insert<RedressSplatConstant, RedressDenseConstant, RedressBroadcast>(converter, context);
+        patterns.insert<RedressSplatConstant, RedressDenseConstant>(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())
             signalPassFailure();
     }
