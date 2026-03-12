@@ -27,6 +27,7 @@ add_mlir_dialect_library(MLIRAscTransforms
   MaterializeTensor.cpp
   Noop.cpp
   PrivatizeFunc.cpp
+  ReuseUBAllocation.cpp
   UnifyPipe.cpp
   VerifySync.cpp
 
