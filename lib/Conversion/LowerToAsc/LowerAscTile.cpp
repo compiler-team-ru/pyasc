@@ -371,12 +371,14 @@ struct ConvertSelect : ConvertOp<asctile::SelectOp> {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loc = op.getLoc();
         auto dst = createTensorOp(rewriter, loc, op.getType());
-        auto selMask = rewriter.getRemappedValue(op.getSelMask());
+        auto sel = rewriter.getRemappedValue(op.getSelMask());
+        I1ReplacementType replType(op.getContext());
+        sel = createReCastOp(rewriter, loc, sel, cast<ShapedType>(sel.getType()).getShape(), replType.uiType);
         auto src0 = rewriter.getRemappedValue(op.getSrc0());
         auto src1 = rewriter.getRemappedValue(op.getSrc1());
         auto zero = consts.i64(0);
         rewriter.create<ascendc::SelectL0Op>(
-            loc, dst, selMask, src0, src1, ascendc::SELMODE::VSEL_TENSOR_TENSOR_MODE,
+            loc, dst, sel, src0, src1, ascendc::SELMODE::VSEL_TENSOR_TENSOR_MODE,
             rewriter.create<emitasc::MaskOp>(loc, zero, zero), zero,
             rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::BinaryRepeatParamsType>()));
         rewriter.replaceOp(op, dst);

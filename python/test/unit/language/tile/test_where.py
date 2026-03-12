@@ -13,7 +13,7 @@ def set_platform(backend: config.Backend, platform: config.Platform):
     config.set_platform(backend, platform, check=False)
 
 
-@asc2.jit
+@asc2.jit(always_compile=True)
 def where_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, z_ptr: asc.GlobalAddress, op: asc.ConstExpr):
     x = asc2.tensor(x_ptr, [SIZE])
     y = asc2.tensor(y_ptr, [SIZE])
@@ -40,10 +40,8 @@ def where_launch(x: torch.Tensor, y: torch.Tensor, op) -> torch.Tensor:
     (asc2.less_equal, torch.le),
 ])
 def test_where_ops(asc_op, torch_op, dtype):
-
     x = torch.rand(SIZE, dtype=dtype)
     y = torch.rand(SIZE, dtype=dtype)
-
     result = where_launch(x, y, asc_op)
     expected = torch.where(torch_op(x, y), x, y)
     torch.testing.assert_close(result, expected)

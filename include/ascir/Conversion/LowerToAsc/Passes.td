@@ -71,7 +71,7 @@ def RealizeConversionCast
 }
 
 def RedressI1Tile : Pass<"asclower-redress-i1-tile", "func::FuncOp"> {
-  let summary = "Redress i1-like tile origin operations to i16-like";
+  let summary = "Redress i1-like tile origin operations to i8-like";
   let constructor = "mlir::asclower::createRedressI1TilePass()";
   let dependentDialects = ["arith::ArithDialect", "asctile::AscTileDialect"];
 }
