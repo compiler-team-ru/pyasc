@@ -38,6 +38,7 @@ std::unique_ptr<Pass> createLowerToL0Pass();
 std::unique_ptr<Pass> createMaterializeTensorPass(bool alwaysBuf = false);
 std::unique_ptr<Pass> createNoopPass();
 std::unique_ptr<Pass> createPrivatizeFuncPass();
+std::unique_ptr<Pass> createReuseUBAllocationPass();
 std::unique_ptr<Pass> createUnifyPipePass();
 std::unique_ptr<Pass> createVerifySyncPass();
 std::unique_ptr<Pass> createDetectEnableDebugPass();
