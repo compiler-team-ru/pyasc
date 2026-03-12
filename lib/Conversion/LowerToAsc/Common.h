@@ -22,15 +22,22 @@ namespace mlir {
 namespace asclower {
 
 struct I1ReplacementType {
-    static inline constexpr unsigned width = 16U;
-    IntegerType type;
+    using Int = int8_t;
+    using UInt = uint8_t;
 
-    explicit I1ReplacementType(MLIRContext* context) : type(IntegerType::get(context, width)) {}
+    static inline constexpr unsigned width = 8U;
+    IntegerType iType;
+    IntegerType uiType;
+
+    explicit I1ReplacementType(MLIRContext* context)
+        : iType(IntegerType::get(context, width, IntegerType::Signless)),
+          uiType(IntegerType::get(context, width, IntegerType::Unsigned))
+    {}
     ~I1ReplacementType() = default;
 
-    static constexpr uint16_t max()
+    static constexpr UInt max()
     {
-        constexpr uint16_t base = 1U;
+        constexpr UInt base = 1U;
         unsigned shift = width - 1U;
         return (base << shift) | ~(base << shift);
     }
@@ -62,7 +69,7 @@ struct TensorTypeConverter : public LoweringTypeConverter {
                 I1ReplacementType replType(type.getContext());
                 auto numElements = static_cast<int64_t>(llvm::divideCeil(type.getNumElements(), replType.width));
                 shape = {numElements};
-                elType = replType.type;
+                elType = replType.iType;
             }
             return ascendc::LocalTensorType::get(shape, elType);
         });

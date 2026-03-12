@@ -155,24 +155,6 @@ OpFoldResult LocalTensorReinterpretCastOp::fold([[maybe_unused]] FoldAdaptor ada
 }
 
 //===----------------------------------------------------------------------===//
-// LocalTensorAutoOp
-//===----------------------------------------------------------------------===//
-
-LogicalResult LocalTensorAutoOp::canonicalize(LocalTensorAutoOp op, PatternRewriter& rewriter)
-{
-    return ascir::eraseUnusedOp(op, rewriter);
-}
-
-//===----------------------------------------------------------------------===//
-// RegTensorOp
-//===----------------------------------------------------------------------===//
-
-LogicalResult RegTensorOp::canonicalize(RegTensorOp op, PatternRewriter& rewriter)
-{
-    return ascir::eraseUnusedOp(op, rewriter);
-}
-
-//===----------------------------------------------------------------------===//
 // AscendCDialect
 //===----------------------------------------------------------------------===//
 
