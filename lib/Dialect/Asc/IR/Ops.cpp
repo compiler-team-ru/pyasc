@@ -87,7 +87,17 @@ bool LocalTensorReinterpretCastOp::areCastCompatible(TypeRange inputs, TypeRange
 OpFoldResult LocalTensorReinterpretCastOp::fold(FoldAdaptor adaptor)
 {
     Value in = getIn();
-    return in.getType() == getType() ? in : nullptr;
+    Type resultType = getResult().getType();
+    if (in.getType() == resultType)
+        return in;
+    if (auto defOp = in.getDefiningOp<LocalTensorReinterpretCastOp>()) {
+        Value defIn = defOp.getIn();
+        if (resultType == defIn.getType())
+            return defIn;
+        setOperand(defIn);
+        return getResult();
+    }
+    return {};
 }
 
 //===----------------------------------------------------------------------===//

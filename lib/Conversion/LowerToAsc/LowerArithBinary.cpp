@@ -78,46 +78,6 @@ struct ConvertToL2 : ConvertOp<ArithOp> {
     }
 };
 
-template <typename ArithOp, typename L3Op>
-struct ConvertBitwiseToL3 : public ConvertOp<ArithOp> {
-    using ConvertOp<ArithOp>::ConvertOp;
-    using ConvertOp<ArithOp>::createTensorOp;
-    using ConvertOp<ArithOp>::createReCastOp;
-
-    LogicalResult convert(ArithOp op, ConvertRewriter &rewriter) const override
-    {
-        ascir::ConstantOpBuilder consts(rewriter);
-        Type supportedElemTy = rewriter.getI16Type();
-        auto shapedTy = cast<asctile::TileType>(op.getType());
-        auto resType = shapedTy.getElementType();
-        auto needCast = !resType.isInteger(16);
-        auto src0 = rewriter.getRemappedValue(op->getOperand(0));
-        auto src1 = rewriter.getRemappedValue(op->getOperand(1));
-        Location loc = op.getLoc();
-        Value dst = createTensorOp(rewriter, loc, op.getType());
-        needCast &= !cast<ShapedType>(dst.getType()).getElementType().isInteger(16);
-        if (needCast) {
-            SmallVector<int64_t> newShape(shapedTy.getShape());
-            newShape[0] *= shapedTy.getElementTypeBitWidth();
-            newShape[0] /= supportedElemTy.getIntOrFloatBitWidth();
-            src0 = createReCastOp(rewriter, loc, src0, newShape, supportedElemTy);
-            src1 = createReCastOp(rewriter, loc, src1, newShape, supportedElemTy);
-            dst = createReCastOp(rewriter, loc, dst, newShape, supportedElemTy);
-        }
-
-        rewriter.setInsertionPointAfter(op);
-        rewriter.create<L3Op>(loc, dst, src0, src1);
-
-        if (needCast) {
-            dst = rewriter.create<ascendc::LocalTensorReinterpretCastOp>(
-                loc, ascendc::LocalTensorType::get(shapedTy.getShape(), resType), dst);
-        }
-
-        rewriter.replaceOp(op, dst);
-        return success();
-    }
-};
-
 template <typename ArithOp, typename L2Op>
 struct ConvertBitwiseToL2 : public ConvertOp<ArithOp> {
     using ConvertOp<ArithOp>::ConvertOp;
@@ -129,14 +89,15 @@ struct ConvertBitwiseToL2 : public ConvertOp<ArithOp> {
         ascir::ConstantOpBuilder consts(rewriter);
         auto shapedTy = cast<asctile::TileType>(op.getType());
         auto resType = shapedTy.getElementType();
-        auto needCast = !resType.isInteger(16);
+        I1ReplacementType replType(op.getContext());
+        auto supportedElemTy = replType.iType;
+        auto needCast = resType != supportedElemTy;
         auto src0 = rewriter.getRemappedValue(op->getOperand(0));
         auto src1 = rewriter.getRemappedValue(op->getOperand(1));
         Location loc = op.getLoc();
         Value dst = createTensorOp(rewriter, loc, shapedTy.getShape(), resType);
-        needCast &= !cast<ShapedType>(dst.getType()).getElementType().isInteger(16);
+        needCast &= cast<ShapedType>(dst.getType()).getElementType() != supportedElemTy;
         if (needCast) {
-            Type supportedElemTy = rewriter.getI16Type();
             SmallVector<int64_t> newShape(shapedTy.getShape());
             newShape[0] *= shapedTy.getElementTypeBitWidth();
             newShape[0] /= supportedElemTy.getIntOrFloatBitWidth();

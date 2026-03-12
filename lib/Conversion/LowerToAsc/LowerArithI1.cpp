@@ -41,46 +41,6 @@ struct LoweringConversionTarget : public ConversionTarget {
     }
 };
 
-struct ConvertSelect : public ConvertOp<arith::SelectOp> {
-    using ConvertOp::converter;
-    using ConvertOp::ConvertOp;
-    using ConvertOp::createReCastOp;
-    using ConvertOp::createTensorOp;
-
-    LogicalResult convert(arith::SelectOp op, ConvertRewriter &rewriter) const override
-    {
-        ascir::ConstantOpBuilder consts(rewriter);
-        auto sel = rewriter.getRemappedValue(op.getCondition());
-        auto src0 = rewriter.getRemappedValue(op.getTrueValue());
-        auto src1 = rewriter.getRemappedValue(op.getFalseValue());
-        Location loc = op.getLoc();
-        auto type = cast<ShapedType>(src0.getType());
-        Value dst = createTensorOp(rewriter, loc, op.getType());
-        Value realDst = dst;
-        Type newType = type.getElementType();
-        if (!isa<ShapedType>(sel.getType())) {
-            auto srcShape = type.getShape();
-            auto newCondType = rewriter.getI16Type();
-            auto extui = rewriter.create<arith::ExtUIOp>(loc, newCondType, sel);
-            auto newCondRes = createTensorOp(rewriter, loc, srcShape, newCondType);
-            rewriter.create<ascendc::DuplicateL2Op>(loc, newCondRes, extui, consts.i64(0));
-            sel = createReCastOp(rewriter, loc, newCondRes, srcShape, newCondType);
-        }
-        if (type.getElementType().isInteger(32) || type.getElementType().isIndex()) {
-            newType = rewriter.getF32Type();
-        } else if (type.getElementType().isInteger(16)) {
-            newType = rewriter.getF16Type();
-        }
-        src0 = createReCastOp(rewriter, loc, src0, type.getShape(), newType);
-        src1 = createReCastOp(rewriter, loc, src1, type.getShape(), newType);
-        dst = createReCastOp(rewriter, loc, dst, type.getShape(), newType);
-        rewriter.create<ascendc::SelectL2Op>(loc, dst, sel, src0, src1, ascendc::SELMODE::VSEL_CMPMASK_SPR,
-                                             consts.i64(0));
-        rewriter.replaceOp(op, realDst);
-        return success();
-    }
-};
-
 struct ConvertCmpI : public ConvertOp<arith::CmpIOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
@@ -94,16 +54,18 @@ struct ConvertCmpI : public ConvertOp<arith::CmpIOp> {
         auto loc = op.getLoc();
         auto srcVecTy = cast<ShapedType>(srcTy);
         auto srcNumElems = srcVecTy.getNumElements();
-        // Each dest tensor i16 element contains 16 comparison results.
-        auto dstShape = llvm::divideCeil(srcNumElems, I1ReplacementType::width);
+        I1ReplacementType replType(op.getContext());
+        auto dstShape = llvm::divideCeil(srcNumElems, replType.width);
         unsigned bitWidth = srcVecTy.getElementTypeBitWidth();
-        assert((bitWidth == 16 || bitWidth == 32) && "Only cast for i16 and i32 is supported");
+        if (bitWidth != 16 && bitWidth != 32)
+            return op.emitOpError("can only be lowered with i16 or i32 tile operands");
         auto castToType = bitWidth == 16 ? rewriter.getF16Type() : rewriter.getF32Type();
         auto src0Casted = createTensorOp(rewriter, loc, srcVecTy.getShape(), castToType);
         auto src1Casted = createTensorOp(rewriter, loc, srcVecTy.getShape(), castToType);
         rewriter.create<ascendc::CastL2Op>(loc, src0Casted, src0, ascendc::RoundMode::CAST_NONE, consts.i64(1));
         rewriter.create<ascendc::CastL2Op>(loc, src1Casted, src1, ascendc::RoundMode::CAST_NONE, consts.i64(1));
-        Value dst = createTensorOp(rewriter, loc, dstShape, rewriter.getI16Type());
+        Value dst = createTensorOp(rewriter, loc, dstShape, replType.iType);
+        dst = createReCastOp(rewriter, loc, dst, dstShape, replType.uiType);
         ascendc::CMPMODE cmpMode;
         switch (op.getPredicate()) {
             case arith::CmpIPredicate::eq:
@@ -154,9 +116,10 @@ struct ConvertCmpF : public ConvertOp<arith::CmpFOp> {
         auto loc = op.getLoc();
         auto srcVecTy = cast<ShapedType>(srcTy);
         auto srcNumElems = srcVecTy.getNumElements();
-        // Each dest tensor i16 element contains 16 comparison results.
-        auto dstShape = llvm::divideCeil(srcNumElems, 16);
-        Value dst = createTensorOp(rewriter, loc, dstShape, rewriter.getI16Type());
+        I1ReplacementType replType(op.getContext());
+        auto dstShape = llvm::divideCeil(srcNumElems, replType.width);
+        Value dst = createTensorOp(rewriter, loc, dstShape, replType.iType);
+        dst = createReCastOp(rewriter, loc, dst, dstShape, replType.uiType);
         ascendc::CMPMODE cmpMode;
         switch (op.getPredicate()) {
             case arith::CmpFPredicate::OEQ:
@@ -204,11 +167,7 @@ struct LowerArithI1Pass : public asclower::impl::LowerArithI1Base<LowerArithI1Pa
         MLIRContext *context = &getContext();
         LoweringConversionTarget target(converter, context);
         RewritePatternSet patterns(context);
-        patterns.insert<
-            //
-            ConvertSelect, ConvertCmpF, ConvertCmpI
-            //
-            >(converter, context);
+        patterns.insert<ConvertCmpF, ConvertCmpI>(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())
             signalPassFailure();
     }
