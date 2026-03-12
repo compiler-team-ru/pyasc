@@ -108,7 +108,7 @@ class Densifier {
         while (!remainingOps.empty()) {
             auto *toMove = remainingOps.front();
             remainingOps = remainingOps.drop_front();
-            auto prevOps = llvm::make_range(Block::iterator(firstOp), Block::iterator(toMove));
+            auto prevOps = llvm::make_range(std::next(Block::iterator(firstOp)), Block::iterator(toMove));
             auto it =
                 llvm::find_if(prevOps, [this, toMove](Operation &base) { return canMove<Before>(toMove, &base); });
             if (it != prevOps.end())
