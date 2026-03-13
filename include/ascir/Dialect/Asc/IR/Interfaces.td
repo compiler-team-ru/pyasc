@@ -107,6 +107,11 @@ def OpWithReusableSrcInterface : AscendC_OpInterface<"OpWithReusableSrc"> {
   }];
 }
 
+def OpWithSrcInterface : AscendC_OpInterface<"OpWithSrc"> {
+  let description = "Operation with source tensor operands";
+  let methods = [InterfaceMethod<"Get source tensors", "::llvm::SmallVector<::mlir::Value>", "getSrcTensors">];
+}
+
 def VectorOpInterface : AscendC_OpInterface<"VectorOp", [APIOpInterface]> {
   let description = "Base interface for vector operations";
 }
@@ -163,7 +168,7 @@ def RegOpInterface : AscendC_OpInterface<"RegOp", [APIOpInterface]> {
 //===----------------------------------------------------------------------===//
 
 def UnaryOpInterface : AscendC_OpInterface<"UnaryOp", [
-  VectorOpInterface, OpWithDstInterface, OpWithSrcInterface, OpWithReusableSrcInterface
+  VectorOpInterface, OpWithDstInterface, OpWithSrcInterface
 ]> {
   let description = "Vector unary operation";
   let methods = [getSrc];
@@ -187,7 +192,7 @@ def UnaryL2OpInterface : AscendC_OpInterface<"UnaryL2Op", [UnaryOpInterface]> {
 //===----------------------------------------------------------------------===//
 
 def BinaryOpInterface : AscendC_OpInterface<"BinaryOp", [
-  VectorOpInterface, OpWithDstInterface, OpWithSrcInterface, OpWithReusableSrcInterface
+  VectorOpInterface, OpWithDstInterface, OpWithSrcInterface
 ]> {
   let description = "Vector binary operation";
   let methods = [getSrc0, getSrc1];
@@ -215,7 +220,7 @@ def BinaryL3OpInterface : AscendC_OpInterface<"BinaryL3Op", [BinaryOpInterface]>
 //===----------------------------------------------------------------------===//
 
 def VecScalarOpInterface : AscendC_OpInterface<"VecScalarOp", [
-  VectorOpInterface, OpWithDstInterface, OpWithSrcInterface, OpWithReusableSrcInterface
+  VectorOpInterface, OpWithDstInterface, OpWithSrcInterface
 ]> {
   let description = "Vector-scalar operation";
   let methods = [getSrc, getScalar, getScalarMutable];
