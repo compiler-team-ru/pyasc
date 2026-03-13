@@ -22,7 +22,7 @@ def vmuladd_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, z_ptr: as
     z_gm = asc2.tensor(z_ptr, [size])
     out_gm = asc2.tensor(out_ptr, [size])
     base_offset = asc.get_block_idx() * tile_size * tile_per_block
-    for i in asc2.range(tile_per_block, unroll_factor=buffer_factor):
+    for i in asc2.range(tile_per_block, unroll_factor=buffer_factor, parallel=True):
         tile_offset = base_offset + i * tile_size
         x = asc2.load(x_gm, [tile_size], offsets=[tile_offset])
         y = asc2.load(y_gm, [tile_size], offsets=[tile_offset])
