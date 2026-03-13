@@ -104,12 +104,12 @@ def CrossCoreWaitFlagOp : APIOp<"cross_core_wait_flag", "CrossCoreWaitFlag"> {
 }
 
 def GetBufOp : APIOp<"get_buf", "get_buf"> {
-  let arguments = (ins AscendC_PipeAttr:$pipe, I32:$bufId, UnitAttr:$mode);
+  let arguments = (ins AscendC_PipeAttr:$pipe, I32Attr:$bufId, UnitAttr:$mode);
   let assemblyFormat = "$pipe `,` $bufId attr-dict";
 }
 
 def RlsBufOp : APIOp<"rls_buf", "rls_buf"> {
-  let arguments = (ins AscendC_PipeAttr:$pipe, I32:$bufId, UnitAttr:$mode);
+  let arguments = (ins AscendC_PipeAttr:$pipe, I32Attr:$bufId, UnitAttr:$mode);
   let assemblyFormat = "$pipe `,` $bufId attr-dict";
 }
 

@@ -16,6 +16,7 @@ namespace mlir {
 namespace asctile {
 namespace attr {
 
+LITERAL parallel = "asctile.parallel";
 LITERAL unrollFactor = "asctile.unroll_factor";
 LITERAL unrollGroup = "asctile.unroll_group";
 
