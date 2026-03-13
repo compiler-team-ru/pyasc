@@ -17,11 +17,14 @@ include "Core/Types.td"
 
 include "mlir/IR/OpBase.td"
 
-def AscendC_BroadcastOp : APIOp<"broadcast", "Broadcast", [
-  OpWithDstInterface, AttrSizedOperandSegments
+def AscendC_BroadcastOp : VectorOp<"broadcast", "Broadcast", [
+  AttrSizedOperandSegments, OpWithDstInterface, OpWithSrcInterface
 ]> {
   let arguments = (ins AscendC_LocalTensor:$dst, AscendC_LocalTensor:$src,
                    Variadic<I32>:$dstShape, Variadic<I32>:$srcShape);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+  }];
 }
 
-#endif
+#endif // ASC_ADV_BROADCAST_TD

@@ -85,6 +85,9 @@ class VectorOp<string mnemonic, string apiName, list<Trait> traits = []>
 class UnaryOp<string mnemonic, string apiName, list<Trait> traits = []>
     : VectorOp<mnemonic, apiName, [UnaryOpInterface] # traits> {
   let description = "`AscendC::" # apiName # "` is a vector unary operation.\n";
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+  }];
 }
 
 class UnaryL0Op<string mnemonic, string apiName, list<Trait> traits = []>
@@ -122,13 +125,16 @@ multiclass UnaryL012Op<string mnemonic, string apiName, list<Trait> traits = []>
 class BinaryOp<string mnemonic, string apiName, list<Trait> traits = []>
     : VectorOp<mnemonic, apiName, [BinaryOpInterface] # traits> {
   let description = "`AscendC::" # apiName # "` is a vector binary operation.\n";
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc0(), getSrc1()}; }
+  }];
 }
 
 class BinaryL0Op<string mnemonic, string apiName, list<Trait> traits = []>
     : BinaryOp<mnemonic, apiName, [BinaryL0OpInterface] # traits> {
   let description = "`AscendC::" # apiName # "` is a vector binary operation (L0 API).\n";
   let arguments = (ins AnyType:$dst, AnyType:$src0, AnyType:$src1,
-                   AnyType:$mask, AnyType:$repeatTimes, 
+                   AnyType:$mask, AnyType:$repeatTimes,
                   AscendC_BinaryRepeatParams:$repeatParams);
 }
 
@@ -136,7 +142,7 @@ class BinaryL1Op<string mnemonic, string apiName, list<Trait> traits = []>
     : BinaryOp<mnemonic, apiName, traits> {
   let description = "`AscendC::" # apiName # "` is a vector binary operation (L1 API).\n";
   let arguments = (ins AnyType:$dst, AnyType:$src0, AnyType:$src1,
-                   Variadic<UI64>:$mask, AnyType:$repeatTimes, 
+                   Variadic<UI64>:$mask, AnyType:$repeatTimes,
                    AscendC_BinaryRepeatParams:$repeatParams);
 }
 
@@ -151,7 +157,7 @@ class BinaryTemplateL0Op<string mnemonic, string apiName, list<Trait> traits = [
     : BinaryOp<mnemonic, apiName, [BinaryL0OpInterface] # traits> {
   let description = "`AscendC::" # apiName # "` is a vector binary operation (L0 API).\n";
   let arguments = (ins AnyType:$dst, AnyType:$src0, AnyType:$src1,
-                   AnyType:$mask, AnyType:$repeatTimes, 
+                   AnyType:$mask, AnyType:$repeatTimes,
                   AscendC_BinaryRepeatParams:$repeatParams, UnitAttr:$isSetMask);
 }
 
@@ -159,7 +165,7 @@ class BinaryTemplateL1Op<string mnemonic, string apiName, list<Trait> traits = [
     : BinaryOp<mnemonic, apiName, traits> {
   let description = "`AscendC::" # apiName # "` is a vector binary operation (L1 API).\n";
   let arguments = (ins AnyType:$dst, AnyType:$src0, AnyType:$src1,
-                   Variadic<UI64>:$mask, AnyType:$repeatTimes, 
+                   Variadic<UI64>:$mask, AnyType:$repeatTimes,
                    AscendC_BinaryRepeatParams:$repeatParams, UnitAttr:$isSetMask);
 }
 
@@ -174,7 +180,7 @@ class BinaryCastL0Op<string mnemonic, string apiName, list<Trait> traits = []>
     : BinaryOp<mnemonic, apiName, [BinaryL0OpInterface] # traits> {
   let description = "`AscendC::" # apiName # "` is a vector binary operation (L0 API).\n";
   let arguments = (ins AnyType:$dst, AnyType:$src0, AnyType:$src1,
-                   AnyType:$mask, AnyType:$repeatTimes, 
+                   AnyType:$mask, AnyType:$repeatTimes,
                   AscendC_BinaryRepeatParams:$repeatParams, UnitAttr:$isSetMask);
 }
 
@@ -182,7 +188,7 @@ class BinaryCastL1Op<string mnemonic, string apiName, list<Trait> traits = []>
     : BinaryOp<mnemonic, apiName, traits> {
   let description = "`AscendC::" # apiName # "` is a vector binary operation (L1 API).\n";
   let arguments = (ins AnyType:$dst, AnyType:$src0, AnyType:$src1,
-                   Variadic<UI64>:$mask, AnyType:$repeatTimes, 
+                   Variadic<UI64>:$mask, AnyType:$repeatTimes,
                    AscendC_BinaryRepeatParams:$repeatParams, UnitAttr:$isSetMask);
 }
 
@@ -237,6 +243,9 @@ multiclass BinaryTemplateL0123Op<string baseMnemonic, string apiName, string l3o
 class VecScalarOp<string mnemonic, string apiName, list<Trait> traits = []>
     : VectorOp<mnemonic, apiName, [VecScalarOpInterface] # traits> {
   let description = "`AscendC::" # apiName # "` is a vector-scalar operation.\n";
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+  }];
 }
 
 class VecScalarL0Op<string mnemonic, string apiName, list<Trait> traits = []>
@@ -282,6 +291,9 @@ class UnaryMathOp<string mnemonic, string apiName, list<Trait> traits = []>
   let description = "`AscendC::" # apiName # "` is a unary math library operation.\n";
   let arguments = (ins AscendC_LocalTensor:$dst, AnyType:$src, Optional<AnyType>:$sharedTmpBuffer,
                    Optional<AnyType>:$calCount, AnyType:$isReuseSource);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+  }];
 }
 
 class BinaryMathOp<string mnemonic, string apiName, list<Trait> traits = []>
@@ -289,6 +301,9 @@ class BinaryMathOp<string mnemonic, string apiName, list<Trait> traits = []>
   let description = "`AscendC::" # apiName # "` is a binary math library operation.\n";
   let arguments = (ins AscendC_LocalTensor:$dst, AnyType:$src0, AnyType:$src1,
                    Optional<AnyType>:$sharedTmpBuffer, Optional<AnyType>:$calCount, AnyType:$isReuseSource);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc0(), getSrc1()}; }
+  }];
 }
 
 //===----------------------------------------------------------------------===//

@@ -20,12 +20,17 @@ include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/OpBase.td"
 
-def AscendC_CastL0Op : VectorOp<"cast_l0", "Cast", [OpWithDstInterface]> {
+def AscendC_CastL0Op : VectorOp<"cast_l0", "Cast", [
+  OpWithDstInterface, OpWithSrcInterface
+]> {
   let description = "Convert the input tensor to the specified data type (L0 API)";
   let arguments = (ins AscendC_LocalTensor:$dst, AscendC_LocalTensor:$src,
                        AscendC_RoundModeAttr:$roundMode, AnyType:$mask,
                        AnyType:$repeatTimes, AscendC_UnaryRepeatParams:$repeatParams,
                        UnitAttr:$isSetMask);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+  }];
 }
 
 def AscendC_CastL1Op : VectorOp<"cast_l1", "Cast", [OpWithDstInterface]> {
@@ -36,10 +41,15 @@ def AscendC_CastL1Op : VectorOp<"cast_l1", "Cast", [OpWithDstInterface]> {
                        UnitAttr:$isSetMask);
 }
 
-def AscendC_CastL2Op : VectorOp<"cast_l2", "Cast", [OpWithDstInterface]> {
+def AscendC_CastL2Op : VectorOp<"cast_l2", "Cast", [
+  OpWithDstInterface, OpWithSrcInterface
+]> {
   let description = "Convert the input tensor to the specified data type (L2 API)";
   let arguments = (ins AscendC_LocalTensor:$dst, AscendC_LocalTensor:$src,
                        AscendC_RoundModeAttr:$roundMode, AnyType:$calCount);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+  }];
 }
 
 def AscendC_CastDeqL0Op : VectorOp<"cast_deq_l0", "CastDeq"> {

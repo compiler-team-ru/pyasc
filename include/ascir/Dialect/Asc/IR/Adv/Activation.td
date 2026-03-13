@@ -20,8 +20,9 @@ include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/OpBase.td"
 
-def AscendC_SimpleSoftMaxOp
-    : APIOp<"simple_softmax", "SimpleSoftMax", [AttrSizedOperandSegments, OpWithDstInterface]> {
+def AscendC_SimpleSoftMaxOp : VectorOp<"simple_softmax", "SimpleSoftMax", [
+  AttrSizedOperandSegments, OpWithDstInterface, OpWithSrcInterface
+]> {
   let arguments = (ins UnitAttr:$reuseSource, UnitAttr:$basicBlock,
                    UnitAttr:$dataFormatNZ, AscendC_LocalTensor:$dst,
                    AscendC_LocalTensor:$sumTensor,
@@ -30,9 +31,14 @@ def AscendC_SimpleSoftMaxOp
                    Optional<AscendC_LocalTensor>:$sharedTmpBuffer,
                    AscendC_SoftMaxTiling:$tiling,
                    Optional<AnyType>:$softmaxShapeInfo);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+  }];
 }
 
-def AscendC_SoftMaxOp : APIOp<"softmax", "SoftMax", [AttrSizedOperandSegments, OpWithDstInterface]> {
+def AscendC_SoftMaxOp : VectorOp<"softmax", "SoftMax", [
+  AttrSizedOperandSegments, OpWithDstInterface, OpWithSrcInterface
+]> {
   let arguments = (ins UnitAttr:$reuseSource, UnitAttr:$basicBlock,
                    UnitAttr:$dataFormatNZ, AscendC_LocalTensor:$dst,
                    AscendC_LocalTensor:$sumTensor,
@@ -41,5 +47,8 @@ def AscendC_SoftMaxOp : APIOp<"softmax", "SoftMax", [AttrSizedOperandSegments, O
                    Optional<AscendC_LocalTensor>:$sharedTmpBuffer,
                    AscendC_SoftMaxTiling:$tiling,
                    Optional<AnyType>:$softmaxShapeInfo);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+  }];
 }
-#endif //ASC_ADV_ACTIVATION_TD
+#endif // ASC_ADV_ACTIVATION_TD

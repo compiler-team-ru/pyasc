@@ -50,9 +50,9 @@ class AscendC_InterfaceMethods {
   InterfaceMethod getSrc1BlkStride = GetMethod<"src1BlkStride", "getSrc1BlkStride">;
   InterfaceMethod getSrc1RepStride = GetMethod<"src1RepStride", "getSrc1RepStride">;
   InterfaceMethod getIsReuseSource = GetMethod<"isReuseSource", "getIsReuseSource">;
-  InterfaceMethod getIsExhaustedSuspension = GetMethod<"isExhaustedSuspension", 
+  InterfaceMethod getIsExhaustedSuspension = GetMethod<"isExhaustedSuspension",
     "getIsExhaustedSuspension", "bool">;
-  InterfaceMethod getIsFullSort = GetMethod<"isFullSort", 
+  InterfaceMethod getIsFullSort = GetMethod<"isFullSort",
     "getIsFullSort", "bool">;
   InterfaceMethod getVdeq = GetMethod<"vdeq", "getVdeq">;
   InterfaceMethod getVdeqInfo = GetMethod<"vdeqInfo", "getVdeqInfo">;
@@ -75,6 +75,11 @@ def APIOpInterface : AscendC_OpInterface<"APIOp"> {
 def OpWithDstInterface : AscendC_OpInterface<"OpWithDst"> {
   let description = "Operation with `dst` operand (typically tensor)";
   let methods = [getDst];
+}
+
+def OpWithSrcInterface : AscendC_OpInterface<"OpWithSrc"> {
+  let description = "Operation with source tensor operands";
+  let methods = [InterfaceMethod<"Get source tensors", "::llvm::SmallVector<::mlir::Value>", "getSrcTensors">];
 }
 
 def VectorOpInterface : AscendC_OpInterface<"VectorOp", [APIOpInterface]> {
@@ -113,8 +118,9 @@ def DataCopyOpInterface :
 // Vector unary operations
 //===----------------------------------------------------------------------===//
 
-def UnaryOpInterface
-    : AscendC_OpInterface<"UnaryOp", [VectorOpInterface, OpWithDstInterface]> {
+def UnaryOpInterface : AscendC_OpInterface<"UnaryOp", [
+  VectorOpInterface, OpWithDstInterface, OpWithSrcInterface
+]> {
   let description = "Vector unary operation";
   let methods = [getSrc];
 }
@@ -136,8 +142,9 @@ def UnaryL2OpInterface : AscendC_OpInterface<"UnaryL2Op", [UnaryOpInterface]> {
 // Vector binary operations
 //===----------------------------------------------------------------------===//
 
-def BinaryOpInterface
-    : AscendC_OpInterface<"BinaryOp", [VectorOpInterface, OpWithDstInterface]> {
+def BinaryOpInterface : AscendC_OpInterface<"BinaryOp", [
+  VectorOpInterface, OpWithDstInterface, OpWithSrcInterface
+]> {
   let description = "Vector binary operation";
   let methods = [getSrc0, getSrc1];
 }
@@ -163,8 +170,9 @@ def BinaryL3OpInterface : AscendC_OpInterface<"BinaryL3Op", [BinaryOpInterface]>
 // Vector-scalar operations
 //===----------------------------------------------------------------------===//
 
-def VecScalarOpInterface
-    : AscendC_OpInterface<"VecScalarOp", [VectorOpInterface, OpWithDstInterface]> {
+def VecScalarOpInterface : AscendC_OpInterface<"VecScalarOp", [
+  VectorOpInterface, OpWithDstInterface, OpWithSrcInterface
+]> {
   let description = "Vector-scalar operation";
   let methods = [getSrc, getScalar];
 }
@@ -183,8 +191,9 @@ def VecScalarL2OpInterface : AscendC_OpInterface<"VecScalarL2Op", [VecScalarOpIn
 // Math library operations
 //===----------------------------------------------------------------------===//
 
-def MathLibraryOpInterface
-    : AscendC_OpInterface<"MathLibraryOp", [VectorOpInterface, OpWithDstInterface]> {
+def MathLibraryOpInterface : AscendC_OpInterface<"MathLibraryOp", [
+  VectorOpInterface, OpWithDstInterface, OpWithSrcInterface
+]> {
   let description = "Math library operation";
 }
 
