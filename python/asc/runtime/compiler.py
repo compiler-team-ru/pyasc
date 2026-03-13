@@ -181,6 +181,7 @@ class Compiler:
                 passes.ascendc.add_insert_bufid_sync(pm)
                 passes.common.add_canonicalizer(pm)
                 passes.ascendc.add_fuse_bufid_sync(pm)
+                passes.ascendc.add_parallel_load_store(pm)
             passes.ascendc.add_unify_pipe(pm)
             passes.common.add_canonicalizer(pm)
 

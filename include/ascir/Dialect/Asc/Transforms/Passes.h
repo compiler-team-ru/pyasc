@@ -37,6 +37,7 @@ std::unique_ptr<Pass> createLegalizeKernelArgsPass(bool setFftsAddr = false);
 std::unique_ptr<Pass> createLowerToL0Pass();
 std::unique_ptr<Pass> createMaterializeTensorPass(bool alwaysBuf = false);
 std::unique_ptr<Pass> createNoopPass();
+std::unique_ptr<Pass> createParallelLoadStorePass();
 std::unique_ptr<Pass> createPrivatizeFuncPass();
 std::unique_ptr<Pass> createReuseUBAllocationPass();
 std::unique_ptr<Pass> createUnifyPipePass();
