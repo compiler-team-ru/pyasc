@@ -36,35 +36,31 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::WaitF
 LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::CrossCoreSetFlagOp op)
 {
     auto &os = emitter.ostream();
-    os << ascNamespace << "::CrossCoreSetFlag<"
-       << static_cast<unsigned>(op.getModeId()) << ", "
-       << ascendc::stringifyEnum(op.getPipe()).upper()
-       << ">(" << emitter.getOrCreateName(op.getFlagId()) << ")";
+    os << ascNamespace << "::CrossCoreSetFlag<" << static_cast<unsigned>(op.getModeId()) << ", "
+       << ascendc::stringifyEnum(op.getPipe()).upper() << ">(" << emitter.getOrCreateName(op.getFlagId()) << ")";
     return success();
 }
 
 LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::CrossCoreWaitFlagOp op)
 {
     auto &os = emitter.ostream();
-    os << ascNamespace << "::CrossCoreWaitFlag<"
-       << static_cast<unsigned>(op.getModeId()) << ", "
-       << ascendc::stringifyEnum(op.getPipe()).upper()
-       << ">(" << emitter.getOrCreateName(op.getFlagId()) << ")";
+    os << ascNamespace << "::CrossCoreWaitFlag<" << static_cast<unsigned>(op.getModeId()) << ", "
+       << ascendc::stringifyEnum(op.getPipe()).upper() << ">(" << emitter.getOrCreateName(op.getFlagId()) << ")";
     return success();
 }
 
 LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::GetBufOp op)
 {
     auto &os = emitter.ostream();
-    os << op.getAPIName() << "(" << ascendc::stringifyEnum(op.getPipe()).upper() << ", "
-       << emitter.getOrCreateName(op.getBufId()) << ", " << op.getMode() << ")";
+    os << op.getAPIName() << "(" << ascendc::stringifyEnum(op.getPipe()).upper() << ", " << op.getBufId() << ", "
+       << op.getMode() << ")";
     return success();
 }
 
 LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::RlsBufOp op)
 {
     auto &os = emitter.ostream();
-    os << op.getAPIName() << "(" << ascendc::stringifyEnum(op.getPipe()).upper() << ", "
-       << emitter.getOrCreateName(op.getBufId()) << ", " << op.getMode() << ")";
+    os << op.getAPIName() << "(" << ascendc::stringifyEnum(op.getPipe()).upper() << ", " << op.getBufId() << ", "
+       << op.getMode() << ")";
     return success();
 }

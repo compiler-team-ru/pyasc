@@ -16,15 +16,20 @@ from ..core.utils import check_type, global_builder
 class range(BaseRange):
 
     @overload
-    def __init__(self, start: int, stop: Optional[int] = None, step: int = 1, /, *, unroll_factor: int = 1):
+    def __init__(self, start: int, stop: Optional[int] = None, step: int = 1, /, *, unroll_factor: int = 1,
+                 parallel: bool = False):
         ...
 
-    def __init__(self, *args, unroll_factor: int = 1):
+    def __init__(self, *args, unroll_factor: int = 1, parallel: bool = False):
         check_type("unroll_factor", unroll_factor, int)
+        check_type("parallel", parallel, bool)
         if unroll_factor < 1:
             raise ValueError(f"Loop unroll factor must be 1 or greater, got {unroll_factor}")
         super().__init__(*args)
         self.unroll_factor = unroll_factor
+        self.parallel = parallel
 
     def handle_op(self, op: ir.ForOp) -> None:
         op.set_attr("asctile.unroll_factor", global_builder.get_ir_builder().get_index_attr(self.unroll_factor))
+        if (self.parallel):
+            op.set_attr("asctile.parallel", global_builder.get_ir_builder().get_unit_attr())

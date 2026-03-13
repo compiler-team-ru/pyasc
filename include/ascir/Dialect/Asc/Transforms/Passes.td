@@ -126,6 +126,11 @@ def Noop : Pass<"ascendc-noop", "func::FuncOp"> {
   let constructor = "mlir::ascendc::createNoopPass()";
 }
 
+def ParallelLoadStore : Pass<"ascendc-parallel-load-store", "func::FuncOp"> {
+  let summary = "Add parallel execution of load and store operations with independent data";
+  let constructor = "mlir::ascendc::createParallelLoadStorePass()";
+}
+
 def PrivatizeFunc : Pass<"ascendc-privatize-func", "ModuleOp"> {
   let summary = "Mark functions without ascendc.global attribute as private";
   let constructor = "mlir::ascendc::createPrivatizeFuncPass()";

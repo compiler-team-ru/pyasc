@@ -35,9 +35,9 @@ void insertGetRlsBuf(Operation *op, ascendc::Pipe pipe, int32_t bufId)
 {
     OpBuilder builder(op);
     ascir::ConstantOpBuilder consts(builder);
-    builder.create<ascendc::GetBufOp>(op->getLoc(), pipe, consts.i32(bufId), false);
+    builder.create<ascendc::GetBufOp>(op->getLoc(), pipe, bufId, false);
     builder.setInsertionPointAfter(op);
-    builder.create<ascendc::RlsBufOp>(op->getLoc(), pipe, consts.i32(bufId), false);
+    builder.create<ascendc::RlsBufOp>(op->getLoc(), pipe, bufId, false);
 }
 
 void recursiveVisit(Operation *op, int32_t bufId, VisitedOpsSet &visitedOps, VisitedBufIdMap &bufIdMap)
