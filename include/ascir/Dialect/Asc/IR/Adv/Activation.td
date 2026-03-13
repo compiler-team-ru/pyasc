@@ -32,17 +32,7 @@ def AscendC_SimpleSoftMaxOp : VectorOp<"simple_softmax", "SimpleSoftMax", [
                    AscendC_SoftMaxTiling:$tiling,
                    Optional<AnyType>:$softmaxShapeInfo);
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getDstTensors()
-    {
-        SmallVector<Value> dstTensors{getDst()};
-        if (auto tensor = getSharedTmpBuffer())
-            dstTensors.emplace_back(tensor);
-        return dstTensors;
-    }
-    SmallVector<Value> getSrcTensors()
-    {
-        return {getSumTensor(), getMaxTensor(), getSrc()};
-    }
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
   }];
 }
 
@@ -58,17 +48,6 @@ def AscendC_SoftMaxOp : VectorOp<"softmax", "SoftMax", [
                    AscendC_SoftMaxTiling:$tiling,
                    Optional<AnyType>:$softmaxShapeInfo);
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getDstTensors()
-    {
-        SmallVector<Value> dstTensors{getDst()};
-        if (auto tensor = getSumTensor())
-            dstTensors.emplace_back(tensor);
-        if (auto tensor = getMaxTensor())
-            dstTensors.emplace_back(tensor);
-        if (auto tensor = getSharedTmpBuffer())
-            dstTensors.emplace_back(tensor);
-        return dstTensors;
-    }
     SmallVector<Value> getSrcTensors() { return {getSrc()}; }
   }];
 }
