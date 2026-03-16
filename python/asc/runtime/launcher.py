@@ -9,7 +9,7 @@
 import os
 import ctypes
 from dataclasses import dataclass
-from typing import Any, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -147,9 +147,16 @@ class Launcher:
             finally:
                 arg.release_memory()
 
+    @classmethod
+    def check_memory_overflow(cls, memory_consumed: Dict[str, int]) -> None:
+        ub_consumed = memory_consumed.get("UB", 0)
+        if ub_consumed > cls.get_ub_capacity():
+            raise RuntimeError(f"UB overflow: {cls.get_ub_capacity()} is available, {ub_consumed} is used.")
+        # TODO: check other memory realms
+
     def run(self, kernel: CompiledKernel, function_name: str, user_args: Tuple[Any]) -> None:
-        if kernel.ub_consumed is not None and kernel.ub_consumed > self.get_ub_capacity():
-            raise RuntimeError(f"UB overflow: {self.get_ub_capacity()} is available, {kernel.ub_consumed} is used.")
+        if kernel.memory_consumed is not None:
+            self.check_memory_overflow(kernel.memory_consumed)
         dry_run = os.environ.get('DRY_RUN')
         if dry_run:
             return

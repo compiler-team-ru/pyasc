@@ -567,6 +567,20 @@ void pyasc_bind_operation(py::module& m)
                     return py::none();
                 return py::int_(ret.getValue().getSExtValue());
             })
+        .def(
+            "get_dict_of_int_attr",
+            [](Operation& self, const std::string& name) -> py::object {
+                auto attr = self.getAttrOfType<DictionaryAttr>(name);
+                if (!attr)
+                    return py::none();
+                py::dict result;
+                for (auto entry : attr) {
+                    py::str key(entry.getName().str());
+                    py::int_ value(cast<IntegerAttr>(entry.getValue()).getValue().getSExtValue());
+                    result[key] = value;
+                }
+                return result;
+            })
         .def("get_flat_symbol_ref_attr", [](Operation& self, const std::string& name) -> py::object {
             auto ret = self.getAttrOfType<FlatSymbolRefAttr>(name);
             if (!ret)

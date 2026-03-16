@@ -24,6 +24,7 @@ LITERAL emitAsUnsigned = "ascendc.emit_as_unsigned";
 LITERAL global = "ascendc.global";
 LITERAL enable_debug = "asc.enable_debug";
 LITERAL matmulCubeOnly = "asc.matmul_cube_only";
+LITERAL memoryConsumed = "asc.memory_consumed";
 } // namespace attr
 
 } // namespace ascendc
