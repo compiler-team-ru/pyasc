@@ -14,13 +14,12 @@ import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Tuple, Type
+from typing import Dict, List, Optional, Tuple, final
 
 from .._C import ir, passes, translation
 from ..lib.runtime import CoreType, get_soc_version
 from ..lib.utils import get_ascend_path
-from .config import CompilationArch, KernelType, platform_to_arch
-from .kernel_meta import CompiledKernel, KernelMeta
+from .config import KernelType
 from . import utils
 
 
@@ -90,7 +89,7 @@ class CompiledKernel:
     core_type: CoreType = CoreType.VectorCore
     kernel_args: Optional[Tuple[ir.KernelArgument]] = None
     enable_debug: bool = False
-    ub_consumed: Optional[int] = None
+    memory_consumed: Optional[Dict[str, int]] = None
 
 
 class Compiler:
@@ -244,7 +243,7 @@ class Compiler:
         utils.FileUtils.dump_file(self.dump_dir, "ascendc.cpp", source)
         kernel_args = ir.get_kernel_arg_attrs(mod)
         return self.run_compilation(source, kernel_args, enable_debug=self.enable_debug,
-                                    ub_consumed=mod.op.get_integer_attr("asc.ub_consumed"))
+                                    memory_consumed=mod.op.get_dict_of_int_attr("asc.memory_consumed"))
 
     def run_passes(self, mod: ir.ModuleOp) -> None:
         pm = passes.PassManager(mod.get_context())

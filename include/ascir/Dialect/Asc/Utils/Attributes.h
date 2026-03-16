@@ -26,12 +26,6 @@ LITERAL enableDebug = "asc.enable_debug";
 LITERAL kernelType = "asc.kernel_type";
 LITERAL matmulCubeOnly = "asc.matmul_cube_only";
 LITERAL memoryConsumed = "asc.memory_consumed";
-LITERAL socVersion = "asc.soc_version";
-LITERAL vfVecLen = "asc.vf_vec_len";
-
-LITERAL kernelCube = "cube";
-LITERAL kernelMixed = "mixed";
-LITERAL kernelVector = "vector";
 } // namespace attr
 
 } // namespace ascendc
