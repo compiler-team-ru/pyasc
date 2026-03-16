@@ -9,11 +9,11 @@
  */
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
+#include "ascir/Dialect/Asc/Utils/Attributes.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/IR/Dominance.h"
 
 namespace mlir {
 namespace ascendc {
@@ -27,31 +27,43 @@ using namespace mlir::ascendc;
 
 namespace {
 
-constexpr const char *ubConsumedAttrName = "asc.ub_consumed";
-
-int64_t getSizeInBytes(LocalTensorType type)
+StringLiteral positionToStr(TPosition position)
 {
-    assert(type.hasStaticShape() && "Expected static shape");
-    return llvm::alignTo<ubBlockSize>(ascendc::getTypeSize(type));
+    switch (position) {
+        case ascendc::TPosition::A1:
+            return "L1";
+        case ascendc::TPosition::A2:
+            return "L0A";
+        case ascendc::TPosition::B2:
+            return "L0B";
+        case ascendc::TPosition::CO1:
+            return "L0C";
+        case ascendc::TPosition::VECCALC:
+            return "UB";
+        default:
+            llvm_unreachable("unexpected TPosition value");
+    }
 }
 
-int64_t calculateUBConsumed(ModuleOp moduleOp)
+auto calculateMemoryConsumption(ModuleOp moduleOp)
 {
-    int64_t ubConsumed = 0;
-    moduleOp.walk([&ubConsumed](ascendc::LocalTensorV3Op op) {
-        if (op.getPos() == TPosition::VECCALC)
-            ubConsumed += getSizeInBytes(op.getType());
+    std::map<StringLiteral, int64_t> mem;
+    moduleOp.walk([&mem](ascendc::LocalTensorV3Op op) {
+        mem[positionToStr(op.getPos())] += getElementTypeSize(op.getType()) * static_cast<int64_t>(op.getTileSize());
     });
-    return ubConsumed;
+    return mem;
 }
 
 struct ComputeMemoryConsumptionPass : public ascendc::impl::ComputeMemoryConsumptionBase<ComputeMemoryConsumptionPass> {
     void runOnOperation() override
     {
         ModuleOp moduleOp = getOperation();
-        int64_t ubConsumed = calculateUBConsumed(moduleOp);
+        auto mem = calculateMemoryConsumption(moduleOp);
         Builder builder(moduleOp);
-        moduleOp->setAttr(ubConsumedAttrName, builder.getI64IntegerAttr(ubConsumed));
+        SmallVector<NamedAttribute, 6> attrs;
+        for (auto [key, value] : mem)
+            attrs.emplace_back(builder.getStringAttr(key), builder.getI64IntegerAttr(value));
+        moduleOp->setAttr(attr::memoryConsumed, builder.getDictionaryAttr(attrs));
     }
 };
 

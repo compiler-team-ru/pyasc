@@ -28,45 +28,43 @@ using namespace mlir::ascendc;
 
 namespace {
 
-AddressSpace positionToAddressSpace(TPosition position)
+TPosition normalizePosition(TPosition position)
 {
     switch (position) {
         case TPosition::A1:
-        case TPosition::B1:
-            return AddressSpace::cbuf;
         case TPosition::A2:
-            return AddressSpace::ca;
         case TPosition::B2:
-            return AddressSpace::cb;
         case TPosition::CO1:
-            return AddressSpace::cc;
         case TPosition::VECCALC:
+            return position;
+        case TPosition::B1:
+            return TPosition::A1;
         case TPosition::VECIN:
         case TPosition::VECOUT:
-            return AddressSpace::ubuf;
+            return TPosition::VECCALC;
         default:
             llvm_unreachable("unexpected TPosition value");
     }
 }
 
-class AllocateTensorPass : public ascendc::impl::AllocateTensorBase<AllocateTensorPass> {
+struct AllocateTensorPass : public ascendc::impl::AllocateTensorBase<AllocateTensorPass> {
     void runOnOperation() override
     {
         func::FuncOp funcOp = getOperation();
         if (funcOp.isDeclaration()) {
             return;
         }
-        std::unordered_map<ascendc::AddressSpace, uint32_t> offsets;
+        std::unordered_map<ascendc::TPosition, uint32_t> offsets;
         funcOp.walk<WalkOrder::PreOrder>([this, &offsets](LocalTensorAutoOp op) {
             auto type = op.getType();
             if (!type.hasStaticShape()) {
-                op.emitOpError() << "must be static shape";
+                op.emitOpError() << "must have static shape";
                 signalPassFailure();
             }
             OpBuilder builder(op);
-            uint32_t &addr = offsets[positionToAddressSpace(op.getPosition())];
-            auto tensor =
-                builder.create<LocalTensorV3Op>(op.getLoc(), type, op.getPosition(), addr, type.getNumElements());
+            auto position = normalizePosition(op.getPosition());
+            uint32_t &addr = offsets[position];
+            auto tensor = builder.create<LocalTensorV3Op>(op.getLoc(), type, position, addr, type.getNumElements());
             op->replaceAllUsesWith(tensor);
             op.erase();
             addr += llvm::alignTo<ubBlockSize>(getTypeSize(type));
