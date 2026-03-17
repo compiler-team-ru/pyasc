@@ -221,6 +221,15 @@ def AtomicRMWOp : AscTile_Op<"atomic_rmw", [
   }];
 }
 
+def SoftmaxOp : AscTile_Op<"softmax", [
+  AllTypesMatch<["operand", "result"]>,
+]> {
+  let summary = "high-level softmax";
+  let arguments = (ins Tile:$operand);
+  let results = (outs Tile:$result);
+  let assemblyFormat = "$operand attr-dict `:` qualified(type($result))";
+}
+
 def MatmulOp : AscTile_Op<"matmul", [
   Pure, AllElementTypesMatch<["matrixA", "matrixB"]>, MemoryEffectsOpInterface
 ]> {

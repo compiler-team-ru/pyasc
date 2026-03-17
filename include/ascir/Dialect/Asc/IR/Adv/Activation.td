@@ -41,8 +41,8 @@ def AscendC_SoftMaxOp : VectorOp<"softmax", "SoftMax", [
 ]> {
   let arguments = (ins UnitAttr:$reuseSource, UnitAttr:$basicBlock,
                    UnitAttr:$dataFormatNZ, AscendC_LocalTensor:$dst,
-                   AscendC_LocalTensor:$sumTensor,
-                   AscendC_LocalTensor:$maxTensor,
+                   Optional<AscendC_LocalTensor>:$sumTensor,
+                   Optional<AscendC_LocalTensor>:$maxTensor,
                    AscendC_LocalTensor:$src,
                    Optional<AscendC_LocalTensor>:$sharedTmpBuffer,
                    AscendC_SoftMaxTiling:$tiling,
