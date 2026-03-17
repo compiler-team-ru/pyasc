@@ -384,6 +384,51 @@ struct ConvertSelect : ConvertOp<asctile::SelectOp> {
     }
 };
 
+struct ConvertSoftmax : ConvertOp<asctile::SoftmaxOp> {
+    using ConvertOp<asctile::SoftmaxOp>::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    static std::pair<int, int> unpackShape(ArrayRef<int64_t> shape)
+    {
+        assert(shape.size() == 1 || shape.size() == 2);
+        return {shape.size() == 2 ? shape[0] : 1, shape.back()};
+    }
+
+    static int64_t requiredBufferSize(int rowNum) { return ascendc::ubBlockSize * rowNum; }
+
+    LogicalResult convert(asctile::SoftmaxOp op, ConvertRewriter &rewriter) const override
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto loc = op.getLoc();
+        auto tensorType = op.getType();
+        auto shape = tensorType.getShape();
+        if (shape.size() != 1 && shape.size() != 2) {
+            op.emitError() << "invalid dimension of input tensor";
+            return failure();
+        }
+        auto [height, width] = unpackShape(shape);
+        auto src = rewriter.getRemappedValue(op.getOperand());
+
+        auto dst = createTensorOp(rewriter, loc, tensorType);
+        int bufferSize = requiredBufferSize(height);
+        auto maxTensor = createTensorOp(rewriter, loc, bufferSize, tensorType.getElementType());
+        auto sumTensor = createTensorOp(rewriter, loc, bufferSize, tensorType.getElementType());
+
+        auto softmaxTiling = rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::SoftMaxTilingType>());
+
+        auto softmaxShapeInfo =
+            rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::SoftMaxShapeInfoType>());
+        rewriter.create<emitasc::SetMemberOp>(loc, softmaxShapeInfo, "srcM", consts.i32(height));
+        rewriter.create<emitasc::SetMemberOp>(loc, softmaxShapeInfo, "srcK", consts.i32(width));
+        rewriter.create<emitasc::SetMemberOp>(loc, softmaxShapeInfo, "oriSrcM", consts.i32(height));
+        rewriter.create<emitasc::SetMemberOp>(loc, softmaxShapeInfo, "oriSrcK", consts.i32(width));
+        rewriter.create<ascendc::SoftMaxOp>(loc, false, false, false, dst, maxTensor, sumTensor, src, nullptr,
+                                            softmaxTiling, softmaxShapeInfo);
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
 struct ConvertMatmul : ConvertOp<asctile::MatmulOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
@@ -522,7 +567,7 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         patterns.insert<
             //
             ConvertTensor, ConvertLoad, ConvertGetValue, ConvertStore, ConvertSetValue, ConvertSplat, ConvertRelu,
-            ConvertCast, ConvertSelect, ConvertMatmul, ConvertReshape, ConvertBroadcast,
+            ConvertCast, ConvertSelect, ConvertMatmul, ConvertReshape, ConvertBroadcast, ConvertSoftmax,
             ConvertToL2<asctile::AddsOp, ascendc::AddsL2Op>, ConvertToL2<asctile::MulsOp, ascendc::MulsL2Op>,
             ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>, ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>,
             ConvertReduce<asctile::ReduceSumAs1dOp, ascendc::ReduceSumL2Op>,

@@ -33,10 +33,19 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::SoftM
     if (failed(emitter.emitType(op.getLoc(), op.getDst().getType().getElementType()))) {
         return failure();
     }
-    os << ", " << op.getReuseSource() << ", " << op.getBasicBlock() << ", " << op.getDataFormatNZ() << ">("
-       << emitter.getOrCreateName(op.getDst()) << ", " << emitter.getOrCreateName(op.getSumTensor()) << ", "
-       << emitter.getOrCreateName(op.getMaxTensor()) << ", " << emitter.getOrCreateName(op.getSrc()) << ", "
-       << emitter.getOrCreateName(op.getTiling());
+    os << ", " << op.getReuseSource() << ", " << op.getBasicBlock() << ">(";
+    os << emitter.getOrCreateName(op.getDst()) << ", ";
+    if (auto sumTensor = op.getSumTensor()) {
+        os << emitter.getOrCreateName(sumTensor) << ", ";
+    }
+    if (auto maxTensor = op.getMaxTensor()) {
+        os << emitter.getOrCreateName(maxTensor) << ", ";
+    }
+    os << emitter.getOrCreateName(op.getSrc()) << ", ";
+    if (auto sharedTmpBuffer = op.getSharedTmpBuffer()) {
+        os << emitter.getOrCreateName(sharedTmpBuffer) << ", ";
+    }
+    os << emitter.getOrCreateName(op.getTiling());
     if (auto ssi = op.getSoftmaxShapeInfo()) {
         os << ", " << emitter.getOrCreateName(ssi);
     }
