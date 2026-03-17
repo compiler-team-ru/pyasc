@@ -9,7 +9,8 @@
 from typing import Callable
 
 from ..core.ir_value import IRHandle
-from ..core.utils import global_builder
+from ..core.utils import check_type, global_builder
+from ..core.dtype import KnownTypes as KT
 from .tile import Tile, bind_tile_method
 
 
@@ -133,4 +134,15 @@ def negative(input: Tile) -> Tile:
         handle = input * (-1)
     else:
         handle = builder.create_arith_NegFOp(input.to_ir())
+    return Tile(handle)
+
+
+@bind_tile_method
+def softmax(input: Tile) -> Tile:
+    check_type("input", input, Tile)
+    if input.dtype not in [KT.float32, KT.half]:
+        raise RuntimeError("Only float and half types are supported.")
+    if len(input.shape) > 2:
+        raise RuntimeError("Tensor dimensionality greater than two is not supported")
+    handle = global_builder.get_ir_builder().create_asctile_SoftmaxOp(input.to_ir().get_type(), input.to_ir())
     return Tile(handle)
