@@ -8,11 +8,13 @@ import asc2
 
 @pytest.fixture(autouse=True)
 def set_platform(backend: config.Backend, platform: config.Platform):
+    if platform != config.Platform.Ascend910_9599:
+        pytest.skip("platform is not supported")
     config.set_platform(backend, platform, check=False)
 
 
 @asc2.jit(always_compile=True)
-def softmax1d_kernel(dst_ptr, src_ptr, length: asc.ConstExpr) -> None:
+def softmax_1d_kernel(dst_ptr, src_ptr, length: asc.ConstExpr) -> None:
     dst = asc2.tensor(dst_ptr, [length])
     src = asc2.tensor(src_ptr, [length])
     src_tile = asc2.load(src, shape=[length], offsets=[0])
@@ -22,7 +24,7 @@ def softmax1d_kernel(dst_ptr, src_ptr, length: asc.ConstExpr) -> None:
 
 
 @asc2.jit(always_compile=True)
-def softmax2d_kernel(dst_ptr, src_ptr, shape: asc.ConstExpr) -> None:
+def softmax_2d_kernel(dst_ptr, src_ptr, shape: asc.ConstExpr) -> None:
     dst = asc2.tensor(dst_ptr, shape)
     src = asc2.tensor(src_ptr, shape)
     src_tile = asc2.load(src, shape=shape, offsets=[0, 0])
@@ -37,10 +39,10 @@ def softmax2d_kernel(dst_ptr, src_ptr, shape: asc.ConstExpr) -> None:
     (torch.float32, [1, 8]),
     (torch.float32, [4, 256]),
 ])
-def test_softmax_fused2d(dtype: torch.dtype, shape):
+def test_softmax_2d(dtype: torch.dtype, shape):
     src = torch.rand(shape, dtype=dtype)
     dst = torch.zeros_like(src)
-    softmax2d_kernel[1](dst, src, shape)
+    softmax_2d_kernel[1](dst, src, shape)
     torch.testing.assert_close(dst, torch.softmax(src, dim=1))
 
 
@@ -50,8 +52,8 @@ def test_softmax_fused2d(dtype: torch.dtype, shape):
     (torch.float32, 8),
     (torch.float32, 1024),
 ])
-def test_softmax_fused1d(dtype: torch.dtype, length):
+def test_softmax_1d(dtype: torch.dtype, length):
     src = torch.rand(length, dtype=dtype)
     dst = torch.zeros_like(src)
-    softmax1d_kernel[1](dst, src, length)
+    softmax_1d_kernel[1](dst, src, length)
     torch.testing.assert_close(dst, torch.softmax(src, dim=0))
