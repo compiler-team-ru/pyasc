@@ -12,6 +12,7 @@
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
+#include "ascir/Dialect/Asc/Utils/Attributes.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
@@ -61,6 +62,16 @@ std::pair<uint64_t, uint64_t> getMask(ShapedType type)
     return {0ul, mask};
 }
 
+template <class OpT>
+void fillMask(OpBuilder& builder, Location loc, ConstantOpBuilder& consts, ShapedType srcType, OpT op)
+{
+    if (op->hasAttr(attr::maskSet))
+        return;
+    auto [maskHVal, maskLVal] = getMask(srcType);
+    auto mask = builder.create<emitasc::MaskOp>(loc, consts.i64(maskHVal), consts.i64(maskLVal));
+    op.getMaskMutable().assign(mask);
+}
+
 // L0 unary operations
 void fillOperation(ascendc::UnaryL0Op op)
 {
@@ -68,9 +79,7 @@ void fillOperation(ascendc::UnaryL0Op op)
     ConstantOpBuilder consts(builder);
     auto srcType = dyn_cast<ShapedType>(op.getSrc().getType());
     auto loc = op.getLoc();
-    auto [maskHVal, maskLVal] = getMask(srcType);
-    auto mask = builder.create<emitasc::MaskOp>(loc, consts.i64(maskHVal), consts.i64(maskLVal));
-    op.getMaskMutable().assign(mask);
+    fillMask(builder, loc, consts, srcType, op);
     auto repeatTimes = consts.i64(getRepeatTimes(srcType));
     op.getRepeatTimesMutable().assign(repeatTimes);
     auto dstBlkStrideVal = consts.i64(dstBlkStride);
@@ -91,9 +100,7 @@ void fillOperation(OpType op)
     ConstantOpBuilder consts(builder);
     auto srcType = dyn_cast<ShapedType>(op.getSrc0().getType());
     auto loc = op.getLoc();
-    auto [maskHVal, maskLVal] = getMask(srcType);
-    auto mask = builder.create<emitasc::MaskOp>(loc, consts.i64(maskHVal), consts.i64(maskLVal));
-    op.getMaskMutable().assign(mask);
+    fillMask(builder, loc, consts, srcType, op);
     auto repeatTimes = consts.i64(getRepeatTimes(srcType));
     op.getRepeatTimesMutable().assign(repeatTimes);
     auto dstBlkStrideVal = consts.i64(dstBlkStride);

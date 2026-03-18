@@ -42,12 +42,12 @@ def mask(*, bits: Iterable[RuntimeInt]) -> Generator[None, Any, None]:
 def mask(*, count: Optional[RuntimeInt] = None, bits: Optional[Iterable[RuntimeInt]] = None) -> Generator:
     builder = global_builder.get_ir_builder()
     if count is not None:
-        mask_op = builder.create_asctile_CountMaskOp(_mat(count, KT.int32).to_ir())
+        mask_op = builder.create_asctile_CountMaskOp(_mat(count, KT.int64).to_ir())
     elif bits is not None:
         bits = tuple(bits)
         if len(bits) != 2:
             raise RuntimeError(f"Expected two integers in 'bits', got {len(bits)}")
-        mask_op = builder.create_asctile_BitwiseMaskOp(_mat(bits[0], KT.int32).to_ir(), _mat(bits[1], KT.int32).to_ir())
+        mask_op = builder.create_asctile_BitwiseMaskOp(_mat(bits[0], KT.int64).to_ir(), _mat(bits[1], KT.int64).to_ir())
     else:
         raise ValueError("One of 'count', 'bits' must be provided")
     old_insertion_point = global_builder.get_ir_builder().save_insertion_point()
