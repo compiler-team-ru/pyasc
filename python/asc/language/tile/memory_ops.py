@@ -14,7 +14,7 @@ from ..core.ir_value import PlainValue, RuntimeInt, RuntimeNumeric, materialize_
 from ..core.utils import global_builder
 from .tensor import Tensor
 from .tile import Tile, TileLocation
-from .utils import verify_shape
+from .utils import check_data_alignment, verify_shape
 
 
 def to_ir_list(values):
@@ -58,6 +58,7 @@ def load(tensor: Tensor, shape: Optional[Iterable[int]] = None, *, tile_id: Opti
                                                                            to_ir_list(offsets))
         return PlainValue(handle)
     shape = verify_shape(shape)
+    check_data_alignment(shape, tensor.dtype)
     offsets = infer_offsets(tensor.shape, shape, tile_id, offsets)
     ir_type = ir.get_asctile_TileType(list(shape), tensor.dtype.to_ir(), location)
     pad_value = _mat(pad_value, tensor.dtype).to_ir() if pad_value is not None else None
@@ -88,6 +89,7 @@ def store(value: Union[Tile, RuntimeNumeric], tensor: Tensor, *, tile_id: Option
         global_builder.get_ir_builder().create_asctile_SetValueOp(
             _mat(value, tensor.dtype).to_ir(), tensor.to_ir(), to_ir_list(offsets))
         return
+    check_data_alignment(value.shape, value.dtype)
     offsets = infer_offsets(tensor.shape, value.shape, tile_id, offsets)
     global_builder.get_ir_builder().create_asctile_StoreOp(value.to_ir(), tensor.to_ir(), offsets)
 
