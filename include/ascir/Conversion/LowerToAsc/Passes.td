@@ -13,6 +13,12 @@
 
 include "mlir/Pass/PassBase.td"
 
+def ExpandMask : Pass<"ascendc-expand-mask", "func::FuncOp"> {
+  let summary = "Update vector mask of nested operations and move them outside";
+  let constructor = "mlir::asclower::createExpandMaskPass()";
+  let dependentDialects = ["emitasc::EmitAscDialect"];
+}
+
 def ExpandMath : Pass<"asclower-expand-math", "func::FuncOp"> {
   let summary = "Expand math operations that cannot be lowered directly";
   let constructor = "mlir::asclower::createExpandMathPass()";

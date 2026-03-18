@@ -154,6 +154,7 @@ void defineLowerToAscPasses(py::module& mod)
 {
     using namespace asclower;
     auto m = mod.def_submodule("asclower");
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_expand_mask", createExpandMaskPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_expand_math", createExpandMathPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_arith", createLowerArithPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_arith_binary", createLowerArithBinaryPass);

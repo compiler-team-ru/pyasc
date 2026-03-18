@@ -90,7 +90,7 @@ struct LoweringConversionTarget : public ConversionTarget {
         addLegalDialect<
             ascendc::AscendCDialect, arith::ArithDialect, emitasc::EmitAscDialect, emitc::EmitCDialect,
             scf::SCFDialect>();
-        addLegalOp<UnrealizedConversionCastOp>();
+        addLegalOp<UnrealizedConversionCastOp, asctile::CountMaskOp, asctile::BitwiseMaskOp, asctile::YieldOp>();
     }
 };
 
