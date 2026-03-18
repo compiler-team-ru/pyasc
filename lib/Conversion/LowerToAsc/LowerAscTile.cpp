@@ -413,6 +413,7 @@ struct ConvertSoftmax : ConvertOp<asctile::SoftmaxOp> {
         int bufferSize = requiredBufferSize(height);
         auto maxTensor = createTensorOp(rewriter, loc, bufferSize, tensorType.getElementType());
         auto sumTensor = createTensorOp(rewriter, loc, bufferSize, tensorType.getElementType());
+        auto sharedBufTensor = createTensorOp(rewriter, loc, bufferSize, rewriter.getIntegerType(8, false));
 
         auto softmaxTiling = rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::SoftMaxTilingType>());
 
@@ -422,7 +423,7 @@ struct ConvertSoftmax : ConvertOp<asctile::SoftmaxOp> {
         rewriter.create<emitasc::SetMemberOp>(loc, softmaxShapeInfo, "srcK", consts.i32(width));
         rewriter.create<emitasc::SetMemberOp>(loc, softmaxShapeInfo, "oriSrcM", consts.i32(height));
         rewriter.create<emitasc::SetMemberOp>(loc, softmaxShapeInfo, "oriSrcK", consts.i32(width));
-        rewriter.create<ascendc::SoftMaxOp>(loc, false, false, false, dst, maxTensor, sumTensor, src, nullptr,
+        rewriter.create<ascendc::SoftMaxOp>(loc, false, false, false, dst, maxTensor, sumTensor, src, sharedBufTensor,
                                             softmaxTiling, softmaxShapeInfo);
         rewriter.replaceOp(op, dst);
         return success();
