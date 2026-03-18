@@ -64,10 +64,12 @@ struct AllocateTensorPass : public ascendc::impl::AllocateTensorBase<AllocateTen
             OpBuilder builder(op);
             auto position = normalizePosition(op.getPosition());
             uint32_t& addr = offsets[position];
-            auto tensor = builder.create<LocalTensorV3Op>(op.getLoc(), type, position, addr, type.getNumElements());
+            uint32_t byteSize = llvm::alignTo<ubBlockSize>(getTypeSize(type));
+            uint32_t tileSize = byteSize / static_cast<uint32_t>(getElementTypeSize(type));
+            auto tensor = builder.create<LocalTensorV3Op>(op.getLoc(), type, position, addr, tileSize);
             op->replaceAllUsesWith(tensor);
             op.erase();
-            addr += llvm::alignTo<ubBlockSize>(getTypeSize(type));
+            addr += byteSize;
         });
     }
 };
