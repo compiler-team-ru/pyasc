@@ -33,13 +33,6 @@ class Tile(IRValue):
         self.shape: Final = tuple(ir.get_shape(ir_type))
         if len(self.shape) < 1:
             raise RuntimeError("Tile shape must have at least one dimension")
-        try:
-            dtype_size = self.dtype.sizeof()
-        except ValueError:  # sizeof might be not supported
-            return
-        if self.shape[-1] % (ir.ub_block_size // dtype_size) != 0:
-            raise RuntimeError(f"Last dimension of tile must be aligned by {ir.ub_block_size} bytes, "
-                               f"got {self.shape[-1]} x {dtype_size} bytes")
 
     @classmethod
     def from_ir(cls, handle: IRHandle) -> Self:
