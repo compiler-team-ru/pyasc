@@ -89,7 +89,7 @@ struct LoweringConversionTarget : public ConversionTarget {
         addIllegalDialect<asctile::AscTileDialect>();
         addLegalDialect<ascendc::AscendCDialect, arith::ArithDialect, emitasc::EmitAscDialect, emitc::EmitCDialect,
                         scf::SCFDialect>();
-        addLegalOp<UnrealizedConversionCastOp>();
+        addLegalOp<UnrealizedConversionCastOp, asctile::CountMaskOp, asctile::BitwiseMaskOp, asctile::YieldOp>();
     }
 };
 

@@ -154,6 +154,7 @@ class Compiler:
             passes.asclower.add_lower_scf(pm)
             passes.common.add_canonicalizer(pm)
             passes.asclower.add_realize_conversion_cast(pm)
+            passes.asclower.add_expand_mask(pm)
             passes.ascendc.add_fill_asc_operands(pm)
         passes.ascendc.add_input_output_tensor(pm)
         if self.options.reuse_ub:
