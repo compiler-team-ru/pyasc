@@ -396,8 +396,6 @@ struct ConvertSoftmax : ConvertOp<asctile::SoftmaxOp> {
         return {shape.size() == 2 ? shape[0] : 1, shape.back()};
     }
 
-    static int64_t requiredBufferSize(int rowNum) { return ascendc::ubBlockSize * rowNum; }
-
     LogicalResult convert(asctile::SoftmaxOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
@@ -412,10 +410,12 @@ struct ConvertSoftmax : ConvertOp<asctile::SoftmaxOp> {
         auto src = rewriter.getRemappedValue(op.getOperand());
 
         auto dst = createTensorOp(rewriter, loc, tensorType);
-        int bufferSize = requiredBufferSize(height);
-        auto maxTensor = createTensorOp(rewriter, loc, bufferSize, tensorType.getElementType());
-        auto sumTensor = createTensorOp(rewriter, loc, bufferSize, tensorType.getElementType());
-        auto sharedBufTensor = createTensorOp(rewriter, loc, bufferSize, rewriter.getIntegerType(8, false));
+        auto elemType = tensorType.getElementType();
+        int64_t bufferSize = ascendc::ubBlockSize * height / ascendc::getElementTypeSize(tensorType);
+        auto maxTensor = createTensorOp(rewriter, loc, bufferSize, elemType);
+        auto sumTensor = createTensorOp(rewriter, loc, bufferSize, elemType);
+        auto sharedBufTensor =
+            createTensorOp(rewriter, loc, ascendc::getTypeSize(tensorType), rewriter.getIntegerType(8, false));
 
         auto softmaxTiling = rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::SoftMaxTilingType>());
 
