@@ -6,20 +6,28 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-from typing import Callable
+from typing import Callable, Union
 
-from ..core.ir_value import IRHandle
-from ..core.utils import check_type, global_builder
 from ..core.dtype import KnownTypes as KT
+from ..core.ir_value import PlainValue, RuntimeNumeric, IRHandle, materialize_ir_value as _mat
+from ..core.utils import check_type, global_builder
 from .tile import Tile, bind_tile_method
 
 
-def op_unary_impl(input: Tile, build: Callable[..., IRHandle]) -> Tile:
+def op_unary_impl(input: Union[Tile, RuntimeNumeric], build: Callable[..., IRHandle],
+                  support_scalar: bool = False) -> Union[Tile, PlainValue]:
+    constraint = Union[Tile, RuntimeNumeric] if support_scalar else Tile
+    check_type("input", input, constraint)
+    is_scalar = not isinstance(input, Tile)
+    if is_scalar:
+        input = _mat(input, KT.float32)
     result_dtype = input.dtype
     if result_dtype.is_float():
         handle = build(input.to_ir())
     else:
         raise RuntimeError(f"Operation not support this dtype: {result_dtype}")
+    if is_scalar:
+        return PlainValue(handle)
     return Tile(handle)
 
 
@@ -62,7 +70,7 @@ def tanh(input: Tile) -> Tile:
 @bind_tile_method
 def exp(input: Tile) -> Tile:
     builder = global_builder.get_ir_builder()
-    return op_unary_impl(input, builder.create_math_ExpOp)
+    return op_unary_impl(input, builder.create_math_ExpOp, support_scalar=True)
 
 
 @bind_tile_method
@@ -98,7 +106,7 @@ def abs(input: Tile) -> Tile:
 @bind_tile_method
 def erf(input: Tile) -> Tile:
     builder = global_builder.get_ir_builder()
-    return op_unary_impl(input, builder.create_math_ErfOp)
+    return op_unary_impl(input, builder.create_math_ErfOp, support_scalar=True)
 
 
 @bind_tile_method
@@ -116,7 +124,7 @@ def rsqrt(input: Tile) -> Tile:
 @bind_tile_method
 def sqrt(input: Tile) -> Tile:
     builder = global_builder.get_ir_builder()
-    return op_unary_impl(input, builder.create_math_SqrtOp)
+    return op_unary_impl(input, builder.create_math_SqrtOp, support_scalar=True)
 
 
 @bind_tile_method
