@@ -26,9 +26,21 @@ def jit(**options) -> Callable[[Callable[P, T]], JITFunction[P, T]]:
 
 
 def jit(fn: Optional[Callable[P, T]] = None, **options):
+    """
+    Instantiate a JIT function using the default options.
+    This should be used as a decorator for the kernel function:
+
+    .. code-block:: python
+
+        @asc2.jit
+        def kernel(x, y):
+            ...
+
+    JIT options may be provided as keyword arguments to be applied to the decorated kernel function.
+    See :py:obj:`asc.CodegenOptions`, :py:obj:`asc.CompileOptions`, :py:obj:`asc.LaunchOptions` for the details.
+    """
     options.setdefault("insert_sync", True)
     options.setdefault("run_asc2_passes", True)
-    options.setdefault("densify_load_store", True)
 
     def decorator(fn: Callable[P, T]) -> JITFunction[P, T]:
         return JITFunction(fn, **options)

@@ -19,6 +19,7 @@ Python API
    python-api/rst/language/fwk
    python-api/rst/language/tile
    python-api/rst/lib/host
+   python-api/rst/runtime/index
 
 
 .. toctree::

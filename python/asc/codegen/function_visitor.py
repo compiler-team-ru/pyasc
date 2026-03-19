@@ -62,8 +62,6 @@ class CodegenOptions:
     Usually, it must always be enabled, but may be disabled for the IR debugging purposes.
     """
 
-    custom_builtins: CustomBuiltins = field(default_factory=dict)
-
 
 @dataclass
 class ReturnType:
