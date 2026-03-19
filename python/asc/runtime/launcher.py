@@ -71,11 +71,11 @@ class LaunchOptions:
     """
     Kernel launch and device runtime options.
 
-    These options can also be used as positional arguments in ``[`` brackets ``]`` when launch JIT function:
+    These options can also be used as positional arguments in :code:`[` brackets :code:`]` when launch JIT function:
 
     .. code-block:: python
 
-        @asc.jit
+        @asc2.jit
         def kernel(x_ptr, y_ptr):
             ...
 
@@ -83,7 +83,7 @@ class LaunchOptions:
             kernel[core_num](x, y)
     """
 
-    core_num: Optional[int] = None
+    core_num: int = 0
     """
     Number of active execution blocks (AI cores) used to launch the kernel.
     By default, all cores available on the current platform will be used.
