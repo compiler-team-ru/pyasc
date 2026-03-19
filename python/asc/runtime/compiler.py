@@ -26,23 +26,67 @@ from . import utils
 
 @dataclass
 class CompileOptions:
+    """Binary compilation and IR transformation options"""
+
     debug: bool = False
     strip_loc: bool = False
     verify_sync: bool = False
     print_ir_before_all: bool = False
     run_passes: bool = True
     kernel_type: Optional[KernelType] = None
-    opt_level: Optional[int] = 3
     auto_sync: Optional[bool] = True
     auto_sync_log: Optional[str] = ""
-    bisheng_options: Optional[Tuple[str]] = None
-    always_compile: bool = False
     matmul_cube_only: bool = False
-    insert_sync: Optional[bool] = None
+
+    always_compile: bool = False
+    """
+    Always run full compilation pipeline instead of fetching a cached objects from the prevoius runs.
+    This option may be useful for testing and parallel execution.
+    """
+
+    bisheng_options: Optional[Tuple[str]] = None
+    """
+    Append extra arguments to the :code:`bisheng` command line used to produce an object file for the kernel.
+    Please, run :code:`bisheng --help` to get the list of options supported by the compiler.
+    """
+
+    opt_level: int = 3
+    """
+    Optimization level for the Bisheng compiler. Supported values are :code:`1`, :code:`2`, :code:`3`.
+    Typically, this parameter affects the :code:`-O` argument of the command line for the compiler.
+    """
+
     run_asc2_passes: bool = False
-    densify_load_store: bool = True
-    use_pipe: bool = True
+    """
+    Enable PyAsc2 compilation pipeline.
+    **This option is enabled automatically** when :code:`@asc2.jit` decorator is used.
+    """
+
+    densify_load_store: bool = False
+    """
+    Densify :py:obj:`asc2.load` and :py:obj:`asc2.store` statements by grouping them together.
+
+    .. warning::
+        This is an experimental feature. It might or might not cause functional or performance regressions.
+    """
+
+    insert_sync: Optional[bool] = None
+    """
+    Insert synchronization instructions automatically.
+    **This feature is enabled by default**, which is usually a must, but may be disabled for the debugging purposes.
+    """
+
     reuse_ub: bool = False
+    """
+    Try to reduce the UB memory usage by replacing the tiles with those allocated earlier but became unused.
+    Having this feature enabled may help to avoid UB overflow but may introduce performance regressions.
+    """
+
+    static_alloc: bool = False
+    """
+    Perform static allocation for tiles instead of relying on Ascend C TPipe backend.
+    The static allocation feature may help to reduce an overhead caused by scalar code.
+    """
 
 
 class CompilePlatform(Enum):
@@ -161,10 +205,10 @@ class Compiler:
             passes.ascendc.add_reuse_ub_allocation(pm)
             passes.common.add_canonicalizer(pm)
         passes.ascendc.add_hoist_ub_allocation(pm, exclude_in_out=not platform_95)
-        if self.options.use_pipe:
-            passes.ascendc.add_materialize_tensor(pm, always_buf=platform_95)
-        else:
+        if self.options.static_alloc:
             passes.ascendc.add_allocate_tensor(pm)
+        else:
+            passes.ascendc.add_materialize_tensor(pm, always_buf=platform_95)
         passes.ascendc.add_unify_pipe(pm)
         passes.common.add_canonicalizer(pm)
         passes.common.add_cse(pm)

@@ -34,8 +34,20 @@ P = ParamSpec("P")
 
 @dataclass
 class CodegenOptions:
+    """Code generation and AST traversal options"""
+
     capture_exceptions: bool = True
+    """
+    Capture all exceptions raised by functions called by code generator internally and show the corresponding location
+    in the user function code being traversed that caused an exception instead.
+    Usually, it must always be enabled, but may be disabled for the language debugging purposes.
+    """
+
     ir_multithreading: bool = True
+    """
+    Enable parallel processing for the current IR context if possible.
+    Usually, it must always be enabled, but may be disabled for the IR debugging purposes.
+    """
 
 
 @dataclass
