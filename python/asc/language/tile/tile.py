@@ -106,13 +106,31 @@ class Tile(IRValue):
 
     # Reduction operations
 
+    @overload
+    def sum(self, *dims: int, keep_dims: bool = False) -> Self:
+        ...
+
+    @overload
     def sum(self) -> PlainValue:
         ...
 
+    @overload
+    def max(self, *dims: int, keep_dims: bool = False) -> Self:
+        ...
+
+    @overload
     def max(self) -> PlainValue:
         ...
 
+    @overload
+    def min(self, *dims: int, keep_dims: bool = False) -> Self:
+        ...
+
+    @overload
     def min(self) -> PlainValue:
+        ...
+
+    def prod(self, *dims: int, keep_dims: bool = False) -> Self:
         ...
 
     # Unary operations

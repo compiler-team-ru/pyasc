@@ -137,6 +137,8 @@ using PrintableOpTypes = std::tuple<
     ascendc::QuantOp,
     // Broadcast
     ascendc::BroadcastOp,
+    // Reduction
+    ascendc::ReduceOp,
     // Basic
     // AIPP operations
     ascendc::SetAippFunctionsOp,

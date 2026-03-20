@@ -300,8 +300,7 @@ def DataConversionOpInterface
 def ReduceOpInterface : AscendC_OpInterface<"ReduceOp", [
   VectorOpInterface, OpWithDstInterface, OpWithSrcInterface
 ]> {
-    let methods = [getPattern, getSharedTmpBuffer, getSrcShape, getSrc,
-                   GetMethod<"isReuseSource", "getIsReuseSource", "bool">];
+    let methods = [getPattern, getSharedTmpBuffer, getSrcShape, getSrc];
 }
 
 #endif // ASC_INTERFACES_TD
