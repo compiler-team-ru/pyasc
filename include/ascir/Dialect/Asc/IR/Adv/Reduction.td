@@ -25,10 +25,8 @@ class AscendC_ReduceOp<string mnemonic, string apiName> : VectorOp<mnemonic, api
 ]> {
   let arguments = (ins AscendC_LocalTensor:$dst, AscendC_LocalTensor:$src,
                    AscendC_LocalTensor:$sharedTmpBuffer,
-                   Variadic<I32>:$srcShape, AscendC_ReducePatternAttr:$pattern,
-                   UnitAttr:$isReuseSource);
+                   Variadic<I32>:$srcShape, AscendC_ReducePatternAttr:$pattern);
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getDstTensors() { return {getDst(), getSharedTmpBuffer()}; }
     SmallVector<Value> getSrcTensors() { return {getSrc()}; }
   }];
 }

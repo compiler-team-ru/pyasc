@@ -253,4 +253,20 @@ def BroadcastOp : AscTile_Op<"broadcast", [
   }];
 }
 
+class AscTile_ReduceOp<string mnemonic> : AscTile_Op<mnemonic, [
+  Pure,
+  AllElementTypesMatch<["operand", "result"]>
+]> {
+  let arguments = (ins Tile:$operand, I32ArrayAttr:$dims);
+  let results = (outs Tile:$result);
+  let assemblyFormat = [{
+    $operand attr-dict `:` qualified(type($operand)) `,` qualified(type($result))
+  }];
+}
+
+def AscTile_ReduceSumOp: AscTile_ReduceOp<"reduce_sum">;
+def AscTile_ReduceMinOp: AscTile_ReduceOp<"reduce_min">;
+def AscTile_ReduceMaxOp: AscTile_ReduceOp<"reduce_max">;
+def AscTile_ReduceProdOp: AscTile_ReduceOp<"reduce_prod">;
+
 #endif // ASCTILE_OPS_TD
