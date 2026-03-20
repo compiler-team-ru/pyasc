@@ -539,4 +539,27 @@ def AscendC_AtomicOpAttr : I32EnumAttr<"AtomicOp", "", [
   let underlyingType = "uint8_t";
 }
 
+def AscendC_ReducePatternAttr : I32EnumAttr<"ReducePattern", "", [
+  I32EnumAttrCase<"R", 0>,
+  I32EnumAttrCase<"AR", 1>,
+  I32EnumAttrCase<"RA", 2>,
+  I32EnumAttrCase<"ARA", 3>,
+  I32EnumAttrCase<"ARAR", 4>,
+  I32EnumAttrCase<"ARARA", 5>,
+  I32EnumAttrCase<"ARARAR", 6>,
+  I32EnumAttrCase<"ARARARA", 7>,
+  I32EnumAttrCase<"ARARARAR", 8>,
+  I32EnumAttrCase<"ARARARARA", 9>,
+  I32EnumAttrCase<"RAR", 10>,
+  I32EnumAttrCase<"RARA", 11>,
+  I32EnumAttrCase<"RARAR", 12>,
+  I32EnumAttrCase<"RARARA", 13>,
+  I32EnumAttrCase<"RARARAR", 14>,
+  I32EnumAttrCase<"RARARARA", 15>,
+]>{
+  let cppNamespace = "::mlir::ascendc";
+  let description = "Describes reduction pattern from reduce_common.h";
+  let underlyingType = "uint8_t";
+}
+
 #endif // ASC_CORE_ATTRIBUTES_TD

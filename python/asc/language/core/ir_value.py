@@ -346,7 +346,7 @@ def materialize_ir_value(value: RuntimeNumeric, required_type: Optional[DataType
         return value if required_type is None else value.cast(required_type)
     if isinstance(value, IRValue):
         if required_type is not None:
-            raise ValueError("Required type cannot be specified for IRValue which is not PlainValue")
+            raise ValueError(f"{required_type} cannot be specified for {value} which is not PlainValue")
         return value
     if isinstance(value, ConstExpr):
         return materialize_ir_value(value.value, required_type)

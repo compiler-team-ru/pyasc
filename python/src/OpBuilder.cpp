@@ -454,6 +454,17 @@ void bind_get_attributes(py::class_<PyOpBuilder>& clss)
                 return self->getTypeArrayAttr(types);
             })
         .def(
+            "get_i32_array_attr",
+            [](PyOpBuilder& self, const std::vector<int32_t>& values) -> ArrayAttr {
+                return self->getI32ArrayAttr(values);
+            })
+        .def(
+            "get_bool_array_attr",
+            [](PyOpBuilder& self, const std::vector<bool>& values) -> ArrayAttr {
+                llvm::SmallVector<bool> temp{values.begin(), values.end()};
+                return self->getBoolArrayAttr(temp);
+            })
+        .def(
             "get_opaque_attr",
             [](PyOpBuilder& self, const std::string& value) -> Attribute {
                 return self->getAttr<emitc::OpaqueAttr>(value);
