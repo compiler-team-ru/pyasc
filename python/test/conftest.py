@@ -24,3 +24,13 @@ def backend(request: pytest.FixtureRequest):
 @pytest.fixture
 def platform(request: pytest.FixtureRequest):
     return request.config.getoption("--platform")
+
+
+def require_platform_95_impl(platform: config.Platform):
+    if platform not in (config.Platform.Ascend910_9579, config.Platform.Ascend910_9589, config.Platform.Ascend910_9599):
+        pytest.skip("platform is not supported")
+
+
+@pytest.fixture
+def require_platform_95():
+    return require_platform_95_impl
