@@ -34,6 +34,7 @@
 | [Ascend C Python算子调试调优指南](op_debug_prof.md) | 介绍常见的算子调试和调优方法。 |
 | [pyasc的python语法支持情况说明](python_syntax_support.md) | 介绍pyasc项目支持和不支持的python语法。 |
 | [API文档自动生成工具使用指南](API_docstring_generation_tool_guide.md)                 | 介绍自动生成API文档的工具的使用方法。  |
+| [PyAsc算子开发指南](pyasc_op_develop_guide.md)                 | 介绍基于pyasc的Ascend C算子开发基本流程。  |
 
 ## 附录
 

@@ -1,6 +1,6 @@
 # 构建
 ## 环境准备<a name="envready"></a>
-### 编译环境准备
+### 编译环境准备<a name="buildenv"></a>
 pyasc支持通过pip快速安装和基于源码编译安装两种方式。
 
 #### 快速安装
@@ -160,7 +160,7 @@ pyasc支持通过pip快速安装和基于源码编译安装两种方式。
       python3 -m pip install -e .
       ```
 
-### 运行环境准备
+### 运行环境准备<a name="runtimeenv"></a>
 
 使用基于源码安装时，建议安装社区版<a href="https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.5.0.alpha001">8.5.0.alpha001</a>及以上版本。
 
