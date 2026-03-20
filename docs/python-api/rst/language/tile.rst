@@ -87,3 +87,19 @@ Memory operations
 
     load
     store
+
+
+Reduction operations
+--------------------
+
+.. currentmodule:: asc.language.tile.reduction_ops
+
+.. autosummary::
+    :toctree: generated
+    :nosignatures:
+
+    reduce_min
+    reduce_max
+    reduce_sum
+    reduce_prod
+

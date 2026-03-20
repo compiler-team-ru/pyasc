@@ -533,7 +533,7 @@ struct ConvertToL2 : ConvertOp<TileOp> {
 };
 
 template <typename TileOp, typename L2Op>
-struct ConvertReduce : ConvertOp<TileOp> {
+struct ConvertReduceAs1d : ConvertOp<TileOp> {
     using ConvertOp<TileOp>::ConvertOp;
     using ConvertOp<TileOp>::createTensorOp;
     using ConvertOp<TileOp>::calCount;
@@ -557,6 +557,97 @@ struct ConvertReduce : ConvertOp<TileOp> {
     }
 };
 
+template <typename TileOp, typename AscOp>
+struct ConvertReduce : ConvertOp<TileOp> {
+    using ConvertOp<TileOp>::ConvertOp;
+    using ConvertOp<TileOp>::createTensorOp;
+
+    static std::optional<ascendc::ReducePattern> findPattern(size_t length, uint64_t mask)
+    {
+        struct Pattern {
+            size_t length;
+            uint64_t mask;
+            ascendc::ReducePattern value;
+        };
+        static constexpr Pattern patterns[] = {
+            {1, 0b1, ascendc::ReducePattern::R},
+            {2, 0b01, ascendc::ReducePattern::RA},
+            {2, 0b10, ascendc::ReducePattern::AR},
+            {3, 0b010, ascendc::ReducePattern::ARA},
+            {3, 0b101, ascendc::ReducePattern::RAR},
+            {4, 0b1010, ascendc::ReducePattern::ARAR},
+            {4, 0b0101, ascendc::ReducePattern::RARA},
+            {5, 0b10101, ascendc::ReducePattern::RARAR},
+            {5, 0b01010, ascendc::ReducePattern::ARARA},
+            {6, 0b101010, ascendc::ReducePattern::RARARA},
+            {6, 0b010101, ascendc::ReducePattern::ARARAR},
+            {7, 0b1010101, ascendc::ReducePattern::RARARAR},
+            {7, 0b0101010, ascendc::ReducePattern::ARARARA},
+            {8, 0b10101010, ascendc::ReducePattern::RARARARA},
+            {8, 0b01010101, ascendc::ReducePattern::ARARARAR},
+            {9, 0b010101010, ascendc::ReducePattern::ARARARARA},
+        };
+        for (const auto &p : patterns) {
+            if (p.length == length && p.mask == mask)
+                return p.value;
+        }
+        return std::nullopt;
+    }
+
+    static std::pair<SmallVector<int64_t>, std::optional<ascendc::ReducePattern>>
+    getReductionParams(ArrayRef<int64_t> tensorShape, ArrayRef<int64_t> dims)
+    {
+        if (tensorShape.empty() || dims.empty())
+            return {};
+        SmallVector<bool> reduceDims(tensorShape.size(), false);
+        for (auto dim : dims)
+            reduceDims[dim] = true;
+        SmallVector<int64_t> shape;
+        bool reduceCurrent = reduceDims[0];
+        int64_t accum = 1;
+        uint64_t mask = 0;
+        for (size_t i = 0; i <= tensorShape.size(); ++i) {
+            if (i < tensorShape.size() && reduceDims[i] == reduceCurrent) {
+                accum *= tensorShape[i];
+                continue;
+            }
+            if (reduceCurrent)
+                mask |= (1 << shape.size());
+            shape.push_back(accum);
+            if (i < tensorShape.size()) {
+                accum = tensorShape[i];
+                reduceCurrent = reduceDims[i];
+            }
+        }
+        return std::pair(shape, findPattern(shape.size(), mask));
+    }
+
+    LogicalResult convert(TileOp op, ConvertRewriter &rewriter) const override
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        Location loc = op.getLoc();
+        SmallVector<int64_t> reduceDims;
+        for (auto attr : op.getDims()) {
+            reduceDims.push_back(cast<IntegerAttr>(attr).getValue().getSExtValue());
+        }
+        auto [shape, pattern] = getReductionParams(op.getOperand().getType().getShape(), reduceDims);
+        if (shape.empty() || !pattern)
+            return emitError(loc, "Tensor of shape [")
+                .append(op.getOperand().getType().getShape())
+                .append("] have wrong reduction dimensions: ")
+                .append(reduceDims);
+        SmallVector<Value> srcShape;
+        for (auto size : shape)
+            srcShape.push_back(consts.i32(size));
+        Value dst = createTensorOp(rewriter, loc, op.getType());
+        Value src = rewriter.getRemappedValue(op.getOperand());
+        Value tmpBuff = createTensorOp(rewriter, loc, 32L, rewriter.getIntegerType(8, false));
+        rewriter.create<AscOp>(loc, dst, src, tmpBuff, srcShape, *pattern);
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
 struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePass> {
     void runOnOperation() override
     {
@@ -571,9 +662,13 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
             ConvertCast, ConvertSelect, ConvertMatmul, ConvertReshape, ConvertBroadcast, ConvertSoftmax,
             ConvertToL2<asctile::AddsOp, ascendc::AddsL2Op>, ConvertToL2<asctile::MulsOp, ascendc::MulsL2Op>,
             ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>, ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>,
-            ConvertReduce<asctile::ReduceSumAs1dOp, ascendc::ReduceSumL2Op>,
-            ConvertReduce<asctile::ReduceMaxAs1dOp, ascendc::ReduceMaxL2Op>,
-            ConvertReduce<asctile::ReduceMinAs1dOp, ascendc::ReduceMinL2Op>
+            ConvertReduceAs1d<asctile::ReduceSumAs1dOp, ascendc::ReduceSumL2Op>,
+            ConvertReduceAs1d<asctile::ReduceMinAs1dOp, ascendc::ReduceMinL2Op>,
+            ConvertReduceAs1d<asctile::ReduceMaxAs1dOp, ascendc::ReduceMaxL2Op>,
+            ConvertReduce<asctile::ReduceSumOp, ascendc::ReduceSumOp>,
+            ConvertReduce<asctile::ReduceMinOp, ascendc::ReduceMinOp>,
+            ConvertReduce<asctile::ReduceMaxOp, ascendc::ReduceMaxOp>,
+            ConvertReduce<asctile::ReduceProdOp, ascendc::ReduceProdOp>
             //
             >(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())

@@ -432,26 +432,31 @@ void bind_get_attributes(py::class_<PyOpBuilder> &clss)
     using namespace pybind11::literals;
 
     clss.def("get_index_attr", [](PyOpBuilder &self, int64_t value) -> Attribute { return self->getIndexAttr(value); })
-        .def("get_i8_attr",
-             [](PyOpBuilder &self, int8_t value) -> Attribute { return self->getI8IntegerAttr(value); })
+        .def("get_i8_attr", [](PyOpBuilder &self, int8_t value) -> Attribute { return self->getI8IntegerAttr(value); })
         .def("get_i16_attr",
              [](PyOpBuilder &self, int16_t value) -> Attribute { return self->getI16IntegerAttr(value); })
         .def("get_i32_attr",
              [](PyOpBuilder &self, int32_t value) -> Attribute { return self->getI32IntegerAttr(value); })
         .def("get_i64_attr",
              [](PyOpBuilder &self, int64_t value) -> Attribute { return self->getI64IntegerAttr(value); })
-        .def("get_f16_attr",
-             [](PyOpBuilder &self, float value) -> Attribute { return self->getF16FloatAttr(value); })
-        .def("get_f32_attr",
-             [](PyOpBuilder &self, float value) -> Attribute { return self->getF32FloatAttr(value); })
-        .def("get_f64_attr",
-             [](PyOpBuilder &self, double value) -> Attribute { return self->getF64FloatAttr(value); })
+        .def("get_f16_attr", [](PyOpBuilder &self, float value) -> Attribute { return self->getF16FloatAttr(value); })
+        .def("get_f32_attr", [](PyOpBuilder &self, float value) -> Attribute { return self->getF32FloatAttr(value); })
+        .def("get_f64_attr", [](PyOpBuilder &self, double value) -> Attribute { return self->getF64FloatAttr(value); })
         .def("get_str_attr",
              [](PyOpBuilder &self, const std::string &value) -> Attribute { return self->getStringAttr(value); })
         .def("get_unit_attr", [](PyOpBuilder &self) -> Attribute { return self->getUnitAttr(); })
         .def("get_type_array_attr",
              [](PyOpBuilder &self, const std::vector<Type> &types) -> ArrayAttr {
                  return self->getTypeArrayAttr(types);
+             })
+        .def("get_i32_array_attr",
+             [](PyOpBuilder &self, const std::vector<int32_t> &values) -> ArrayAttr {
+                 return self->getI32ArrayAttr(values);
+             })
+        .def("get_bool_array_attr",
+             [](PyOpBuilder &self, const std::vector<bool> &values) -> ArrayAttr {
+                 llvm::SmallVector<bool> temp {values.begin(), values.end()};
+                 return self->getBoolArrayAttr(temp);
              })
         .def("get_opaque_attr",
              [](PyOpBuilder &self, const std::string &value) -> Attribute {

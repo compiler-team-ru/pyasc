@@ -72,11 +72,7 @@ from asc.language.tile.unary_ops import (
     tanh,
 )
 from asc.language.tile.indexing_ops import mask, where
-from asc.language.tile.reduction_ops import (
-    reduce_sum,
-    reduce_max,
-    reduce_min,
-)
+from asc.language.tile.reduction_ops import (reduce_max, reduce_min, reduce_sum, reduce_prod)
 
 from .jit import jit
 
@@ -148,6 +144,7 @@ __all__ = [
     "reduce_sum",
     "reduce_max",
     "reduce_min",
+    "reduce_prod",
     # .jit
     "jit",
 ]

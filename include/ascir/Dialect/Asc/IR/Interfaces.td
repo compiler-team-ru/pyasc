@@ -33,6 +33,7 @@ class AscendC_InterfaceMethods {
   InterfaceMethod getMask = GetMethod<"mask", "getMask">;
   InterfaceMethod getMaskMutable = GetMutableMethod<"mask", "getMaskMutable">;
   InterfaceMethod getParams = GetMethod<"params", "getParams">;
+  InterfaceMethod getPattern = GetMethod<"pattern", "getPattern", "::mlir::ascendc::ReducePattern">;
   InterfaceMethod getRepeatParams = GetMethod<"repeatParams", "getRepeatParams">;
   InterfaceMethod getRepeatParamsMutable = GetMutableMethod<"repeatParams", "getRepeatParamsMutable">;
   InterfaceMethod getRepeatTimes = GetMethod<"repeatTimes", "getRepeatTimes">;
@@ -49,6 +50,7 @@ class AscendC_InterfaceMethods {
   InterfaceMethod getSrc1 = GetMethod<"src1", "getSrc1">;
   InterfaceMethod getSrc1BlkStride = GetMethod<"src1BlkStride", "getSrc1BlkStride">;
   InterfaceMethod getSrc1RepStride = GetMethod<"src1RepStride", "getSrc1RepStride">;
+  InterfaceMethod getSrcShape = GetMethod<"srcShape", "getSrcShape", "mlir::OperandRange">;
   InterfaceMethod getIsReuseSource = GetMethod<"isReuseSource", "getIsReuseSource">;
   InterfaceMethod getIsExhaustedSuspension = GetMethod<"isExhaustedSuspension",
     "getIsExhaustedSuspension", "bool">;
@@ -214,6 +216,16 @@ def BinaryMathOpInterface : AscendC_OpInterface<"BinaryMathOp", [MathLibraryOpIn
 def DataConversionOpInterface
     : AscendC_OpInterface<"DataConversionOp", [APIOpInterface]> {
   let description = "Data conversion operation";
+}
+
+//===----------------------------------------------------------------------===//
+// Reduction operations
+//===----------------------------------------------------------------------===//
+
+def ReduceOpInterface : AscendC_OpInterface<"ReduceOp", [
+  VectorOpInterface, OpWithDstInterface, OpWithSrcInterface
+]> {
+    let methods = [getPattern, getSharedTmpBuffer, getSrcShape, getSrc];
 }
 
 #endif // ASC_INTERFACES_TD

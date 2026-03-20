@@ -17,6 +17,7 @@
 #include "ascir/Target/Asc/Adv/Matmul.h"
 #include "ascir/Target/Asc/Adv/Normalization.h"
 #include "ascir/Target/Asc/Adv/Quantization.h"
+#include "ascir/Target/Asc/Adv/Reduction.h"
 #include "ascir/Target/Asc/Basic/Aipp.h"
 #include "ascir/Target/Asc/Basic/BlockSync.h"
 #include "ascir/Target/Asc/Basic/DataConversion.h"
@@ -123,6 +124,8 @@ using PrintableOpTypes = std::tuple<
     ascendc::QuantOp,
     // Broadcast
     ascendc::BroadcastOp,
+    // Reduction
+    ascendc::ReduceOp,
     // Basic
     // AIPP operations
     ascendc::SetAippFunctionsOp,
