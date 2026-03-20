@@ -12,9 +12,8 @@ test_cases = [
 
 
 @pytest.fixture(autouse=True)
-def set_platform(backend: config.Backend, platform: config.Platform):
-    if platform != config.Platform.Ascend910_9599:
-        pytest.skip("platform is not supported")
+def set_platform(backend: config.Backend, platform: config.Platform, require_platform_95):
+    require_platform_95(platform)
     config.set_platform(backend, platform, check=False)
 
 
