@@ -30,6 +30,7 @@ class range(BaseRange):
         self.parallel = parallel
 
     def handle_op(self, op: ir.ForOp) -> None:
-        op.set_attr("asctile.unroll_factor", global_builder.get_ir_builder().get_index_attr(self.unroll_factor))
-        if (self.parallel):
-            op.set_attr("asctile.parallel", global_builder.get_ir_builder().get_unit_attr())
+        builder = global_builder.get_ir_builder()
+        op.set_attr(ir.attr.unroll_factor, builder.get_index_attr(self.unroll_factor))
+        if self.parallel:
+            op.set_attr(ir.attr.parallel, builder.get_unit_attr())
