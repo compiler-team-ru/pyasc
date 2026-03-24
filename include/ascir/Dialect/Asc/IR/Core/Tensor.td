@@ -238,13 +238,16 @@ def AscendC_LocalTensorGetUserTagOp : APIOp<"local_tensor.get_user_tag", "GetUse
   }];
 }
 
-def AscendC_LocalTensorGetValueOp : APIOp<"local_tensor.get_value", "GetValue", [AscMemberFunc]> {
+def AscendC_LocalTensorGetValueOp : APIOp<"local_tensor.get_value", "GetValue", [AscMemberFunc, OpWithSrcInterface]> {
   let summary = "Call `AscendC::LocalTensor::GetValue` method";
   let arguments = (ins AscendC_LocalTensor:$tensor, AnyType:$index);
   let results = (outs AnyType:$value);
   let assemblyFormat = [{
     $tensor `,` $index attr-dict `:` qualified(type($tensor)) `,`
     qualified(type($index)) `,` qualified(type($value))
+  }];
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getTensor()}; }
   }];
 }
 
@@ -292,12 +295,15 @@ def AscendC_LocalTensorSetUserTagOp : APIOp<"local_tensor.set_user_tag", "SetUse
   let arguments = (ins AscendC_LocalTensor:$tensor, I32:$tag);
 }
 
-def AscendC_LocalTensorSetValueOp : APIOp<"local_tensor.set_value", "SetValue", [AscMemberFunc]> {
+def AscendC_LocalTensorSetValueOp : APIOp<"local_tensor.set_value", "SetValue", [AscMemberFunc, OpWithSrcInterface]> {
   let summary = "Call `AscendC::LocalTensor::SetValue` method";
   let arguments = (ins AscendC_LocalTensor:$tensor, AnyType:$index, AnyType:$value);
   let assemblyFormat = [{
     $tensor `,` $index `,` $value attr-dict `:` qualified(type($tensor)) `,`
     type($index) `,` type($value)
+  }];
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getTensor()}; }
   }];
 }
 

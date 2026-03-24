@@ -76,7 +76,11 @@ void processOp(Operation *op, SmallVectorImpl<Operation *> &fuseGroup, ascendc::
     if (state == currentPipe) {
         if (fuseGroup.empty())
             return;
-        if (op->getAttr(ascendc::attr::bufId) == fuseGroup.back()->getAttr(ascendc::attr::bufId)) {
+        auto bufIdAttr = op->getAttr(ascendc::attr::bufId);
+        auto fuseGroupAttr = fuseGroup.back()->getAttr(ascendc::attr::bufId);
+        if (!bufIdAttr || !fuseGroupAttr)
+            return;
+        if (bufIdAttr == fuseGroupAttr) {
             fuseGroup.push_back(op);
         } else {
             eraseSync(fuseGroup);

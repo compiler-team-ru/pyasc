@@ -87,6 +87,12 @@ def InsertBufIdSync : Pass<"ascendc-insert-bufid-sync", "func::FuncOp"> {
   let dependentDialects = ["ascendc::AscendCDialect"];
 }
 
+def InsertBufIdSyncV2 : Pass<"ascendc-insert-bufid-sync-v2", "func::FuncOp"> {
+  let summary = "Insert get_buf and rls_buf synchronization";
+  let constructor = "mlir::ascendc::createInsertBufIdSyncV2Pass()";
+  let dependentDialects = ["ascendc::AscendCDialect", "scf::SCFDialect"];
+}
+
 def InsertSync : Pass<"ascendc-insert-sync", "func::FuncOp"> {
   let summary = "Insert intra-core synchronization operations";
   let constructor = "mlir::ascendc::createInsertSyncPass()";

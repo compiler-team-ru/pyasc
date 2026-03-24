@@ -13,7 +13,7 @@ import asc.runtime.config as config
 import asc2
 
 
-@asc2.jit(always_compile=True)
+@asc2.jit(always_compile=True, sync_v2=True)
 def leaky_relu_kernel(x_ptr: asc.GlobalAddress, alpha: float, out_ptr: asc.GlobalAddress, size: int,
                       tile_size: asc.ConstExpr[int], tile_per_block: asc.ConstExpr[int]):
     x_gm = asc2.tensor(x_ptr, [size])
