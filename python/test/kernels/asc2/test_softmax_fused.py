@@ -13,7 +13,7 @@ import asc.runtime.config as config
 import asc2
 
 
-@asc2.jit(always_compile=True)
+@asc2.jit(always_compile=True, sync_v2=True)
 def softmax_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, num_rows: int, num_cols: asc.ConstExpr[int],
                    block_size: asc.ConstExpr[int]):
     x_gm = asc2.tensor(x_ptr, [num_rows, num_cols])

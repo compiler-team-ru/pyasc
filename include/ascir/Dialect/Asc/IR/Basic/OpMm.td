@@ -43,27 +43,36 @@ def AscendC_LoadDataL0Op
 }
 
 def AscendC_LoadDataG2LOp
-    : DataCopyOp<"load_data_g2l", "LoadData", [AscFunc]> {
+    : DataCopyOp<"load_data_g2l", "LoadData", [AscFunc, OpWithDstInterface, OpWithSrcInterface]> {
   let description = "Perform 2D LoadData from GlobalTensor to LocalTensor";
   let arguments = (ins AscendC_BaseTensorTypeInterface:$dst,
                        AscendC_BaseTensorTypeInterface:$src,
                        AscendC_LoadData2DParams:$loadDataParams);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+  }];
 }
 
 def AscendC_LoadDataL0V2Op
-    : DataCopyOp<"load_data_l0_v2", "LoadData", [AscFunc]> {
+    : DataCopyOp<"load_data_l0_v2", "LoadData", [AscFunc, OpWithDstInterface, OpWithSrcInterface]> {
   let description = "Perform 2D LoadData V2 between LocalTensor and LocalTensor";
   let arguments = (ins AscendC_BaseTensorTypeInterface:$dst,
                        AscendC_BaseTensorTypeInterface:$src,
                        AscendC_LoadData2DParamsV2:$loadDataParams);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+  }];
 }
 
 def AscendC_LoadDataG2LV2Op
-    : DataCopyOp<"load_data_g2l_v2", "LoadData", [AscFunc]> {
+    : DataCopyOp<"load_data_g2l_v2", "LoadData", [AscFunc, OpWithDstInterface, OpWithSrcInterface]> {
   let description = "Perform 2D LoadData V2 from GlobalTensor to LocalTensor";
   let arguments = (ins AscendC_BaseTensorTypeInterface:$dst,
                        AscendC_BaseTensorTypeInterface:$src,
                        AscendC_LoadData2DParamsV2:$loadDataParams);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+  }];
 }
 
 def AscendC_LoadData3DL0V1Op
@@ -113,12 +122,15 @@ def AscendC_LoadDataWithTransposeV2Op
 }
 
 def AscendC_MmadOp
-    : APIOp<"mmad", "Mmad", [AscFunc]> {
+    : APIOp<"mmad", "Mmad", [AscFunc, OpWithDstInterface, OpWithSrcInterface]> {
   let description = "Matrix multiply-accumulate between LocalTensors (dst += fm * filter)";
   let arguments = (ins AscendC_BaseTensorTypeInterface:$dst,
                        AscendC_BaseTensorTypeInterface:$fm,
                        AscendC_BaseTensorTypeInterface:$filter,
                        AscendC_MmadParams:$mmadParams);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getFm(), getFilter()}; }
+  }];
 }
 
 def AscendC_MmadWithBiasOp

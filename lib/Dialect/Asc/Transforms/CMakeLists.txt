@@ -20,6 +20,7 @@ add_mlir_dialect_library(MLIRAscTransforms
   HoistUBAllocation.cpp
   InputOutputTensor.cpp
   InsertBufIdSync.cpp
+  InsertBufIdSyncV2.cpp
   InsertSync.cpp
   LegalizeKernelArgs.cpp
   LowerToL0.cpp

@@ -12,6 +12,7 @@
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Conversion/LowerToAsc/Passes.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
+#include "ascir/Dialect/AscTile/Utils/Attributes.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 
@@ -166,6 +167,7 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
                     rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dst.getType(), dst, iterDstOffset);
                 rewriter.create<ascendc::LoadDataG2LOp>(loc, subLocalL0, subLocalL1, loadDataParams);
                 rewriter.setInsertionPointAfter(forOp);
+                forOp->setAttr(asctile::attr::parallel, UnitAttr::get(forOp->getContext()));
             }
             rewriter.replaceOp(op, dst);
             return success();

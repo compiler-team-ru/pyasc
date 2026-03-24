@@ -107,6 +107,7 @@ void defineAscendCPasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_hoist_que_bind", createHoistQueBindPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_input_output_tensor", createInputOutputTensorPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_bufid_sync", createInsertBufIdSyncPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_bufid_sync_v2", createInsertBufIdSyncV2Pass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_parallel_load_store", createParallelLoadStorePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_sync", createInsertSyncPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_to_l0", createLowerToL0Pass);
