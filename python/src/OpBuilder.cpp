@@ -1118,14 +1118,19 @@ void bind_create_asctile_operations(py::class_<PyOpBuilder>& clss)
 
     clss.def(
             "create_asctile_CountMaskOp",
-            [](PyOpBuilder& self, Value& value) -> asctile::CountMaskOp {
-                return self.create<asctile::CountMaskOp>(value);
-            })
+            [](PyOpBuilder& self, Value& value, std::optional<Value> other) -> asctile::CountMaskOp {
+                Value otherVal = other.has_value() ? *other : Value();
+                return self.create<asctile::CountMaskOp>(value, otherVal);
+            },
+            py::arg("count"), py::arg("other") = py::none())
         .def(
             "create_asctile_BitwiseMaskOp",
-            [](PyOpBuilder& self, Value& highBits, Value& lowBits) -> asctile::BitwiseMaskOp {
-                return self.create<asctile::BitwiseMaskOp>(highBits, lowBits);
-            })
+            [](PyOpBuilder& self, Value& highBits, Value& lowBits,
+               std::optional<Value> other) -> asctile::BitwiseMaskOp {
+                Value otherVal = other.has_value() ? *other : Value();
+                return self.create<asctile::BitwiseMaskOp>(highBits, lowBits, otherVal);
+            },
+            py::arg("highBits"), py::arg("lowBits"), py::arg("other") = py::none())
 #include "ascir/Dialect/AscTile/IR/AscTileOpBindings.h.inc"
         ;
 }
