@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import functools
 import inspect
-from typing import Callable, Final, Optional, TypeVar, Union, overload
+from typing import Callable, Final, Optional, Tuple, TypeVar, Union, overload
 from typing_extensions import Self, TypeAlias
 
 from ..._C import ir
@@ -24,8 +24,20 @@ TileLocation: TypeAlias = ir.TileLocation
 
 
 class Tile(IRValue):
+    """
+    A tile is a multi-dimensional array of values in local memory (Unified Buffer, L1 Cache, etc.)
+
+    Each element is of :py:attr:`dtype` type and number of elements is defined by :py:attr:`shape` tuple.
+    """
+
+    dtype: DataType
+    """Tile element type"""
+
+    shape: Tuple[int]
+    """Tile shape"""
 
     def __init__(self, handle: IRHandle) -> None:
+        """This constructor is not called by user. Use :py:func:`asc2.load` function to create a tile."""
         super().__init__()
         self.handle: Final = handle
         ir_type = handle.get_type()
@@ -224,6 +236,12 @@ class Binder:
         params = list(sig.parameters.values())
         if len(params) < 1:
             raise ValueError("Bound function must have at least one parameter")
+        if not fn.__doc__:
+            fn.__doc__ = ""
+        fn.__doc__ += f"""
+    This function can also be called as a member function on :py:class:`Tile`,
+    as :code:`x.{name}(...)` instead of :code:`{fn.__name__}(x, ...)`.
+        """
         params[0] = params[0].replace(name="self")
         new_sig = sig.replace(parameters=params)
 

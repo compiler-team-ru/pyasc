@@ -19,8 +19,14 @@ from ..core.utils import check_type, global_builder
 
 
 class RuntimeShape:
+    """
+    A tuple-like object representing a shape of a tensor.
+
+    It has length, item getter, and can be iterated as an ordinary tuple.
+    """
 
     def __init__(self, ir_tensor: IRHandle, shape: Iterable[int]) -> None:
+        """This constructor is not called by user. Use :code:`shape` attribute of :py:class:`Tensor` object."""
         self.ir_tensor = ir_tensor
         self.shape = tuple(shape)
 
@@ -56,8 +62,20 @@ class RuntimeShape:
 
 
 class Tensor(IRValue):
+    """
+    A tensor is a contiguous ND-array of values in Global Memory.
+
+    Each element is of :py:attr:`dtype` type and number of elements is defined by :py:attr:`shape` values.
+    """
+
+    dtype: DataType
+    """Tensor element type"""
+
+    shape: RuntimeShape
+    """Tensor shape"""
 
     def __init__(self, *, handle: Optional[IRHandle] = None) -> None:
+        """This constructor is not called by user. Use :py:func:`asc2.tensor` function to define a tensor."""
         super().__init__()
         self.handle = handle
         ir_type = self.handle.get_type()
@@ -73,6 +91,16 @@ class Tensor(IRValue):
 
 
 def tensor(base: GlobalAddress, shape: Iterable[RuntimeInt]) -> Tensor:
+    """
+    Define a new tensor. Tensors are used to transfer data between local and global memory.
+
+    Args:
+        base: The base address of an array in Global Memory representing a tensor
+        shape: An iterable for integer-like values representing the number of elements for each dimension of a tensor
+
+    Returns:
+        Tensor: A new tensor descriptor
+    """
     static_sizes = []
     dynamic_sizes = []
     for dim in shape:
