@@ -59,6 +59,7 @@ class PyOpBuilder {
 
 public:
     explicit PyOpBuilder(MLIRContext* context) : builder(context), loc(builder.getUnknownLoc()) {}
+    explicit PyOpBuilder(Operation* op) : builder(op), loc(op->getLoc()) {}
     ~PyOpBuilder() = default;
 
     void setLoc(Location newLoc) { loc = newLoc; }
@@ -196,6 +197,7 @@ void bind_init(py::class_<PyOpBuilder>& clss)
     using namespace pybind11::literals;
 
     clss.def(py::init<MLIRContext*>());
+    clss.def(py::init<Operation*>());
 }
 
 void bind_locations(py::class_<PyOpBuilder>& clss)
