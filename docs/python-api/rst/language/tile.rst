@@ -18,8 +18,38 @@ Programming model
     :toctree: generated
     :nosignatures:
 
-    ~tensor.Tensor
     ~tile.Tile
+    ~tensor.Tensor
+    ~tensor.tensor
+    ~memory_ops.num_tiles
+
+
+Creation operations
+-------------------
+
+.. currentmodule:: asc.language.tile.creation_ops
+
+.. autosummary::
+    :toctree: generated
+    :nosignatures:
+
+    full
+    full_like
+    zeros
+    zeros_like
+
+
+Memory operations
+-----------------
+
+.. currentmodule:: asc.language.tile.memory_ops
+
+.. autosummary::
+    :toctree: generated
+    :nosignatures:
+
+    load
+    store
 
 
 Binary operations
@@ -39,6 +69,7 @@ Binary operations
     left_shift
     less
     less_equal
+    matmul
     maximum
     minimum
     mul
@@ -72,21 +103,22 @@ Unary operations
     sin
     sinh
     sqrt
+    softmax
     tan
     tanh
 
 
-Memory operations
------------------
+Indexing operations
+-------------------
 
-.. currentmodule:: asc.language.tile.memory_ops
+.. currentmodule:: asc.language.tile.indexing_ops
 
 .. autosummary::
     :toctree: generated
     :nosignatures:
 
-    load
-    store
+    mask
+    where
 
 
 Reduction operations
@@ -103,3 +135,31 @@ Reduction operations
     reduce_sum
     reduce_prod
 
+
+Shape manipulation operations
+-----------------------------
+
+.. currentmodule:: asc.language.tile.shape_ops
+
+.. autosummary::
+    :toctree: generated
+    :nosignatures:
+
+    broadcast_to
+    expand_dims
+    reshape
+    squeeze
+
+
+Atomic operations
+-----------------
+
+.. currentmodule:: asc.language.tile.atomic_ops
+
+.. autosummary::
+    :toctree: generated
+    :nosignatures:
+
+    atomic_add
+    atomic_max
+    atomic_min
