@@ -14,6 +14,7 @@
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
+#include "ascir/Dialect/AscTile/Utils/Attributes.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/EmitAsc/Utils/Attributes.h"
 
@@ -89,35 +90,21 @@ std::optional<SmallVector<emitasc::KernelArgument>> getKernelArgAttrs(ModuleOp o
     return kernelArgs;
 }
 
-ShapedType cloneShapedType(Type type, std::optional<Type> elemType, const std::optional<std::vector<int64_t>>& shape)
-{
-    auto shapedType = llvm::dyn_cast_if_present<ShapedType>(type);
-    if (!shapedType)
-        throw std::runtime_error("clone_shaped_type(): must be shaped type");
-    Type useElemType = elemType.has_value() ? *elemType : shapedType.getElementType();
-    return shapedType.cloneWith(shape, useElemType);
-}
-
 void bindAttrs(py::module& m)
 {
     m.attr("dynshape") = py::int_(ShapedType::kDynamic);
     m.attr("ub_block_size") = py::int_(ascendc::ubBlockSize);
 
     auto modAttr = m.def_submodule("attr");
-    modAttr.attr("compilation_arch") = py::str(ascendc::attr::compilationArch);
-    modAttr.attr("enable_debug") = py::str(ascendc::attr::enableDebug);
-    modAttr.attr("kernel_type") = py::str(ascendc::attr::kernelType);
     modAttr.attr("memory_consumed") = py::str(ascendc::attr::memoryConsumed);
+    modAttr.attr("parallel") = py::str(asctile::attr::parallel);
     modAttr.attr("soc_version") = py::str(ascendc::attr::socVersion);
-    modAttr.attr("vf_vec_len") = py::str(ascendc::attr::vfVecLen);
+    modAttr.attr("unroll_factor") = py::str(asctile::attr::unrollFactor);
 }
 
 void bindEnums(py::module& m)
 {
     using ret = py::return_value_policy;
-
-    m.attr("dynshape") = py::int_(ShapedType::kDynamic);
-    m.attr("ub_block_size") = py::int_(ascendc::ubBlockSize);
 
     py::enum_<ascendc::AddressSpace>(m, "AddressSpace", py::module_local())
         .value("ca", ascendc::AddressSpace::ca)

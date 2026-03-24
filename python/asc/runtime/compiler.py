@@ -280,7 +280,7 @@ class Compiler:
 
     def run(self, mod: ir.ModuleOp, func_name: str) -> CompiledKernel:
         utils.FileUtils.dump_file(self.dump_dir, "codegen.mlir", str(mod))
-        self.preprocess_module(mod)
+        mod.set_attr(ir.attr.soc_version, ir.Builder(mod.op).get_str_attr(self.soc_version.value))
         if self.options.run_passes:
             self.run_passes(mod)
         self.postprocess_module(mod)
@@ -291,7 +291,7 @@ class Compiler:
         utils.FileUtils.dump_file(self.dump_dir, "ascendc.cpp", source)
         kernel_args = ir.get_kernel_arg_attrs(mod)
         return self.run_compilation(source, kernel_args, enable_debug=self.enable_debug,
-                                    memory_consumed=mod.op.get_dict_of_int_attr("asc.memory_consumed"))
+                                    memory_consumed=mod.op.get_dict_of_int_attr(ir.attr.memory_consumed))
 
     def run_passes(self, mod: ir.ModuleOp) -> None:
         pm = passes.PassManager(mod.get_context())

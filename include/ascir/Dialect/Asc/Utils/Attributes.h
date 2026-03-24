@@ -26,6 +26,7 @@ LITERAL enable_debug = "asc.enable_debug";
 LITERAL maskSet = "asc.mask_set";
 LITERAL matmulCubeOnly = "asc.matmul_cube_only";
 LITERAL memoryConsumed = "asc.memory_consumed";
+LITERAL socVersion = "asc.soc_version";
 } // namespace attr
 
 } // namespace ascendc
