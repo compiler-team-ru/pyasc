@@ -41,8 +41,12 @@ from asc.language.tile.creation_ops import (
 )
 from asc.language.tile.memory_ops import (
     load,
-    num_tiles,
     store,
+)
+from asc.language.tile.prog_model_ops import (
+    block_idx,
+    block_num,
+    num_tiles,
 )
 from asc.language.tile.shape_ops import (
     broadcast_to,
@@ -71,8 +75,16 @@ from asc.language.tile.unary_ops import (
     tan,
     tanh,
 )
-from asc.language.tile.indexing_ops import mask, where
-from asc.language.tile.reduction_ops import (reduce_max, reduce_min, reduce_sum, reduce_prod)
+from asc.language.tile.indexing_ops import (
+    mask,
+    where,
+)
+from asc.language.tile.reduction_ops import (
+    reduce_max,
+    reduce_min,
+    reduce_sum,
+    reduce_prod,
+)
 
 from .jit import jit
 
@@ -110,8 +122,11 @@ __all__ = [
     "zeros_like",
     # memory_ops
     "load",
-    "num_tiles",
     "store",
+    # prog_model_ops
+    "block_idx",
+    "block_num",
+    "num_tiles",
     # shape_ops
     "broadcast_to",
     "expand_dims",
