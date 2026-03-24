@@ -11,6 +11,7 @@
 #include "InitFuncDef.h"
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
+#include "ascir/Dialect/AscTile/Utils/Attributes.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
@@ -91,13 +92,22 @@ std::optional<SmallVector<emitasc::KernelArgument>> getKernelArgAttrs(ModuleOp o
 
 namespace pybind11 {
 namespace asc {
+void pyasc_bind_attrs(py::module &m)
+{
+    m.attr("dynshape") = py::int_(ShapedType::kDynamic);
+    m.attr("ub_block_size") = py::int_(ascendc::ubBlockSize);
+
+    auto modAttr = m.def_submodule("attr");
+    modAttr.attr("memory_consumed") = py::str(ascendc::attr::memoryConsumed);
+    modAttr.attr("parallel") = py::str(asctile::attr::parallel);
+    modAttr.attr("soc_version") = py::str(ascendc::attr::socVersion);
+    modAttr.attr("unroll_factor") = py::str(asctile::attr::unrollFactor);
+}
+
 void pyasc_bind_enums(py::module &m)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
-
-    m.attr("dynshape") = py::int_(ShapedType::kDynamic);
-    m.attr("ub_block_size") = py::int_(ascendc::ubBlockSize);
 
     py::enum_<ascendc::AddressSpace>(m, "AddressSpace", py::module_local())
         .value("ca", ascendc::AddressSpace::ca)
@@ -721,6 +731,7 @@ void pyasc_bind_kernel_argument(py::module &m)
 
 void pyasc_init_ir(py::module &&m)
 {
+    pyasc_bind_attrs(m);
     pyasc_bind_enums(m);
     pyasc_bind_context_and_dialect(m);
     pyasc_bind_type(m);
