@@ -125,16 +125,20 @@ def YieldOp : AscTile_Op<"yield", [Terminator]> {
 
 def CountMaskOp
     : AscTile_Op<"count_mask", [SingleBlockImplicitTerminator<"YieldOp">]> {
-  let arguments = (ins I64:$count);
+  let arguments = (ins I64:$count, Optional<AnyType>:$other);
   let regions = (region SizedRegion<1>:$region);
-  let assemblyFormat = "$count $region attr-dict";
+  let assemblyFormat = [{
+    $count (`,` $other^ `:` type($other))? $region attr-dict
+  }];
 }
 
 def BitwiseMaskOp
     : AscTile_Op<"bitwise_mask", [SingleBlockImplicitTerminator<"YieldOp">]> {
-  let arguments = (ins I64:$highBits, I64:$lowBits);
+  let arguments = (ins I64:$highBits, I64:$lowBits, Optional<AnyType>:$other);
   let regions = (region SizedRegion<1>:$region);
-  let assemblyFormat = "$highBits `,` $lowBits $region attr-dict";
+  let assemblyFormat = [{
+    $highBits `,` $lowBits (`,` $other^ `:` type($other))? $region attr-dict
+  }];
 }
 
 class AscTile_VecScalarOp<string mnemonic, list<Trait> traits = []>

@@ -14,8 +14,10 @@
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
+#include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Arith/Utils/Utils.h"
 #include "mlir/Transforms/WalkPatternRewriteDriver.h"
 
 namespace mlir {
@@ -42,6 +44,11 @@ void processMask(func::FuncOp funcOp)
         auto updateMask = [&](auto l0Op) {
             OpBuilder builder(l0Op);
             auto loc = l0Op.getLoc();
+            if (auto other = maskOp.getOther()) {
+                ascir::ConstantOpBuilder consts(builder);
+                Value scalar = convertScalarToDtype(builder, loc, other, getElementTypeOrSelf(l0Op.getDst()), false);
+                builder.create<ascendc::DuplicateL2Op>(loc, l0Op.getDst(), scalar, consts.i32(0));
+            }
             if constexpr (std::is_same_v<OpT, asctile::CountMaskOp>) {
                 l0Op.getMaskMutable().assign(maskOp.getCount());
             } else if constexpr (std::is_same_v<OpT, asctile::BitwiseMaskOp>) {
