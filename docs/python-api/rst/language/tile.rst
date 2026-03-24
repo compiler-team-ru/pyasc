@@ -21,7 +21,9 @@ Programming model
     ~tile.Tile
     ~tensor.Tensor
     ~tensor.tensor
-    ~memory_ops.num_tiles
+    ~prog_model_ops.block_idx
+    ~prog_model_ops.block_num
+    ~prog_model_ops.num_tiles
 
 
 Creation operations

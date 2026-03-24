@@ -19,7 +19,7 @@ def vadd_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, out_ptr: asc
     x_gm = asc2.tensor(x_ptr, [size])
     y_gm = asc2.tensor(y_ptr, [size])
     out_gm = asc2.tensor(out_ptr, [size])
-    base_offset = asc.get_block_idx() * tile_size * tile_per_block
+    base_offset = asc2.block_idx() * tile_size * tile_per_block
     for i in asc2.range(tile_per_block):
         tile_offset = base_offset + i * tile_size
         x = asc2.load(x_gm, [tile_size], offsets=[tile_offset])
