@@ -52,7 +52,8 @@ def AscendC_LoadDataL0Op : CopyToL0Op<"load_data_l0", "LoadData", [AscFunc]> {
   }];
 }
 
-def AscendC_LoadDataG2LOp : CopyToL0Op<"load_data_g2l", "LoadData", [AscFunc]> {
+def AscendC_LoadDataG2LOp
+    : DataCopyOp<"load_data_g2l", "LoadData", [AscFunc, OpWithDstInterface, OpWithSrcInterface]> {
   let description = "Perform 2D LoadData from GlobalTensor to LocalTensor";
   let arguments = (ins AscendC_LocalTensor:$dst,
                        AscendC_BaseTensorTypeInterface:$src,
@@ -63,7 +64,7 @@ def AscendC_LoadDataG2LOp : CopyToL0Op<"load_data_g2l", "LoadData", [AscFunc]> {
 }
 
 def AscendC_LoadDataL0V2Op
-    : CopyToL0Op<"load_data_l0_v2", "LoadData", [AscFunc]> {
+    : DataCopyOp<"load_data_l0_v2", "LoadData", [AscFunc, OpWithDstInterface, OpWithSrcInterface]> {
   let description = "Perform 2D LoadData V2 between LocalTensor and LocalTensor";
   let arguments = (ins AscendC_LocalTensor:$dst,
                        AscendC_BaseTensorTypeInterface:$src,
@@ -74,7 +75,7 @@ def AscendC_LoadDataL0V2Op
 }
 
 def AscendC_LoadDataG2LV2Op
-    : CopyToL0Op<"load_data_g2l_v2", "LoadData", [AscFunc]> {
+    : DataCopyOp<"load_data_g2l_v2", "LoadData", [AscFunc, OpWithDstInterface, OpWithSrcInterface]> {
   let description = "Perform 2D LoadData V2 from GlobalTensor to LocalTensor";
   let arguments = (ins AscendC_LocalTensor:$dst,
                        AscendC_BaseTensorTypeInterface:$src,
@@ -145,7 +146,7 @@ def AscendC_LoadDataWithTransposeV2Op
 }
 
 def AscendC_MmadOp
-    : APIOp<"mmad", "Mmad", [AscFunc, OpWithDstInterface, OpWithSrcInterface, OpWithReusableSrcInterface]> {
+    : APIOp<"mmad", "Mmad", [AscFunc, OpWithDstInterface, OpWithSrcInterface]> {
   let description = "Matrix multiply-accumulate between LocalTensors (dst += fm * filter)";
   let arguments = (ins AscendC_BaseTensorTypeInterface:$dst,
                        AscendC_BaseTensorTypeInterface:$fm,

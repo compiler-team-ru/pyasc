@@ -32,6 +32,7 @@ std::unique_ptr<Pass> createHoistQueBindPass();
 std::unique_ptr<Pass> createHoistUBAllocationPass(bool excludeInOut = false);
 std::unique_ptr<Pass> createInputOutputTensorPass();
 std::unique_ptr<Pass> createInsertBufIdSyncPass();
+std::unique_ptr<Pass> createInsertBufIdSyncV2Pass();
 std::unique_ptr<Pass> createInsertSyncPass();
 std::unique_ptr<Pass> createLegalizeKernelArgsPass(bool setFftsAddr = false);
 std::unique_ptr<Pass> createLowerToL0Pass();
