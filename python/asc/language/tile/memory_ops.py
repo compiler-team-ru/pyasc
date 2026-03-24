@@ -92,15 +92,3 @@ def store(value: Union[Tile, RuntimeNumeric], tensor: Tensor, *, tile_id: Option
     check_data_alignment(value.shape, value.dtype)
     offsets = infer_offsets(tensor.shape, value.shape, tile_id, offsets)
     global_builder.get_ir_builder().create_asctile_StoreOp(value.to_ir(), tensor.to_ir(), offsets)
-
-
-def num_tiles(tensor: Tensor, axis: RuntimeInt, shape: Iterable[int]) -> RuntimeInt:
-    shape = verify_shape(shape)
-    tensor_shape = tensor.shape
-    if len(tensor_shape) != len(shape):
-        raise RuntimeError("rank of 'tensor_shape' must match rank of 'shape'")
-    if axis >= len(shape) or axis >= len(tensor_shape):
-        raise ValueError(f"axis ({axis}) exceeds number of dimensions")
-    dim_size = tensor_shape[axis]
-    tile_size = shape[axis]
-    return (dim_size + tile_size - 1) // tile_size

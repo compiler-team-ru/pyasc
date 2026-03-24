@@ -18,7 +18,7 @@ def softmax_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, num_row
                    block_size: asc.ConstExpr[int]):
     x_gm = asc2.tensor(x_ptr, [num_rows, num_cols])
     out_gm = asc2.tensor(out_ptr, [num_rows, num_cols])
-    start_rows: int = asc.get_block_idx() * block_size
+    start_rows = asc2.block_idx() * block_size
     rows = asc2.load(x_gm, [block_size, num_cols], offsets=[start_rows, 0])
     out = asc2.softmax(rows)
     asc2.store(out, out_gm, offsets=[start_rows, 0])
