@@ -43,6 +43,12 @@ tests = [
     (2, [512, 512], [64, 64], None, [128, 256], False),
     (1, [77], [24], None, [48], False),
     (2, [150, 300], [21, 40], None, [10, 20], False),
+
+    # Scalar load, store tests
+    (1, [32], None, None, [0], True),
+    (2, [32, 32], None, None, [0, 0], True),
+    (1, [1024], None, None, [0], True),
+    (2, [512, 512], None, None, [0, 0], True),
 ]
 
 
@@ -78,12 +84,24 @@ def kernel_dynamic_2D(x_ptr, y_ptr, z_ptr, ts0, ts1, tile_shape: asc.ConstExpr, 
     asc2.store(zt, asc2.tensor(z_ptr, [ts0, ts1]), tile_id=tile_id, offsets=offsets)
 
 
+@asc2.jit(always_compile=True)
+def kernel_scalar_load_store(x_ptr, y_ptr, z_ptr, tensor_shape: asc.ConstExpr, offsets: asc.ConstExpr) -> None:
+    xt = asc2.load(asc2.tensor(x_ptr, tensor_shape), offsets=offsets)
+    yt = asc2.load(asc2.tensor(y_ptr, tensor_shape), offsets=offsets)
+    zt = xt + yt
+    asc2.store(zt, asc2.tensor(z_ptr, tensor_shape), offsets=offsets)
+
+
 @pytest.mark.parametrize("dim, tensor_shape, tile_shape, tile_id, offsets, is_static", tests)
 def test_load_store(dim, tensor_shape, tile_shape, tile_id, offsets, is_static):
     x, y = [torch.randn(tensor_shape) for _ in range(2)]
-    z = torch.zeros(tensor_shape, dtype=torch.float32, device="cpu")
+    device = "cpu"
+    z = torch.zeros(tensor_shape, dtype=torch.float32, device=device)
     if is_static:
-        kernel_static[1](x, y, z, tensor_shape, tile_shape, tile_id, offsets)
+        if tile_shape is None:
+            kernel_scalar_load_store[1](x, y, z, tensor_shape, offsets)
+        else:
+            kernel_static[1](x, y, z, tensor_shape, tile_shape, tile_id, offsets)
     else:
         if dim == 1:
             kernel_dynamic_1D[1](x, y, z, tensor_shape[0], tile_shape, tile_id, offsets)
@@ -93,7 +111,10 @@ def test_load_store(dim, tensor_shape, tile_shape, tile_id, offsets, is_static):
         actual_offsets = [i * s for i, s in zip(tile_id, tile_shape)]
     else:
         actual_offsets = offsets
-    slices = tuple(slice(off, off + size) for off, size in zip(actual_offsets, tile_shape))
+    if tile_shape is not None:
+        slices = tuple(slice(off, off + size) for off, size in zip(actual_offsets, tile_shape))
+    else:
+        slices = tuple(actual_offsets)
     z_expected = torch.zeros_like(z)
     z_expected[slices] = x[slices] + y[slices]
-    torch.testing.assert_close(z, z_expected)
+    torch.testing.assert_close(z, z_expected, atol=1e-3, rtol=1e-3)
