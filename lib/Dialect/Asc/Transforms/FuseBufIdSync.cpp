@@ -27,18 +27,20 @@ using namespace mlir;
 
 namespace {
 
-void eraseGetBuf(Operation* op) {
+void eraseGetBuf(Operation *op)
+{
     auto prevNode = op->getPrevNode();
     if (!prevNode)
         return;
     if (auto getBuf = dyn_cast<ascendc::GetBufOp>(prevNode)) {
-            prevNode->erase();
+        prevNode->erase();
     } else {
         eraseGetBuf(prevNode);
     }
 }
 
-void eraseRlsBuf(Operation* op) {
+void eraseRlsBuf(Operation *op)
+{
     auto nextNode = op->getNextNode();
     if (!nextNode)
         return;
@@ -116,6 +118,7 @@ void fuseBufIdSync(func::FuncOp funcOp)
             eraseSync(fuseGroup);
             fuseGroup.clear();
         }
+        op->removeAttr(ascendc::attr::bufId);
     });
 }
 
