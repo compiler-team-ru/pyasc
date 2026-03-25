@@ -118,6 +118,7 @@ void fuseBufIdSync(func::FuncOp funcOp)
             eraseSync(fuseGroup);
             fuseGroup.clear();
         }
+        op->removeAttr(ascendc::attr::bufId);
     });
 }
 
