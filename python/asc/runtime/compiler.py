@@ -82,6 +82,15 @@ class CompileOptions:
     Having this feature enabled may help to avoid UB overflow but may introduce performance regressions.
     """
 
+    reuse_ub_in_out: bool = False
+    """
+    Allow for input/output tiles to be reused alongside intermediate ones.
+    This option only has effect if :code:`reuse_ub` feature is enabled and :code:`densify_load_store` feature is not.
+
+    .. warning::
+        This is an experimental feature. It might or might not cause functional or performance regressions.
+    """
+
     static_alloc: bool = False
     """
     Perform static allocation for tiles instead of relying on Ascend C TPipe backend.
@@ -171,8 +180,15 @@ class Compiler:
     def run_translation(mod: ir.ModuleOp) -> str:
         return translation.ir_to_ascendc(mod)
 
+    @staticmethod
+    def add_unroll_loop(pm: passes.PassManager) -> None:
+        passes.asctile.add_unroll_loop(pm)
+        passes.common.add_canonicalizer(pm)
+        passes.common.add_cse(pm)
+
     def _schedule_lowering(self, pm: passes.PassManager) -> None:
         platform_95 = self.platform == CompilePlatform.Ascend910_95
+        reuse_ub_in_out = not self.options.densify_load_store and self.options.reuse_ub and self.options.reuse_ub_in_out
         passes.ascendc.add_privatize_func(pm)
         passes.common.add_inliner(pm)
         passes.common.add_symbol_dce(pm)
@@ -180,9 +196,8 @@ class Compiler:
         passes.common.add_reconcile_unrealized_casts(pm)
         if self.options.run_asc2_passes:
             passes.asctile.add_tag_unroll_groups(pm)
-            passes.asctile.add_unroll_loop(pm)
-            passes.common.add_canonicalizer(pm)
-            passes.common.add_cse(pm)
+            if not reuse_ub_in_out:
+                self.add_unroll_loop(pm)
             if self.options.densify_load_store:
                 passes.asctile.add_promote_pure_operations(pm)
                 passes.common.add_canonicalizer(pm)
@@ -203,6 +218,9 @@ class Compiler:
             passes.ascendc.add_fill_asc_operands(pm)
         passes.ascendc.add_input_output_tensor(pm)
         if self.options.reuse_ub:
+            if reuse_ub_in_out:
+                passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=True)
+                self.add_unroll_loop(pm)
             passes.ascendc.add_reuse_ub_allocation(pm)
             passes.common.add_canonicalizer(pm)
         passes.ascendc.add_hoist_ub_allocation(pm, exclude_in_out=not platform_95)

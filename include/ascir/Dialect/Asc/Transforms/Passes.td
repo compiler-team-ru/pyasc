@@ -145,6 +145,10 @@ def PrivatizeFunc : Pass<"ascendc-privatize-func", "ModuleOp"> {
 def ReuseUBAllocation : Pass<"ascendc-reuse-ub-allocation", "func::FuncOp"> {
   let summary = "Perform analysis and reuse temporary UB allocations";
   let constructor = "mlir::ascendc::createReuseUBAllocationPass()";
+  let options = [
+    Option<"reuseInOut", "reuse-in-out", "bool", "false",
+           "Allow input/output tensors to be reusable">,
+  ];
 }
 
 def UnifyPipe : Pass<"ascendc-unify-pipe", "func::FuncOp"> {

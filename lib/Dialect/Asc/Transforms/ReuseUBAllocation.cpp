@@ -72,14 +72,16 @@ Operation *findUser(Operation *tensorOp)
 }
 
 struct ReuseUBAllocationPass : public ascendc::impl::ReuseUBAllocationBase<ReuseUBAllocationPass> {
+    ReuseUBAllocationPass(const ascendc::ReuseUBAllocationOptions &options) : ReuseUBAllocationBase(options) {}
+
     static bool isTensorGreaterOrEqual(TensorOp firstOp, TensorOp secondOp)
     {
         return ascendc::getTypeSize(firstOp.getType()) >= ascendc::getTypeSize(secondOp.getType());
     }
 
-    static bool reusable(TensorOp op)
+    bool reusable(TensorOp op) const
     {
-        return !op.getInput() && !op.getOutput() && op.getPosition() == ascendc::TPosition::VECCALC &&
+        return (reuseInOut || !op.getInput() && !op.getOutput()) && op.getPosition() == ascendc::TPosition::VECCALC &&
                op.getType().hasStaticShape();
     }
 
@@ -205,9 +207,11 @@ struct ReuseUBAllocationPass : public ascendc::impl::ReuseUBAllocationBase<Reuse
 
 namespace mlir {
 namespace ascendc {
-std::unique_ptr<Pass> createReuseUBAllocationPass()
+std::unique_ptr<Pass> createReuseUBAllocationPass(bool reuseInOut)
 {
-    return std::make_unique<ReuseUBAllocationPass>();
+    ReuseUBAllocationOptions options;
+    options.reuseInOut = reuseInOut;
+    return std::make_unique<ReuseUBAllocationPass>(options);
 }
 } // namespace ascendc
 } // namespace mlir
