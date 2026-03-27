@@ -29,7 +29,9 @@ class AscendC_InterfaceMethods {
   InterfaceMethod getComment = InterfaceMethod<"Obtain describing comment", "::llvm::StringRef", "getComment">;
   InterfaceMethod getDst = GetMethod<"dst", "getDst">;
   InterfaceMethod getDstBlkStride = GetMethod<"dstBlkStride", "getDstBlkStride">;
+  InterfaceMethod getDstBlkStrideMutable = GetMutableMethod<"dstBlkStride", "getDstBlkStrideMutable">;
   InterfaceMethod getDstRepStride = GetMethod<"dstRepStride", "getDstRepStride">;
+  InterfaceMethod getDstRepStrideMutable = GetMutableMethod<"dstRepStride", "getDstRepStrideMutable">;
   InterfaceMethod getMask = GetMethod<"mask", "getMask">;
   InterfaceMethod getMaskMutable = GetMutableMethod<"mask", "getMaskMutable">;
   InterfaceMethod getParams = GetMethod<"params", "getParams">;
@@ -40,6 +42,7 @@ class AscendC_InterfaceMethods {
   InterfaceMethod getRepeatTimesMutable = GetMutableMethod<"repeatTimes", "getRepeatTimesMutable">;
   InterfaceMethod getIsSetMask = GetMethod<"isSetMask", "getIsSetMask", "bool">;
   InterfaceMethod getScalar = GetMethod<"scalar", "getScalar">;
+  InterfaceMethod getScalarMutable = GetMutableMethod<"scalar", "getScalarMutable">;
   InterfaceMethod getSharedTmpBuffer = GetMethod<"sharedTmpBuffer", "getSharedTmpBuffer">;
   InterfaceMethod getSrc = GetMethod<"src", "getSrc">;
   InterfaceMethod getSrcBlkStride = GetMethod<"srcBlkStride", "getSrcBlkStride">;
@@ -176,12 +179,13 @@ def VecScalarOpInterface : AscendC_OpInterface<"VecScalarOp", [
   VectorOpInterface, OpWithDstInterface, OpWithSrcInterface
 ]> {
   let description = "Vector-scalar operation";
-  let methods = [getSrc, getScalar];
+  let methods = [getSrc, getScalar, getScalarMutable];
 }
 
 def VecScalarL0OpInterface : AscendC_OpInterface<"VecScalarL0Op", [VecScalarOpInterface]> {
   let description = "Vector-scalar operation (L0 API)";
-  let methods = [getMask, getRepeatTimes, getRepeatParams];
+  let methods = [getMask, getRepeatTimes, getRepeatParams,
+                 getMaskMutable, getRepeatTimesMutable, getRepeatParamsMutable];
 }
 
 def VecScalarL2OpInterface : AscendC_OpInterface<"VecScalarL2Op", [VecScalarOpInterface]> {
