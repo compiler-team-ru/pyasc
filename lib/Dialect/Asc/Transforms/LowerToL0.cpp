@@ -53,6 +53,54 @@ LogicalResult lowerBinaryOp(L2L3Op op, PatternRewriter& rewriter)
     return success();
 }
 
+template <typename L2Op, typename L0Op>
+LogicalResult lowerDuplicateOp(L2Op op, PatternRewriter& rewriter)
+{
+    ascir::ConstantOpBuilder consts(rewriter);
+    auto loc = op.getLoc();
+    auto zero = consts.i64(0);
+    auto mask = rewriter.create<emitasc::MaskOp>(loc, zero, zero);
+    rewriter.replaceOpWithNewOp<L0Op>(op, op.getDst(), op.getScalar(), mask, zero, zero, zero);
+    return success();
+}
+
+template <typename L2Op, typename L0Op>
+LogicalResult lowerCastOp(L2Op op, PatternRewriter& rewriter)
+{
+    ascir::ConstantOpBuilder consts(rewriter);
+    auto loc = op.getLoc();
+    auto zero = consts.i64(0);
+    auto mask = rewriter.create<emitasc::MaskOp>(loc, zero, zero);
+    auto repeatParams = rewriter.create<ConstructOp>(loc, rewriter.getType<UnaryRepeatParamsType>());
+    rewriter.replaceOpWithNewOp<L0Op>(op, op.getDst(), op.getSrc(), op.getRoundMode(), mask, zero, repeatParams);
+    return success();
+}
+
+template <typename L2Op, typename L0Op>
+LogicalResult lowerCompareOp(L2Op op, PatternRewriter& rewriter)
+{
+    ascir::ConstantOpBuilder consts(rewriter);
+    auto loc = op.getLoc();
+    auto zero = consts.i64(0);
+    auto mask = rewriter.create<emitasc::MaskOp>(loc, zero, zero);
+    auto repeatParams = rewriter.create<ConstructOp>(loc, rewriter.getType<BinaryRepeatParamsType>());
+    rewriter.replaceOpWithNewOp<L0Op>(
+        op, op.getDst(), op.getSrc0(), op.getSrc1(), op.getCmpMode(), mask, zero, repeatParams);
+    return success();
+}
+
+template <typename L2Op, typename L0Op>
+LogicalResult lowerVectorScalarOp(L2Op op, PatternRewriter& rewriter)
+{
+    ascir::ConstantOpBuilder consts(rewriter);
+    auto loc = op.getLoc();
+    auto zero = consts.i64(0);
+    auto mask = rewriter.create<emitasc::MaskOp>(loc, zero, zero);
+    auto repeatParams = rewriter.create<ConstructOp>(loc, rewriter.getType<UnaryRepeatParamsType>());
+    rewriter.replaceOpWithNewOp<L0Op>(op, op.getDst(), op.getSrc(), op.getScalar(), mask, zero, repeatParams);
+    return success();
+}
+
 struct LowerToL0Pass : public ascendc::impl::LowerToL0Base<LowerToL0Pass> {
     void runOnOperation() override
     {
@@ -95,6 +143,11 @@ void populateLowerToL0Patterns(RewritePatternSet& patterns)
     patterns.add(lowerBinaryOp<SubL2Op, SubL0Op>);
     patterns.add(lowerBinaryOp<SubL3Op, SubL0Op>);
     patterns.add(lowerBinaryOp<SubReluL2Op, SubReluL0Op>);
+    patterns.add(lowerDuplicateOp<DuplicateL2Op, DuplicateL0Op>);
+    patterns.add(lowerCompareOp<CompareL2Op, CompareL0Op>);
+    patterns.add(lowerCastOp<CastL2Op, CastL0Op>);
+    patterns.add(lowerVectorScalarOp<AddsL2Op, AddsL0Op>);
+    patterns.add(lowerVectorScalarOp<MulsL2Op, MulsL0Op>);
 }
 
 std::unique_ptr<Pass> createLowerToL0Pass() { return std::make_unique<LowerToL0Pass>(); }
