@@ -417,7 +417,7 @@ struct ConvertSoftmax : ConvertOp<asctile::SoftmaxOp> {
         auto maxTensor = createTensorOp(rewriter, loc, bufferSize, elemType);
         auto sumTensor = createTensorOp(rewriter, loc, bufferSize, elemType);
         auto sharedBufTensor =
-            createTensorOp(rewriter, loc, ascendc::getTypeSize(tensorType), rewriter.getIntegerType(8, false));
+            createTensorOp(rewriter, loc, ascendc::getTypeSize(tensorType) * 2, rewriter.getIntegerType(8, false));
 
         auto softmaxTiling = rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::SoftMaxTilingType>());
 
