@@ -80,11 +80,14 @@ def AscendC_DataCopyL0Op : DataCopyOp<"data_copy_l0", "DataCopy", [AscFunc]> {
                        AscendC_DataCopyParams:$repeatParams);
 }
 
-def AscendC_DataCopyL2Op : DataCopyOp<"data_copy_l2", "DataCopy", [AscFunc]> {
+def AscendC_DataCopyL2Op : DataCopyOp<"data_copy_l2", "DataCopy", [AscFunc, OpWithSrcInterface]> {
   let description = "Perform copying between tensors (L2 API)";
   let arguments = (ins AscendC_BaseTensorTypeInterface:$dst,
                        AscendC_BaseTensorTypeInterface:$src,
                        AnyType:$calCount);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+  }];
 }
 
 def AscendC_DataCopyPadExtParamsOp : AscendC_Op<"data_copy_pad_ext_params", [AscConstructor]> {
