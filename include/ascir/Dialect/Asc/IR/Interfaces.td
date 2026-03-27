@@ -29,7 +29,6 @@ class AscendC_InterfaceMethods {
   InterfaceMethod getComment = InterfaceMethod<"Obtain describing comment", "::llvm::StringRef", "getComment">;
   InterfaceMethod getDst = GetMethod<"dst", "getDst">;
   InterfaceMethod getDstBlkStride = GetMethod<"dstBlkStride", "getDstBlkStride">;
-  InterfaceMethod getDstReg = GetMethod<"dstReg", "getDstReg">;
   InterfaceMethod getDstBlkStrideMutable = GetMutableMethod<"dstBlkStride", "getDstBlkStrideMutable">;
   InterfaceMethod getDstRepStride = GetMethod<"dstRepStride", "getDstRepStride">;
   InterfaceMethod getDstRepStrideMutable = GetMutableMethod<"dstRepStride", "getDstRepStrideMutable">;
@@ -228,16 +227,8 @@ def VecScalarOpInterface : AscendC_OpInterface<"VecScalarOp", [
 
 def VecScalarL0OpInterface : AscendC_OpInterface<"VecScalarL0Op", [VecScalarOpInterface]> {
   let description = "Vector-scalar operation (L0 API)";
-  let methods = [
-      getMask,
-      getRepeatTimes,
-      getRepeatParams,
-      getMaskMutable,
-      getRepeatTimesMutable,
-      getRepeatParamsMutable,
-      getIsSetMask,
-      setIsSetMask,
-  ];
+  let methods = [getMask, getRepeatTimes, getRepeatParams,
+                 getMaskMutable, getRepeatTimesMutable, getRepeatParamsMutable];
 }
 
 def VecScalarL2OpInterface : AscendC_OpInterface<"VecScalarL2Op", [VecScalarOpInterface]> {

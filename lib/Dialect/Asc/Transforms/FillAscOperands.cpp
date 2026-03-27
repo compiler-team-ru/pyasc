@@ -72,8 +72,8 @@ void fillMask(OpBuilder& builder, Location loc, ConstantOpBuilder& consts, Shape
     op.getMaskMutable().assign(mask);
 }
 
-// L0 unary operations
-void fillOperation(ascendc::UnaryL0Op op)
+template <typename OpType, AnyOfT<OpType, ascendc::UnaryL0Op, ascendc::CastL0Op> = true>
+void fillOperation(OpType op)
 {
     OpBuilder builder(op);
     ConstantOpBuilder consts(builder);
@@ -92,7 +92,6 @@ void fillOperation(ascendc::UnaryL0Op op)
     op.getRepeatParamsMutable().assign(repeatParams);
 }
 
-// L0 operations with BinaryRepeatParams
 template <typename OpType, AnyOfT<OpType, ascendc::BinaryL0Op, ascendc::SelectL0Op, ascendc::CompareL0Op> = true>
 void fillOperation(OpType op)
 {
@@ -116,7 +115,42 @@ void fillOperation(OpType op)
     op.getRepeatParamsMutable().assign(repeatParams);
 }
 
-// L2 operations
+void fillOperation(ascendc::DuplicateL0Op op)
+{
+    OpBuilder builder(op);
+    ConstantOpBuilder consts(builder);
+    auto scalarType = dyn_cast<ShapedType>(op.getDst().getType());
+    auto loc = op.getLoc();
+    fillMask(builder, loc, consts, scalarType, op);
+    auto repeatTimes = consts.i64(getRepeatTimes(scalarType));
+    op.getRepeatTimesMutable().assign(repeatTimes);
+}
+
+void fillOperation(ascendc::VecScalarL0Op op)
+{
+    OpBuilder builder(op);
+    ConstantOpBuilder consts(builder);
+    auto srcType = dyn_cast<ShapedType>(op.getSrc().getType());
+    auto loc = op.getLoc();
+    auto elemType = dyn_cast<ShapedType>(op.getScalar().getType());
+
+    auto scalarValue = consts.i64(0);
+    op.getScalarMutable().assign(scalarValue);
+    auto [maskHVal, maskLVal] = getMask(srcType);
+    auto mask = builder.create<emitasc::MaskOp>(loc, consts.i64(maskHVal), consts.i64(maskLVal));
+    op.getMaskMutable().assign(mask);
+    auto repeatTimes = consts.i64(getRepeatTimes(srcType));
+    op.getRepeatTimesMutable().assign(repeatTimes);
+    auto dstBlkStrideVal = consts.i64(dstBlkStride);
+    auto src0BlkStrideVal = consts.i64(src0BlkStride);
+    auto dstRepStrideVal = consts.i64(dstRepStride);
+    auto src0RepStrideVal = consts.i64(src0RepStride);
+    auto repeatParams = builder.create<ascendc::ConstructOp>(
+        loc, builder.getType<ascendc::UnaryRepeatParamsType>(),
+        ValueRange{dstBlkStrideVal, src0BlkStrideVal, dstRepStrideVal, src0RepStrideVal});
+    op.getRepeatParamsMutable().assign(repeatParams);
+}
+
 template <typename OpType, AnyOfT<OpType, ascendc::UnaryL2Op, ascendc::BinaryL2Op> = true>
 void fillOperation(OpType op)
 {
@@ -133,10 +167,10 @@ struct FillAscOperandsPass : public ascendc::impl::FillAscOperandsBase<FillAscOp
         auto funcOp = getOperation();
         funcOp.walk([](Operation* op) {
             llvm::TypeSwitch<Operation*>(op)
-                .Case<ascendc::UnaryL0Op>([](auto l0Unary) { fillOperation(l0Unary); })
-                .Case<ascendc::BinaryL0Op, ascendc::SelectL0Op, ascendc::CompareL0Op>(
-                    [](auto l0Binary) { fillOperation(l0Binary); })
-                .Case<ascendc::UnaryL2Op, ascendc::BinaryL2Op>([](auto l2Op) { fillOperation(l2Op); })
+                .Case<
+                    ascendc::UnaryL0Op, ascendc::CastL0Op, ascendc::DuplicateL0Op, ascendc::BinaryL0Op,
+                    ascendc::SelectL0Op, ascendc::CompareL0Op, ascendc::UnaryL2Op, ascendc::BinaryL2Op>(
+                    [](auto fillOp) { fillOperation(fillOp); })
                 .Default([](Operation*) {});
         });
     }
