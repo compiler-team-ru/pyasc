@@ -29,53 +29,198 @@ using namespace mlir;
 
 namespace {
 
-using VisitedOpsMap = DenseMap<Operation*, int32_t>;
-using VisitedBufIdMap = DenseMap<Operation*, std::set<int32_t>>;
+class InsertBufIdSync {
+    using VisitedBufIdMap = DenseMap<Operation*, std::set<int32_t>>;
 
-ascendc::Pipe getPipe(Operation* op)
-{
-    ascendc::Pipe pipe = ascendc::Pipe::PIPE_V;
-    if (isa<ascendc::LoadDataG2LOp>(op)) {
-        pipe = ascendc::Pipe::PIPE_MTE1;
-    } else if (auto copyOp = dyn_cast<ascendc::DataCopyOp>(op)) {
-        auto direction = copyOp.getDirection();
-        if (direction == ascendc::CopyDirection::gm_ubuf) {
-            pipe = ascendc::Pipe::PIPE_MTE2;
-        } else if (direction == ascendc::CopyDirection::ubuf_gm) {
-            pipe = ascendc::Pipe::PIPE_MTE3;
+    VisitedBufIdMap visitedOps;
+    VisitedBufIdMap bufIdMap;
+    int32_t bufId;
+
+    void updateBufId() { bufId++; }
+
+    ascendc::Pipe getPipe(Operation* op)
+    {
+        if (isa<ascendc::LoadDataG2LOp>(op)) {
+            return ascendc::Pipe::PIPE_MTE1;
         }
-    } else if (isa<ascendc::FixpipeOp>(op)) {
-        pipe = ascendc::Pipe::PIPE_FIX;
-    } else if (isa<ascendc::LocalTensorGetValueOp, ascendc::LocalTensorSetValueOp>(op)) {
-        pipe = ascendc::Pipe::PIPE_S;
-    } else if (isa<ascendc::MmadOp>(op)) {
-        pipe = ascendc::Pipe::PIPE_M;
+        if (auto copyOp = dyn_cast<ascendc::DataCopyOp>(op)) {
+            auto direction = copyOp.getDirection();
+            if (direction == ascendc::CopyDirection::gm_ubuf) {
+                return ascendc::Pipe::PIPE_MTE2;
+            }
+            if (direction == ascendc::CopyDirection::ubuf_gm) {
+                return ascendc::Pipe::PIPE_MTE3;
+            }
+        }
+        if (isa<ascendc::FixpipeOp>(op)) {
+            return ascendc::Pipe::PIPE_FIX;
+        }
+        if (isa<ascendc::LocalTensorGetValueOp, ascendc::LocalTensorSetValueOp>(op)) {
+            return ascendc::Pipe::PIPE_S;
+        }
+        if (isa<ascendc::MmadOp>(op)) {
+            return ascendc::Pipe::PIPE_M;
+        }
+        return ascendc::Pipe::PIPE_V;
     }
-    return pipe;
-}
 
-void insertGetRlsBuf(Operation* op, int32_t bufId)
-{
-    OpBuilder builder(op);
-    ascendc::Pipe pipe = getPipe(op);
-    builder.create<ascendc::GetBufOp>(op->getLoc(), pipe, bufId, false);
-    builder.setInsertionPointAfter(op);
-    builder.create<ascendc::RlsBufOp>(op->getLoc(), pipe, bufId, false);
-}
+    void insertGetRlsBuf(Operation* op, int32_t bufId)
+    {
+        OpBuilder builder(op);
+        ascendc::Pipe pipe = getPipe(op);
+        builder.create<ascendc::GetBufOp>(op->getLoc(), pipe, bufId, false);
+        builder.setInsertionPointAfter(op);
+        builder.create<ascendc::RlsBufOp>(op->getLoc(), pipe, bufId, false);
+    }
 
-Operation* getInitialLocalTensor(Operation* op)
-{
-    Operation* defOp = op;
-    if (isa<ascendc::LocalTensorV3Op, ascendc::TBufGetTensorOp>(defOp))
-        return defOp;
-    if (auto rCastOp = dyn_cast<ascendc::LocalTensorReinterpretCastOp>(op)) {
-        defOp = rCastOp.getIn().getDefiningOp();
+    void collectBufIds(Value value, std::set<int32_t>& bufIds)
+    {
+        if (auto blockArg = dyn_cast<BlockArgument>(value)) {
+            auto argNumber = blockArg.getArgNumber();
+            auto block = blockArg.getOwner();
+            auto parentOp = block->getParentOp();
+            if (auto forOp = dyn_cast<scf::ForOp>(parentOp)) {
+                if (argNumber == 0)
+                    return;
+                auto init = forOp.getTiedLoopInit(blockArg);
+                collectBufIds(init->get(), bufIds);
+                return;
+            }
+            if (auto whileOp = dyn_cast<scf::WhileOp>(parentOp)) {
+                auto region = block->getParent();
+                if (region == &whileOp.getBefore()) {
+                    collectBufIds(whileOp.getOperands()[argNumber], bufIds);
+                } else if (region == &whileOp.getAfter()) {
+                    auto cond = whileOp.getConditionOp();
+                    auto condArg = cond.getArgs()[argNumber];
+                    collectBufIds(condArg, bufIds);
+                }
+                return;
+            }
+            return;
+        }
+        auto defOp = value.getDefiningOp();
+        if (isa<ascendc::LocalTensorV3Op, ascendc::TBufGetTensorOp>(defOp)) {
+            bufIds.insert(visitedOps[defOp].begin(), visitedOps[defOp].end());
+            if (bufIds.empty()) {
+                visitedOps[defOp].insert(bufId);
+                updateBufId();
+                bufIds = visitedOps[defOp];
+            }
+            return;
+        }
+        if (auto rCastOp = dyn_cast<ascendc::LocalTensorReinterpretCastOp>(defOp)) {
+            collectBufIds(rCastOp.getIn(), bufIds);
+            return;
+        }
+        if (auto subTensorOp = dyn_cast<ascendc::LocalTensorSubIndexOp>(defOp)) {
+            collectBufIds(subTensorOp.getTensor(), bufIds);
+            return;
+        }
+        if (auto selectOp = dyn_cast<arith::SelectOp>(defOp)) {
+            collectBufIds(selectOp.getTrueValue(), bufIds);
+            collectBufIds(selectOp.getFalseValue(), bufIds);
+            return;
+        }
+        if (auto ifOp = dyn_cast<scf::IfOp>(defOp)) {
+            auto result = dyn_cast<OpResult>(value);
+            if (!result)
+                return;
+            auto resultNumber = result.getResultNumber();
+            auto thenYield = ifOp.thenYield();
+            auto thenOperand = thenYield.getOperands()[resultNumber];
+            collectBufIds(thenOperand, bufIds);
+            auto elseBlock = ifOp.elseBlock();
+            if (elseBlock == nullptr)
+                return;
+            auto elseYield = ifOp.elseYield();
+            auto elseOperand = elseYield.getOperands()[resultNumber];
+            collectBufIds(elseOperand, bufIds);
+            return;
+        }
+        if (auto forOp = dyn_cast<scf::ForOp>(defOp)) {
+            auto result = dyn_cast<OpResult>(value);
+            if (!result)
+                return;
+            auto iterArg = forOp.getTiedLoopRegionIterArg(result);
+            auto* loopInit = forOp.getTiedLoopInit(iterArg);
+            auto* loopYield = forOp.getTiedLoopYieldedValue(iterArg);
+            collectBufIds(loopInit->get(), bufIds);
+            collectBufIds(loopYield->get(), bufIds);
+            return;
+        }
+        if (auto whileOp = dyn_cast<scf::WhileOp>(defOp)) {
+            auto result = dyn_cast<OpResult>(value);
+            if (!result)
+                return;
+            auto resultNumber = result.getResultNumber();
+            auto cond = whileOp.getConditionOp();
+            auto condArg = cond.getArgs()[resultNumber];
+            collectBufIds(condArg, bufIds);
+            auto yieldOp = whileOp.getYieldOp();
+            // TODO: Add support for case when yieldOp.getNumOperands() != whileOp.getNumResults()
+            if (yieldOp.getNumOperands() != whileOp.getNumResults())
+                return;
+            collectBufIds(yieldOp.getOperands()[resultNumber], bufIds);
+        }
+        return;
     }
-    if (auto subTensorOp = dyn_cast<ascendc::LocalTensorSubIndexOp>(op)) {
-        defOp = subTensorOp.getTensor().getDefiningOp();
+
+    std::set<int32_t> getBufIds(Value value)
+    {
+        std::set<int32_t> bufIds;
+        collectBufIds(value, bufIds);
+        return bufIds;
     }
-    return getInitialLocalTensor(defOp);
-}
+
+public:
+    InsertBufIdSync() : bufId(0) {}
+    ~InsertBufIdSync() = default;
+
+    void process(Operation* op)
+    {
+        auto copyOp = dyn_cast<ascendc::DataCopyOp>(op);
+        if (copyOp && copyOp.getDirection() == ascendc::CopyDirection::ubuf_gm) {
+            auto src = copyOp.getSrc();
+            auto srcBufIds = getBufIds(src);
+            for (const auto& srcBufId : srcBufIds) {
+                bufIdMap[copyOp].insert(srcBufId);
+                insertGetRlsBuf(copyOp, srcBufId);
+            }
+            return;
+        }
+        if (auto opWithDst = dyn_cast<ascendc::OpWithDst>(op)) {
+            auto dstTensor = opWithDst.getDst();
+            auto dstDefOp = dstTensor.getDefiningOp();
+            auto dstBufIds = getBufIds(dstTensor);
+            for (const auto& dstBufId : dstBufIds) {
+                bufIdMap[opWithDst].insert(dstBufId);
+                insertGetRlsBuf(opWithDst, dstBufId);
+            }
+        }
+        if (auto opWithSrc = dyn_cast<ascendc::OpWithSrc>(op)) {
+            for (auto& src : opWithSrc.getSrcTensors()) {
+                auto srcBufIds = getBufIds(src);
+                for (const auto& srcBufId : srcBufIds) {
+                    if (!bufIdMap[opWithSrc].count(srcBufId)) {
+                        bufIdMap[opWithSrc].insert(srcBufId);
+                        insertGetRlsBuf(opWithSrc, srcBufId);
+                    }
+                }
+            }
+        }
+        return;
+    }
+
+    void setBufIdAttr(MLIRContext* context)
+    {
+        Builder builder(context);
+        for (const auto& [op, bufIdSet] : bufIdMap) {
+            SmallVector<int32_t> bufIdVec(bufIdSet.begin(), bufIdSet.end());
+            op->setAttr(ascendc::attr::bufId, builder.getI32ArrayAttr(bufIdVec));
+        }
+    }
+};
 
 class InsertBufIdSyncV2Pass : public ascendc::impl::InsertBufIdSyncV2Base<InsertBufIdSyncV2Pass> {
     void runOnOperation() override
@@ -85,50 +230,9 @@ class InsertBufIdSyncV2Pass : public ascendc::impl::InsertBufIdSyncV2Base<Insert
             return;
         }
         MLIRContext* context = &getContext();
-        VisitedOpsMap visitedOps;
-        VisitedBufIdMap bufIdMap;
-        int32_t bufId = 0;
-        funcOp.walk([&visitedOps, &bufIdMap, &bufId](Operation* op) {
-            auto copyOp = dyn_cast<ascendc::DataCopyOp>(op);
-            if (copyOp && copyOp.getDirection() == ascendc::CopyDirection::ubuf_gm) {
-                auto src = copyOp.getSrc().getDefiningOp();
-                auto srcBufId = visitedOps[src];
-                bufIdMap[op].insert(srcBufId);
-                insertGetRlsBuf(op, srcBufId);
-                return;
-            }
-            if (auto opWithDst = dyn_cast<ascendc::OpWithDst>(op)) {
-                auto dstTensor = opWithDst.getDst();
-                auto dstDefOp = dstTensor.getDefiningOp();
-                dstDefOp = getInitialLocalTensor(dstDefOp);
-                if (visitedOps.count(dstDefOp)) {
-                    auto dstBufId = visitedOps[dstDefOp];
-                    bufIdMap[op].insert(dstBufId);
-                    insertGetRlsBuf(opWithDst, dstBufId);
-                } else {
-                    visitedOps[dstDefOp] = bufId;
-                    bufIdMap[op].insert(bufId);
-                    insertGetRlsBuf(opWithDst, bufId);
-                    bufId++;
-                }
-            }
-            if (auto opWithSrc = dyn_cast<ascendc::OpWithSrc>(op)) {
-                for (auto& src : opWithSrc.getSrcTensors()) {
-                    auto srcDefOp = getInitialLocalTensor(src.getDefiningOp());
-                    auto srcBufId = visitedOps[srcDefOp];
-                    if (!bufIdMap[op].count(srcBufId)) {
-                        bufIdMap[op].insert(srcBufId);
-                        insertGetRlsBuf(op, srcBufId);
-                    }
-                }
-            }
-            return;
-        });
-        Builder builder(&getContext());
-        for (const auto& [op, bufIdSet] : bufIdMap) {
-            SmallVector<int32_t> bufIdVec(bufIdSet.begin(), bufIdSet.end());
-            op->setAttr(ascendc::attr::bufId, builder.getI32ArrayAttr(bufIdVec));
-        }
+        InsertBufIdSync insertBufIdSync;
+        funcOp.walk([&insertBufIdSync](Operation* op) { insertBufIdSync.process(op); });
+        insertBufIdSync.setBufIdAttr(context);
         funcOp.walk([](scf::ForOp forOp) {
             if (forOp->hasAttrOfType<UnitAttr>(asctile::attr::parallel)) {
                 forOp->removeAttr(asctile::attr::parallel);
