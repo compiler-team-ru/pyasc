@@ -154,11 +154,29 @@ class AscTile_VecScalarOp<string mnemonic, list<Trait> traits = []>
   let assemblyFormat = "$base `,` $value attr-dict `:` qualified(type($base))";
 }
 
-def AddsOp : AscTile_VecScalarOp<"adds">;
-def SubsOp : AscTile_VecScalarOp<"subs">;
-def MulsOp : AscTile_VecScalarOp<"muls">;
+def AddSOp : AscTile_VecScalarOp<"adds">;
+def SubSOp : AscTile_VecScalarOp<"subs">;
+def MulSOp : AscTile_VecScalarOp<"muls">;
 def ShLSOp : AscTile_VecScalarOp<"shls">;
 def ShRSOp : AscTile_VecScalarOp<"shrs">;
+def DivSOp : AscTile_VecScalarOp<"divs">;
+def MinSOp : AscTile_VecScalarOp<"mins">;
+def MaxSOp : AscTile_VecScalarOp<"maxs">;
+
+def CmpSOp : AscTile_Op<"cmps", [
+  Pure,
+  TypesMatchWith<"type of 'value' matches element type of 'base'",
+                 "base", "value",
+                 "::llvm::cast<ShapedType>($_self).getElementType()">,
+]> {
+  let arguments = (ins Tile:$base, AnyType:$value,
+                   AscTile_CompareModeAttr:$cmpMode);
+  let results = (outs Tile:$result);
+  let assemblyFormat = [{
+    $cmpMode $base `,` $value attr-dict `:` qualified(type($base)) `,`
+    qualified(type($result))
+  }];
+}
 
 def ReluOp : AscTile_Op<"relu", [Pure, AllTypesMatch<["operand", "result"]>]> {
   let arguments = (ins Tile:$operand);

@@ -83,76 +83,14 @@ ModuleOp getModule(Operation* op)
     return mod;
 }
 
-StringRef getCompilationArch(Operation* op)
-{
-    if (auto attr = getModule(op)->getAttrOfType<StringAttr>(attr::compilationArch))
-        return attr.getValue();
-    return {};
-}
-
 StringRef getSocVersion(Operation* op)
 {
-    if (auto attr = getModule(op)->getAttrOfType<StringAttr>(attr::socVersion))
-        return attr.getValue();
-    return {};
+    auto parent = getModule(op);
+    assert(parent->hasAttrOfType<StringAttr>(ascendc::attr::socVersion));
+    return parent->getAttrOfType<StringAttr>(ascendc::attr::socVersion).getValue();
 }
 
-std::optional<int64_t> getVecLen(Operation* op)
-{
-    if (auto attr = getModule(op)->getAttrOfType<IntegerAttr>(attr::vfVecLen))
-        return attr.getValue().getSExtValue();
-    return std::nullopt;
-}
-
-bool isTargetArchC310(Operation* op) { return getCompilationArch(op) == "c310"; }
-
-SmallVector<Operation*> collectAllUsers(LocalTensorAutoOp tensorOp)
-{
-    SmallVector<Operation*> users;
-    appendImplicitUsers(tensorOp, users);
-    return users;
-}
-
-LocalTensorAutoOp getAllocationRoot(Value v)
-{
-    auto* defOp = v.getDefiningOp();
-    if (!defOp)
-        return {};
-    if (auto op = dyn_cast<LocalTensorAutoOp>(defOp))
-        return op;
-    if (auto op = dyn_cast<LocalTensorReinterpretCastOp>(defOp))
-        return getAllocationRoot(op.getIn());
-    if (auto op = dyn_cast<LocalTensorSubIndexOp>(defOp))
-        return getAllocationRoot(op.getTensor());
-    return {};
-}
-
-Pipe getOpPipe(Operation* op, Pipe defaultPipe)
-{
-    return llvm::TypeSwitch<Operation*, Pipe>(op)
-        .Case<VectorOp>([](auto) { return Pipe::PIPE_V; })
-        .Case<MmadOp, MmadWithBiasOp>([](auto) { return Pipe::PIPE_M; })
-        .Case([](FixpipeOp) { return Pipe::PIPE_FIX; })
-        .Case([](CopyToL0Op) { return Pipe::PIPE_MTE1; })
-        .Case([](FillOp) { return Pipe::PIPE_MTE2; })
-        .Case([defaultPipe](DataCopyOp copyOp) {
-            if (auto direction = copyOp.getDirection()) {
-                auto [src, dst] = *direction;
-                if (src == TPosition::A1 && dst == TPosition::VECCALC ||
-                    src == TPosition::A1 && (dst == TPosition::A2 || dst == TPosition::B2 || dst == TPosition::CO1))
-                    return Pipe::PIPE_MTE1;
-                if (src == TPosition::GM)
-                    return Pipe::PIPE_MTE2;
-                if (dst == TPosition::GM || src == TPosition::VECCALC && dst == TPosition::A1)
-                    return Pipe::PIPE_MTE3;
-                if (src == TPosition::VECCALC && dst == TPosition::VECCALC)
-                    return Pipe::PIPE_V;
-            }
-            return defaultPipe;
-        })
-        .Case<LocalTensorGetValueOp, LocalTensorSetValueOp>([](auto) { return Pipe::PIPE_S; })
-        .Default(defaultPipe);
-}
+bool isTargetPlatform95(Operation* op) { return getSocVersion(op).starts_with("Ascend910_95"); }
 
 } // namespace ascendc
 } // namespace mlir
