@@ -87,11 +87,20 @@ unsigned int calculateFinalTensorSize(const unsigned int& typeSize, int64_t calC
 struct LoweringConversionTarget : public ConversionTarget {
     LoweringConversionTarget(TensorTypeConverter& converter, MLIRContext* context) : ConversionTarget(*context)
     {
-        addIllegalDialect<asctile::AscTileDialect>();
+        addIllegalOp<
+            //
+            asctile::TensorOp, asctile::LoadOp, asctile::GetValueOp, asctile::StoreOp, asctile::SetValueOp,
+            asctile::SplatOp, asctile::ReluOp, asctile::CastOp, asctile::SoftmaxOp, asctile::MatmulOp,
+            asctile::ReshapeOp, asctile::BroadcastOp, asctile::AddSOp, asctile::SubSOp, asctile::MulSOp,
+            asctile::DivSOp, asctile::MinSOp, asctile::MaxSOp, asctile::ShLSOp, asctile::ShRSOp,
+            asctile::ReduceSumAs1dOp, asctile::ReduceMinAs1dOp, asctile::ReduceMaxAs1dOp, asctile::ReduceSumOp,
+            asctile::ReduceMinOp, asctile::ReduceMaxOp, asctile::ReduceProdOp
+            //
+            >();
         addLegalDialect<
             ascendc::AscendCDialect, arith::ArithDialect, emitasc::EmitAscDialect, emitc::EmitCDialect,
             scf::SCFDialect>();
-        addLegalOp<UnrealizedConversionCastOp, asctile::CountMaskOp, asctile::BitwiseMaskOp, asctile::YieldOp>();
+        addLegalOp<UnrealizedConversionCastOp>();
     }
 };
 
@@ -323,8 +332,8 @@ struct ConvertSplat : public ConvertOp<asctile::SplatOp> {
 };
 
 struct ConvertRelu : ConvertOp<asctile::ReluOp> {
-    using ConvertOp<asctile::ReluOp>::ConvertOp;
-    using ConvertOp<asctile::ReluOp>::createTensorOp;
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
 
     LogicalResult convert(asctile::ReluOp op, ConvertRewriter& rewriter) const override
     {
@@ -364,32 +373,8 @@ struct ConvertCast : ConvertOp<asctile::CastOp> {
     }
 };
 
-struct ConvertSelect : ConvertOp<asctile::SelectOp> {
-    using ConvertOp<asctile::SelectOp>::ConvertOp;
-    using ConvertOp<asctile::SelectOp>::createTensorOp;
-
-    LogicalResult convert(asctile::SelectOp op, ConvertRewriter& rewriter) const override
-    {
-        ascir::ConstantOpBuilder consts(rewriter);
-        auto loc = op.getLoc();
-        auto dst = createTensorOp(rewriter, loc, op.getType());
-        auto sel = rewriter.getRemappedValue(op.getSelMask());
-        I1ReplacementType replType(op.getContext());
-        sel = createReCastOp(rewriter, loc, sel, cast<ShapedType>(sel.getType()).getShape(), replType.uiType);
-        auto src0 = rewriter.getRemappedValue(op.getSrc0());
-        auto src1 = rewriter.getRemappedValue(op.getSrc1());
-        auto zero = consts.i64(0);
-        rewriter.create<ascendc::SelectL0Op>(
-            loc, dst, sel, src0, src1, ascendc::SELMODE::VSEL_TENSOR_TENSOR_MODE,
-            rewriter.create<emitasc::MaskOp>(loc, zero, zero), zero,
-            rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::BinaryRepeatParamsType>()));
-        rewriter.replaceOp(op, dst);
-        return success();
-    }
-};
-
 struct ConvertSoftmax : ConvertOp<asctile::SoftmaxOp> {
-    using ConvertOp<asctile::SoftmaxOp>::ConvertOp;
+    using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
     static std::pair<int, int> unpackShape(ArrayRef<int64_t> shape)
@@ -690,53 +675,6 @@ struct ConvertReduce : ConvertOp<TileOp> {
     }
 };
 
-struct ConvertCmpSOp : ConvertOp<asctile::CmpSOp> {
-    using ConvertOp::ConvertOp;
-    using ConvertOp::createTensorOp;
-
-    static std::optional<ascendc::CMPMODE> getCmpMode(asctile::CompareMode pred)
-    {
-        switch (pred) {
-        case asctile::CompareMode::LT:
-            return ascendc::CMPMODE::LT;
-        case asctile::CompareMode::GT:
-            return ascendc::CMPMODE::GT;
-        case asctile::CompareMode::EQ:
-            return ascendc::CMPMODE::EQ;
-        case asctile::CompareMode::LE:
-            return ascendc::CMPMODE::LE;
-        case asctile::CompareMode::GE:
-            return ascendc::CMPMODE::GE;
-        case asctile::CompareMode::NE:
-            return ascendc::CMPMODE::NE;
-        default:
-            return std::nullopt;
-        }
-    }
-
-    LogicalResult convert(asctile::CmpSOp op, ConvertRewriter& rewriter) const override
-    {
-        ascir::ConstantOpBuilder consts(rewriter);
-        auto loc = op.getLoc();
-        auto value = rewriter.getRemappedValue(op.getValue());
-        auto base = rewriter.getRemappedValue(op.getBase());
-        auto srcTy = op.getBase().getType();
-        auto srcVecTy = cast<ShapedType>(srcTy);
-        auto srcNumElems = srcVecTy.getNumElements();
-        I1ReplacementType replType(op.getContext());
-        auto dstShape = llvm::divideCeil(srcNumElems, replType.width);
-        Value dst = createTensorOp(rewriter, loc, dstShape, replType.iType);
-        dst = createReCastOp(rewriter, loc, dst, dstShape, replType.uiType);
-        auto mode = getCmpMode(op.getCmpMode());
-        if (!mode)
-            llvm_unreachable("Unexpected predicate type!");
-        auto count = calCount(op.getBase());
-        rewriter.create<ascendc::CompareScalarL2Op>(loc, dst, base, value, *mode, consts.i64(count));
-        rewriter.replaceOp(op, dst);
-        return success();
-    }
-};
-
 struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePass> {
     void runOnOperation() override
     {
@@ -748,7 +686,7 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         patterns.insert<
             //
             ConvertTensor, ConvertLoad, ConvertGetValue, ConvertStore, ConvertSetValue, ConvertSplat, ConvertRelu,
-            ConvertCast, ConvertSelect, ConvertMatmul, ConvertReshape, ConvertBroadcast, ConvertSoftmax, ConvertCmpSOp,
+            ConvertCast, ConvertMatmul, ConvertReshape, ConvertBroadcast, ConvertSoftmax,
             ConvertToL2<asctile::AddSOp, ascendc::AddsL2Op>,
             ConvertVecScalarToL2<asctile::SubSOp, ascendc::SubsL2Op, ascendc::SubL2Op>,
             ConvertToL2<asctile::MulSOp, ascendc::MulsL2Op>,

@@ -210,6 +210,7 @@ class Compiler:
             passes.asclower.add_lower_arith_i1(pm)
             passes.asclower.add_lower_atomic(pm)
             passes.asclower.add_lower_asctile(pm)
+            passes.asclower.add_lower_asctile_i1(pm)
             passes.asclower.add_lower_math(pm)
             passes.asclower.add_lower_scf(pm)
             passes.common.add_canonicalizer(pm)
