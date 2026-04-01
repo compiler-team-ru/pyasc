@@ -62,3 +62,21 @@ def test_shape_op(backend, platform, require_platform_95, asc_op, torch_op, arg,
     out_offsets = (0, ) * len(ref_z.shape)
     kernel[1](x, z, x.shape, ref_z.shape, in_offsets, out_offsets, asc_op, arg)
     torch.testing.assert_close(z, ref_z, atol=1e-3, rtol=1e-3)
+
+
+@pytest.mark.parametrize("shape", ([32], [3, 32]), ids=str)
+@pytest.mark.parametrize("dtype", (torch.float16, torch.float32, torch.int16, torch.int32), ids=str)
+def test_broadcast_dup(backend, platform, shape, dtype):
+    config.set_platform(backend, platform, check=False)
+
+    @asc2.jit(always_compile=True)
+    def kernel(out_ptr, shape: asc.ConstExpr, offsets: asc.ConstExpr):
+        out_tensor = asc2.tensor(out_ptr, shape)
+        out = asc2.full([1], 777, out_tensor.dtype).broadcast_to(*out_tensor.shape)
+        asc2.store(out, out_tensor, offsets=offsets)
+
+    out = torch.zeros(shape, dtype=dtype)
+    out_ref = torch.full_like(out, 777)
+    size = tuple(out.size())
+    kernel[1](out, size, [0] * len(size))
+    torch.testing.assert_close(out, out_ref, atol=1e-6, rtol=1e-6)

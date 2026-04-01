@@ -474,19 +474,29 @@ struct ConvertReshape : ConvertOp<asctile::ReshapeOp> {
 };
 
 struct ConvertBroadcast : ConvertOp<asctile::BroadcastOp> {
-    using ConvertOp<asctile::BroadcastOp>::ConvertOp;
-    using ConvertOp<asctile::BroadcastOp>::createTensorOp;
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
 
     LogicalResult convert(asctile::BroadcastOp op, ConvertRewriter &rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loc = op.getLoc();
-        auto dstTy = op.getResult().getType();
-        auto dstSize = cast<ShapedType>(dstTy);
-        auto src = rewriter.getRemappedValue(op.getInput());
-        auto dst = createTensorOp(rewriter, loc, dstSize.getShape(), dstTy.getElementType());
-        const auto &srcShapeVec = op.getInput().getType().getShape();
-        const auto &dstShapeVec = dstTy.getShape();
+        auto dstType = op.getResult().getType();
+        auto src = rewriter.getRemappedValue(op.getOperand());
+        auto dst = createTensorOp(rewriter, loc, dstType.getShape(), dstType.getElementType());
+        auto srcType = op.getOperand().getType();
+        if (srcType.getNumElements() == 1) {
+            Value dupSrc = src;
+            if (!ascendc::isTargetPlatform95(op)) {
+                dupSrc =
+                    rewriter.create<ascendc::LocalTensorGetValueOp>(loc, srcType.getElementType(), src, consts.i64(0));
+            }
+            rewriter.create<ascendc::DuplicateL2Op>(loc, dst, dupSrc, consts.i64(0));
+            rewriter.replaceOp(op, dst);
+            return success();
+        }
+        auto srcShapeVec = srcType.getShape();
+        auto dstShapeVec = dstType.getShape();
         if (srcShapeVec.size() > dstShapeVec.size() || srcShapeVec.size() == 0 || dstShapeVec.size() == 0)
             return op.emitError("Incompatible tensor shapes for Broadcast: [")
                 .append(srcShapeVec)

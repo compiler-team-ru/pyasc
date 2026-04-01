@@ -190,7 +190,7 @@ def VecScalarL0OpInterface : AscendC_OpInterface<"VecScalarL0Op", [VecScalarOpIn
 
 def VecScalarL2OpInterface : AscendC_OpInterface<"VecScalarL2Op", [VecScalarOpInterface]> {
   let description = "Vector-scalar operation (L2 API)";
-  let methods = [getCalCount];
+  let methods = [getCalCount, getCalCountMutable];
 }
 
 //===----------------------------------------------------------------------===//
