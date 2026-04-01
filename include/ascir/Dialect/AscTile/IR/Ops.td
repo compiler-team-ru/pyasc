@@ -265,13 +265,13 @@ def MatmulOp : AscTile_Op<"matmul", [
 }
 
 def BroadcastOp : AscTile_Op<"broadcast", [
-  Pure, AllElementTypesMatch<["input", "result"]>
+  Pure, AllElementTypesMatch<["operand", "result"]>
 ]> {
   let summary = "Broadcast tile to the provided shape";
-  let arguments = (ins Tile:$input);
+  let arguments = (ins Tile:$operand);
   let results = (outs Tile:$result);
   let assemblyFormat = [{
-    $input attr-dict `:` qualified(type($input)) `to` qualified(type($result))
+    $operand attr-dict `:` qualified(type($operand)) `to` qualified(type($result))
   }];
 }
 
