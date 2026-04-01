@@ -13,6 +13,7 @@ add_mlir_conversion_library(MLIRLowerToAsc
   LowerArithBinary.cpp
   LowerArithI1.cpp
   LowerAscTile.cpp
+  LowerAscTileI1.cpp
   LowerAtomic.cpp
   LowerMath.cpp
   LowerSCF.cpp
