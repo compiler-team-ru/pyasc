@@ -47,7 +47,16 @@ def LowerAscTile : Pass<"asclower-asctile", "func::FuncOp"> {
   let summary = "Lower operations from asctile dialect to ascendc";
   let constructor = "mlir::asclower::createLowerAscTilePass()";
   let dependentDialects = [
-    "arith::ArithDialect", "ascendc::AscendCDialect", "emitasc::EmitAscDialect", "scf::SCFDialect"
+    "arith::ArithDialect", "ascendc::AscendCDialect", "emitasc::EmitAscDialect",
+    "scf::SCFDialect",
+  ];
+}
+
+def LowerAscTileI1 : Pass<"asclower-asctile-i1", "func::FuncOp"> {
+  let summary = "Lower asctile operations with i1-like operands to ascendc";
+  let constructor = "mlir::asclower::createLowerAscTileI1Pass()";
+  let dependentDialects = [
+    "arith::ArithDialect", "ascendc::AscendCDialect", "emitasc::EmitAscDialect",
   ];
 }
 
