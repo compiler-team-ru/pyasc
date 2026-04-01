@@ -118,8 +118,12 @@ void fuseBufIdSync(func::FuncOp funcOp)
             eraseSync(fuseGroup);
             fuseGroup.clear();
         }
-        op->removeAttr(ascendc::attr::bufId);
     });
+}
+
+void removeBufIdAttr(func::FuncOp funcOp)
+{
+    funcOp.walk([](Operation *op) { op->removeAttr(ascendc::attr::bufId); });
 }
 
 class FuseBufIdSyncPass : public ascendc::impl::FuseBufIdSyncBase<FuseBufIdSyncPass> {
@@ -130,6 +134,7 @@ class FuseBufIdSyncPass : public ascendc::impl::FuseBufIdSyncBase<FuseBufIdSyncP
             return;
         }
         fuseBufIdSync(funcOp);
+        removeBufIdAttr(funcOp);
     }
 };
 } // namespace
