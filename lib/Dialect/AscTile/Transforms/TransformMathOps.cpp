@@ -69,6 +69,23 @@ struct ScalarizeArithOp : OpRewritePattern<ArithOp> {
     }
 };
 
+template <typename ArithOp, typename TileOp>
+struct ScalarizeArithRhsOp : OpRewritePattern<ArithOp> {
+    using OpRewritePattern<ArithOp>::OpRewritePattern;
+
+    LogicalResult matchAndRewrite(ArithOp op, PatternRewriter& rewriter) const override
+    {
+        auto type = op.getType();
+        if (!isa<asctile::TileType>(type))
+            return failure();
+        if (auto splat = materializeSplatValue(rewriter, op.getRhs())) {
+            rewriter.replaceOpWithNewOp<TileOp>(op, type, op.getLhs(), splat);
+            return success();
+        }
+        return failure();
+    }
+};
+
 template <typename MaxOp>
 struct MaxWithZeroToReluOp : OpRewritePattern<MaxOp> {
     using OpRewritePattern<MaxOp>::OpRewritePattern;
@@ -132,30 +149,78 @@ struct MaxWithZeroToReluOpInt : MaxWithZeroToReluOp<MaxOp> {
     bool isZero(Value value) const override { return matchPattern(value, m_Zero()); }
 };
 
-template <typename SubOp>
-struct ScalarizeSub : OpRewritePattern<SubOp> {
-    using OpRewritePattern<SubOp>::OpRewritePattern;
+template <typename CmpOp>
+struct ScalarizeCompare : OpRewritePattern<CmpOp> {
+    using OpRewritePattern<CmpOp>::OpRewritePattern;
 
-    static Value transformScalar(Value rhs, PatternRewriter& rewriter)
+    static std::optional<asctile::CompareMode> getCmpMode(arith::CmpIPredicate pred)
     {
-        if constexpr (std::is_same_v<SubOp, arith::SubFOp>) {
-            return rewriter.create<arith::NegFOp>(rhs.getLoc(), rhs);
-        } else if constexpr (std::is_same_v<SubOp, arith::SubIOp>) {
-            Value m1 = rewriter.create<arith::ConstantIntOp>(rhs.getLoc(), -1L, rhs.getType());
-            return rewriter.create<arith::MulIOp>(rhs.getLoc(), rhs, m1);
-        } else {
-            llvm_unreachable("unexpected arith.sub* op");
+        switch (pred) {
+        case arith::CmpIPredicate::eq:
+            return asctile::CompareMode::EQ;
+        case arith::CmpIPredicate::ne:
+            return asctile::CompareMode::NE;
+        case arith::CmpIPredicate::slt:
+        case arith::CmpIPredicate::ult:
+            return asctile::CompareMode::LT;
+        case arith::CmpIPredicate::sle:
+        case arith::CmpIPredicate::ule:
+            return asctile::CompareMode::LE;
+        case arith::CmpIPredicate::sgt:
+        case arith::CmpIPredicate::ugt:
+            return asctile::CompareMode::GT;
+        case arith::CmpIPredicate::sge:
+        case arith::CmpIPredicate::uge:
+            return asctile::CompareMode::GE;
+        default:
+            return std::nullopt;
         }
     }
 
-    LogicalResult matchAndRewrite(SubOp op, PatternRewriter& rewriter) const override
+    static std::optional<asctile::CompareMode> getCmpMode(arith::CmpFPredicate pred)
+    {
+        switch (pred) {
+        case arith::CmpFPredicate::OEQ:
+        case arith::CmpFPredicate::UEQ:
+            return asctile::CompareMode::EQ;
+        case arith::CmpFPredicate::ONE:
+        case arith::CmpFPredicate::UNE:
+            return asctile::CompareMode::NE;
+        case arith::CmpFPredicate::OLT:
+        case arith::CmpFPredicate::ULT:
+            return asctile::CompareMode::LT;
+        case arith::CmpFPredicate::OLE:
+        case arith::CmpFPredicate::ULE:
+            return asctile::CompareMode::LE;
+        case arith::CmpFPredicate::OGT:
+        case arith::CmpFPredicate::UGT:
+            return asctile::CompareMode::GT;
+        case arith::CmpFPredicate::OGE:
+        case arith::CmpFPredicate::UGE:
+            return asctile::CompareMode::GE;
+        default:
+            return std::nullopt;
+        }
+    }
+
+    LogicalResult matchAndRewrite(CmpOp op, PatternRewriter& rewriter) const override
     {
         if (!isa<asctile::TileType>(op.getType()))
             return failure();
-        Value scalar = materializeSplatValue(rewriter, op.getRhs());
-        if (!scalar)
+        Value newLhs, newRhs;
+        if (auto splat = materializeSplatValue(rewriter, op.getLhs())) {
+            newLhs = op.getRhs();
+            newRhs = splat;
+        } else if (auto splat = materializeSplatValue(rewriter, op.getRhs())) {
+            newLhs = op.getLhs();
+            newRhs = splat;
+        } else {
             return failure();
-        rewriter.replaceOpWithNewOp<asctile::AddsOp>(op, op.getType(), op.getLhs(), transformScalar(scalar, rewriter));
+        }
+        std::optional<asctile::CompareMode> predicate = getCmpMode(op.getPredicate());
+        if (!predicate)
+            return failure();
+        rewriter.replaceOpWithNewOp<asctile::CmpSOp>(op, op.getType(), newLhs, newRhs, *predicate);
         return success();
     }
 };
@@ -213,9 +278,15 @@ public:
             >(context, /*benefit=*/2);
         patterns.add<
             //
-            ScalarizeArithOp<arith::AddFOp, asctile::AddsOp>, ScalarizeArithOp<arith::AddIOp, asctile::AddsOp>,
-            ScalarizeSub<arith::SubFOp>, ScalarizeSub<arith::SubIOp>, ScalarizeArithOp<arith::MulFOp, asctile::MulsOp>,
-            ScalarizeArithOp<arith::MulIOp, asctile::MulsOp>, ScalarizeShL, ScalarizeShR
+            ScalarizeArithOp<arith::AddFOp, asctile::AddSOp>, ScalarizeArithOp<arith::AddIOp, asctile::AddSOp>,
+            ScalarizeArithRhsOp<arith::SubFOp, asctile::SubSOp>, ScalarizeArithRhsOp<arith::SubIOp, asctile::SubSOp>,
+            ScalarizeArithOp<arith::MulFOp, asctile::MulSOp>, ScalarizeArithOp<arith::MulIOp, asctile::MulSOp>,
+            ScalarizeArithRhsOp<arith::DivFOp, asctile::DivSOp>, ScalarizeArithRhsOp<arith::DivSIOp, asctile::DivSOp>,
+            ScalarizeShL, ScalarizeShR, ScalarizeArithOp<arith::MaximumFOp, asctile::MaxSOp>,
+            ScalarizeArithOp<arith::MaxSIOp, asctile::MaxSOp>, ScalarizeArithOp<arith::MinimumFOp, asctile::MinSOp>,
+            ScalarizeArithOp<arith::MinSIOp, asctile::MinSOp>,
+            ScalarizeCompare<arith::CmpIOp>, // TODO: This is not working, fix me!
+            ScalarizeCompare<arith::CmpFOp>
             //
             >(context, /*benefit=*/1);
         if (applyPatternsAndFoldGreedily(op, std::move(patterns)).failed())

@@ -9,6 +9,7 @@
  */
 
 #include "ascir/Dialect/Asc/Utils/Utils.h"
+#include "ascir/Dialect/Asc/Utils/Attributes.h"
 #include "ascir/Dialect/Utils/Inlining.h"
 
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
@@ -60,6 +61,24 @@ void registerInlinerInterfaces(DialectRegistry& registry)
         dialect->addInterface<AllowInline<emitc::CastOp, emitc::ConstantOp>>();
     });
 }
+
+ModuleOp getModule(Operation* op)
+{
+    if (isa<ModuleOp>(op))
+        return cast<ModuleOp>(op);
+    auto mod = op->getParentOfType<ModuleOp>();
+    assert(mod && "operation must be within a module");
+    return mod;
+}
+
+StringRef getSocVersion(Operation* op)
+{
+    auto parent = getModule(op);
+    assert(parent->hasAttrOfType<StringAttr>(ascendc::attr::socVersion));
+    return parent->getAttrOfType<StringAttr>(ascendc::attr::socVersion).getValue();
+}
+
+bool isTargetPlatform95(Operation* op) { return getSocVersion(op).starts_with("Ascend910_95"); }
 
 } // namespace ascendc
 } // namespace mlir

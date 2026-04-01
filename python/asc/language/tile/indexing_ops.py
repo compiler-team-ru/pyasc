@@ -18,8 +18,6 @@ from .utils import create_tile, infer_common_dtype
 
 def where(mask: Tile, src0: Union[Tile, RuntimeNumeric], src1: Union[Tile, RuntimeNumeric]) -> Tile:
     check_type("mask", mask, Tile)
-    if not isinstance(src0, Tile) and not isinstance(src1, Tile):
-        raise RuntimeError(f"At least one operand must be tile, got {type(src0)} and {type(src1)}")
     src_dtype = infer_common_dtype(src0, src1)
     src0 = create_tile(src0, src_dtype, mask.shape)
     src1 = create_tile(src1, src_dtype, mask.shape)

@@ -21,11 +21,13 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/OpBase.td"
 
 defm Adds : VecScalarL012Op<"adds", "Adds">;
+defm Divs : VecScalarL012Op<"divs", "Divs">;
 defm LeakyRelu : VecScalarL012Op<"leaky_relu", "LeakyRelu">;
 defm Maxs : VecScalarL012Op<"maxs", "Maxs">;
 defm Mins : VecScalarL012Op<"mins", "Mins">;
 defm Muls : VecScalarL012Op<"muls", "Muls">;
 defm ShiftLeft : VecScalarL012Op<"shift_left", "ShiftLeft">;
 defm ShiftRight : VecScalarL012Op<"shift_right", "ShiftRight">;
+defm Subs : VecScalarL012Op<"subs", "Subs">;
 
 #endif //ASC_BASIC_OP_VEC_BINARY_SCALAR_TD

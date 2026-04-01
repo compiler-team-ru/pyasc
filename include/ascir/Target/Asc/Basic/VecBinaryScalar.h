@@ -22,8 +22,8 @@ namespace ascendc {
 
 template <typename VecScalarL0Op>
 auto printOperation(CodeEmitter& emitter, VecScalarL0Op op) -> LogicalResultForT<
-    VecScalarL0Op, ascendc::AddsL0Op, ascendc::LeakyReluL0Op, ascendc::MaxsL0Op, ascendc::MinsL0Op, ascendc::MulsL0Op,
-    ascendc::ShiftLeftL0Op, ascendc::ShiftRightL0Op>
+    VecScalarL0Op, ascendc::AddsL0Op, ascendc::SubsL0Op, ascendc::LeakyReluL0Op, ascendc::MaxsL0Op, ascendc::MinsL0Op,
+    ascendc::MulsL0Op, ascendc::DivsL0Op, ascendc::ShiftLeftL0Op, ascendc::ShiftRightL0Op>
 {
     auto& os = emitter.ostream();
     FAIL_OR(printIsSetMaskTemplate(emitter, op));
@@ -35,8 +35,8 @@ auto printOperation(CodeEmitter& emitter, VecScalarL0Op op) -> LogicalResultForT
 
 template <typename VecScalarL1Op>
 auto printOperation(CodeEmitter& emitter, VecScalarL1Op op) -> LogicalResultForT<
-    VecScalarL1Op, ascendc::AddsL1Op, ascendc::LeakyReluL1Op, ascendc::MaxsL1Op, ascendc::MinsL1Op, ascendc::MulsL1Op,
-    ascendc::ShiftLeftL1Op, ascendc::ShiftRightL1Op>
+    VecScalarL1Op, ascendc::AddsL1Op, ascendc::SubsL1Op, ascendc::LeakyReluL1Op, ascendc::MaxsL1Op, ascendc::MinsL1Op,
+    ascendc::MulsL1Op, ascendc::DivsL1Op, ascendc::ShiftLeftL1Op, ascendc::ShiftRightL1Op>
 {
     auto& os = emitter.ostream();
     auto maskName = printMask(emitter, op);
@@ -49,8 +49,8 @@ auto printOperation(CodeEmitter& emitter, VecScalarL1Op op) -> LogicalResultForT
 
 template <typename VecScalarL2Op>
 auto printOperation(CodeEmitter& emitter, VecScalarL2Op op) -> LogicalResultForT<
-    VecScalarL2Op, ascendc::AddsL2Op, ascendc::LeakyReluL2Op, ascendc::MaxsL2Op, ascendc::MinsL2Op, ascendc::MulsL2Op,
-    ascendc::ShiftLeftL2Op, ascendc::ShiftRightL2Op>
+    VecScalarL2Op, ascendc::AddsL2Op, ascendc::SubsL2Op, ascendc::LeakyReluL2Op, ascendc::MaxsL2Op, ascendc::MinsL2Op,
+    ascendc::MulsL2Op, ascendc::DivsL2Op, ascendc::ShiftLeftL2Op, ascendc::ShiftRightL2Op>
 {
     auto& os = emitter.ostream();
     FAIL_OR(printIsSetMaskTemplate(emitter, op));
