@@ -534,6 +534,34 @@ struct ConvertToL2 : ConvertOp<TileOp> {
     }
 };
 
+template <typename TileOp, typename VecScalarOp, typename VectorOp = void>
+struct ConvertVecScalarToL2 : ConvertOp<TileOp> {
+    using ConvertOp<TileOp>::ConvertOp;
+    using ConvertOp<TileOp>::calCount;
+    using ConvertOp<TileOp>::createTensorOp;
+
+    LogicalResult convert(TileOp op, ConvertRewriter &rewriter) const override
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        Location loc = op.getLoc();
+
+        Value dst = createTensorOp(rewriter, loc, op.getType());
+        Value lhs = rewriter.getRemappedValue(op->getOperand(0));
+        Value rhs = rewriter.getRemappedValue(op->getOperand(1));
+        constexpr bool requirePlatform95 = !std::is_same_v<VectorOp, void>;
+        if (requirePlatform95 && !ascendc::isTargetPlatform95(op)) {
+            Value dup = createTensorOp(rewriter, loc, op.getType());
+            rewriter.create<ascendc::DuplicateL2Op>(loc, dup, rhs, consts.i64(calCount(dst)));
+            rewriter.create<VectorOp>(loc, dst, lhs, dup, consts.i64(calCount(dst)));
+        } else {
+            rewriter.create<VecScalarOp>(loc, dst, lhs, rhs, consts.i64(calCount(dst)));
+        }
+        rewriter.replaceOp(op, dst);
+
+        return success();
+    }
+};
+
 template <typename TileOp, typename L2Op>
 struct ConvertReduceAs1d : ConvertOp<TileOp> {
     using ConvertOp<TileOp>::ConvertOp;
@@ -650,6 +678,53 @@ struct ConvertReduce : ConvertOp<TileOp> {
     }
 };
 
+struct ConvertCmpSOp : ConvertOp<asctile::CmpSOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    static std::optional<ascendc::CMPMODE> getCmpMode(asctile::CompareMode pred)
+    {
+        switch (pred) {
+            case asctile::CompareMode::LT:
+                return ascendc::CMPMODE::LT;
+            case asctile::CompareMode::GT:
+                return ascendc::CMPMODE::GT;
+            case asctile::CompareMode::EQ:
+                return ascendc::CMPMODE::EQ;
+            case asctile::CompareMode::LE:
+                return ascendc::CMPMODE::LE;
+            case asctile::CompareMode::GE:
+                return ascendc::CMPMODE::GE;
+            case asctile::CompareMode::NE:
+                return ascendc::CMPMODE::NE;
+            default:
+                return std::nullopt;
+        }
+    }
+
+    LogicalResult convert(asctile::CmpSOp op, ConvertRewriter &rewriter) const override
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto loc = op.getLoc();
+        auto value = rewriter.getRemappedValue(op.getValue());
+        auto base = rewriter.getRemappedValue(op.getBase());
+        auto srcTy = op.getBase().getType();
+        auto srcVecTy = cast<ShapedType>(srcTy);
+        auto srcNumElems = srcVecTy.getNumElements();
+        I1ReplacementType replType(op.getContext());
+        auto dstShape = llvm::divideCeil(srcNumElems, replType.width);
+        Value dst = createTensorOp(rewriter, loc, dstShape, replType.iType);
+        dst = createReCastOp(rewriter, loc, dst, dstShape, replType.uiType);
+        auto mode = getCmpMode(op.getCmpMode());
+        if (!mode)
+            llvm_unreachable("Unexpected predicate type!");
+        auto count = calCount(op.getBase());
+        rewriter.create<ascendc::CompareScalarL2Op>(loc, dst, base, value, *mode, consts.i64(count));
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
 struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePass> {
     void runOnOperation() override
     {
@@ -661,8 +736,12 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         patterns.insert<
             //
             ConvertTensor, ConvertLoad, ConvertGetValue, ConvertStore, ConvertSetValue, ConvertSplat, ConvertRelu,
-            ConvertCast, ConvertSelect, ConvertMatmul, ConvertReshape, ConvertBroadcast, ConvertSoftmax,
-            ConvertToL2<asctile::AddsOp, ascendc::AddsL2Op>, ConvertToL2<asctile::MulsOp, ascendc::MulsL2Op>,
+            ConvertCast, ConvertSelect, ConvertMatmul, ConvertReshape, ConvertBroadcast, ConvertSoftmax, ConvertCmpSOp,
+            ConvertToL2<asctile::AddSOp, ascendc::AddsL2Op>,
+            ConvertVecScalarToL2<asctile::SubSOp, ascendc::SubsL2Op, ascendc::SubL2Op>,
+            ConvertToL2<asctile::MulSOp, ascendc::MulsL2Op>,
+            ConvertVecScalarToL2<asctile::DivSOp, ascendc::DivsL2Op, ascendc::DivL2Op>,
+            ConvertToL2<asctile::MinSOp, ascendc::MinsL2Op>, ConvertToL2<asctile::MaxSOp, ascendc::MaxsL2Op>,
             ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>, ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>,
             ConvertReduceAs1d<asctile::ReduceSumAs1dOp, ascendc::ReduceSumL2Op>,
             ConvertReduceAs1d<asctile::ReduceMinAs1dOp, ascendc::ReduceMinL2Op>,

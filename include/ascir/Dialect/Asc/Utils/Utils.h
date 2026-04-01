@@ -58,6 +58,12 @@ bool opPrecedes(Operation *lhs, Operation *rhs, DominanceInfo &di);
 
 void registerInlinerInterfaces(DialectRegistry &registry);
 
+ModuleOp getModule(Operation *op);
+
+StringRef getSocVersion(Operation *op);
+
+bool isTargetPlatform95(Operation *op);
+
 } // namespace ascendc
 } // namespace mlir
 

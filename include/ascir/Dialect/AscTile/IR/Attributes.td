@@ -43,4 +43,16 @@ def AscTile_AtomicKindAttr : I32EnumAttr<"AtomicKind", "kind of atomic", [
   let description = "Kind of atomic operation";
 }
 
+def AscTile_CompareModeAttr : I32EnumAttr<"CompareMode", "comparsion type", [
+  I32EnumAttrCase<"LT", 0>,
+  I32EnumAttrCase<"GT", 1>,
+  I32EnumAttrCase<"EQ", 2>,
+  I32EnumAttrCase<"LE", 3>,
+  I32EnumAttrCase<"GE", 4>,
+  I32EnumAttrCase<"NE", 5>,
+]> {
+  let cppNamespace = "::mlir::asctile";
+  let description = "Comparsion mode";
+}
+
 #endif // ASCTILE_ATTRIBUTES_TD
