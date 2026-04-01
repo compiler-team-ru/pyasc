@@ -30,7 +30,6 @@ namespace ascendc {
 
 using namespace mlir;
 using namespace ascir;
-using namespace ascendc;
 
 namespace {
 
@@ -65,7 +64,7 @@ std::pair<uint64_t, uint64_t> getMask(ShapedType type)
 template <class OpT>
 void fillMask(OpBuilder& builder, Location loc, ConstantOpBuilder& consts, ShapedType srcType, OpT op)
 {
-    if (op->hasAttr(attr::maskSet))
+    if (op->hasAttr(ascendc::attr::maskSet))
         return;
     auto [maskHVal, maskLVal] = getMask(srcType);
     auto mask = builder.create<emitasc::MaskOp>(loc, consts.i64(maskHVal), consts.i64(maskLVal));
@@ -151,7 +150,9 @@ void fillOperation(ascendc::VecScalarL0Op op)
     op.getRepeatParamsMutable().assign(repeatParams);
 }
 
-template <typename OpType, AnyOfT<OpType, ascendc::UnaryL2Op, ascendc::BinaryL2Op> = true>
+template <
+    typename OpType,
+    AnyOfT<OpType, ascendc::DuplicateL2Op, ascendc::UnaryL2Op, ascendc::BinaryL2Op, ascendc::VecScalarL2Op> = true>
 void fillOperation(OpType op)
 {
     OpBuilder builder(op);
@@ -169,7 +170,8 @@ struct FillAscOperandsPass : public ascendc::impl::FillAscOperandsBase<FillAscOp
             llvm::TypeSwitch<Operation*>(op)
                 .Case<
                     ascendc::UnaryL0Op, ascendc::CastL0Op, ascendc::DuplicateL0Op, ascendc::BinaryL0Op,
-                    ascendc::SelectL0Op, ascendc::CompareL0Op, ascendc::UnaryL2Op, ascendc::BinaryL2Op>(
+                    ascendc::VecScalarL0Op, ascendc::SelectL0Op, ascendc::CompareL0Op, ascendc::DuplicateL2Op,
+                    ascendc::UnaryL2Op, ascendc::BinaryL2Op, ascendc::VecScalarL2Op>(
                     [](auto fillOp) { fillOperation(fillOp); })
                 .Default([](Operation*) {});
         });

@@ -237,25 +237,6 @@ def VecScalarL2OpInterface : AscendC_OpInterface<"VecScalarL2Op", [VecScalarOpIn
 }
 
 //===----------------------------------------------------------------------===//
-// Register API operations
-//===----------------------------------------------------------------------===//
-
-def BinaryRegOpInterface : AscendC_OpInterface<"BinaryRegOp", [RegOpInterface]> {
-  let description = "Binary operation (register API)";
-  let methods = [getDstReg, getSrc0Reg, getSrc1Reg, getMaskReg];
-}
-
-def UnaryRegOpInterface : AscendC_OpInterface<"UnaryRegOp", [RegOpInterface]> {
-  let description = "Unary operation (register API)";
-  let methods = [getDstReg, getSrcReg, getMaskReg];
-}
-
-def VecScalarRegOpInterface : AscendC_OpInterface<"VecScalarRegOp", [RegOpInterface]> {
-  let description = "Vector scalar operation (register API)";
-  let methods = [getDstReg, getSrcReg, getScalar, getMaskReg];
-}
-
-//===----------------------------------------------------------------------===//
 // Math library operations
 //===----------------------------------------------------------------------===//
 
