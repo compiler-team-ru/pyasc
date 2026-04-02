@@ -565,19 +565,22 @@ struct ConvertReduceAs1d : ConvertOp<TileOp> {
 
     LogicalResult convert(TileOp op, ConvertRewriter &rewriter) const override
     {
-        unsigned int typeSize = ascendc::getTypeSize(op.getType());
+        Type elemType = getElementTypeOrSelf(op.getType());
+        unsigned int typeSize = ascendc::getTypeSize(elemType);
         unsigned int finalSize = calculateFinalTensorSize(typeSize, calCount(op.getOperand()));
         ascir::ConstantOpBuilder consts(rewriter);
         Location loc = op.getLoc();
-        Value dst = createTensorOp(rewriter, loc, static_cast<int64_t>(typeSize), op.getType());
+        Value dst = createTensorOp(rewriter, loc, 1, elemType);
         Value src = rewriter.getRemappedValue(op.getOperand());
-
-        Value tmpBuff = createTensorOp(rewriter, loc, static_cast<int64_t>(finalSize), op.getType());
+        Value tmpBuff = createTensorOp(rewriter, loc, static_cast<int64_t>(finalSize), elemType);
         if constexpr (std::is_same_v<L2Op, ascendc::ReduceSumL2Op>)
             rewriter.create<L2Op>(loc, dst, src, tmpBuff, consts.i64(calCount(op.getOperand())));
         else
             rewriter.create<L2Op>(loc, dst, src, tmpBuff, consts.i64(calCount(op.getOperand())), consts.i64(0));
-        rewriter.replaceOpWithNewOp<ascendc::LocalTensorGetValueOp>(op, op.getType(), dst, consts.i64(0));
+        if (isa<asctile::TileType>(op.getType()))
+            rewriter.replaceOp(op, dst);
+        else
+            rewriter.replaceOpWithNewOp<ascendc::LocalTensorGetValueOp>(op, elemType, dst, consts.i64(0));
         return success();
     }
 };
