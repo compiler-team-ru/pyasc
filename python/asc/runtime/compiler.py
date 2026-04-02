@@ -96,7 +96,6 @@ class CompileOptions:
     Perform static allocation for tiles instead of relying on Ascend C TPipe backend.
     The static allocation feature may help to reduce an overhead caused by scalar code.
     """
-    sync_v2: bool = False
 
 
 class CompilePlatform(Enum):
@@ -246,14 +245,9 @@ class Compiler:
             if self.platform != CompilePlatform.Ascend910_95:
                 passes.ascendc.add_insert_sync(pm)
             else:
-                if self.options.sync_v2:
-                    passes.ascendc.add_insert_bufid_sync_v2(pm)
-                    passes.common.add_canonicalizer(pm)
-                    passes.ascendc.add_fuse_bufid_sync(pm)
-                else:
-                    passes.ascendc.add_insert_bufid_sync(pm)
-                    passes.ascendc.add_fuse_bufid_sync(pm)
-                    passes.ascendc.add_parallel_load_store(pm)
+                passes.ascendc.add_insert_bufid_sync(pm)
+                passes.common.add_canonicalizer(pm)
+                passes.ascendc.add_fuse_bufid_sync(pm)
             passes.ascendc.add_unify_pipe(pm)
             passes.common.add_canonicalizer(pm)
 

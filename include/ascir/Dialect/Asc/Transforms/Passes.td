@@ -87,12 +87,6 @@ def InsertBufIdSync : Pass<"ascendc-insert-bufid-sync", "func::FuncOp"> {
   let dependentDialects = ["ascendc::AscendCDialect"];
 }
 
-def InsertBufIdSyncV2 : Pass<"ascendc-insert-bufid-sync-v2", "func::FuncOp"> {
-  let summary = "Insert get_buf and rls_buf synchronization";
-  let constructor = "mlir::ascendc::createInsertBufIdSyncV2Pass()";
-  let dependentDialects = ["ascendc::AscendCDialect"];
-}
-
 def InsertSync : Pass<"ascendc-insert-sync", "func::FuncOp"> {
   let summary = "Insert intra-core synchronization operations";
   let constructor = "mlir::ascendc::createInsertSyncPass()";
@@ -130,11 +124,6 @@ def LowerToL0 : Pass<"ascendc-lower-to-l0", "func::FuncOp"> {
 def Noop : Pass<"ascendc-noop", "func::FuncOp"> {
   let summary = "This pass does nothing";
   let constructor = "mlir::ascendc::createNoopPass()";
-}
-
-def ParallelLoadStore : Pass<"ascendc-parallel-load-store", "func::FuncOp"> {
-  let summary = "Add parallel execution of load and store operations with independent data";
-  let constructor = "mlir::ascendc::createParallelLoadStorePass()";
 }
 
 def PrivatizeFunc : Pass<"ascendc-privatize-func", "ModuleOp"> {

@@ -16,7 +16,7 @@ import asc.runtime.config as config
 import asc2
 
 
-@asc2.jit(always_compile=True, sync_v2=True)
+@asc2.jit(always_compile=True)
 def gelu_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, num_rows: asc.ConstExpr,
                 num_columns: asc.ConstExpr, tile_size: asc.ConstExpr, approximate: asc.ConstExpr):
     x_gm = asc2.tensor(x_ptr, [num_rows, num_columns])
