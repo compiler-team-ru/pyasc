@@ -133,6 +133,22 @@ def BitwiseMaskOp
   }];
 }
 
+def CmpOp : AscTile_Op<"cmp", [
+  Pure,
+  SameTypeOperands,
+  TypesMatchWith<
+    "result type has i1 element type and same shape as operands",
+    "lhs", "result", "::getI1SameShape($_self)">,
+]> {
+  let summary = "Compute element-wise comparison of two tiles";
+  let arguments = (ins NumericTile:$lhs, NumericTile:$rhs,
+                   AscTile_CompareModeAttr:$cmpMode);
+  let results = (outs TileOf<[I1]>:$result);
+  let assemblyFormat = [{
+    $cmpMode $lhs `,` $rhs attr-dict `:` qualified(type($lhs))
+  }];
+}
+
 class AscTile_VecScalarOp<string mnemonic, string kind, list<Trait> traits = []>
     : AscTile_Op<mnemonic, traits # [
   Pure, AllTypesMatch<["base", "result"]>, ShapedMatchElemType<"base", "value">
