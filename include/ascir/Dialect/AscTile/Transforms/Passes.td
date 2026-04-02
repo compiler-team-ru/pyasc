@@ -43,4 +43,10 @@ def UnrollLoop : Pass<"asctile-unroll-loop", "func::FuncOp"> {
   let constructor = "mlir::asctile::createUnrollLoopPass()";
 }
 
+def UnscalarizeReduction : Pass<"asctile-unscalarize-reduction", "func::FuncOp"> {
+  let summary = "Try to avoid reduction operations with scalar results";
+  let constructor = "mlir::asctile::createUnscalarizeReductionPass()";
+  let dependentDialects = ["arith::ArithDialect", "asctile::AscTileDialect"];
+}
+
 #endif // ASCTILE_PASSES_TD
