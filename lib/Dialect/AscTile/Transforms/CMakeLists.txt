@@ -12,6 +12,7 @@ add_mlir_dialect_library(MLIRAscTileTransforms
   TagUnrollGroups.cpp
   TransformMathOps.cpp
   UnrollLoop.cpp
+  UnscalarizeReduction.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${ASCIR_INCLUDE_DIR}/ascir/Dialect/AscTile

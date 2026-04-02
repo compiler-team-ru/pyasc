@@ -215,12 +215,16 @@ def SelectOp : AscTile_Op<"select", [
   }];
 }
 
-class AscTile_ReduceAs1dOp<string mnemonic>
-    : AscTile_Op<mnemonic, [Pure, ShapedMatchElemType<"operand", "result">]> {
-  let summary = "Reduce tile to a single value";
+class AscTile_ReduceAs1dOp<string mnemonic>: AscTile_Op<mnemonic, [
+  Pure, AllElementTypesMatch<["operand", "result"]>
+]> {
+  let summary = "Reduce tile to 1-element tile or a scalar value";
   let arguments = (ins NumericTile:$operand);
-  let results = (outs AscTile_Numeric:$result);
-  let assemblyFormat = "$operand attr-dict `:` qualified(type($operand))";
+  let results = (outs AnyTypeOf<[AscTile_Numeric,
+                 TileOfLengthAndType<[1], [AscTile_Numeric]>]>:$result);
+  let assemblyFormat = [{
+    $operand attr-dict `:` qualified(type($operand)) `,` type($result)
+  }];
 }
 
 def ReduceSumAs1dOp : AscTile_ReduceAs1dOp<"reduce_sum_as_1d">;

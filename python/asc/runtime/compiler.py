@@ -203,6 +203,10 @@ class Compiler:
                 passes.common.add_canonicalizer(pm)
                 passes.asctile.add_densify_unroll_groups(pm)
             passes.asctile.add_transform_math_ops(pm)
+            if platform_95:
+                passes.asctile.add_unscalarize_reduction(pm)
+                passes.common.add_canonicalizer(pm)
+                passes.common.add_cse(pm)
             passes.asclower.add_expand_math(pm)
             passes.asclower.add_redress_i1_tile(pm)
             passes.asclower.add_lower_arith(pm)
