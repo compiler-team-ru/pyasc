@@ -50,4 +50,65 @@ def Tile : AscTile_Type<"Tile", "tile", [
   }];
 }
 
+def IsTileTypePred : And<[
+  CPred<"::llvm::isa<::mlir::asctile::TileType>($_self)">,
+  CPred<"::llvm::cast<::mlir::asctile::TileType>($_self).getRank() > 0">,
+]>;
+
+class IsTileOfRankPred<list<int> allowedRanks> : And<[
+  IsTileTypePred,
+  Or<!foreach(allowedlength, allowedRanks,
+     CPred<[{::llvm::cast<::mlir::asctile::TileType>($_self).getRank()
+           == }] # allowedlength>)>,
+]>;
+
+class IsTileOfLengthPred<list<int> allowedLengths> : And<[
+  IsTileTypePred,
+  Or<!foreach(allowedlength, allowedLengths,
+     CPred<[{::llvm::cast<::mlir::asctile::TileType>($_self).getNumElements()
+           == }] # allowedlength>)>,
+]>;
+
+class TileOf<list<Type> allowedTypes>
+    : ShapedContainerType<allowedTypes, IsTileTypePred, "tile",
+                          "::mlir::asctile::TileType">;
+
+class TileOfRank<list<int> allowedRanks> : Type<
+  IsTileOfRankPred<allowedRanks>,
+  " of ranks " # !interleave(allowedRanks, "/"), "::mlir::asctile::TileType">;
+
+class TileOfRankAndType<list<int> allowedRanks, list<Type> allowedTypes>
+    : AllOfType<
+  [TileOf<allowedTypes>, TileOfRank<allowedRanks>],
+  TileOf<allowedTypes>.summary # TileOfRank<allowedRanks>.summary,
+  "::mlir::asctile::TileType">;
+
+class TileOfLength<list<int> allowedLengths>
+    : Type<IsTileOfLengthPred<allowedLengths>,
+           " of length " # !interleave(allowedLengths, "/"),
+           "::mlir::asctile::TileType">;
+
+class TileOfLengthAndType<list<int> allowedLengths, list<Type> allowedTypes>
+    : AllOfType<
+  [TileOf<allowedTypes>, TileOfLength<allowedLengths>],
+  TileOf<allowedTypes>.summary # TileOfLength<allowedLengths>.summary,
+  "::mlir::asctile::TileType">;
+
+def AscTile_Float : AnyTypeOf<[F16, F32]>;
+def AscTile_Int : AnyTypeOf<[I8, I16, I32]>;
+def AscTile_Numeric : AnyTypeOf<[AscTile_Float, AscTile_Int]>;
+
+def FloatTile : TileOf<[AscTile_Float]>;
+def IntTile : TileOf<[AscTile_Int]>;
+def NumericTile : TileOf<[AscTile_Numeric]>;
+
+class ShapedMatchElemType<string shapedType, string type> : TypesMatchWith<
+  "type of '" # type # "' matches element type of '" # shapedType # "'",
+  shapedType, type, "::llvm::cast<ShapedType>($_self).getElementType()">;
+
+class OptionalShapedMatchElemType<string shapedType, string type>
+    : OptionalTypesMatchWith<
+  "type of '" # type # "' matches element type of '" # shapedType # "'",
+  shapedType, type, "::llvm::cast<ShapedType>($_self).getElementType()">;
+
 #endif // ASCTILE_TYPES_TD
