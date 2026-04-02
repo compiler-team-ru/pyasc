@@ -27,7 +27,10 @@ def platform(request: pytest.FixtureRequest):
 
 
 def require_platform_95_impl(platform: config.Platform):
-    if platform not in (config.Platform.Ascend910_9579, config.Platform.Ascend910_9589, config.Platform.Ascend910_9599):
+    platforms_95 = (config.Platform.Ascend910_9579, config.Platform.Ascend910_9589, config.Platform.Ascend910_9599,
+                    config.Platform.Ascend950PR_9579, config.Platform.Ascend950PR_9589,
+                    config.Platform.Ascend950PR_9599)
+    if platform not in platforms_95:
         pytest.skip("platform is not supported")
 
 
