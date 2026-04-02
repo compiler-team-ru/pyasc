@@ -211,7 +211,6 @@ class Compiler:
             passes.asclower.add_redress_i1_tile(pm)
             passes.asclower.add_lower_arith(pm)
             passes.asclower.add_lower_arith_binary(pm)
-            passes.asclower.add_lower_arith_i1(pm)
             passes.asclower.add_lower_atomic(pm)
             passes.asclower.add_lower_asctile(pm)
             passes.asclower.add_lower_asctile_i1(pm)

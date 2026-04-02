@@ -149,78 +149,43 @@ struct MaxWithZeroToReluOpInt : MaxWithZeroToReluOp<MaxOp> {
     bool isZero(Value value) const override { return matchPattern(value, m_Zero()); }
 };
 
-template <typename CmpOp>
-struct ScalarizeCompare : OpRewritePattern<CmpOp> {
-    using OpRewritePattern<CmpOp>::OpRewritePattern;
+struct ScalarizeCompare : OpRewritePattern<asctile::CmpOp> {
+    using OpRewritePattern::OpRewritePattern;
 
-    static std::optional<asctile::CompareMode> getCmpMode(arith::CmpIPredicate pred)
+    static asctile::CompareMode invertCmpMode(asctile::CompareMode mode)
     {
-        switch (pred) {
-            case arith::CmpIPredicate::eq:
+        switch (mode) {
+            case asctile::CompareMode::EQ:
                 return asctile::CompareMode::EQ;
-            case arith::CmpIPredicate::ne:
+            case asctile::CompareMode::NE:
                 return asctile::CompareMode::NE;
-            case arith::CmpIPredicate::slt:
-            case arith::CmpIPredicate::ult:
-                return asctile::CompareMode::LT;
-            case arith::CmpIPredicate::sle:
-            case arith::CmpIPredicate::ule:
-                return asctile::CompareMode::LE;
-            case arith::CmpIPredicate::sgt:
-            case arith::CmpIPredicate::ugt:
+            case asctile::CompareMode::LT:
                 return asctile::CompareMode::GT;
-            case arith::CmpIPredicate::sge:
-            case arith::CmpIPredicate::uge:
+            case asctile::CompareMode::LE:
                 return asctile::CompareMode::GE;
-            default:
-                return std::nullopt;
+            case asctile::CompareMode::GT:
+                return asctile::CompareMode::LT;
+            case asctile::CompareMode::GE:
+                return asctile::CompareMode::LE;
         }
+        llvm_unreachable("unexpected cmpmode");
     }
 
-    static std::optional<asctile::CompareMode> getCmpMode(arith::CmpFPredicate pred)
+    LogicalResult matchAndRewrite(asctile::CmpOp op, PatternRewriter &rewriter) const override
     {
-        switch (pred) {
-            case arith::CmpFPredicate::OEQ:
-            case arith::CmpFPredicate::UEQ:
-                return asctile::CompareMode::EQ;
-            case arith::CmpFPredicate::ONE:
-            case arith::CmpFPredicate::UNE:
-                return asctile::CompareMode::NE;
-            case arith::CmpFPredicate::OLT:
-            case arith::CmpFPredicate::ULT:
-                return asctile::CompareMode::LT;
-            case arith::CmpFPredicate::OLE:
-            case arith::CmpFPredicate::ULE:
-                return asctile::CompareMode::LE;
-            case arith::CmpFPredicate::OGT:
-            case arith::CmpFPredicate::UGT:
-                return asctile::CompareMode::GT;
-            case arith::CmpFPredicate::OGE:
-            case arith::CmpFPredicate::UGE:
-                return asctile::CompareMode::GE;
-            default:
-                return std::nullopt;
-        }
-    }
-
-    LogicalResult matchAndRewrite(CmpOp op, PatternRewriter &rewriter) const override
-    {
-        if (!isa<asctile::TileType>(op.getType()))
-            return failure();
         Value newLhs, newRhs;
+        auto mode = op.getCmpMode();
         if (auto splat = materializeSplatValue(rewriter, op.getLhs())) {
             newLhs = op.getRhs();
             newRhs = splat;
+            mode = invertCmpMode(mode);
         } else if (auto splat = materializeSplatValue(rewriter, op.getRhs())) {
             newLhs = op.getLhs();
             newRhs = splat;
         } else {
             return failure();
         }
-        std::optional<asctile::CompareMode> predicate = getCmpMode(op.getPredicate());
-        if (!predicate)
-            return failure();
-        rewriter.replaceOpWithNewOp<asctile::CmpSOp>(op, op.getType(), newLhs, newRhs, *predicate);
+        rewriter.replaceOpWithNewOp<asctile::CmpSOp>(op, op.getType(), newLhs, newRhs, mode);
         return success();
     }
 };
@@ -284,9 +249,7 @@ class TransformMathOpsPass : public asctile::impl::TransformMathOpsBase<Transfor
             ScalarizeArithRhsOp<arith::DivFOp, asctile::DivSOp>, ScalarizeArithRhsOp<arith::DivSIOp, asctile::DivSOp>,
             ScalarizeShL, ScalarizeShR, ScalarizeArithOp<arith::MaximumFOp, asctile::MaxSOp>,
             ScalarizeArithOp<arith::MaxSIOp, asctile::MaxSOp>, ScalarizeArithOp<arith::MinimumFOp, asctile::MinSOp>,
-            ScalarizeArithOp<arith::MinSIOp, asctile::MinSOp>,
-            ScalarizeCompare<arith::CmpIOp>, // TODO: This is not working, fix me!
-            ScalarizeCompare<arith::CmpFOp>
+            ScalarizeArithOp<arith::MinSIOp, asctile::MinSOp>, ScalarizeCompare
             //
             >(context, /*benefit=*/1);
         if (applyPatternsAndFoldGreedily(op, std::move(patterns)).failed())
