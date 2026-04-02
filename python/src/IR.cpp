@@ -216,6 +216,16 @@ void pyasc_bind_enums(py::module& m)
         .value("Min", asctile::AtomicKind::Min)
         .def_static(
             "symbolize", [](int32_t kind) -> asctile::AtomicKind { return static_cast<asctile::AtomicKind>(kind); });
+
+    py::enum_<asctile::CompareMode>(m, "CompareMode", py::module_local())
+        .value("LT", asctile::CompareMode::LT)
+        .value("GT", asctile::CompareMode::GT)
+        .value("EQ", asctile::CompareMode::EQ)
+        .value("LE", asctile::CompareMode::LE)
+        .value("GE", asctile::CompareMode::GE)
+        .value("NE", asctile::CompareMode::NE)
+        .def_static(
+            "symbolize", [](uint8_t mode) -> asctile::CompareMode { return static_cast<asctile::CompareMode>(mode); });
 }
 
 void pyasc_bind_context_and_dialect(py::module& m)
