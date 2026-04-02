@@ -13,7 +13,7 @@ import asc.runtime.config as config
 import asc2
 
 
-@asc2.jit(always_compile=True, sync_v2=True)
+@asc2.jit(always_compile=True)
 def vmuladd_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, z_ptr: asc.GlobalAddress,
                    out_ptr: asc.GlobalAddress, size: int, tile_size: asc.ConstExpr[int],
                    tile_per_block: asc.ConstExpr[int], buffer_factor: asc.ConstExpr[int]):
