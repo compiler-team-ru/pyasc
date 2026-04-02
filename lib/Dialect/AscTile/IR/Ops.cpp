@@ -15,11 +15,10 @@
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/TypeUtilities.h"
 
-#define GET_OP_CLASSES
-#include "ascir/Dialect/AscTile/IR/AscTileOps.cpp.inc"
-
 using namespace mlir;
 using namespace mlir::asctile;
+
+namespace {
 
 template <typename OpT>
 OpFoldResult foldCastLike(OpT op)
@@ -37,6 +36,16 @@ OpFoldResult foldCastLike(OpT op)
     }
     return {};
 }
+
+Type getI1SameShape(Type type)
+{
+    auto i1Type = IntegerType::get(type.getContext(), 1);
+    if (auto shapedType = llvm::dyn_cast<ShapedType>(type))
+        return shapedType.cloneWith(std::nullopt, i1Type);
+    return i1Type;
+}
+
+} // namespace
 
 //===----------------------------------------------------------------------===//
 // TensorOp
@@ -137,3 +146,6 @@ void AscTileDialect::registerOps()
 #include "ascir/Dialect/AscTile/IR/AscTileOps.cpp.inc"
         >();
 }
+
+#define GET_OP_CLASSES
+#include "ascir/Dialect/AscTile/IR/AscTileOps.cpp.inc"
