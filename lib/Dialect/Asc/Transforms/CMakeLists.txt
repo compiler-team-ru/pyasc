@@ -21,13 +21,11 @@ add_mlir_dialect_library(MLIRAscTransforms
   HoistTensorAllocation.cpp
   InputOutputTensor.cpp
   InsertBufIdSync.cpp
-  InsertBufIdSyncV2.cpp
   InsertSync.cpp
   LegalizeKernelArgs.cpp
   LowerToL0.cpp
   MaterializeTensor.cpp
   Noop.cpp
-  ParallelLoadStore.cpp
   PrivatizeFunc.cpp
   ReuseUBAllocation.cpp
   UnifyPipe.cpp
