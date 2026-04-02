@@ -34,6 +34,9 @@ class Platform(Enum):
     Ascend910_9579 = "Ascend910_9579"
     Ascend910_9589 = "Ascend910_9589"
     Ascend910_9599 = "Ascend910_9599"
+    Ascend950PR_9579 = "Ascend950PR_9579"
+    Ascend950PR_9589 = "Ascend950PR_9589"
+    Ascend950PR_9599 = "Ascend950PR_9599"
 
 
 class KernelType(Enum):

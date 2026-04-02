@@ -73,12 +73,16 @@ ModuleOp getModule(Operation* op)
 
 StringRef getSocVersion(Operation* op)
 {
-    auto parent = getModule(op);
-    assert(parent->hasAttrOfType<StringAttr>(ascendc::attr::socVersion));
-    return parent->getAttrOfType<StringAttr>(ascendc::attr::socVersion).getValue();
+    if (auto attr = getModule(op)->getAttrOfType<StringAttr>(ascendc::attr::socVersion))
+        return attr.getValue();
+    return {};
 }
 
-bool isTargetPlatform95(Operation* op) { return getSocVersion(op).starts_with("Ascend910_95"); }
+bool isTargetPlatform95(Operation* op)
+{
+    auto socVersion = getSocVersion(op);
+    return socVersion.starts_with("Ascend910_95") || socVersion.starts_with("Ascend950PR_95");
+}
 
 } // namespace ascendc
 } // namespace mlir
