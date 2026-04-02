@@ -45,21 +45,6 @@ struct LoweringConversionTarget : public ConversionTarget {
     }
 };
 
-template <typename ArithOp, typename L3Op>
-struct ConvertToL3 : ConvertOp<ArithOp> {
-    using ConvertOp<ArithOp>::ConvertOp;
-    using ConvertOp<ArithOp>::createTensorOp;
-
-    LogicalResult convert(ArithOp op, ConvertRewriter& rewriter) const override
-    {
-        Location loc = op.getLoc();
-        auto dst = createTensorOp(rewriter, loc, op.getType());
-        rewriter.create<L3Op>(loc, dst, rewriter.getRemappedValue(op.getLhs()), rewriter.getRemappedValue(op.getRhs()));
-        rewriter.replaceOp(op, dst);
-        return success();
-    }
-};
-
 template <typename ArithOp, typename L2Op>
 struct ConvertToL2 : ConvertOp<ArithOp> {
     using ConvertOp<ArithOp>::ConvertOp;
@@ -125,10 +110,10 @@ struct LowerArithBinaryPass : public asclower::impl::LowerArithBinaryBase<LowerA
         RewritePatternSet patterns(context);
         patterns.insert<
             //
-            ConvertToL3<arith::AddFOp, ascendc::AddL3Op>, ConvertToL3<arith::AddIOp, ascendc::AddL3Op>,
-            ConvertToL3<arith::SubFOp, ascendc::SubL3Op>, ConvertToL3<arith::SubIOp, ascendc::SubL3Op>,
-            ConvertToL3<arith::MulFOp, ascendc::MulL3Op>, ConvertToL3<arith::MulIOp, ascendc::MulL3Op>,
-            ConvertToL3<arith::DivFOp, ascendc::DivL3Op>, ConvertToL2<arith::MaximumFOp, ascendc::MaxL2Op>,
+            ConvertToL2<arith::AddFOp, ascendc::AddL2Op>, ConvertToL2<arith::AddIOp, ascendc::AddL2Op>,
+            ConvertToL2<arith::SubFOp, ascendc::SubL2Op>, ConvertToL2<arith::SubIOp, ascendc::SubL2Op>,
+            ConvertToL2<arith::MulFOp, ascendc::MulL2Op>, ConvertToL2<arith::MulIOp, ascendc::MulL2Op>,
+            ConvertToL2<arith::DivFOp, ascendc::DivL2Op>, ConvertToL2<arith::MaximumFOp, ascendc::MaxL2Op>,
             ConvertToL2<arith::MaxSIOp, ascendc::MaxL2Op>, ConvertToL2<arith::MinSIOp, ascendc::MinL2Op>,
             ConvertToL2<arith::MinimumFOp, ascendc::MinL2Op>, ConvertToL2<arith::MaxNumFOp, ascendc::MaxL2Op>,
             ConvertToL2<arith::MinNumFOp, ascendc::MinL2Op>, ConvertBitwiseToL2<arith::AndIOp, ascendc::AndL2Op>,

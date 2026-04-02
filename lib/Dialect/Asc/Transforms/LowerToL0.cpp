@@ -41,8 +41,8 @@ LogicalResult lowerUnaryOp(L2Op op, PatternRewriter& rewriter)
     return success();
 }
 
-template <typename L2L3Op, typename L0Op>
-LogicalResult lowerBinaryOp(L2L3Op op, PatternRewriter& rewriter)
+template <typename L2Op, typename L0Op>
+LogicalResult lowerBinaryOp(L2Op op, PatternRewriter& rewriter)
 {
     ascir::ConstantOpBuilder consts(rewriter);
     auto loc = op.getLoc();
@@ -126,22 +126,18 @@ void populateLowerToL0Patterns(RewritePatternSet& patterns)
     patterns.add(lowerUnaryOp<RsqrtL2Op, RsqrtL0Op>);
     patterns.add(lowerUnaryOp<SqrtL2Op, SqrtL0Op>);
     patterns.add(lowerBinaryOp<AddL2Op, AddL0Op>);
-    patterns.add(lowerBinaryOp<AddL3Op, AddL0Op>);
     patterns.add(lowerBinaryOp<AddDeqReluL2Op, AddDeqReluL0Op>);
     patterns.add(lowerBinaryOp<AddReluL2Op, AddReluL0Op>);
     patterns.add(lowerBinaryOp<AndL2Op, AndL0Op>);
     patterns.add(lowerBinaryOp<DivL2Op, DivL0Op>);
-    patterns.add(lowerBinaryOp<DivL3Op, DivL0Op>);
     patterns.add(lowerBinaryOp<FusedMulAddL2Op, FusedMulAddL0Op>);
     patterns.add(lowerBinaryOp<FusedMulAddReluL2Op, FusedMulAddReluL0Op>);
     patterns.add(lowerBinaryOp<MaxL2Op, MaxL0Op>);
     patterns.add(lowerBinaryOp<MinL2Op, MinL0Op>);
     patterns.add(lowerBinaryOp<MulL2Op, MulL0Op>);
-    patterns.add(lowerBinaryOp<MulL3Op, MulL0Op>);
     patterns.add(lowerBinaryOp<MulAddDstL2Op, MulAddDstL0Op>);
     patterns.add(lowerBinaryOp<OrL2Op, OrL0Op>);
     patterns.add(lowerBinaryOp<SubL2Op, SubL0Op>);
-    patterns.add(lowerBinaryOp<SubL3Op, SubL0Op>);
     patterns.add(lowerBinaryOp<SubReluL2Op, SubReluL0Op>);
     patterns.add(lowerDuplicateOp<DuplicateL2Op, DuplicateL0Op>);
     patterns.add(lowerCompareOp<CompareL2Op, CompareL0Op>);
