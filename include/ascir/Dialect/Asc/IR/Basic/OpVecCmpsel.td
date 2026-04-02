@@ -74,6 +74,7 @@ def AscendC_CompareScalarL0Op : VectorOp<"compare_scalar_l0", "CompareScalar", [
                    AscendC_UnaryRepeatParams:$repeatParams, UnitAttr:$isSetMask);
     let paramTypeLists = [0, 0, 0, -1, 0, 0, 0];
     let extraClassDeclaration = extraClassDeclarationBase # [{
+        Value getSrc() { return {getSrc0()}; }
         SmallVector<Value> getSrcTensors() { return {getSrc0()}; }
     }];
 }

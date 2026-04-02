@@ -71,7 +71,7 @@ void fillMask(OpBuilder& builder, Location loc, ConstantOpBuilder& consts, Shape
     op.getMaskMutable().assign(mask);
 }
 
-template <typename OpType, AnyOfT<OpType, ascendc::UnaryL0Op, ascendc::CastL0Op> = true>
+template <typename OpType, AnyOfT<OpType, ascendc::UnaryL0Op, ascendc::CastL0Op, ascendc::CompareScalarL0Op> = true>
 void fillOperation(OpType op)
 {
     OpBuilder builder(op);
@@ -169,9 +169,9 @@ struct FillAscOperandsPass : public ascendc::impl::FillAscOperandsBase<FillAscOp
         funcOp.walk([](Operation* op) {
             llvm::TypeSwitch<Operation*>(op)
                 .Case<
-                    ascendc::UnaryL0Op, ascendc::CastL0Op, ascendc::DuplicateL0Op, ascendc::BinaryL0Op,
-                    ascendc::VecScalarL0Op, ascendc::SelectL0Op, ascendc::CompareL0Op, ascendc::DuplicateL2Op,
-                    ascendc::UnaryL2Op, ascendc::BinaryL2Op, ascendc::VecScalarL2Op>(
+                    ascendc::UnaryL0Op, ascendc::CastL0Op, ascendc::CompareScalarL0Op, ascendc::DuplicateL0Op,
+                    ascendc::BinaryL0Op, ascendc::VecScalarL0Op, ascendc::SelectL0Op, ascendc::CompareL0Op,
+                    ascendc::DuplicateL2Op, ascendc::UnaryL2Op, ascendc::BinaryL2Op, ascendc::VecScalarL2Op>(
                     [](auto fillOp) { fillOperation(fillOp); })
                 .Default([](Operation*) {});
         });
