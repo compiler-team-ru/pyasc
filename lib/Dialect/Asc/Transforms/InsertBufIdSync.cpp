@@ -36,7 +36,11 @@ class InsertBufIdSync {
     VisitedBufIdMap bufIdMap;
     int32_t bufId;
 
-    void updateBufId() { bufId++; }
+    void updateBufId()
+    {
+        constexpr int32_t bufIdMax = 32;
+        bufId = (bufId + 1) % bufIdMax;
+    }
 
     ascendc::Pipe getPipe(Operation* op)
     {
