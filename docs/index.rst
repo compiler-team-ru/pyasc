@@ -6,8 +6,24 @@
 .. INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 .. See LICENSE in the root of the software repository for the full text of the License.
 
-PyAsc
-=====
+PyAsc documentation
+===================
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Installation
+
+   installation/build-from-source
+   installation/setup-runtime-env
+
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Development
+
+   development/codestyle
+   development/tools
+
 
 .. toctree::
    :maxdepth: 1
@@ -18,15 +34,21 @@ PyAsc
 
 .. toctree::
    :maxdepth: 1
-   :caption: Python API
+   :caption: Python API (PyAsc2)
+
+   python-api/rst/language/tile
+   python-api/rst/runtime/index
+
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Python API (PyAsc)
 
    python-api/rst/language/adv
    python-api/rst/language/basic
    python-api/rst/language/core
    python-api/rst/language/fwk
-   python-api/rst/language/tile
    python-api/rst/lib/host
-   python-api/rst/runtime/index
 
 
 .. toctree::
