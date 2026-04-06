@@ -34,8 +34,10 @@ def matmul_launch(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
 def test_matmul_simple(backend: config.Backend, platform: config.Platform):
     config.set_platform(backend, platform)
     device = "npu" if config.Backend(backend) == config.Backend.NPU else "cpu"
-    a = torch.rand((64, 128), dtype=torch.float16, device=device)
-    b = torch.rand((128, 256), dtype=torch.float16, device=device)
+    m, k, n = 64, 128, 256
+    dtype = torch.float16
+    a = torch.rand((m, k), dtype=dtype, device=device)
+    b = torch.rand((k, n), dtype=dtype, device=device)
     c = matmul_launch(a, b)
     c_ref = a.to(torch.float32) @ b.to(torch.float32)
     torch.testing.assert_close(c, c_ref)
