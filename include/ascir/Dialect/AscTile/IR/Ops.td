@@ -269,6 +269,22 @@ def SoftmaxOp
   let assemblyFormat = "$operand attr-dict `:` qualified(type($result))";
 }
 
+def RmsNormOp : AscTile_Op<"rms_norm", [
+  Pure,
+  AllElementTypesMatch<["input", "gamma"]>,
+  AllTypesMatch<["input", "result"]>,
+  ShapedMatchElemType<"input", "epsilon">,
+]> {
+  let summary = "Compute RmsNorm function over a tile";
+  let arguments = (ins FloatTile:$input, FloatTile:$gamma,
+                   AscTile_Float:$epsilon);
+  let results = (outs FloatTile:$result);
+  let assemblyFormat = [{
+    $input `,` $gamma `,` $epsilon attr-dict `:` qualified(type($input)) `,`
+    qualified(type($gamma))
+  }];
+}
+
 def MatmulOp : AscTile_Op<"matmul", [
   Pure, AllElementTypesMatch<["matrixA", "matrixB"]>
 ]> {

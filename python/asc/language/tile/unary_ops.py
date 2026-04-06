@@ -220,3 +220,18 @@ def softmax(input: Tile) -> Tile:
         raise RuntimeError("Tensor dimensionality greater than two is not supported")
     handle = global_builder.get_ir_builder().create_asctile_SoftmaxOp(input.to_ir().get_type(), input.to_ir())
     return Tile(handle)
+
+
+@set_docstring("RmsNorm function")
+def rms_norm(input: Tile, gamma: Tile, epsilon: RuntimeFloat) -> Tile:
+    check_type("input", input, Tile)
+    check_type("gamma", gamma, Tile)
+    check_type("epsilon", epsilon, RuntimeFloat)
+    if input.dtype not in [KT.float32, KT.half]:
+        raise RuntimeError("Only float and half types are supported.")
+    if len(input.shape) > 2:
+        raise RuntimeError("Tensor dimensionality greater than two is not supported.")
+    handle = global_builder.get_ir_builder().create_asctile_RmsnormOp(input.to_ir().get_type(), input.to_ir(),
+                                                                      gamma.to_ir(),
+                                                                      _mat(epsilon, input.dtype).to_ir())
+    return Tile(handle)
