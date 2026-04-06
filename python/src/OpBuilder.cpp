@@ -1001,9 +1001,9 @@ void bindCreateAscTileOperations(py::class_<PyOpBuilder>& clss)
 
     clss.def(
             "create_asctile_CountMaskOp",
-            [](PyOpBuilder& self, Value& value, std::optional<Value> other) -> asctile::CountMaskOp {
+            [](PyOpBuilder& self, Value& count, std::optional<Value> other) -> asctile::CountMaskOp {
                 Value otherVal = other.has_value() ? *other : Value();
-                return self.create<asctile::CountMaskOp>(value, otherVal);
+                return self.create<asctile::CountMaskOp>(count, otherVal);
             },
             py::arg("count"), py::arg("other") = py::none())
         .def(
