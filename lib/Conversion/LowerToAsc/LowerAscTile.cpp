@@ -36,6 +36,13 @@ using namespace mlir::asclower;
 
 namespace {
 
+constexpr int ONE_BLK_FLOAT_NUM = 8;
+constexpr int ONE_BLK_SIZE = 32;
+constexpr int TOTAL_UB_SIZE = 256 * 1024;
+constexpr int MAX_REPEAT = 255;
+constexpr int BASIC_BLK_BSLENGTH = 8;
+constexpr int HALF_SIZE_IN_BYTE = 2;
+
 SmallVector<Value> getTensorShape(OpBuilder &builder, asctile::TensorOp tensorOp)
 {
     ascir::ConstantOpBuilder consts(builder);
@@ -417,6 +424,125 @@ struct ConvertSoftmax : ConvertOp<asctile::SoftmaxOp> {
     }
 };
 
+struct ConvertRmsNorm : ConvertOp<asctile::RmsNormOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    struct RmsNormTiling {
+        int bLength;
+        int sLength;
+        int hLength;
+        int originalHLength;
+        float reciprocalOfHLength;
+        int mainBshLength;
+        int mainBsLength;
+        int mainBsLengthAlign;
+        int loopRound;
+        int tailBshLength;
+        int inputTailPos;
+        int tailBsLength;
+    };
+
+    static std::pair<int, int> unpackShape(ArrayRef<int64_t> shape)
+    {
+        assert(shape.size() == 1 || shape.size() == 2);
+        return {shape.size() == 2 ? shape[0] : 1, shape.back()};
+    }
+
+    static int alignToBlock(const int inputValue, const int typeSize)
+    {
+        int alignUnit = ONE_BLK_SIZE / typeSize;
+        return (inputValue + alignUnit - 1) / alignUnit * alignUnit;
+    }
+
+    // TODO: Refactor
+    static RmsNormTiling getRmsNormTiling(ArrayRef<int64_t> shape, bool isBasicBlock, int typeSize)
+    {
+        auto [bLength, inHLength] = unpackShape(shape);
+        auto sLength = 1;
+        auto hLength = alignToBlock(inHLength, typeSize);
+        auto bshLength = bLength * sLength * hLength;
+        auto originalHLength = inHLength;
+        auto reciprocalOfHLength = 1.0f / originalHLength;
+        auto oneTmpSize = TOTAL_UB_SIZE / typeSize;
+        auto alignBsLength = ONE_BLK_FLOAT_NUM;
+        auto halfCoeff = (typeSize == sizeof(float) ? 1u : 2u);
+        while (oneTmpSize > alignBsLength * hLength * halfCoeff + alignBsLength) {
+            alignBsLength += ONE_BLK_FLOAT_NUM;
+        }
+        alignBsLength = alignBsLength == ONE_BLK_FLOAT_NUM ? ONE_BLK_FLOAT_NUM : alignBsLength - ONE_BLK_FLOAT_NUM;
+        oneTmpSize =
+            (typeSize == HALF_SIZE_IN_BYTE) ? (oneTmpSize - alignBsLength) / halfCoeff : (oneTmpSize - alignBsLength);
+        auto inputXSize = bLength * sLength * hLength;
+        if (oneTmpSize > inputXSize) {
+            oneTmpSize = inputXSize;
+        }
+        auto bsLength = oneTmpSize / hLength;
+        if (isBasicBlock) {
+            bsLength = bsLength < BASIC_BLK_BSLENGTH ? 1 : bsLength / BASIC_BLK_BSLENGTH * BASIC_BLK_BSLENGTH;
+        } else if (bsLength > MAX_REPEAT) {
+            bsLength = MAX_REPEAT;
+        }
+        oneTmpSize = bsLength * hLength;
+        auto mainBshLength = oneTmpSize;
+        auto mainBsLength = oneTmpSize / hLength;
+        auto mainBsLengthAlign = alignToBlock(oneTmpSize / hLength, typeSize);
+        auto loopRound = inputXSize / oneTmpSize;
+        auto inputTailSize = inputXSize % oneTmpSize;
+        auto tailBshLength = inputTailSize;
+        auto inputTailPos = inputXSize - inputTailSize;
+        auto tailBsLength = inputTailSize / hLength;
+        return {bLength,      sLength,           hLength,   originalHLength, reciprocalOfHLength, mainBshLength,
+                mainBsLength, mainBsLengthAlign, loopRound, tailBshLength,   inputTailPos,        tailBsLength};
+    }
+
+    LogicalResult convert(asctile::RmsNormOp op, ConvertRewriter &rewriter) const override
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto loc = op.getLoc();
+        auto tensorType = op.getType();
+        auto shape = tensorType.getShape();
+        auto elemType = tensorType.getElementType();
+        auto typeSize = elemType.isF16() ? 2 : 4;
+        if (shape.size() != 1 && shape.size() != 2) {
+            op.emitError() << "invalid dimension of input tensor";
+            return failure();
+        }
+        auto src = rewriter.getRemappedValue(op.getInput());
+        auto gammaTensor = rewriter.getRemappedValue(op.getGamma());
+        auto epsilon = rewriter.getRemappedValue(op.getEpsilon());
+        auto dst = createTensorOp(rewriter, loc, tensorType);
+        constexpr bool isBasicBlock = false;
+        RmsNormTiling tilingStruct = getRmsNormTiling(shape, isBasicBlock, typeSize);
+        auto sharedBufTensor = createTensorOp(rewriter, loc, TOTAL_UB_SIZE, rewriter.getIntegerType(8, false));
+        auto rmsnormTiling = rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::RmsNormTilingType>());
+        rewriter.create<emitasc::SetMemberOp>(loc, rmsnormTiling, "bLength", consts.i32(tilingStruct.bLength));
+        rewriter.create<emitasc::SetMemberOp>(loc, rmsnormTiling, "sLength", consts.i32(tilingStruct.sLength));
+        rewriter.create<emitasc::SetMemberOp>(loc, rmsnormTiling, "hLength", consts.i32(tilingStruct.hLength));
+        rewriter.create<emitasc::SetMemberOp>(loc, rmsnormTiling, "originalHLength",
+                                              consts.i32(tilingStruct.originalHLength));
+        rewriter.create<emitasc::SetMemberOp>(loc, rmsnormTiling, "reciprocalOfHLength",
+                                              consts.f32(tilingStruct.reciprocalOfHLength));
+        rewriter.create<emitasc::SetMemberOp>(loc, rmsnormTiling, "mainBshLength",
+                                              consts.i32(tilingStruct.mainBshLength));
+        rewriter.create<emitasc::SetMemberOp>(loc, rmsnormTiling, "mainBsLength",
+                                              consts.i32(tilingStruct.mainBsLength));
+        rewriter.create<emitasc::SetMemberOp>(loc, rmsnormTiling, "mainBsLengthAlign",
+                                              consts.i32(tilingStruct.mainBsLengthAlign));
+        rewriter.create<emitasc::SetMemberOp>(loc, rmsnormTiling, "loopRound", consts.i32(tilingStruct.loopRound));
+        rewriter.create<emitasc::SetMemberOp>(loc, rmsnormTiling, "tailBshLength",
+                                              consts.i32(tilingStruct.tailBshLength));
+        rewriter.create<emitasc::SetMemberOp>(loc, rmsnormTiling, "inputTailPos",
+                                              consts.i32(tilingStruct.inputTailPos));
+        rewriter.create<emitasc::SetMemberOp>(loc, rmsnormTiling, "tailBsLength",
+                                              consts.i32(tilingStruct.tailBsLength));
+        rewriter.create<ascendc::RmsNormOp>(loc, isBasicBlock, dst, src, gammaTensor, epsilon, rmsnormTiling,
+                                            sharedBufTensor);
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
 struct ConvertMatmul : ConvertOp<asctile::MatmulOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
@@ -687,7 +813,7 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         patterns.insert<
             //
             ConvertTensor, ConvertLoad, ConvertGetValue, ConvertStore, ConvertSetValue, ConvertSplat, ConvertRelu,
-            ConvertCast, ConvertMatmul, ConvertReshape, ConvertBroadcast, ConvertSoftmax,
+            ConvertCast, ConvertMatmul, ConvertReshape, ConvertBroadcast, ConvertSoftmax, ConvertRmsNorm,
             ConvertToL2<asctile::AddSOp, ascendc::AddsL2Op>,
             ConvertVecScalarToL2<asctile::SubSOp, ascendc::SubsL2Op, ascendc::SubL2Op>,
             ConvertToL2<asctile::MulSOp, ascendc::MulsL2Op>,
