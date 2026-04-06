@@ -1022,9 +1022,9 @@ void bind_create_asctile_operations(py::class_<PyOpBuilder> &clss)
     using namespace pybind11::literals;
 
     clss.def("create_asctile_CountMaskOp",
-        [](PyOpBuilder &self, Value &value, std::optional<Value> other) -> asctile::CountMaskOp {
+        [](PyOpBuilder &self, Value &count, std::optional<Value> other) -> asctile::CountMaskOp {
             Value otherVal = other.has_value() ? *other : Value();
-            return self.create<asctile::CountMaskOp>(value, otherVal);
+            return self.create<asctile::CountMaskOp>(count, otherVal);
     }, py::arg("count"), py::arg("other") = py::none())
     .def("create_asctile_BitwiseMaskOp",
         [](PyOpBuilder &self, Value &highBits, Value &lowBits, std::optional<Value> other) -> asctile::BitwiseMaskOp {
