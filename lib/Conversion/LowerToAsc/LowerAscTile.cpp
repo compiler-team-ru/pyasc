@@ -137,33 +137,41 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
         assert(tensorOp && "tensor must be created by asctile.tensor op");
         auto opType = op.getType();
         Value src = rewriter.getRemappedValue(base);
-        SmallVector<Value> srcTensorShape = getTensorShape(rewriter, tensorOp);
+        SmallVector<Value> srcShape = getTensorShape(rewriter, tensorOp);
         auto dstTensorOp = createTensorOp(rewriter, loc, opType);
         auto dst = dstTensorOp.getResult();
-        auto numElements = calculateNumElements(rewriter, loc, srcTensorShape);
+        auto dstType = dst.getType();
+        auto dstShape = dstType.getShape();
         auto const0 = consts.i32(0);
         auto const1 = consts.i32(1);
+        Value linearOffset = linearizeOffset(rewriter, loc, srcShape, op.getOffsets());
+        auto srcType = cast<ascendc::BaseTensorType>(src.getType());
+        src = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, srcType, src, linearOffset);
         if (opType.getLoc() == asctile::TileLocation::L0A || opType.getLoc() == asctile::TileLocation::L0B) {
+            constexpr auto cubeMNDim = 16;
+            const auto cubeKDim = 32 / ascendc::getElementTypeSize(opType);
+            const auto cubeBlock = cubeMNDim * cubeKDim;
+            const auto &cubeRowBlock = (opType.getLoc() == asctile::TileLocation::L0A) ? cubeMNDim : cubeKDim;
+            auto dstNzC0Stride = llvm::divideCeilSigned(dstShape[0], cubeRowBlock) * cubeRowBlock;
             auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
                 loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
-                ValueRange {const1, srcTensorShape[0], srcTensorShape[1], const0, srcTensorShape[1], srcTensorShape[0],
-                            const1, const0});
+                ValueRange {const1, consts.i32(dstShape[0]), consts.i32(dstShape[1]), const0, srcShape[1],
+                            consts.i32(dstNzC0Stride), const1, const0});
             auto l1Dst = createTensorOp(rewriter, loc, opType, ascendc::TPosition::A1);
             rewriter.create<ascendc::DataCopyL2Op>(loc, l1Dst, src, nd2NzParams);
             Value loadDataParams =
                 rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::LoadData2DParamsType>());
-            auto cubeBlockSize = consts.i32(16 * 16);
             if (opType.getLoc() == asctile::TileLocation::L0A) {
-                Value repeatTimes = rewriter.create<arith::CeilDivSIOp>(loc, numElements, cubeBlockSize);
+                auto dstNumElements = calCount(dst);
+                Value repeatTimes = consts.i32(llvm::divideCeilSigned(dstNumElements, cubeBlock));
                 rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "repeatTimes", repeatTimes);
                 rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "srcStride", const1);
                 rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "dstGap", const0);
                 rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "ifTranspose", consts.i1(0));
                 rewriter.create<ascendc::LoadDataG2LOp>(loc, dst, l1Dst, loadDataParams);
             } else {
-                auto cubeBlock = consts.i32(16);
-                Value repeatTimes = rewriter.create<arith::CeilDivSIOp>(loc, srcTensorShape[1], cubeBlock);
-                Value srcStride = rewriter.create<arith::CeilDivSIOp>(loc, srcTensorShape[0], cubeBlock);
+                Value repeatTimes = consts.i32(llvm::divideCeilSigned(dstShape[1], cubeMNDim));
+                Value srcStride = consts.i32(llvm::divideCeilSigned(dstShape[0], cubeKDim));
                 rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "repeatTimes", repeatTimes);
                 rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "srcStride", srcStride);
                 rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "dstGap", const0);
@@ -171,6 +179,7 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
                 auto forOp = rewriter.create<scf::ForOp>(loc, const0, srcStride, const1);
                 rewriter.setInsertionPointToStart(forOp.getBody());
                 auto indVar = forOp.getInductionVar();
+                auto cubeBlockSize = consts.i32(cubeBlock);
                 auto dstOffset = rewriter.create<arith::MulIOp>(loc, cubeBlockSize, repeatTimes);
                 auto srcOffset = cubeBlockSize;
                 auto iterDstOffset = rewriter.create<arith::MulIOp>(loc, indVar, dstOffset);
@@ -178,7 +187,7 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
                 auto subLocalL1 =
                     rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, l1Dst.getType(), l1Dst, iterSrcOffset);
                 auto subLocalL0 =
-                    rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dst.getType(), dst, iterDstOffset);
+                    rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dstType, dst, iterDstOffset);
                 rewriter.create<ascendc::LoadDataG2LOp>(loc, subLocalL0, subLocalL1, loadDataParams);
                 rewriter.setInsertionPointAfter(forOp);
                 forOp->setAttr(asctile::attr::parallel, UnitAttr::get(forOp->getContext()));
@@ -186,18 +195,13 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
             rewriter.replaceOp(op, dst);
             return success();
         }
-        auto dstTensorShape = dstTensorOp.getType().getShape();
-        Value linearOffset = linearizeOffset(rewriter, loc, srcTensorShape, op.getOffsets());
-        auto srcType = cast<ascendc::BaseTensorType>(src.getType());
-        auto dstType = dst.getType();
-        src = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, srcType, src, linearOffset);
         auto padValue = rewriter.getRemappedValue(op.getPadValue());
         auto typeSize = ascendc::getElementTypeSize(dstType);
-        Value dstNumElements = consts.i32(calCount(dst));
+        auto numElements = calculateNumElements(rewriter, loc, srcShape);
         Value tailElements = rewriter.create<arith::SubIOp>(loc, numElements, linearOffset);
-        Value blockCount = dstTensorShape.size() == 1 ? const1 : consts.i32(dstTensorShape[0]);
-        Value dstLastDim = consts.i32(dstTensorShape[dstTensorShape.size() - 1]);
-        Value srcLastDim = srcTensorShape[srcTensorShape.size() - 1];
+        Value blockCount = dstShape.size() == 1 ? const1 : consts.i32(dstShape[0]);
+        Value dstLastDim = consts.i32(dstShape[dstShape.size() - 1]);
+        Value srcLastDim = srcShape[srcShape.size() - 1];
         Value strideElements = rewriter.create<arith::SubIOp>(loc, srcLastDim, dstLastDim);
         auto typeSizeValue = consts.i32(typeSize);
         Value srcStride = rewriter.create<arith::MulIOp>(loc, strideElements, typeSizeValue);
@@ -234,8 +238,8 @@ struct ConvertGetValue : ConvertOp<asctile::GetValueOp> {
         auto loc = op.getLoc();
         auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
         assert(tensorOp && "tensor must be created by asctile.tensor op");
-        SmallVector<Value> srcTensorShape = getTensorShape(rewriter, tensorOp);
-        Value linearOffset = linearizeOffset(rewriter, loc, srcTensorShape, op.getOffsets());
+        SmallVector<Value> srcShape = getTensorShape(rewriter, tensorOp);
+        Value linearOffset = linearizeOffset(rewriter, loc, srcShape, op.getOffsets());
         Value src = rewriter.getRemappedValue(base);
         rewriter.replaceOpWithNewOp<ascendc::GlobalTensorGetValueOp>(op, op.getType(), src, linearOffset);
         return success();
@@ -257,18 +261,23 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
         Value dst = rewriter.getRemappedValue(base);
         auto srcType = cast<ascendc::BaseTensorType>(src.getType());
         auto dstType = cast<ascendc::BaseTensorType>(dst.getType());
-        auto srcTensorShape = srcType.getShape();
         ascir::ConstantOpBuilder consts(rewriter);
-        SmallVector<Value> dstTensorShape = getTensorShape(rewriter, tensorOp);
+        SmallVector<Value> srcShape;
+        for (auto dim : srcType.getShape()) {
+            srcShape.push_back(consts.i32(dim));
+        }
+        SmallVector<Value> dstShape = getTensorShape(rewriter, tensorOp);
         auto const0 = consts.i32(0);
         auto const1 = consts.i32(1);
+        Value linearOffset = linearizeOffset(rewriter, loc, dstShape, op.getOffsets());
+        dst = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, dstType, dst, linearOffset);
         if (value.getType().getLoc() == asctile::TileLocation::L0C) {
             auto fixPipeParams =
                 rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::FixpipeParamsV220Type>());
-            rewriter.create<emitasc::SetMemberOp>(loc, fixPipeParams, "nSize", dstTensorShape[1]);
-            rewriter.create<emitasc::SetMemberOp>(loc, fixPipeParams, "mSize", dstTensorShape[0]);
-            rewriter.create<emitasc::SetMemberOp>(loc, fixPipeParams, "srcStride", dstTensorShape[0]);
-            rewriter.create<emitasc::SetMemberOp>(loc, fixPipeParams, "dstStride", dstTensorShape[1]);
+            rewriter.create<emitasc::SetMemberOp>(loc, fixPipeParams, "nSize", srcShape[1]);
+            rewriter.create<emitasc::SetMemberOp>(loc, fixPipeParams, "mSize", srcShape[0]);
+            rewriter.create<emitasc::SetMemberOp>(loc, fixPipeParams, "srcStride", srcShape[0]);
+            rewriter.create<emitasc::SetMemberOp>(loc, fixPipeParams, "dstStride", dstShape[1]);
             Value layout = rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::CO2LayoutType>(),
                                                                  ValueRange {consts.i32(1)}, ArrayAttr {}, true, true);
             auto fixPipeConfig = rewriter.create<ascendc::ConstructOp>(
@@ -276,16 +285,14 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
             rewriter.replaceOpWithNewOp<ascendc::FixpipeOp>(op, dst, src, fixPipeParams, fixPipeConfig);
             return success();
         }
-        Value linearOffset = linearizeOffset(rewriter, loc, dstTensorShape, op.getOffsets());
-        dst = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, dstType, dst, linearOffset);
-        auto numElements = calculateNumElements(rewriter, loc, dstTensorShape);
+        auto numElements = calculateNumElements(rewriter, loc, dstShape);
         auto typeSize = ascendc::getElementTypeSize(srcType);
         auto typeSizeValue = consts.i32(typeSize);
         Value srcNumElements = consts.i32(calCount(src));
         Value tailElements = rewriter.create<arith::SubIOp>(loc, numElements, linearOffset);
-        Value blockCount = srcTensorShape.size() == 1 ? consts.i32(1) : consts.i32(srcTensorShape[0]);
-        Value srcLastDim = consts.i32(srcTensorShape[srcTensorShape.size() - 1]);
-        Value dstLastDim = dstTensorShape[dstTensorShape.size() - 1];
+        Value blockCount = srcShape.size() == 1 ? consts.i32(1) : srcShape[0];
+        Value srcLastDim = srcShape[srcShape.size() - 1];
+        Value dstLastDim = dstShape[dstShape.size() - 1];
         Value strideElements = rewriter.create<arith::SubIOp>(loc, dstLastDim, srcLastDim);
         Value dstStride = rewriter.create<arith::MulIOp>(loc, strideElements, typeSizeValue);
         Value minTailElements = rewriter.create<arith::MinSIOp>(loc, srcLastDim, tailElements);
@@ -312,8 +319,8 @@ struct ConvertSetValue : ConvertOp<asctile::SetValueOp> {
         Value valueToStore = op.getValue();
         auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
         assert(tensorOp && "tensor must be created by asctile.tensor op");
-        SmallVector<Value> srcTensorShape = getTensorShape(rewriter, tensorOp);
-        Value linearOffset = linearizeOffset(rewriter, loc, srcTensorShape, op.getOffsets());
+        SmallVector<Value> srcShape = getTensorShape(rewriter, tensorOp);
+        Value linearOffset = linearizeOffset(rewriter, loc, srcShape, op.getOffsets());
         Value src = rewriter.getRemappedValue(base);
         Value offset = rewriter.create<emitc::CastOp>(loc, rewriter.getIntegerType(64, false), linearOffset);
         rewriter.replaceOpWithNewOp<ascendc::GlobalTensorSetValueOp>(op, src, offset, valueToStore);
