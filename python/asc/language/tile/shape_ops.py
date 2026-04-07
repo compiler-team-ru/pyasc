@@ -28,6 +28,42 @@ def shapes_match(shape: Tuple[int, ...], target_shape: Tuple[int, ...]) -> bool:
 
 @bind_tile_method
 def broadcast_to(input: Tile, *shape: int) -> Tile:
+    """
+    Creates new tile of a given shape broadcasting data from the input tensor.
+    This function works similar to :code:`torch.broadcast_to`.
+
+    Args:
+        input: the input tensor
+        shape: the target shape
+
+    Examples:
+        Broadcast tile to the provided shape: ::
+
+            input = asc2.load(x, [256], offsets=[0])
+            result = input.broadcast_to([16,256])
+
+        The code above may act as the following: ::
+
+            input:   [0,1,2,3,4, ... 255]
+            result:  [[0,1,2,...255], [0,1,2,...255] ... [0,1,2,..255]]
+
+    When lowering to Ascend C, it first it fills the BroadcastTiling structure calling GetBroadcastTilingInfo:
+
+    .. code-block:: c++
+
+        template <typename T, int constRank = -1, uint32_t* constDstShape = nullptr, uint32_t* constSrcShape = nullptr>
+        __aicore__ inline void GetBroadcastTilingInfo(
+        uint32_t rank, const uint32_t* dstShape, const uint32_t* srcShape, bool srcInnerPad, BroadcastTiling& tiling);
+
+    Then it perform Broadcast to fill the destination tensor:
+
+    .. code-block:: c++
+
+        template <typename T, int constRank = -1, uint32_t* constDstShape = nullptr, uint32_t* constSrcShape = nullptr,
+        bool constSrcInnerPad = false>
+        __aicore__ inline void Broadcast(const LocalTensor<T>& dst, const LocalTensor<T>& src, const uint32_t* dstShape,
+        const uint32_t* srcShape, BroadcastTiling* tiling);
+    """
     shape = verify_shape(shape)
     if not shapes_match(input.shape, shape):
         raise RuntimeError(f"Cannot broadcast tile with shape {input.shape} to {shape}")
