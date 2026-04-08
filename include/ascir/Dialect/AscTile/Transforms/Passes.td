@@ -18,6 +18,12 @@ def DensifyUnrollGroups : Pass<"asctile-densify-unroll-groups", "func::FuncOp"> 
   let constructor = "mlir::asctile::createDensifyUnrollGroupsPass()";
 }
 
+def LegalizeMatmul : Pass<"asctile-legalize-matmul", "func::FuncOp"> {
+  let summary = "Legalize matmul operations";
+  let constructor = "mlir::asctile::createLegalizeMatmulPass()";
+  let dependentDialects = ["asctile::AscTileDialect", "scf::SCFDialect"];
+}
+
 def PromotePureOps : Pass<"asctile-promote-pure-ops", "func::FuncOp"> {
   let summary = "Promote pure operations within their regions";
   let constructor = "mlir::asctile::createPromotePureOpsPass()";

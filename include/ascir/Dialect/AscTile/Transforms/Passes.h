@@ -21,6 +21,7 @@ namespace asctile {
 
 std::unique_ptr<Pass> createComputeMemoryConsumptionPass();
 std::unique_ptr<Pass> createDensifyUnrollGroupsPass();
+std::unique_ptr<Pass> createLegalizeMatmulPass();
 std::unique_ptr<Pass> createPromotePureOpsPass();
 std::unique_ptr<Pass> createTagUnrollGroupsPass(bool smallGroups = false);
 std::unique_ptr<Pass> createTransformMathOpsPass();
