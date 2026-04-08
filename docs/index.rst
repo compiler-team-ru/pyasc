@@ -31,6 +31,7 @@ PyAsc documentation
 
    design/project-overview.md
    design/software-pipelining.md
+   design/automatic-synchronization.md
 
 
 .. toctree::
