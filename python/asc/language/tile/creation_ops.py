@@ -17,28 +17,30 @@ from .tile import Tile
 from .utils import constant_tile, splat_tile
 
 
-def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] = None) -> Tile:
+def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] = None,
+         location: Optional[ir.TileLocation] = ir.TileLocation.UB) -> Tile:
     if not all(isinstance(dim, int) for dim in shape):
         raise RuntimeError("shape must be integers")
     shape = tuple(shape)
     if isinstance(value, Real):
         if dtype is None:
             dtype = KT.int32 if isinstance(value, int) else KT.float32
-        return constant_tile(value, shape, dtype, ir.TileLocation.UB)
+        return constant_tile(value, shape, dtype, location)
     if dtype is None:
         dtype = value.dtype
-    return splat_tile(value, shape, dtype, ir.TileLocation.UB)
+    return splat_tile(value, shape, dtype, location)
 
 
-def full_like(input: Tile, value: RuntimeNumeric) -> Tile:
+def full_like(input: Tile, value: RuntimeNumeric, location: Optional[ir.TileLocation] = ir.TileLocation.UB) -> Tile:
     check_type("input", input, Tile)
-    return full(input.shape, value, input.dtype)
+    return full(input.shape, value, input.dtype, location)
 
 
-def zeros(shape: Iterable[int], dtype: DataType = KT.int32) -> Tile:
-    return full(shape, 0, dtype)
+def zeros(shape: Iterable[int], dtype: DataType = KT.int32,
+          location: Optional[ir.TileLocation] = ir.TileLocation.UB) -> Tile:
+    return full(shape, 0, dtype, location)
 
 
-def zeros_like(input: Tile) -> Tile:
+def zeros_like(input: Tile, location: Optional[ir.TileLocation] = ir.TileLocation.UB) -> Tile:
     check_type("input", input, Tile)
-    return zeros(input.shape, input.dtype)
+    return zeros(input.shape, input.dtype, location)

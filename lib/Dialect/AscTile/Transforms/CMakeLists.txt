@@ -8,6 +8,7 @@
 
 add_mlir_dialect_library(MLIRAscTileTransforms
   DensifyUnrollGroups.cpp
+  LegalizeMatmul.cpp
   PromotePureOps.cpp
   TagUnrollGroups.cpp
   TransformMathOps.cpp

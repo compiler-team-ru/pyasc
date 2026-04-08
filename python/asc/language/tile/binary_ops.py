@@ -6,7 +6,7 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-from typing import Callable, TypeVar, Union
+from typing import Callable, Optional, TypeVar, Union
 
 from ..._C import ir
 from ...common.compat import isinstance
@@ -178,7 +178,7 @@ def right_shift(input: Tile, other: RuntimeInt) -> Tile:
 
 
 @bind_tile_method(name="__matmul__", binary_op=True)
-def matmul(input: Tile, other: Tile) -> Tile:
+def matmul(input: Tile, other: Tile, acc: Optional[Tile] = None) -> Tile:
     """
     Computes the matrix multiplication of :code:`input` and :code:`other`.
 
@@ -205,5 +205,8 @@ def matmul(input: Tile, other: Tile) -> Tile:
         raise RuntimeError(f"Input tiles have incompatible shapes: {input.shape}, {other.shape}")
     builder = global_builder.get_ir_builder()
     ir_type = ir.get_asctile_TileType([input.shape[0], other.shape[1]], KT.float32.to_ir(), TileLocation.L0C)
-    handle = builder.create_asctile_MatmulOp(ir_type, input.to_ir(), other.to_ir())
+    if acc is not None:
+        handle = builder.create_asctile_MatmulOp(ir_type, input.to_ir(), other.to_ir(), acc.to_ir())
+    else:
+        handle = builder.create_asctile_MatmulOp(ir_type, input.to_ir(), other.to_ir())
     return Tile(handle)
