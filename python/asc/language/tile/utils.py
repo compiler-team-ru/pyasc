@@ -78,6 +78,12 @@ def infer_common_dtype(lhs: Union[Tile, RuntimeNumeric], rhs: Union[Tile, Runtim
         raise RuntimeError(f"Operand dtypes must be numeric, got {lhs_dtype} and {rhs_dtype}")
     if lhs_dtype.is_unsigned() or rhs_dtype.is_unsigned():
         raise NotImplementedError(f"Unsigned dtype operands not supported, got {lhs_dtype} and {rhs_dtype}")
+    lhs_is_tile = isinstance(lhs, Tile)
+    rhs_is_tile = isinstance(rhs, Tile)
+    if lhs_is_tile and not rhs_is_tile:
+        return lhs.dtype
+    if rhs_is_tile and not lhs_is_tile:
+        return rhs.dtype
     if lhs_dtype.is_signed() and rhs_dtype.is_signed() and lhs_dtype.bitwidth != rhs_dtype.bitwidth:
         return lhs_dtype if lhs_dtype.bitwidth > rhs_dtype.bitwidth else rhs_dtype
     if lhs_dtype.is_float() and rhs_dtype.is_float() and lhs_dtype.bitwidth != rhs_dtype.bitwidth:
