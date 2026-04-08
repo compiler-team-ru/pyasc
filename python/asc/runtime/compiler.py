@@ -318,6 +318,17 @@ class Compiler:
             self.options.insert_sync = mod.need_insert_sync()
         self.schedule_passes(pm)
         pm.run(mod)
+        if self.options.kernel_type is None:
+            kernel_type = mod.op.get_str_attr(ir.attr.kernel_type)
+            if kernel_type == "mixed":
+                self.options.kernel_type = (KernelType.AIC_ONLY
+                                            if self.options.matmul_cube_only else KernelType.MIX_AIC_1_2)
+            elif kernel_type == "vector":
+                self.options.kernel_type = KernelType.AIV_ONLY
+            elif kernel_type == "cube":
+                self.options.kernel_type = KernelType.AIC_ONLY
+        self.enable_debug = (mod.op.has_unit_attr("asc.enable_debug")
+                             and str(os.environ.get("ASCENDC_DUMP", "True")).lower() == "true")
 
     def run_compilation(self, source: str, kernel_args: Optional[Tuple[ir.KernelArgument]] = None,
                         **compiled_kernel_args) -> CompiledKernel:

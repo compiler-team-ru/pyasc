@@ -11,6 +11,7 @@
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
+#include "ascir/Dialect/AscTile/Utils/Attributes.h"
 
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -33,29 +34,29 @@ public:
     void runOnOperation() override
     {
         auto moduleOp = getOperation();
-        if (moduleOp->hasAttr(attr::kernelType))
-            return;
         auto hasVectorOps = false;
         auto hasCubeOps = false;
+
         moduleOp.walk([&hasVectorOps, &hasCubeOps](Operation* op) {
-            if (!hasVectorOps && isa<VectorOp>(op))
+            if (!hasVectorOps && isa<ascendc::VectorOp>(op))
                 hasVectorOps = true;
-            if (!hasCubeOps && isa<MmadOp, MmadWithBiasOp>(op))
+            if (!hasCubeOps && isa<ascendc::MmadOp, ascendc::RegistMatmulObjOp>(op))
                 hasCubeOps = true;
-            if (isa<RegistMatmulObjOp>(op))
-                hasVectorOps = hasCubeOps = true;
             if (hasVectorOps && hasCubeOps)
                 return WalkResult::interrupt();
             return WalkResult::advance();
         });
+
         StringRef kernelType;
         if (hasVectorOps && hasCubeOps)
-            kernelType = attr::kernelMixed;
+            kernelType = "mixed";
         else if (hasCubeOps)
-            kernelType = attr::kernelCube;
+            kernelType = "cube";
         else
-            kernelType = attr::kernelVector;
-        moduleOp->setAttr(attr::kernelType, StringAttr::get(moduleOp.getContext(), kernelType));
+            kernelType = "vector";
+
+        auto kernelTypeAttr = StringAttr::get(moduleOp.getContext(), kernelType);
+        moduleOp->setAttr(ascendc::attr::kernelType, kernelTypeAttr);
     }
 };
 

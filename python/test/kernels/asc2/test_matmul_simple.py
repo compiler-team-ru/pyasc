@@ -13,7 +13,7 @@ import asc.runtime.config as config
 import asc2
 
 
-@asc2.jit(always_compile=True, kernel_type=asc.runtime.config.KernelType.AIC_ONLY)
+@asc2.jit(always_compile=True)
 def matmul_kernel(a_ptr: asc.GlobalAddress, b_ptr: asc.GlobalAddress, c_ptr: asc.GlobalAddress, a_shape: asc.ConstExpr,
                   b_shape: asc.ConstExpr, c_shape: asc.ConstExpr):
     a_gm = asc2.tensor(a_ptr, a_shape)
