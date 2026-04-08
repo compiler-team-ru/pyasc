@@ -78,86 +78,10 @@ def get_cmake_dir() -> Path:
     return cmake_dir
 
 
-def get_storage_url():
-    env = "PYASC_SETUP_STORAGE_URL"
-    url = os.environ.get(env)
-    if url:
-        return url
-    raise RuntimeError(f"{env} must be set")
-
-
 def get_llvm_install_prefix():
     env = "LLVM_INSTALL_PREFIX"
     llvm_path = os.environ.get(env)
     return llvm_path if (llvm_path and llvm_path.strip()) else None
-
-
-def get_llvm_package_info() -> Package:
-    system = platform.system()
-    try:
-        arch = {"x86_64": "x64", "arm64": "arm64", "aarch64": "arm64"}[platform.machine()]
-    except KeyError:
-        arch = platform.machine()
-    system_suffix = None
-    if system == "Linux":
-        if arch == 'arm64':
-            system_suffix = 'ubuntu-arm64'
-        elif arch == 'x64':
-            vglibc = tuple(map(int, platform.libc_ver()[1].split('.')))
-            vglibc = vglibc[0] * 100 + vglibc[1]
-            if vglibc > 228:
-                system_suffix = "ubuntu-x64"
-            elif vglibc > 217:
-                system_suffix = "almalinux-x64"
-            else:
-                system_suffix = "centos-x64"
-    if system_suffix is None:
-        raise RuntimeError(f"LLVM pre-compiled image is not available for {system}-{arch}")
-    llvm_hash_path = os.path.join(get_base_dir(), "llvm-commit.txt")
-    with open(llvm_hash_path, "r") as llvm_hash_file:
-        rev = llvm_hash_file.read(8)
-    full_name = f"llvm-{rev}-{system_suffix}"
-    return Package(f"{get_storage_url()}/llvm/{full_name}.tar.gz", "llvm", full_name, f"llvm-{system_suffix}")
-
-
-def open_url(url):
-    request = urllib.request.Request(url)
-    return urllib.request.urlopen(request, timeout=600)
-
-
-def update_symlink(link_path, source_path) -> None:
-    source_path = Path(source_path)
-    link_path = Path(link_path)
-    if link_path.is_symlink():
-        link_path.unlink()
-    elif link_path.exists():
-        shutil.rmtree(link_path)
-    print(f"creating symlink: {link_path} -> {source_path}")
-    link_path.absolute().parent.mkdir(parents=True, exist_ok=True)  # Ensure link's parent directory exists
-    link_path.symlink_to(source_path, target_is_directory=True)
-
-
-def download_llvm_package() -> Path:
-    cache_dir = get_cache_dir()
-    llvm = get_llvm_package_info()
-    package_root_dir = cache_dir / llvm.short_name
-    package_dir = package_root_dir / llvm.full_name
-    version_file = package_dir / "version.txt"
-    is_cached = version_file.is_file() and version_file.read_text() == llvm.url
-    if not is_cached:
-        with contextlib.suppress(Exception):
-            shutil.rmtree(package_root_dir)
-        os.makedirs(package_root_dir, exist_ok=True)
-        print(f"downloading and extracting: {llvm.url} -> {package_dir}", flush=True)
-        with open_url(llvm.url) as response:
-            with tarfile.open(fileobj=response, mode="r|*") as file:
-                file.extractall(path=package_root_dir)
-        version_file.write_text(llvm.url)
-        sym_name = llvm.sym_name
-        if sym_name:
-            sym_link_path = os.path.join(package_root_dir, sym_name)
-            update_symlink(sym_link_path, package_dir)
-    return package_dir
 
 
 def require_tool(name: str) -> str:
@@ -209,9 +133,6 @@ class LocalBuildExt(build_ext.build_ext):
 
     def build_extension(self, ext: LocalExtension):
         cmake, ninja = require_tools("cmake", "ninja")
-        llvm_dir = get_llvm_install_prefix()
-        if llvm_dir is None:
-            llvm_dir = download_llvm_package()
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
         cmake_dir = str(get_cmake_dir())
@@ -234,7 +155,6 @@ class LocalBuildExt(build_ext.build_ext):
             "-DPython3_INCLUDE_DIR=" + python_include_dir,
             "-Dpybind11_INCLUDE_DIR=" + pybind11.get_include(),
             "-Dpybind11_DIR=" + pybind11.get_cmake_dir(),
-            "-DLLVM_PREFIX_PATH=" + str(llvm_dir),
         ]
         if check_env_bool("PYASC_SETUP_CCACHE"):
             configure_args.append("-DASCIR_CCACHE=ON")
@@ -251,6 +171,9 @@ class LocalBuildExt(build_ext.build_ext):
             configure_args.append("-DASCIR_COVERAGE=ON")
         if check_env_bool("PYASC_SETUP_ASAN"):
             configure_args.append("-DASCIR_ASAN=ON")
+        llvm_dir = get_llvm_install_prefix()
+        if llvm_dir is not None:
+            configure_args.append("-DLLVM_PREFIX_PATH=" + str(llvm_dir))
         subprocess.check_call(configure_args)
         targets = ["libpyasc", *get_requested_devtools()]
         if check_env_bool("PYASC_SETUP_DOCS"):
@@ -263,6 +186,9 @@ class LocalBuildExt(build_ext.build_ext):
             *targets,
             "--parallel",
         ]
+        build_jobs = os.environ.get("PYASC_SETUP_JOBS")
+        if build_jobs:
+            build_args.append(build_jobs)
         subprocess.check_call(build_args)
 
 
