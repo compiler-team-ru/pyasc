@@ -101,7 +101,7 @@ struct LoweringConversionTarget : public ConversionTarget {
             asctile::ReshapeOp, asctile::BroadcastOp, asctile::AddSOp, asctile::SubSOp, asctile::MulSOp,
             asctile::DivSOp, asctile::MinSOp, asctile::MaxSOp, asctile::ShLSOp, asctile::ShRSOp,
             asctile::ReduceSumAs1dOp, asctile::ReduceMinAs1dOp, asctile::ReduceMaxAs1dOp, asctile::ReduceSumOp,
-            asctile::ReduceMinOp, asctile::ReduceMaxOp, asctile::ReduceProdOp
+            asctile::ReduceMinOp, asctile::ReduceMaxOp, asctile::ReduceProdOp, asctile::EmptyOp
             //
             >();
         addLegalDialect<ascendc::AscendCDialect, arith::ArithDialect, emitasc::EmitAscDialect, emitc::EmitCDialect,
@@ -186,8 +186,7 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
                 auto iterSrcOffset = rewriter.create<arith::MulIOp>(loc, indVar, srcOffset);
                 auto subLocalL1 =
                     rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, l1Dst.getType(), l1Dst, iterSrcOffset);
-                auto subLocalL0 =
-                    rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dstType, dst, iterDstOffset);
+                auto subLocalL0 = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dstType, dst, iterDstOffset);
                 rewriter.create<ascendc::LoadDataG2LOp>(loc, subLocalL0, subLocalL1, loadDataParams);
                 rewriter.setInsertionPointAfter(forOp);
                 forOp->setAttr(asctile::attr::parallel, UnitAttr::get(forOp->getContext()));
@@ -569,7 +568,23 @@ struct ConvertMatmul : ConvertOp<asctile::MatmulOp> {
         rewriter.create<emitasc::SetMemberOp>(loc, mmadParams, "m", consts.i32(matrixATensorShape[0]));
         rewriter.create<emitasc::SetMemberOp>(loc, mmadParams, "n", consts.i32(matrixBTensorShape[1]));
         rewriter.create<emitasc::SetMemberOp>(loc, mmadParams, "k", consts.i32(matrixBTensorShape[0]));
+        if (op.getAcc()) {
+            rewriter.create<emitasc::SetMemberOp>(loc, mmadParams, "isBias", consts.i32(1));
+        }
         rewriter.create<ascendc::MmadOp>(loc, dst, matrixA, matrixB, mmadParams);
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
+struct ConvertEmpty : ConvertOp<asctile::EmptyOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    LogicalResult convert(asctile::EmptyOp op, ConvertRewriter &rewriter) const override
+    {
+        auto loc = op.getLoc();
+        auto dst = createTensorOp(rewriter, loc, op.getType());
         rewriter.replaceOp(op, dst);
         return success();
     }
@@ -820,7 +835,7 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         patterns.insert<
             //
             ConvertTensor, ConvertLoad, ConvertGetValue, ConvertStore, ConvertSetValue, ConvertSplat, ConvertRelu,
-            ConvertCast, ConvertMatmul, ConvertReshape, ConvertBroadcast, ConvertSoftmax, ConvertRmsNorm,
+            ConvertCast, ConvertMatmul, ConvertReshape, ConvertBroadcast, ConvertSoftmax, ConvertRmsNorm, ConvertEmpty,
             ConvertToL2<asctile::AddSOp, ascendc::AddsL2Op>,
             ConvertVecScalarToL2<asctile::SubSOp, ascendc::SubsL2Op, ascendc::SubL2Op>,
             ConvertToL2<asctile::MulSOp, ascendc::MulsL2Op>,

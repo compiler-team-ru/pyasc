@@ -45,6 +45,12 @@ def DimOp : AscTile_Op<"dim", [Pure]> {
   let hasVerifier = 1;
 }
 
+def EmptyOp : AscTile_Op<"empty", [Pure]> {
+  let summary = "Allocate empty tile";
+  let results = (outs NumericTile:$result);
+  let assemblyFormat = "attr-dict `:` qualified(type($result))";
+}
+
 def SplatOp
     : AscTile_Op<"splat", [Pure, ShapedMatchElemType<"result", "value">]> {
   let summary = "Create a tile filled with splat value";
@@ -290,10 +296,12 @@ def MatmulOp : AscTile_Op<"matmul", [
 ]> {
   let summary = "Compute matrix multiplication on 2D tiles";
   Type inputTileType = TileOfRankAndType<[2], [AscTile_Float]>;
-  let arguments = (ins inputTileType:$matrixA, inputTileType:$matrixB);
+  let arguments = (ins inputTileType:$matrixA, inputTileType:$matrixB,
+                   Optional<TileOfRankAndType<[2], [F32]>>:$acc);
   let results = (outs TileOfRankAndType<[2], [F32]>:$result);
   let assemblyFormat = [{
-    $matrixA `,` $matrixB attr-dict `:` type($matrixA) `,` type($matrixB) `->`
+    $matrixA `,` $matrixB (`,` $acc^)? attr-dict `:`
+    type($matrixA) `,` type($matrixB) (`,` type($acc)^)? `->`
     type($result)
   }];
 }
