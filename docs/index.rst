@@ -30,6 +30,7 @@ PyAsc documentation
    :caption: High-level design
 
    design/project-overview.md
+   design/software-pipelining.md
 
 
 .. toctree::
