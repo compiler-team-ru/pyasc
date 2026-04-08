@@ -33,3 +33,42 @@ pyasc:
   llt:
     ut_check:true
     st_check:false
+
+python@pyasc:
+  commiter:
+    "xxx"
+  team: "pyasc"
+  src:
+    release:
+      - python/asc
+    unrelease:
+
+  llt:
+    ut_check:true
+    st_check:false
+
+cpp@pyasc:
+  commiter:
+    "xxx"
+  team: "pyasc"
+  src:
+    release:
+      - bin
+      - include
+      - lib
+    unrelease:
+      - python/asc/lib/runtime/npu_utils.cpp
+      - python/asc/lib/runtime/print_utils.cpp
+      - python/asc/lib/runtime/rt_wrapper.cpp
+      - python/asc/lib/host/bindings/Enums.cpp
+      - python/asc/lib/host/bindings/Module.cpp
+      - python/asc/lib/host/bindings/Platform.cpp
+      - python/asc/lib/host/bindings/MatmulApiTiling.cpp
+      - lib/Dialect/Asc/IR/OpInterfaces.cpp
+      - lib/Dialect/Asc/IR/TypeInterfaces.cpp
+      - lib/Dialect/Asc/Transforms/GenerateBoilerplatePass.cpp
+      - bin/ascir-lsp.cpp
+
+  llt:
+    ut_check:true
+    st_check:false
