@@ -19,10 +19,10 @@ namespace attr {
 LITERAL aicore = "ascendc.aicore";
 LITERAL api = "ascendc.api";
 LITERAL bufId = "ascendc.buf_id";
-LITERAL compile_mix = "asc.compile_mix";
 LITERAL emitAsUnsigned = "ascendc.emit_as_unsigned";
 LITERAL global = "ascendc.global";
 LITERAL enable_debug = "asc.enable_debug";
+LITERAL kernelType = "asc.kernel_type";
 LITERAL maskSet = "asc.mask_set";
 LITERAL matmulCubeOnly = "asc.matmul_cube_only";
 LITERAL memoryConsumed = "asc.memory_consumed";
