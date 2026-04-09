@@ -108,7 +108,8 @@ using PrintableOpTypes = std::tuple<
     // EmitAsc operations
     emitasc::CallOpaqueOp, emitasc::DeclarePyStructOp, emitasc::DereferenceOp, emitasc::MaskOp, emitasc::MemberOp,
     emitasc::MemberPtrOp, emitasc::MemberRefOp, emitasc::PtrOffsetOp, emitasc::ReinterpretCastOp, emitasc::SetMemberOp,
-    emitasc::VariableOp, emitasc::VerbatimOp, emitasc::CopyStructOp, emitasc::InitStructOp,
+    emitasc::VariableOp, emitasc::VecScopeOp, emitasc::VerbatimOp, emitasc::VFGroupOp, emitasc::CopyStructOp,
+    emitasc::InitStructOp,
     // Adv
     // Activation operations
     ascendc::SimpleSoftMaxOp, ascendc::SoftMaxOp, ascendc::SwiGLUOp,
@@ -240,7 +241,7 @@ using PrintableOpTypes = std::tuple<
     ascendc::GlobalTensorSubIndexOp, ascendc::GlobalTensorBracketOp,
     // LocalTensor operations
     ascendc::LocalTensorV2Op, ascendc::LocalTensorV3Op, ascendc::LocalTensorBracketOp,
-    ascendc::LocalTensorReinterpretCastOp, ascendc::LocalTensorSubIndexOp,
+    ascendc::LocalTensorReinterpretCastOp, ascendc::LocalTensorSubIndexOp, ascendc::LocalTensorGetPhyAddrV2Op,
     // ShapeInfo
     ascendc::ShapeInfoShapeOp, ascendc::ShapeInfoOriginalShapeOp,
 

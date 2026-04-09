@@ -27,6 +27,7 @@ std::unique_ptr<Pass> createDetectKernelTypePass();
 std::unique_ptr<Pass> createEraseSyncPass();
 std::unique_ptr<Pass> createFillAscOperandsPass();
 std::unique_ptr<Pass> createFuseBufIdSyncPass();
+std::unique_ptr<Pass> createFuseVFBlockPass();
 std::unique_ptr<Pass> createGenerateBoilerplatePass();
 std::unique_ptr<Pass> createHoistQueBindPass();
 std::unique_ptr<Pass> createHoistUBAllocationPass(bool excludeInOut = false);

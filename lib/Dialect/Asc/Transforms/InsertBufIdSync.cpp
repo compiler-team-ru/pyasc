@@ -9,6 +9,7 @@
  */
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
+#include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
 #include "ascir/Dialect/AscTile/Utils/Attributes.h"
@@ -177,6 +178,17 @@ class InsertBufIdSync {
         return bufIds;
     }
 
+    void insertSync(Operation* op, Value tensor)
+    {
+        auto bufIds = getBufIds(tensor);
+        for (const auto& bufId : bufIds) {
+            if (!bufIdMap[op].count(bufId)) {
+                bufIdMap[op].insert(bufId);
+                insertGetRlsBuf(op, bufId);
+            }
+        }
+    }
+
 public:
     InsertBufIdSync() : bufId(0) {}
     ~InsertBufIdSync() = default;
@@ -185,35 +197,25 @@ public:
     {
         auto copyOp = dyn_cast<ascendc::DataCopyOp>(op);
         if (copyOp && copyOp.getDirection() == ascendc::CopyDirection::ubuf_gm) {
-            auto src = copyOp.getSrc();
-            auto srcBufIds = getBufIds(src);
-            for (const auto& srcBufId : srcBufIds) {
-                bufIdMap[copyOp].insert(srcBufId);
-                insertGetRlsBuf(copyOp, srcBufId);
-            }
+            insertSync(op, copyOp.getSrc());
             return;
         }
         if (auto opWithDst = dyn_cast<ascendc::OpWithDst>(op)) {
-            auto dstTensor = opWithDst.getDst();
-            auto dstDefOp = dstTensor.getDefiningOp();
-            auto dstBufIds = getBufIds(dstTensor);
-            for (const auto& dstBufId : dstBufIds) {
-                bufIdMap[opWithDst].insert(dstBufId);
-                insertGetRlsBuf(opWithDst, dstBufId);
-            }
+            insertSync(op, opWithDst.getDst());
         }
         if (auto opWithSrc = dyn_cast<ascendc::OpWithSrc>(op)) {
             for (auto& src : opWithSrc.getSrcTensors()) {
-                auto srcBufIds = getBufIds(src);
-                for (const auto& srcBufId : srcBufIds) {
-                    if (!bufIdMap[opWithSrc].count(srcBufId)) {
-                        bufIdMap[opWithSrc].insert(srcBufId);
-                        insertGetRlsBuf(opWithSrc, srcBufId);
-                    }
-                }
+                insertSync(op, src);
             }
         }
-        return;
+        if (auto fusedOp = dyn_cast<emitasc::VFGroupOp>(op)) {
+            for (auto dstTensor : fusedOp.getDstList()) {
+                insertSync(op, dstTensor);
+            }
+            for (auto srcTensor : fusedOp.getSrcList()) {
+                insertSync(op, srcTensor);
+            }
+        }
     }
 
     void setBufIdAttr(MLIRContext* context)
@@ -242,6 +244,8 @@ class InsertBufIdSyncPass : public ascendc::impl::InsertBufIdSyncBase<InsertBufI
                 forOp->removeAttr(asctile::attr::parallel);
                 return;
             }
+            if (forOp->hasAttr(ascendc::attr::vecScopeLoop))
+                return;
             auto terminator = forOp.getBody()->getTerminator();
             OpBuilder builder(terminator);
             ascir::ConstantOpBuilder consts(builder);
