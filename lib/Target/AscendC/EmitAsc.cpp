@@ -119,6 +119,17 @@ LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::Decla
     return success();
 }
 
+LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::InitStructOp op)
+{
+    FAIL_OR(emitter.emitType(op.getLoc(), op.getType()));
+    auto& os = emitter.ostream();
+    auto result = emitter.getOrCreateName(op.getResult());
+    os << ' ' << result;
+    for (auto [name, value] : llvm::zip_equal(op.getFieldNames(), op.getFieldValues()))
+        os << ";\n" << result << '.' << cast<StringAttr>(name).getValue() << " = " << emitter.getOrCreateName(value);
+    return success();
+}
+
 LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::MemberRefOp op)
 {
     auto& os = emitter.ostream();

@@ -13,6 +13,7 @@
 #include "ascir/Conversion/LowerToAsc/Passes.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/AscTile/Utils/Attributes.h"
+#include "ascir/Dialect/EmitAsc/Utils/InitStructBuilder.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 
@@ -161,23 +162,26 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
                     consts.i32(dstNzC0Stride), const1, const0});
             auto l1Dst = createTensorOp(rewriter, loc, opType, ascendc::TPosition::A1);
             rewriter.create<ascendc::DataCopyL2Op>(loc, l1Dst, src, nd2NzParams);
-            Value loadDataParams =
-                rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::LoadData2DParamsType>());
+            auto paramsType = rewriter.getType<ascendc::LoadData2DParamsType>();
             if (opType.getLoc() == asctile::TileLocation::L0A) {
                 auto dstNumElements = calCount(dst);
                 Value repeatTimes = consts.i32(llvm::divideCeilSigned(dstNumElements, cubeBlock));
-                rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "repeatTimes", repeatTimes);
-                rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "srcStride", const1);
-                rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "dstGap", const0);
-                rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "ifTranspose", consts.i1(0));
-                rewriter.create<ascendc::LoadDataG2LOp>(loc, dst, l1Dst, loadDataParams);
+                Value params = emitasc::InitStructBuilder(paramsType)
+                                   .addField("repeatTimes", repeatTimes)
+                                   .addField("srcStride", const1)
+                                   .addField("dstGap", const0)
+                                   .addField("ifTranspose", consts.i1(0))
+                                   .create(rewriter, loc);
+                rewriter.create<ascendc::LoadDataG2LOp>(loc, dst, l1Dst, params);
             } else {
                 Value repeatTimes = consts.i32(llvm::divideCeilSigned(dstShape[1], cubeMNDim));
                 Value srcStride = consts.i32(llvm::divideCeilSigned(dstShape[0], cubeKDim));
-                rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "repeatTimes", repeatTimes);
-                rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "srcStride", srcStride);
-                rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "dstGap", const0);
-                rewriter.create<emitasc::SetMemberOp>(loc, loadDataParams, "ifTranspose", consts.i1(1));
+                Value params = emitasc::InitStructBuilder(paramsType)
+                                   .addField("repeatTimes", repeatTimes)
+                                   .addField("srcStride", srcStride)
+                                   .addField("dstGap", const0)
+                                   .addField("ifTranspose", consts.i1(1))
+                                   .create(rewriter, loc);
                 auto forOp = rewriter.create<scf::ForOp>(loc, const0, srcStride, const1);
                 rewriter.setInsertionPointToStart(forOp.getBody());
                 auto indVar = forOp.getInductionVar();
@@ -189,7 +193,7 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
                 auto subLocalL1 =
                     rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, l1Dst.getType(), l1Dst, iterSrcOffset);
                 auto subLocalL0 = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dstType, dst, iterDstOffset);
-                rewriter.create<ascendc::LoadDataG2LOp>(loc, subLocalL0, subLocalL1, loadDataParams);
+                rewriter.create<ascendc::LoadDataG2LOp>(loc, subLocalL0, subLocalL1, params);
                 rewriter.setInsertionPointAfter(forOp);
                 forOp->setAttr(asctile::attr::parallel, UnitAttr::get(forOp->getContext()));
             }
@@ -273,17 +277,17 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
         Value linearOffset = linearizeOffset(rewriter, loc, dstShape, op.getOffsets());
         dst = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, dstType, dst, linearOffset);
         if (value.getType().getLoc() == asctile::TileLocation::L0C) {
-            auto fixPipeParams =
-                rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::FixpipeParamsV220Type>());
-            rewriter.create<emitasc::SetMemberOp>(loc, fixPipeParams, "nSize", srcShape[1]);
-            rewriter.create<emitasc::SetMemberOp>(loc, fixPipeParams, "mSize", srcShape[0]);
-            rewriter.create<emitasc::SetMemberOp>(loc, fixPipeParams, "srcStride", srcShape[0]);
-            rewriter.create<emitasc::SetMemberOp>(loc, fixPipeParams, "dstStride", dstShape[1]);
+            Value params = emitasc::InitStructBuilder(rewriter.getType<ascendc::FixpipeParamsV220Type>())
+                               .addField("nSize", srcShape[1])
+                               .addField("mSize", srcShape[0])
+                               .addField("srcStride", srcShape[0])
+                               .addField("dstStride", dstShape[1])
+                               .create(rewriter, loc);
             Value layout = rewriter.create<ascendc::ConstructOp>(
                 loc, rewriter.getType<ascendc::CO2LayoutType>(), ValueRange{consts.i32(1)}, ArrayAttr{}, true, true);
             auto fixPipeConfig = rewriter.create<ascendc::ConstructOp>(
                 loc, rewriter.getType<ascendc::FixpipeConfigType>(), ValueRange{layout}, ArrayAttr{}, true, true);
-            rewriter.replaceOpWithNewOp<ascendc::FixpipeOp>(op, dst, src, fixPipeParams, fixPipeConfig);
+            rewriter.replaceOpWithNewOp<ascendc::FixpipeOp>(op, dst, src, params, fixPipeConfig);
             return success();
         }
         auto numElements = calculateNumElements(rewriter, loc, dstShape);
@@ -408,7 +412,6 @@ struct ConvertSoftmax : ConvertOp<asctile::SoftmaxOp> {
         }
         auto [height, width] = unpackShape(shape);
         auto src = rewriter.getRemappedValue(op.getOperand());
-
         auto dst = createTensorOp(rewriter, loc, tensorType);
         auto elemType = tensorType.getElementType();
         int64_t bufferSize = ascendc::ubBlockSize * height / ascendc::getElementTypeSize(tensorType);
@@ -416,17 +419,15 @@ struct ConvertSoftmax : ConvertOp<asctile::SoftmaxOp> {
         auto sumTensor = createTensorOp(rewriter, loc, bufferSize, elemType);
         auto sharedBufTensor =
             createTensorOp(rewriter, loc, ascendc::getTypeSize(tensorType) * 2, rewriter.getIntegerType(8, false));
-
-        auto softmaxTiling = rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::SoftMaxTilingType>());
-
-        auto softmaxShapeInfo =
-            rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::SoftMaxShapeInfoType>());
-        rewriter.create<emitasc::SetMemberOp>(loc, softmaxShapeInfo, "srcM", consts.i32(height));
-        rewriter.create<emitasc::SetMemberOp>(loc, softmaxShapeInfo, "srcK", consts.i32(width));
-        rewriter.create<emitasc::SetMemberOp>(loc, softmaxShapeInfo, "oriSrcM", consts.i32(height));
-        rewriter.create<emitasc::SetMemberOp>(loc, softmaxShapeInfo, "oriSrcK", consts.i32(width));
+        auto tiling = rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::SoftMaxTilingType>());
+        Value shapeInfo = emitasc::InitStructBuilder(rewriter.getType<ascendc::SoftMaxShapeInfoType>())
+                              .addField("srcM", consts.i32(height))
+                              .addField("srcK", consts.i32(width))
+                              .addField("oriSrcM", consts.i32(height))
+                              .addField("oriSrcK", consts.i32(width))
+                              .create(rewriter, loc);
         rewriter.create<ascendc::SoftMaxOp>(
-            loc, false, false, false, dst, maxTensor, sumTensor, src, sharedBufTensor, softmaxTiling, softmaxShapeInfo);
+            loc, false, false, false, dst, maxTensor, sumTensor, src, sharedBufTensor, tiling, shapeInfo);
         rewriter.replaceOp(op, dst);
         return success();
     }
@@ -523,29 +524,21 @@ struct ConvertRmsNorm : ConvertOp<asctile::RmsNormOp> {
         constexpr bool isBasicBlock = false;
         RmsNormTiling tilingStruct = getRmsNormTiling(shape, isBasicBlock, typeSize);
         auto sharedBufTensor = createTensorOp(rewriter, loc, TOTAL_UB_SIZE, rewriter.getIntegerType(8, false));
-        auto rmsnormTiling = rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::RmsNormTilingType>());
-        rewriter.create<emitasc::SetMemberOp>(loc, rmsnormTiling, "bLength", consts.i32(tilingStruct.bLength));
-        rewriter.create<emitasc::SetMemberOp>(loc, rmsnormTiling, "sLength", consts.i32(tilingStruct.sLength));
-        rewriter.create<emitasc::SetMemberOp>(loc, rmsnormTiling, "hLength", consts.i32(tilingStruct.hLength));
-        rewriter.create<emitasc::SetMemberOp>(
-            loc, rmsnormTiling, "originalHLength", consts.i32(tilingStruct.originalHLength));
-        rewriter.create<emitasc::SetMemberOp>(
-            loc, rmsnormTiling, "reciprocalOfHLength", consts.f32(tilingStruct.reciprocalOfHLength));
-        rewriter.create<emitasc::SetMemberOp>(
-            loc, rmsnormTiling, "mainBshLength", consts.i32(tilingStruct.mainBshLength));
-        rewriter.create<emitasc::SetMemberOp>(
-            loc, rmsnormTiling, "mainBsLength", consts.i32(tilingStruct.mainBsLength));
-        rewriter.create<emitasc::SetMemberOp>(
-            loc, rmsnormTiling, "mainBsLengthAlign", consts.i32(tilingStruct.mainBsLengthAlign));
-        rewriter.create<emitasc::SetMemberOp>(loc, rmsnormTiling, "loopRound", consts.i32(tilingStruct.loopRound));
-        rewriter.create<emitasc::SetMemberOp>(
-            loc, rmsnormTiling, "tailBshLength", consts.i32(tilingStruct.tailBshLength));
-        rewriter.create<emitasc::SetMemberOp>(
-            loc, rmsnormTiling, "inputTailPos", consts.i32(tilingStruct.inputTailPos));
-        rewriter.create<emitasc::SetMemberOp>(
-            loc, rmsnormTiling, "tailBsLength", consts.i32(tilingStruct.tailBsLength));
-        rewriter.create<ascendc::RmsNormOp>(
-            loc, isBasicBlock, dst, src, gammaTensor, epsilon, rmsnormTiling, sharedBufTensor);
+        Value tiling = emitasc::InitStructBuilder(rewriter.getType<ascendc::RmsNormTilingType>())
+                           .addField("bLength", consts.i32(tilingStruct.bLength))
+                           .addField("sLength", consts.i32(tilingStruct.sLength))
+                           .addField("hLength", consts.i32(tilingStruct.hLength))
+                           .addField("originalHLength", consts.i32(tilingStruct.originalHLength))
+                           .addField("reciprocalOfHLength", consts.f32(tilingStruct.reciprocalOfHLength))
+                           .addField("mainBshLength", consts.i32(tilingStruct.mainBshLength))
+                           .addField("mainBsLength", consts.i32(tilingStruct.mainBsLength))
+                           .addField("mainBsLengthAlign", consts.i32(tilingStruct.mainBsLengthAlign))
+                           .addField("loopRound", consts.i32(tilingStruct.loopRound))
+                           .addField("tailBshLength", consts.i32(tilingStruct.tailBshLength))
+                           .addField("inputTailPos", consts.i32(tilingStruct.inputTailPos))
+                           .addField("tailBsLength", consts.i32(tilingStruct.tailBsLength))
+                           .create(rewriter, loc);
+        rewriter.create<ascendc::RmsNormOp>(loc, isBasicBlock, dst, src, gammaTensor, epsilon, tiling, sharedBufTensor);
         rewriter.replaceOp(op, dst);
         return success();
     }
@@ -566,13 +559,14 @@ struct ConvertMatmul : ConvertOp<asctile::MatmulOp> {
         auto matrixBTensorShape = cast<ascendc::LocalTensorType>(matrixB.getType()).getShape();
         assert(matrixATensorShape.size() == 2 && "matrix must be have dim = 2");
         assert(matrixBTensorShape.size() == 2 && "matrix must be have dim = 2");
-        auto mmadParams = rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::MmadParamsType>());
-        rewriter.create<emitasc::SetMemberOp>(loc, mmadParams, "m", consts.i32(matrixATensorShape[0]));
-        rewriter.create<emitasc::SetMemberOp>(loc, mmadParams, "n", consts.i32(matrixBTensorShape[1]));
-        rewriter.create<emitasc::SetMemberOp>(loc, mmadParams, "k", consts.i32(matrixBTensorShape[0]));
+        auto paramsBuilder = emitasc::InitStructBuilder(rewriter.getType<ascendc::MmadParamsType>())
+                                 .addField("m", consts.i32(matrixATensorShape[0]))
+                                 .addField("n", consts.i32(matrixBTensorShape[1]))
+                                 .addField("k", consts.i32(matrixBTensorShape[0]));
         if (op.getAcc()) {
-            rewriter.create<emitasc::SetMemberOp>(loc, mmadParams, "isBias", consts.i32(1));
+            paramsBuilder.addField("isBias", consts.i32(1));
         }
+        Value mmadParams = paramsBuilder.create(rewriter, loc);
         rewriter.create<ascendc::MmadOp>(loc, dst, matrixA, matrixB, mmadParams);
         rewriter.replaceOp(op, dst);
         return success();
