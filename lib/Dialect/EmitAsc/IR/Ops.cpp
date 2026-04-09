@@ -41,7 +41,7 @@ Value InitStructOp::getField(StringRef name)
 std::optional<size_t> InitStructOp::getFieldOperandIndex(StringRef name)
 {
     auto names = getFieldNames().getValue();
-    const auto* it = llvm::find_if(names, [name](Attribute attr) { return cast<StringAttr>(attr).getValue() == name; });
+    auto it = llvm::find_if(names, [name](Attribute attr) { return cast<StringAttr>(attr).getValue() == name; });
     if (it == names.end())
         return std::nullopt;
     return std::distance(names.begin(), it);
