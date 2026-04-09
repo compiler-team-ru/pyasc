@@ -167,6 +167,12 @@ void CodeEmitter::createTypeEmitMapper()
     emitTypeMapper[TypeID::get<ascendc::LocalTensorType>()] = [this](Location loc, Type type, bool flag) {
         return this->emitAscLocalTensorType(loc, type, flag);
     };
+    emitTypeMapper[TypeID::get<ascendc::RegTensorType>()] = [this](Location loc, Type type, bool flag) {
+        return this->emitAscRegTensorType(loc, type, flag);
+    };
+    emitTypeMapper[TypeID::get<ascendc::MaskRegType>()] = [this](Location loc, Type type, bool flag) {
+        return this->emitAscMaskRegType(loc, type, flag);
+    };
     emitTypeMapper[TypeID::get<emitasc::PyStructType>()] = [this](Location loc, Type type, bool flag) {
         return this->emitAscPyStructType(loc, type, flag);
     };
@@ -612,6 +618,23 @@ LogicalResult CodeEmitter::emitAscLocalTensorType(Location loc, Type type, bool 
     if (failed(emitType(loc, elemTy)))
         return failure();
     os << ">";
+    return success();
+}
+
+LogicalResult CodeEmitter::emitAscRegTensorType(Location loc, Type type, bool emitAsUnsigned)
+{
+    auto rType = dyn_cast<ascendc::RegTensorType>(type);
+    auto elemTy = rType.getElementType();
+    os << ascNamespace << "::MicroAPI::RegTensor<";
+    if (failed(emitType(loc, elemTy)))
+        return failure();
+    os << ">";
+    return success();
+}
+
+LogicalResult CodeEmitter::emitAscMaskRegType(Location loc, Type type, bool emitAsUnsigned)
+{
+    os << ascNamespace << "::MicroAPI::MaskReg";
     return success();
 }
 

@@ -24,6 +24,7 @@
 #include "ascir/Target/Asc/Basic/DataCopy.h"
 #include "ascir/Target/Asc/Basic/DumpTensor.h"
 #include "ascir/Target/Asc/Basic/ListTensor.h"
+#include "ascir/Target/Asc/Basic/MicroAPI.h"
 #include "ascir/Target/Asc/Basic/OtherOps.h"
 #include "ascir/Target/Asc/Basic/Scalar.h"
 #include "ascir/Target/Asc/Basic/SwapMem.h"
@@ -72,6 +73,16 @@ LogicalResult printOperation(CodeEmitter& emitter, ModuleOp moduleOp)
 LogicalResult printOperation(CodeEmitter& emitter, ascendc::NoOp op) { return success(); }
 
 using PrintableOpTypes = std::tuple<
+    // MicroAPI operations
+    ascendc::DataCopyStoreOp, ascendc::DataCopyLoadOp, ascendc::UpdateMaskOp, ascendc::RegTensorOp,
+    // Binary MicroAPI operations
+    ascendc::AddMicroOp, ascendc::AndMicroOp, ascendc::DivMicroOp, ascendc::FusedAbsSubMicroOp,
+    ascendc::FusedExpSubMicroOp, ascendc::FusedMulDstAddMicroOp, ascendc::SubMicroOp, ascendc::MaxMicroOp,
+    ascendc::MinMicroOp, ascendc::MulMicroOp, ascendc::MulAddDstMicroOp, ascendc::OrMicroOp, ascendc::PreluMicroOp,
+    ascendc::XorMicroOp,
+    // Unary MicroAPI operations
+    ascendc::AbsMicroOp, ascendc::ExpMicroOp, ascendc::LnMicroOp, ascendc::LogMicroOp, ascendc::Log10MicroOp,
+    ascendc::MaskNotMicroOp, ascendc::NegMicroOp, ascendc::NotMicroOp, ascendc::ReluMicroOp, ascendc::SqrtMicroOp,
     // Builtin ops
     ModuleOp,
     // EmitC ops

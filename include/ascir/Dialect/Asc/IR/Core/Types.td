@@ -67,6 +67,10 @@ def AscendC_Mask : AscendC_Type<"Mask", "mask"> {
   let summary = "Represents vector mask (bit mode)";
 }
 
+def AscendC_MaskReg : AscendC_Type<"MaskReg", "mask_reg"> {
+  let description = "Represents AscendC::MicroAPI::MaskReg";
+}
+
 def AscendC_Matmul : AscendC_Type<"Matmul", "matmul"> {
   let description = "Represents matmul::Matmul";
   let parameters = (ins "TPositionAttr":$srcAPositionAttr,
@@ -168,6 +172,13 @@ def AscendC_Queue : AscendC_BaseQueueType<"Queue", "queue"> {
   let extraClassDeclaration = [{
     TPosition getPosition() { return getTPositionAttr().getValue(); }
   }];
+}
+
+def AscendC_RegTensor : AscendC_Type<"RegTensor", "reg_tensor"> {
+  let summary = "Reg tensor from UB";
+  let description = "Represents AscendC::MicroAPI::RegTensor";
+  let parameters = (ins "Type":$elementType);
+  let assemblyFormat = "`<` $elementType `>`";
 }
 
 def AscendC_TBufPool : AscendC_Type<"TBufPool", "tbuf_pool"> {
