@@ -38,6 +38,13 @@ def AscendC_GetBlockNumOp : APIOp<"get_block_num", "GetBlockNum", [Pure]> {
   let assemblyFormat = "attr-dict `:` type($value)";
 }
 
+def AscendC_GetVecLenOp : APIOp<"get_vec_len", "GetVecLen"> {
+  let results = (outs AnySignlessIntegerOrIndex:$oneRepeatSize);
+  let assemblyFormat = [{
+    attr-dict `:` qualified(type($oneRepeatSize))
+  }];
+}
+
 def AscendC_GetDataBlockSizeInBytesOp : APIOp<"get_data_block_size_in_bytes", "GetDataBlockSizeInBytes", [AscFunc]> {
   let description = "Obtain the size of a datablock in bytes for the current chip version";
   let results = (outs AnySignlessIntegerOrIndex:$value);

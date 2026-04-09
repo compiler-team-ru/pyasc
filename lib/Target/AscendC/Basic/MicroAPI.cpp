@@ -9,7 +9,6 @@
  */
 
 #include "ascir/Target/Asc/Basic/MicroAPI.h"
-#include "ascir/Target/Asc/External/Scf.h"
 
 using namespace mlir;
 using namespace mlir::ascendc;
@@ -48,5 +47,13 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::Updat
 LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::RegTensorOp op)
 {
     FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
+    return success();
+}
+
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GetVecLenOp op)
+{
+    FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
+    auto& os = emitter.ostream();
+    os << " = " << ascNamespace << "::" << op.getAPIName() << "()";
     return success();
 }

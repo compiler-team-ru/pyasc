@@ -15,6 +15,7 @@ add_mlir_dialect_library(MLIRAscTransforms
   EraseSync.cpp
   FillAscOperands.cpp
   FuseBufIdSync.cpp
+  FuseVFBlock.cpp
   GenerateBoilerplatePass.cpp
   HoistQueBind.cpp
   HoistUBAllocation.cpp

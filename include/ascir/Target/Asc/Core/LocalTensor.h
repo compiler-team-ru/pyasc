@@ -30,6 +30,8 @@ LogicalResult printOperation(CodeEmitter& emitter, ascendc::LocalTensorSubIndexO
 
 LogicalResult printOperation(CodeEmitter& emitter, ascendc::LocalTensorBracketOp op);
 
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::LocalTensorGetPhyAddrV2Op op);
+
 } // namespace ascendc
 } // namespace mlir
 

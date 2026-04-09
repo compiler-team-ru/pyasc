@@ -9,6 +9,7 @@
  */
 
 #include "ascir/Target/Asc/EmitAsc.h"
+#include "ascir/Target/Asc/External/Scf.h"
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -207,6 +208,17 @@ LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::Varia
     return success();
 }
 
+LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::VecScopeOp vecScopeOp)
+{
+    auto& os = emitter.ostream();
+    os << "__VEC_SCOPE__\n";
+    os << "{\n";
+    os.indent();
+    FAIL_OR(emitBlock(emitter, *vecScopeOp.getBody()));
+    os.unindent() << "}";
+    return success();
+}
+
 LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::VerbatimOp op)
 {
     auto& os = emitter.ostream();
@@ -245,5 +257,15 @@ LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::Verba
     }
     std::copy(data + rem, data + code.size(), std::back_inserter(result));
     os << result;
+    return success();
+}
+
+LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::VFGroupOp op)
+{
+    auto& os = emitter.ostream();
+    os << "{\n";
+    os.indent();
+    FAIL_OR(emitBlock(emitter, *op.getBody()));
+    os.unindent() << "}";
     return success();
 }
