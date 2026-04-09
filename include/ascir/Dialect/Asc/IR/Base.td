@@ -278,6 +278,29 @@ multiclass VecScalarL012Op<string baseMnemonic, string apiName, list<Trait> trai
 }
 
 //===----------------------------------------------------------------------===//
+// MicroAPI operations
+//===----------------------------------------------------------------------===//
+
+class MicroAPIOp<string mnemonic, string apiName, list<Trait> traits = []>
+    : APIOp<mnemonic, "MicroAPI::" # apiName, [MicroAPIOpInterface] # traits> {
+  let description = "`AscendC::" # apiName # "` is a MicroAPI operation.\n";
+}
+
+class BinaryMicroOp<string baseMnemonic, string apiName, list<Trait> traits = []>
+    : MicroAPIOp<baseMnemonic # "_micro", apiName, [BinaryMicroOpInterface] # traits> {
+  let description = "`AscendC::MicroAPI::" # apiName # "` is a binary MicroAPI operation.\n";
+  let arguments = (ins AscendC_RegTensor:$dstReg, AscendC_RegTensor:$src0Reg,
+                   AscendC_RegTensor:$src1Reg, AscendC_MaskReg:$maskReg);
+}
+
+class UnaryMicroOp<string baseMnemonic, string apiName, list<Trait> traits = []>
+    : MicroAPIOp<baseMnemonic # "_micro", apiName, [UnaryMicroOpInterface] # traits> {
+  let description = "`AscendC::MicroAPI::" # apiName # "` is a unary MicroAPI operation.\n";
+  let arguments = (ins AscendC_RegTensor:$dstReg, AscendC_RegTensor:$srcReg,
+                   AscendC_MaskReg:$maskReg);
+}
+
+//===----------------------------------------------------------------------===//
 // Math library operations
 //===----------------------------------------------------------------------===//
 

@@ -29,11 +29,13 @@ class AscendC_InterfaceMethods {
   InterfaceMethod getComment = InterfaceMethod<"Obtain describing comment", "::llvm::StringRef", "getComment">;
   InterfaceMethod getDst = GetMethod<"dst", "getDst">;
   InterfaceMethod getDstBlkStride = GetMethod<"dstBlkStride", "getDstBlkStride">;
+  InterfaceMethod getDstReg = GetMethod<"dstReg", "getDstReg">;
   InterfaceMethod getDstBlkStrideMutable = GetMutableMethod<"dstBlkStride", "getDstBlkStrideMutable">;
   InterfaceMethod getDstRepStride = GetMethod<"dstRepStride", "getDstRepStride">;
   InterfaceMethod getDstRepStrideMutable = GetMutableMethod<"dstRepStride", "getDstRepStrideMutable">;
   InterfaceMethod getMask = GetMethod<"mask", "getMask">;
   InterfaceMethod getMaskMutable = GetMutableMethod<"mask", "getMaskMutable">;
+  InterfaceMethod getMaskReg = GetMethod<"maskReg", "getMaskReg">;
   InterfaceMethod getParams = GetMethod<"params", "getParams">;
   InterfaceMethod getPattern = GetMethod<"pattern", "getPattern", "::mlir::ascendc::ReducePattern">;
   InterfaceMethod getRepeatParams = GetMethod<"repeatParams", "getRepeatParams">;
@@ -46,12 +48,15 @@ class AscendC_InterfaceMethods {
   InterfaceMethod getSharedTmpBuffer = GetMethod<"sharedTmpBuffer", "getSharedTmpBuffer">;
   InterfaceMethod getSrc = GetMethod<"src", "getSrc">;
   InterfaceMethod getSrcBlkStride = GetMethod<"srcBlkStride", "getSrcBlkStride">;
+  InterfaceMethod getSrcReg = GetMethod<"srcReg", "getSrcReg">;
   InterfaceMethod getSrcRepStride = GetMethod<"srcRepStride", "getSrcRepStride">;
   InterfaceMethod getSrc0 = GetMethod<"src0", "getSrc0">;
   InterfaceMethod getSrc0BlkStride = GetMethod<"src0BlkStride", "getSrc0BlkStride">;
+  InterfaceMethod getSrc0Reg = GetMethod<"src0Reg", "getSrc0Reg">;
   InterfaceMethod getSrc0RepStride = GetMethod<"src0RepStride", "getSrc0RepStride">;
   InterfaceMethod getSrc1 = GetMethod<"src1", "getSrc1">;
   InterfaceMethod getSrc1BlkStride = GetMethod<"src1BlkStride", "getSrc1BlkStride">;
+  InterfaceMethod getSrc1Reg = GetMethod<"src1Reg", "getSrc1Reg">;
   InterfaceMethod getSrc1RepStride = GetMethod<"src1RepStride", "getSrc1RepStride">;
   InterfaceMethod getSrcShape = GetMethod<"srcShape", "getSrcShape", "mlir::OperandRange">;
   InterfaceMethod getIsReuseSource = GetMethod<"isReuseSource", "getIsReuseSource">;
@@ -117,6 +122,10 @@ def DataCopyOpInterface :
 
   let description = "Data copy operation";
   let methods = [getSrc, getDirection, setSrc];
+}
+
+def MicroAPIOpInterface : AscendC_OpInterface<"MicroAPIOp", [APIOpInterface]> {
+  let description = "Base interface for operations representing Micro Ascend C API";
 }
 
 //===----------------------------------------------------------------------===//
@@ -191,6 +200,20 @@ def VecScalarL0OpInterface : AscendC_OpInterface<"VecScalarL0Op", [VecScalarOpIn
 def VecScalarL2OpInterface : AscendC_OpInterface<"VecScalarL2Op", [VecScalarOpInterface]> {
   let description = "Vector-scalar operation (L2 API)";
   let methods = [getCalCount, getCalCountMutable];
+}
+
+//===----------------------------------------------------------------------===//
+// MicroAPI operations
+//===----------------------------------------------------------------------===//
+
+def BinaryMicroOpInterface : AscendC_OpInterface<"BinaryMicroOp", [MicroAPIOpInterface]> {
+  let description = "Binary operation (MicroAPI)";
+  let methods = [getDstReg, getSrc0Reg, getSrc1Reg, getMaskReg];
+}
+
+def UnaryMicroOpInterface : AscendC_OpInterface<"UnaryMicroOp", [MicroAPIOpInterface]> {
+  let description = "Unary operation (MicroAPI)";
+  let methods = [getDstReg, getSrcReg, getMaskReg];
 }
 
 //===----------------------------------------------------------------------===//
