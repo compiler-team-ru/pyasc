@@ -15,7 +15,7 @@ using namespace mlir;
 LogicalResult mlir::emitBlock(CodeEmitter &codeEmitter, Block &block)
 {
     for (auto &op : block) {
-        if (isa<scf::YieldOp>(op) && op.getNumOperands() == 0) {
+        if (isa<emitasc::YieldOp, scf::YieldOp>(op) && op.getNumOperands() == 0) {
             continue;
         }
         FAIL_OR(emitOperation(codeEmitter, op, needsSemicolon(op)));
@@ -47,7 +47,11 @@ LogicalResult mlir::printOperation(CodeEmitter &codeEmitter, scf::ForOp forOp)
     }
 
     os << "for (";
-    FAIL_OR(codeEmitter.emitType(forOp.getLoc(), forOp.getInductionVar().getType()));
+    if (forOp->hasAttr(ascendc::attr::vecScopeLoop)) {
+        os << "uint16_t";
+    } else if (failed(codeEmitter.emitType(forOp.getLoc(), forOp.getInductionVar().getType()))) {
+        return failure();
+    }
     os << " " << codeEmitter.getOrCreateName(forOp.getInductionVar());
     os << " = " << codeEmitter.getOrCreateName(forOp.getLowerBound());
     os << "; " << codeEmitter.getOrCreateName(forOp.getInductionVar());

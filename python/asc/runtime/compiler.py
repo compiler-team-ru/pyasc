@@ -97,6 +97,12 @@ class CompileOptions:
     The static allocation feature may help to reduce an overhead caused by scalar code.
     """
 
+    vf_fusion: bool = False
+    """
+    Perform the merging of vector blocks. 
+    The function can eliminate unnecessary memory accesses and improve data locality.
+    """
+
 
 class CompilePlatform(Enum):
     """get soc version"""
@@ -229,6 +235,8 @@ class Compiler:
             passes.ascendc.add_reuse_ub_allocation(pm)
             passes.common.add_canonicalizer(pm)
         passes.ascendc.add_hoist_ub_allocation(pm, exclude_in_out=not platform_95)
+        if self.options.vf_fusion:
+            passes.ascendc.add_fuse_vf_block(pm)
         if self.options.static_alloc:
             passes.ascendc.add_allocate_tensor(pm)
         else:

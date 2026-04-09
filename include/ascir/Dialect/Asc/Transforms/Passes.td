@@ -56,6 +56,14 @@ def FuseBufIdSync : Pass<"ascendc-fuse-bufid-sync", "func::FuncOp"> {
   let constructor = "mlir::ascendc::createFuseBufIdSyncPass()";
 }
 
+def FuseVFBlock : Pass<"ascendc-fuse-vf-block", "func::FuncOp"> {
+  let summary = "Fuse a sequence of vector operations into VF block";
+  let constructor = "mlir::ascendc::createFuseVFBlockPass()";
+  let dependentDialects = [
+    "ascendc::AscendCDialect", "scf::SCFDialect", "emitasc::EmitAscDialect",
+  ];
+}
+
 def GenerateBoilerplate : Pass<"ascendc-generate-boilerplate", "ModuleOp"> {
   let summary = "Insert emitc.include and additional boilerplate code";
   let constructor = "mlir::ascendc::createGenerateBoilerplatePass()";

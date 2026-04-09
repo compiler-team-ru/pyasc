@@ -202,6 +202,16 @@ def AscendC_LocalTensorGetPhyAddrOp : APIOp<"local_tensor.get_phy_addr", "GetPhy
   }];
 }
 
+def AscendC_LocalTensorGetPhyAddrV2Op : APIOp<"local_tensor.get_phy_addr_v2", "GetPhyAddr"> {
+  let summary = "Call `AscendC::LocalTensor::GetPhyAddr` method";
+  let arguments = (ins AscendC_LocalTensor:$tensor);
+  let results = (outs AnyRankedOrUnrankedMemRef:$result);
+  let assemblyFormat = [{
+    $tensor attr-dict `:` qualified(type($tensor))
+    `,` qualified(type($result))
+  }];
+}
+
 def AscendC_LocalTensorGetPositionOp : APIOp<"local_tensor.get_position", "GetPosition", [AscMemberFunc]> {
   let summary = "Call `AscendC::LocalTensor::GetPosition` method";
   let arguments = (ins AscendC_LocalTensor:$tensor);

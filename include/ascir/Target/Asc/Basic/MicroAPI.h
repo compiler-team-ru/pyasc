@@ -62,6 +62,8 @@ LogicalResult printOperation(CodeEmitter &emitter, ascendc::UpdateMaskOp op);
 
 LogicalResult printOperation(CodeEmitter &emitter, ascendc::RegTensorOp op);
 
+LogicalResult printOperation(CodeEmitter &emitter, ascendc::GetVecLenOp op);
+
 } // namespace ascendc
 } // namespace mlir
 
