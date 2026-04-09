@@ -24,7 +24,7 @@ General conventions for C++ files
    - All header files must include traditional include guards (e.g., :code:`#ifndef HEADER_H`, :code:`#define HEADER_H`, :code:`#endif`).
    - **Note**: The use of :code:`#pragma once` is **not allowed**.
 
-3. **Indentation**: The code should use **2 spaces** for indentation (no tabs).
+3. **Indentation**: The code should use **4 spaces** for indentation (no tabs). Case/default labels should be indented relative to switch statement.
 
 4. **Naming Conventions**:
 
@@ -32,13 +32,23 @@ General conventions for C++ files
    - **camelCase**: Used for variables (local and global), functions, and class members. Example: :code:`myFunction`, :code:`myVariable`.
    - **UPPER_SNAKE_CASE**: Typically used for macros. Example: :code:`MY_CONSTANT`, :code:`MAX_BUFFER_SIZE`.
    - **kebab-case**: Not commonly used in code, but may be used in filenames for tests and other resources. Example: :code:`my-test-case`.
-  
+
 5. **Namespace Declarations**:
 
    - After closing a namespace, add a comment :code:`// namespace <namespace_name>`. If the namespace is anonymous, omit the name.
    - **Note**: Do not use :code:`using namespace` in header files.
 
-6. **Macro Definitions**:
+6. **Brace Placement**: Opening brace on new line for function definitions, same line for classes/structs/enums/namespaces. Empty functions can be single-line.
+
+7. **Short Statements**: Single-line if/loops not allowed. Only empty blocks can be single-line. Inline functions can be single-line.
+
+8. **Spacing**: Pointers/references aligned right. Space before control statement parentheses. Space before C++11 braced lists. No space in empty parentheses, C-style casts, regular parentheses, or square brackets.
+
+9. **Templates**: Always break before template declarations.
+
+10. **Line Length**: Maximum 120 characters.
+
+11. **Macro Definitions**:
 
    - Defining macros in header files is **discouraged**, unless absolutely necessary.
    - To define a global constant, :code:`constexpr` syntax and **camelCase** naming should be used.
@@ -80,12 +90,12 @@ General conventions for C++ files
 Conventions for MLIR dialects
 -----------------------------
 
-Definitions of operations, types, attributes, interfaces, and other entities should be sorted alphabetically within the corresponding TableGen file. 
+Definitions of operations, types, attributes, interfaces, and other entities should be sorted alphabetically within the corresponding TableGen file.
 
 Conventions for MLIR passes
 ----------------------------
 
-1. **Pass File Organization**: Each MLIR pass should be placed in a **separate :code:`.cpp` file** under the :code:`Transforms` directory, within the directory corresponding to the specific MLIR dialect.
+1. **Pass File Organization**: Each MLIR pass should be placed in a **separate** :code:`.cpp` file under the :code:`Transforms` directory, within the directory corresponding to the specific MLIR dialect.
 
 2. **File Naming**: The name of the :code:`.cpp` file should match the name of the pass **without the "Pass" suffix**. For example, the file for the :code:`FoldVariablePass` pass should be named :code:`FoldVariable.cpp`.
 
@@ -96,11 +106,11 @@ Conventions for LIT tests
 
 1. **Test Directory Structure**:
 
-   - Tests are placed in the :code:`test` directory. 
+   - Tests are placed in the :code:`test` directory.
    - Filenames for test files should use **kebab-case**. Example: :code:`my-test-case.mlir`.
 
 2. **Test File Format**: The first line of the test file should generally contain one or more :code:`// RUN:` commands that specify how the test should be executed.
-   
+
 3. **Test File Organization**:
 
    - When adding a new MLIR operation, type, or attribute, a test for that feature should be added under the :code:`IR` directory within the appropriate dialect's directory.
@@ -118,8 +128,8 @@ Additional considerations
 - **Version control**:
 
   - Since commits are squashed into a single commit during the merge, detailed commit messages are not required. However, if needed, include helpful information about the change.
-  - Merge request titles should be clear and describe the intention behind the changes. Follow conventional commit styles where possible.
-  - Merge request description is optional if the title is sufficiently explanatory. It should be added in case of complex changes to clearly describe what has been implemented.
+  - Pull request titles should be clear and describe the intention behind the changes. Follow conventional commit styles where possible.
+  - Pull request description is optional if the title is sufficiently explanatory. It should be added in case of complex changes to clearly describe what has been implemented.
   - Make sure the code builds and passes tests locally before committing.
 
 Code formatting and static analysis tools
@@ -141,6 +151,6 @@ To help ensure that the code adheres to the coding style conventions automatical
 2. **clang-tidy**:
 
    - :code:`clang-tidy` is a static analysis tool that helps catch common issues and enforces coding standards and best practices. It works by checking your code against predefined or custom checks.
-   - :code:`clang-tidy` can help identify issues related to code quality, unused variables, potential bugs, and performance improvements. It is recommended to check an output log of *clang-tidy* job in open merge request and address issues before merge.
+   - :code:`clang-tidy` can help identify issues related to code quality, unused variables, potential bugs, and performance improvements. It is recommended to check an output log of *clang-tidy* tool and address issues before merge.
 
 This style guide serves to maintain consistency across the codebase, making it easier to read, maintain, and extend. Adhering to these conventions will improve collaboration, reduce errors, and make it easier for new contributors to get up to speed.
