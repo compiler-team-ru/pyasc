@@ -17,8 +17,8 @@
 // CHECK-NEXT:   constexpr int8_t c0_i8 = 0;
 // CHECK-NEXT:   AscendC::FixpipeParamsV220 v4{c16_i64, c16_i64, c0_i64, c0_i64, c0_i32, c0_i64, c1_i64, c0_i64, c0_i64, c0_i1, c0_i8, c0_i1};
 // CHECK-NEXT:   AscendC::FixpipeConfig v5{static_cast<AscendC::CO2Layout>(c1_i64)};
-// CHECK-NEXT:   AscendC::Fixpipe<float, float, AscendC::CFG_ROW_MAJOR>(v1, v2, v4);
-// CHECK-NEXT:   AscendC::Fixpipe<float, float, AscendC::CFG_ROW_MAJOR>(v1, v2, v3, v4);
+// CHECK-NEXT:   AscendC::Fixpipe<float, float, v5>(v1, v2, v4);
+// CHECK-NEXT:   AscendC::Fixpipe<float, float, v5>(v1, v2, v3, v4);
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 func.func @emit_fixpipe(%dst: !ascendc.global_tensor<f32>, %src: !ascendc.local_tensor<f32>, %cbuf: !ascendc.local_tensor<ui64>)
