@@ -29,11 +29,13 @@ class AscendC_InterfaceMethods {
   InterfaceMethod getComment = InterfaceMethod<"Obtain describing comment", "::llvm::StringRef", "getComment">;
   InterfaceMethod getDst = GetMethod<"dst", "getDst">;
   InterfaceMethod getDstBlkStride = GetMethod<"dstBlkStride", "getDstBlkStride">;
+  InterfaceMethod getDstReg = GetMethod<"dstReg", "getDstReg">;
   InterfaceMethod getDstBlkStrideMutable = GetMutableMethod<"dstBlkStride", "getDstBlkStrideMutable">;
   InterfaceMethod getDstRepStride = GetMethod<"dstRepStride", "getDstRepStride">;
   InterfaceMethod getDstRepStrideMutable = GetMutableMethod<"dstRepStride", "getDstRepStrideMutable">;
   InterfaceMethod getMask = GetMethod<"mask", "getMask">;
   InterfaceMethod getMaskMutable = GetMutableMethod<"mask", "getMaskMutable">;
+  InterfaceMethod getMaskReg = GetMethod<"maskReg", "getMaskReg">;
   InterfaceMethod getParams = GetMethod<"params", "getParams">;
   InterfaceMethod getPattern = GetMethod<"pattern", "getPattern", "::mlir::ascendc::ReducePattern">;
   InterfaceMethod getRepeatParams = GetMethod<"repeatParams", "getRepeatParams">;
@@ -162,6 +164,10 @@ def RegOpInterface : AscendC_OpInterface<"RegOp", [APIOpInterface]> {
   let description = "Base interface for operations representing register API";
 }
 
+def MicroAPIOpInterface : AscendC_OpInterface<"MicroAPIOp", [APIOpInterface]> {
+  let description = "Base interface for operations representing Micro Ascend C API";
+}
+
 //===----------------------------------------------------------------------===//
 // Vector unary operations
 //===----------------------------------------------------------------------===//
@@ -234,6 +240,20 @@ def VecScalarL0OpInterface : AscendC_OpInterface<"VecScalarL0Op", [VecScalarOpIn
 def VecScalarL2OpInterface : AscendC_OpInterface<"VecScalarL2Op", [VecScalarOpInterface]> {
   let description = "Vector-scalar operation (L2 API)";
   let methods = [getCalCount, getCalCountMutable];
+}
+
+//===----------------------------------------------------------------------===//
+// MicroAPI operations
+//===----------------------------------------------------------------------===//
+
+def BinaryMicroOpInterface : AscendC_OpInterface<"BinaryMicroOp", [MicroAPIOpInterface]> {
+  let description = "Binary operation (MicroAPI)";
+  let methods = [getDstReg, getSrc0Reg, getSrc1Reg, getMaskReg];
+}
+
+def UnaryMicroOpInterface : AscendC_OpInterface<"UnaryMicroOp", [MicroAPIOpInterface]> {
+  let description = "Unary operation (MicroAPI)";
+  let methods = [getDstReg, getSrcReg, getMaskReg];
 }
 
 //===----------------------------------------------------------------------===//
