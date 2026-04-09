@@ -808,10 +808,11 @@ struct ConvertReduce : ConvertOp<TileOp> {
         for (auto attr : op.getDims()) {
             reduceDims.push_back(cast<IntegerAttr>(attr).getValue().getSExtValue());
         }
-        auto [shape, pattern] = getReductionParams(op.getOperand().getType().getShape(), reduceDims);
+        auto srcType = op.getOperand().getType();
+        auto [shape, pattern] = getReductionParams(srcType.getShape(), reduceDims);
         if (shape.empty() || !pattern)
             return emitError(loc, "Tensor of shape [")
-                .append(op.getOperand().getType().getShape())
+                .append(srcType.getShape())
                 .append("] have wrong reduction dimensions: ")
                 .append(reduceDims);
         SmallVector<Value> srcShape;
@@ -819,7 +820,7 @@ struct ConvertReduce : ConvertOp<TileOp> {
             srcShape.push_back(consts.i32(size));
         Value dst = createTensorOp(rewriter, loc, op.getType());
         Value src = rewriter.getRemappedValue(op.getOperand());
-        Value tmpBuff = createTensorOp(rewriter, loc, 32L, rewriter.getIntegerType(8, false));
+        Value tmpBuff = createTensorOp(rewriter, loc, srcType.getNumElements() * 4, rewriter.getIntegerType(8, false));
         rewriter.create<AscOp>(loc, dst, src, tmpBuff, srcShape, *pattern);
         rewriter.replaceOp(op, dst);
         return success();
