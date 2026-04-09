@@ -101,8 +101,9 @@ bool processMatmulAcc(asctile::MatmulOp matmulOp)
         builder.create<scf::YieldOp>(newForOp.getLoc(), newYieldValues);
         auto oldRes = forOp.getTiedLoopResult(blockArg);
         for (unsigned i = 0; i < forOp.getNumResults(); i++) {
-            auto newRes = (forOp.getResult(i) != oldRes) ? newForOp.getResult(i) : newForOp.getResults().back();
-            oldRes.replaceAllUsesWith(newRes);
+            auto forOpRes = forOp.getResult(i);
+            auto newRes = (forOpRes != oldRes) ? newForOp.getResult(i) : newForOp.getResults().back();
+            forOpRes.replaceAllUsesWith(newRes);
         }
         forOp.erase();
         return true;
