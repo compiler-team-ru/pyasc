@@ -58,6 +58,28 @@ def EmitAsc_DereferenceOp : EmitAsc_Op<"dereference", [Pure]> {
   let assemblyFormat = "$base attr-dict `:` type($base) `,` type($result)";
 }
 
+def EmitAsc_InitStructOp : EmitAsc_Op<"init_struct", [Pure]> {
+  let summary = "Create a struct instance and initialize its fields";
+  let arguments = (ins StrArrayAttr:$fieldNames, Variadic<AnyType>:$fieldValues);
+  let results = (outs AnyType:$result);
+  let builders = [
+    OpBuilder<(ins "Type":$result), [{
+      build($_builder, $_state, result, $_builder.getArrayAttr(std::nullopt),
+            ValueRange{});
+    }]>,
+  ];
+  let hasCustomAssemblyFormat = 1;
+  let hasVerifier = 1;
+  let extraClassDeclaration = [{
+    size_t getNumFields();
+    bool hasField(::llvm::StringRef name);
+    Value getField(::llvm::StringRef name);
+    std::optional<size_t> getFieldOperandIndex(::llvm::StringRef name);
+    void setField(::llvm::StringRef name, Value value);
+    void addField(::llvm::StringRef name, Value value);
+  }];
+}
+
 def EmitAsc_MaskOp : EmitAsc_Op<"mask", [Pure]> {
   let summary = "Creates a mask in bit-by-bit mode (pair of 64-bit integers)";
   let arguments = (ins I64 : $maskH, I64 : $maskL);
