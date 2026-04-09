@@ -167,8 +167,6 @@ private:
 
     LogicalResult emitAscLocalTensorType(Location loc, Type type, bool emitAsUnsigned);
 
-    LogicalResult emitAscFixpipeParamsC310Type(Location loc, Type type, bool emitAsUnsigned);
-
     LogicalResult emitAscRegTensorType(Location loc, Type type, bool emitAsUnsigned);
 
     LogicalResult emitAscMaskRegType(Location loc, Type type, bool emitAsUnsigned);

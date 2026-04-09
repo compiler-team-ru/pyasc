@@ -24,6 +24,7 @@
 #include "ascir/Target/Asc/Basic/DataCopy.h"
 #include "ascir/Target/Asc/Basic/DumpTensor.h"
 #include "ascir/Target/Asc/Basic/ListTensor.h"
+#include "ascir/Target/Asc/Basic/MicroAPI.h"
 #include "ascir/Target/Asc/Basic/OtherOps.h"
 #include "ascir/Target/Asc/Basic/Reg.h"
 #include "ascir/Target/Asc/Basic/Scalar.h"
@@ -73,20 +74,16 @@ LogicalResult printOperation(CodeEmitter& emitter, ModuleOp moduleOp)
 LogicalResult printOperation(CodeEmitter&, ascendc::NoOp) { return success(); }
 
 using PrintableOpTypes = std::tuple<
-    // Common register API operations
-    ascendc::CreateMaskOp, ascendc::ReduceMaxRegOp, ascendc::ReduceMinRegOp, ascendc::ReduceSumRegOp,
-    ascendc::DuplicateRegOp, ascendc::DataCopyStoreOp, ascendc::DataCopyLoadOp, ascendc::UpdateMaskOp,
-    ascendc::RegTensorOp, ascendc::LocalMemBarOp, ascendc::DuplicateScalarRegOp, ascendc::SelectRegOp,
-    // Binary register API operations
-    ascendc::AddRegOp, ascendc::AndRegOp, ascendc::DivRegOp, ascendc::FusedAbsSubRegOp, ascendc::FusedExpSubRegOp,
-    ascendc::FusedMulDstAddRegOp, ascendc::SubRegOp, ascendc::MaxRegOp, ascendc::MinRegOp, ascendc::MulRegOp,
-    ascendc::MulAddDstRegOp, ascendc::OrRegOp, ascendc::PreluRegOp, ascendc::XorRegOp,
-    // Unary register API operations
-    ascendc::AbsRegOp, ascendc::ExpRegOp, ascendc::LnRegOp, ascendc::LogRegOp, ascendc::Log10RegOp,
-    ascendc::MaskNotRegOp, ascendc::NegRegOp, ascendc::NotRegOp, ascendc::ReluRegOp, ascendc::SqrtRegOp,
-    // VecScalar register API operations
-    ascendc::AddsRegOp, ascendc::MulsRegOp, ascendc::MaxsRegOp, ascendc::MinsRegOp, ascendc::LeakyReluRegOp,
-    ascendc::ShiftLeftsRegOp, ascendc::ShiftRightsRegOp,
+    // MicroAPI operations
+    ascendc::DataCopyStoreOp, ascendc::DataCopyLoadOp, ascendc::UpdateMaskOp, ascendc::RegTensorOp,
+    // Binary MicroAPI operations
+    ascendc::AddMicroOp, ascendc::AndMicroOp, ascendc::DivMicroOp, ascendc::FusedAbsSubMicroOp,
+    ascendc::FusedExpSubMicroOp, ascendc::FusedMulDstAddMicroOp, ascendc::SubMicroOp, ascendc::MaxMicroOp,
+    ascendc::MinMicroOp, ascendc::MulMicroOp, ascendc::MulAddDstMicroOp, ascendc::OrMicroOp, ascendc::PreluMicroOp,
+    ascendc::XorMicroOp,
+    // Unary MicroAPI operations
+    ascendc::AbsMicroOp, ascendc::ExpMicroOp, ascendc::LnMicroOp, ascendc::LogMicroOp, ascendc::Log10MicroOp,
+    ascendc::MaskNotMicroOp, ascendc::NegMicroOp, ascendc::NotMicroOp, ascendc::ReluMicroOp, ascendc::SqrtMicroOp,
     // Builtin ops
     ModuleOp,
     // EmitC ops

@@ -580,20 +580,20 @@ LogicalResult CodeEmitter::emitAscLocalTensorType(Location loc, Type type, bool 
     return success();
 }
 
-LogicalResult CodeEmitter::emitAscRegTensorType(Location loc, Type type, bool /*emitAsUnsigned*/)
+LogicalResult CodeEmitter::emitAscRegTensorType(Location loc, Type type, bool emitAsUnsigned)
 {
     auto rType = dyn_cast<ascendc::RegTensorType>(type);
     auto elemTy = rType.getElementType();
-    os << ascNamespace << "::Reg::RegTensor<";
+    os << ascNamespace << "::MicroAPI::RegTensor<";
     if (failed(emitType(loc, elemTy)))
         return failure();
     os << ">";
     return success();
 }
 
-LogicalResult CodeEmitter::emitAscMaskRegType(Location /*loc*/, Type /*type*/, bool /*emitAsUnsigned*/)
+LogicalResult CodeEmitter::emitAscMaskRegType(Location loc, Type type, bool emitAsUnsigned)
 {
-    os << ascNamespace << "::Reg::MaskReg";
+    os << ascNamespace << "::MicroAPI::MaskReg";
     return success();
 }
 
