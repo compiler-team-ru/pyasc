@@ -10,7 +10,7 @@
 
 // CHECK-LABEL:void emit_softmax(AscendC::LocalTensor<half> v1, AscendC::LocalTensor<half> v2, AscendC::LocalTensor<half> v3, AscendC::LocalTensor<half> v4, SoftMaxTiling v5, AscendC::SoftMaxShapeInfo v6) {
 // CHECK-NEXT:  AscendC::SimpleSoftMax<half, 0, 0, 0>(v1, v2, v3, v4, v5, v6);
-// CHECK-NEXT:  AscendC::SoftMax<half, 1, 1, 0>(v1, v2, v3, v4, v5, v6);
+// CHECK-NEXT:  AscendC::SoftMax<half, 1, 1>(v1, v2, v3, v4, v5, v6);
 // CHECK-NEXT:  return;
 // CHECK-NEXT: }
 func.func @emit_softmax(%arg0: !ascendc.local_tensor<*xf16>, %arg1: !ascendc.local_tensor<*xf16>, %arg2: !ascendc.local_tensor<*xf16>, %arg3: !ascendc.local_tensor<*xf16>, %arg4: !ascendc.softmax_tiling, %arg5: !ascendc.softmax_shape_info) {
