@@ -6,7 +6,7 @@
 // INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 // See LICENSE in the root of the software repository for the full text of the License.
 
-// RUN: ascir-opt -ascendc-hoist-tensor-allocation=exclude-in-out %s | FileCheck %s
+// RUN: ascir-opt -ascendc-hoist-ub-allocation=exclude-in-out %s | FileCheck %s
 
 // CHECK-LABEL: func.func @hoist_ub_allocation_for
 // CHECK:       %0 = ascendc.local_tensor_auto veccalc() : <64xf32>
