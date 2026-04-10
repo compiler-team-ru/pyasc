@@ -21,11 +21,12 @@ def matmul_kernel(a_ptr: asc.GlobalAddress, b_ptr: asc.GlobalAddress, c_ptr: asc
     b_gm = asc2.tensor(b_ptr, b_shape)
     c_gm = asc2.tensor(c_ptr, c_shape)
     acc = asc2.zeros_acc(c_shape, dtype=asc.float32)
-    k_a_offset = a_shape[1] // k_tiles
-    k_b_offset = b_shape[0] // k_tiles
+    k_offset = a_shape[1] // k_tiles
+    a_l1 = asc2.load(a_gm, a_shape, offsets=[0, 0], location=asc2.TileLocation.L1)
+    b_l1 = asc2.load(b_gm, b_shape, offsets=[0, 0], location=asc2.TileLocation.L1)
     for i in asc2.range(k_tiles, unroll_factor=2, parallel=True):
-        a_i = asc2.load(a_gm, [a_shape[0], k_a_offset], offsets=[0, i * k_a_offset], location=asc2.TileLocation.L0A)
-        b_i = asc2.load(b_gm, [k_b_offset, b_shape[1]], offsets=[i * k_b_offset, 0], location=asc2.TileLocation.L0B)
+        a_i = asc2.copy(a_l1, [a_shape[0], k_offset], offsets=[0, i * k_offset], location=asc2.TileLocation.L0A)
+        b_i = asc2.copy(b_l1, [k_offset, b_shape[1]], offsets=[i * k_offset, 0], location=asc2.TileLocation.L0B)
         asc2.matmul_acc(a_i, b_i, acc)
     asc2.store(acc, c_gm, offsets=[0, 0])
 
