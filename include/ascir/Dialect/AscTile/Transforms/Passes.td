@@ -28,6 +28,12 @@ def PromotePureOps : Pass<"asctile-promote-pure-ops", "func::FuncOp"> {
   let constructor = "mlir::asctile::createPromotePureOpsPass()";
 }
 
+def SplitCubeLoad : Pass<"asctile-split-cube-load", "func::FuncOp"> {
+  let summary = "Split direct loading from GM into L0A/L0B";
+  let constructor = "mlir::asctile::createSplitCubeLoadPass()";
+  let dependentDialects = ["arith::ArithDialect", "asctile::AscTileDialect"];
+}
+
 def TagUnrollGroups : Pass<"asctile-tag-unroll-groups", "func::FuncOp"> {
   let summary = "Tag operations of interest to find them after loop unroll";
   let constructor = "mlir::asctile::createTagUnrollGroupsPass()";
