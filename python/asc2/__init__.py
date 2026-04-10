@@ -42,6 +42,7 @@ from asc.language.tile.creation_ops import (
     zeros_like,
 )
 from asc.language.tile.memory_ops import (
+    copy,
     load,
     store,
 )
@@ -126,6 +127,7 @@ __all__ = [
     "zeros_acc",
     "zeros_like",
     # memory_ops
+    "copy",
     "load",
     "store",
     # prog_model_ops

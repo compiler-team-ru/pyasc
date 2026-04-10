@@ -200,6 +200,7 @@ class Compiler:
         passes.common.add_canonicalizer(pm)
         passes.common.add_reconcile_unrealized_casts(pm)
         if self.options.run_asc2_passes:
+            passes.asctile.add_split_cube_load(pm)
             passes.asctile.add_tag_unroll_groups(pm)
             if not reuse_ub_in_out:
                 self.add_unroll_loop(pm)
