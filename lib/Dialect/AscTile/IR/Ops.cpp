@@ -48,6 +48,19 @@ Type getI1SameShape(Type type)
 } // namespace
 
 //===----------------------------------------------------------------------===//
+// AccumulatorOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult AccumulatorOp::canonicalize(AccumulatorOp op, PatternRewriter &rewriter)
+{
+    if (op->getUses().empty()) {
+        rewriter.eraseOp(op);
+        return success();
+    }
+    return failure();
+}
+
+//===----------------------------------------------------------------------===//
 // TensorOp
 //===----------------------------------------------------------------------===//
 
