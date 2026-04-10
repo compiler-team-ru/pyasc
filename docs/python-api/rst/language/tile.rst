@@ -51,6 +51,7 @@ Memory operations
     :toctree: generated
     :nosignatures:
 
+    copy
     load
     store
 
