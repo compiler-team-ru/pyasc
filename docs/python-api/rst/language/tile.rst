@@ -38,6 +38,7 @@ Creation operations
     full
     full_like
     zeros
+    zeros_acc
     zeros_like
 
 
@@ -72,6 +73,7 @@ Binary operations
     less
     less_equal
     matmul
+    matmul_acc
     maximum
     minimum
     mul

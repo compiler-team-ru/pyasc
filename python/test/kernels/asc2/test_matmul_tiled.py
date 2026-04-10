@@ -20,13 +20,13 @@ def matmul_kernel(a_ptr: asc.GlobalAddress, b_ptr: asc.GlobalAddress, c_ptr: asc
     a_gm = asc2.tensor(a_ptr, a_shape)
     b_gm = asc2.tensor(b_ptr, b_shape)
     c_gm = asc2.tensor(c_ptr, c_shape)
-    acc = asc2.zeros(c_shape, dtype=asc.float32, location=asc2.TileLocation.L0C)
+    acc = asc2.zeros_acc(c_shape, dtype=asc.float32)
     k_a_offset = a_shape[1] // k_tiles
     k_b_offset = b_shape[0] // k_tiles
-    for i in asc2.range(k_tiles, parallel=True):
+    for i in asc2.range(k_tiles, unroll_factor=2, parallel=True):
         a_i = asc2.load(a_gm, [a_shape[0], k_a_offset], offsets=[0, i * k_a_offset], location=asc2.TileLocation.L0A)
         b_i = asc2.load(b_gm, [k_b_offset, b_shape[1]], offsets=[i * k_b_offset, 0], location=asc2.TileLocation.L0B)
-        acc = asc2.matmul(a_i, b_i, acc)
+        asc2.matmul_acc(a_i, b_i, acc)
     asc2.store(acc, c_gm, offsets=[0, 0])
 
 

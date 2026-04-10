@@ -6,7 +6,7 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-from typing import Callable, Optional, TypeVar, Union
+from typing import Callable, TypeVar, Union
 
 from ..._C import ir
 from ...common.compat import isinstance
@@ -14,7 +14,7 @@ from ..core.dtype import KnownTypes as KT
 from ..core.ir_value import IRHandle, PlainValue, RuntimeInt, RuntimeNumeric
 from ..core.utils import global_builder
 from .tile import BinaryOperandTypeError, Tile, TileLocation, bind_tile_method
-from .utils import constant_tile, create_tile, infer_common_dtype, infer_common_shape, splat_tile
+from .utils import constant_tile, create_tile, infer_common_dtype, infer_common_shape, splat_tile, verify_matmul_arguments
 
 T = TypeVar("T")
 
@@ -178,7 +178,7 @@ def right_shift(input: Tile, other: RuntimeInt) -> Tile:
 
 
 @bind_tile_method(name="__matmul__", binary_op=True)
-def matmul(input: Tile, other: Tile, acc: Optional[Tile] = None) -> Tile:
+def matmul(input: Tile, other: Tile) -> Tile:
     """
     Computes the matrix multiplication of :code:`input` and :code:`other`.
 
@@ -193,20 +193,29 @@ def matmul(input: Tile, other: Tile, acc: Optional[Tile] = None) -> Tile:
         Input tiles must have either :code:`float16` or :code:`float32` data type and compatible shapes.
         Result tile type is always :code:`float32`.
     """
-    if not isinstance(input, Tile) or not isinstance(other, Tile):
-        raise BinaryOperandTypeError(f"Input operands must be tiles, got {type(input)} and {type(other)}")
-    if input.dtype != other.dtype:
-        raise RuntimeError(f"Input tiles must have the same types, got {input.dtype} and {other.dtype}")
-    if input.dtype != KT.float32 and input.dtype != KT.float16:
-        raise RuntimeError(f"Input tiles have unsupported types: {input.dtype}")
-    if len(input.shape) != 2 or len(other.shape) != 2:
-        raise RuntimeError(f"Input tiles must have two dims, got {len(input.shape)} and {len(other.shape)}")
-    if input.shape[1] != other.shape[0]:
-        raise RuntimeError(f"Input tiles have incompatible shapes: {input.shape}, {other.shape}")
+    verify_matmul_arguments(input, other)
     builder = global_builder.get_ir_builder()
     ir_type = ir.get_asctile_TileType([input.shape[0], other.shape[1]], KT.float32.to_ir(), TileLocation.L0C)
-    if acc is not None:
-        handle = builder.create_asctile_MatmulOp(ir_type, input.to_ir(), other.to_ir(), acc.to_ir())
-    else:
-        handle = builder.create_asctile_MatmulOp(ir_type, input.to_ir(), other.to_ir())
+    handle = builder.create_asctile_MatmulOp(ir_type, input.to_ir(), other.to_ir())
     return Tile(handle)
+
+
+def matmul_acc(input: Tile, other: Tile, acc: Tile) -> None:
+    """
+    Computes the matrix multiplication of :code:`input` and :code:`other` with accumulator :code:`acc`.
+
+    Args:
+        input: the left operand (2D tile)
+        other: the right operand (2D tile)
+        acc: accumulator of matmul result (2D tile)
+
+    Note:
+        Input tiles must have either :code:`float16` or :code:`float32` data type and compatible shapes.
+        Accumulator tile type is always :code:`float32`.
+    """
+    verify_matmul_arguments(input, other)
+    if len(acc.shape) != 2:
+        raise RuntimeError(f"Accumulation tile must have two dims, got {len(acc.shape)}")
+    if acc.dtype != KT.float32:
+        raise RuntimeError(f"Accumulation tile have unsupported types: {acc.dtype}")
+    global_builder.get_ir_builder().create_asctile_MatmulAccOp(input.to_ir(), other.to_ir(), acc.to_ir())

@@ -26,6 +26,7 @@ from asc.language.tile.binary_ops import (
     less,
     less_equal,
     matmul,
+    matmul_acc,
     maximum,
     minimum,
     mul,
@@ -37,6 +38,7 @@ from asc.language.tile.creation_ops import (
     full,
     full_like,
     zeros,
+    zeros_acc,
     zeros_like,
 )
 from asc.language.tile.memory_ops import (
@@ -110,6 +112,7 @@ __all__ = [
     "less",
     "less_equal",
     "matmul",
+    "matmul_acc",
     "maximum",
     "minimum",
     "mul",
@@ -120,6 +123,7 @@ __all__ = [
     "full",
     "full_like",
     "zeros",
+    "zeros_acc",
     "zeros_like",
     # memory_ops
     "load",

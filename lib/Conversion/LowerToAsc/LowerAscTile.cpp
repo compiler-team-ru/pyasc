@@ -102,7 +102,8 @@ struct LoweringConversionTarget : public ConversionTarget {
             asctile::ReshapeOp, asctile::BroadcastOp, asctile::AddSOp, asctile::SubSOp, asctile::MulSOp,
             asctile::DivSOp, asctile::MinSOp, asctile::MaxSOp, asctile::ShLSOp, asctile::ShRSOp,
             asctile::ReduceSumAs1dOp, asctile::ReduceMinAs1dOp, asctile::ReduceMaxAs1dOp, asctile::ReduceSumOp,
-            asctile::ReduceMinOp, asctile::ReduceMaxOp, asctile::ReduceProdOp, asctile::EmptyOp
+            asctile::ReduceMinOp, asctile::ReduceMaxOp, asctile::ReduceProdOp, asctile::AccumulatorOp,
+            asctile::MatmulAccOp
             //
             >();
         addLegalDialect<
@@ -559,28 +560,12 @@ struct ConvertMatmul : ConvertOp<asctile::MatmulOp> {
         auto matrixBTensorShape = cast<ascendc::LocalTensorType>(matrixB.getType()).getShape();
         assert(matrixATensorShape.size() == 2 && "matrix must be have dim = 2");
         assert(matrixBTensorShape.size() == 2 && "matrix must be have dim = 2");
-        auto paramsBuilder = emitasc::InitStructBuilder(rewriter.getType<ascendc::MmadParamsType>())
-                                 .addField("m", consts.i32(matrixATensorShape[0]))
-                                 .addField("n", consts.i32(matrixBTensorShape[1]))
-                                 .addField("k", consts.i32(matrixBTensorShape[0]));
-        if (op.getAcc()) {
-            paramsBuilder.addField("isBias", consts.i32(1));
-        }
-        Value mmadParams = paramsBuilder.create(rewriter, loc);
+        auto mmadParams = emitasc::InitStructBuilder(rewriter.getType<ascendc::MmadParamsType>())
+                              .addField("m", consts.i32(matrixATensorShape[0]))
+                              .addField("n", consts.i32(matrixBTensorShape[1]))
+                              .addField("k", consts.i32(matrixBTensorShape[0]))
+                              .create(rewriter, loc);
         rewriter.create<ascendc::MmadOp>(loc, dst, matrixA, matrixB, mmadParams);
-        rewriter.replaceOp(op, dst);
-        return success();
-    }
-};
-
-struct ConvertEmpty : ConvertOp<asctile::EmptyOp> {
-    using ConvertOp::ConvertOp;
-    using ConvertOp::createTensorOp;
-
-    LogicalResult convert(asctile::EmptyOp op, ConvertRewriter& rewriter) const override
-    {
-        auto loc = op.getLoc();
-        auto dst = createTensorOp(rewriter, loc, op.getType());
         rewriter.replaceOp(op, dst);
         return success();
     }
@@ -821,6 +806,49 @@ struct ConvertReduce : ConvertOp<TileOp> {
     }
 };
 
+struct ConvertAccumulator : ConvertOp<asctile::AccumulatorOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    LogicalResult convert(asctile::AccumulatorOp op, ConvertRewriter& rewriter) const override
+    {
+        auto type = op.getType();
+        assert(type.getLoc() == asctile::TileLocation::L0C && "accumulator should be have tile location L0C");
+        auto loc = op.getLoc();
+        auto dst = createTensorOp(rewriter, loc, type);
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
+struct ConvertMatmulAcc : ConvertOp<asctile::MatmulAccOp> {
+    using ConvertOp::ConvertOp;
+
+    LogicalResult convert(asctile::MatmulAccOp op, ConvertRewriter& rewriter) const override
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto loc = op.getLoc();
+        auto dst = rewriter.getRemappedValue(op.getAcc());
+        auto matrixA = rewriter.getRemappedValue(op.getMatrixA());
+        auto matrixB = rewriter.getRemappedValue(op.getMatrixB());
+        auto matrixATensorShape = cast<ascendc::LocalTensorType>(matrixA.getType()).getShape();
+        auto matrixBTensorShape = cast<ascendc::LocalTensorType>(matrixB.getType()).getShape();
+        auto accTensorShape = cast<ascendc::LocalTensorType>(dst.getType()).getShape();
+        assert(matrixATensorShape.size() == 2 && "matrix must be have dim = 2");
+        assert(matrixBTensorShape.size() == 2 && "matrix must be have dim = 2");
+        assert(accTensorShape.size() == 2 && "accumulator must be have dim = 2");
+        auto mmadParams = emitasc::InitStructBuilder(rewriter.getType<ascendc::MmadParamsType>())
+                              .addField("m", consts.i32(matrixATensorShape[0]))
+                              .addField("n", consts.i32(matrixBTensorShape[1]))
+                              .addField("k", consts.i32(matrixBTensorShape[0]))
+                              .addField("isBias", consts.i32(1))
+                              .create(rewriter, loc);
+        rewriter.create<ascendc::MmadOp>(loc, dst, matrixA, matrixB, mmadParams);
+        rewriter.eraseOp(op);
+        return success();
+    }
+};
+
 struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePass> {
     void runOnOperation() override
     {
@@ -832,8 +860,8 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         patterns.insert<
             //
             ConvertTensor, ConvertLoad, ConvertGetValue, ConvertStore, ConvertSetValue, ConvertSplat, ConvertRelu,
-            ConvertCast, ConvertMatmul, ConvertReshape, ConvertBroadcast, ConvertSoftmax, ConvertRmsNorm, ConvertEmpty,
-            ConvertToL2<asctile::AddSOp, ascendc::AddsL2Op>,
+            ConvertCast, ConvertMatmul, ConvertReshape, ConvertBroadcast, ConvertSoftmax, ConvertRmsNorm,
+            ConvertAccumulator, ConvertMatmulAcc, ConvertToL2<asctile::AddSOp, ascendc::AddsL2Op>,
             ConvertVecScalarToL2<asctile::SubSOp, ascendc::SubsL2Op, ascendc::SubL2Op>,
             ConvertToL2<asctile::MulSOp, ascendc::MulsL2Op>,
             ConvertVecScalarToL2<asctile::DivSOp, ascendc::DivsL2Op, ascendc::DivL2Op>,
