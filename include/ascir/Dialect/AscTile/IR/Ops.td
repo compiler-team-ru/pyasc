@@ -25,6 +25,14 @@ class AscTile_Op<string mnemonic, list<Trait> traits = []>
   let cppNamespace = "::mlir::asctile";
 }
 
+def AccumulatorOp : AscTile_Op<"accumulator"> {
+  let summary = "Create a zeros tile in L0C";
+  let arguments = (ins);
+  let results = (outs NumericTile:$result);
+  let assemblyFormat = "attr-dict `:` qualified(type($result))";
+  let hasCanonicalizeMethod = 1;
+}
+
 def TensorOp : AscTile_Op<"tensor", [Pure]> {
   let summary = "Create tensor";
   let arguments = (ins AnyRankedOrUnrankedMemRef:$base, Variadic<I32>:$sizes);
@@ -43,12 +51,6 @@ def DimOp : AscTile_Op<"dim", [Pure]> {
   let assemblyFormat = "$base `,` $index attr-dict `:` qualified(type($base))";
   let hasFolder = 1;
   let hasVerifier = 1;
-}
-
-def EmptyOp : AscTile_Op<"empty", [Pure]> {
-  let summary = "Allocate empty tile";
-  let results = (outs NumericTile:$result);
-  let assemblyFormat = "attr-dict `:` qualified(type($result))";
 }
 
 def SplatOp
@@ -296,13 +298,25 @@ def MatmulOp : AscTile_Op<"matmul", [
 ]> {
   let summary = "Compute matrix multiplication on 2D tiles";
   Type inputTileType = TileOfRankAndType<[2], [AscTile_Float]>;
-  let arguments = (ins inputTileType:$matrixA, inputTileType:$matrixB,
-                   Optional<TileOfRankAndType<[2], [F32]>>:$acc);
+  let arguments = (ins inputTileType:$matrixA, inputTileType:$matrixB);
   let results = (outs TileOfRankAndType<[2], [F32]>:$result);
   let assemblyFormat = [{
-    $matrixA `,` $matrixB (`,` $acc^)? attr-dict `:`
-    type($matrixA) `,` type($matrixB) (`,` type($acc)^)? `->`
+    $matrixA `,` $matrixB attr-dict `:` type($matrixA) `,` type($matrixB) `->`
     type($result)
+  }];
+}
+
+def MatmulAccOp : AscTile_Op<"matmul_acc", [
+  AllElementTypesMatch<["matrixA", "matrixB"]>, MemoryEffectsOpInterface,
+]> {
+  let summary = "Compute matrix multiplication with accumulator on 2D tiles";
+  Type inputTileType = TileOfRankAndType<[2], [AscTile_Float]>;
+  let arguments = (ins inputTileType:$matrixA, inputTileType:$matrixB,
+                   Arg<TileOfRankAndType<[2], [F32]>, "tile to store to",
+                   [MemWrite]>:$acc);
+  let assemblyFormat = [{
+    $matrixA `,` $matrixB `,` $acc attr-dict `:`
+    type($matrixA) `,` type($matrixB) `,` type($acc)
   }];
 }
 
