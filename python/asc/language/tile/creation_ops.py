@@ -12,9 +12,9 @@ from typing import Iterable, Optional
 from ..._C import ir
 from ..core.dtype import DataType, KnownTypes as KT
 from ..core.ir_value import RuntimeNumeric
-from ..core.utils import check_type
+from ..core.utils import check_type, global_builder
 from .tile import Tile
-from .utils import constant_tile, splat_tile
+from .utils import constant_tile, splat_tile, verify_shape
 
 
 def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] = None,
@@ -44,3 +44,10 @@ def zeros(shape: Iterable[int], dtype: DataType = KT.int32,
 def zeros_like(input: Tile, location: Optional[ir.TileLocation] = ir.TileLocation.UB) -> Tile:
     check_type("input", input, Tile)
     return zeros(input.shape, input.dtype, location)
+
+
+def zeros_acc(shape: Iterable[int], dtype: DataType) -> Tile:
+    shape = verify_shape(shape)
+    ir_type = ir.get_asctile_TileType(shape, dtype.to_ir(), ir.TileLocation.L0C)
+    handle = global_builder.get_ir_builder().create_asctile_AccumulatorOp(ir_type)
+    return Tile.from_ir(handle)
