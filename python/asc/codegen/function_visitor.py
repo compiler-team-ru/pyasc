@@ -225,14 +225,15 @@ class FunctionVisitor(ast.NodeVisitor):
         return return_values
 
     def compute_inout(self, node: ast.AST, stmts: List[ast.stmt], ind_var: Optional[Tuple[str, ir.Type]] = None,
-                      make_args: bool = False) -> BlockInOut:
-        with self.visit_region() as (outer_scope, _):
+                      make_args: bool = False, init_handles: Optional[Dict[str, IRHandle]] = None) -> BlockInOut:
+        with self.visit_region() as (outer_scope, insert_point):
             block = ir.Block()
             if ind_var is not None:
                 name, ir_type = ind_var
                 arg = block.add_argument(ir_type)
                 self.scope.save(name, PlainValue(arg))
-            global_builder.get_ir_builder().set_insertion_point_to_start(block)
+            builder = global_builder.get_ir_builder()
+            builder.set_insertion_point_to_start(block)
             self.visit_statements(stmts)
             for name in self.scope.redefined:
                 old_value = outer_scope.lookup(name)
@@ -241,15 +242,25 @@ class FunctionVisitor(ast.NodeVisitor):
                     self.raise_unsupported(
                         node, f"'{name}' was re-assigned to an object with different type: "
                         f"initial type is {old_value.__class__.__name__}, new type is {new_value.__class__.__name__}")
-            _, init_handles = self.mat_ir_values(outer_scope.lookup(name) for name in self.scope.redefined)
+            # Initial values for numeric block arguments should be defined outside of the block
+            builder.restore_insertion_point(insert_point)
+            current_init_handles = []
+            for name in self.scope.redefined:
+                handle = None
+                if init_handles is not None:
+                    handle = init_handles.get(name)
+                if handle is None:
+                    handle = materialize_ir_value(outer_scope.lookup(name)).to_ir()
+                current_init_handles.append(handle)
             if make_args:
-                for handle in init_handles:
+                for handle in current_init_handles:
                     arg = block.add_argument(handle.get_type())
                     handle.replace_uses_in_block(block, arg)
+            builder.set_insertion_point_to_end(block)
             yield_values, yield_handles = self.mat_ir_values(self.scope.lookup(name) for name in self.scope.redefined)
             return BlockInOut(
                 block=block,
-                init_handles=dict(zip(self.scope.redefined, init_handles)),
+                init_handles=dict(zip(self.scope.redefined, current_init_handles)),
                 yield_values=dict(zip(self.scope.redefined, yield_values)),
                 yield_handles=dict(zip(self.scope.redefined, yield_handles)),
             )
@@ -582,7 +593,7 @@ class FunctionVisitor(ast.NodeVisitor):
         yields = {}
         with self.visit_region():
             then_inout = self.compute_inout(node, node.body)
-            else_inout = self.compute_inout(node, node.orelse)
+            else_inout = self.compute_inout(node, node.orelse, init_handles=then_inout.init_handles)
 
             def merge_sorted(dict1: Dict[str, T], dict2: Dict[str, T]) -> Dict[str, T]:
                 dicts = merge_dict(dict1, dict2)
