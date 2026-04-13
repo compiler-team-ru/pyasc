@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import functools
 import inspect
+import math
 from typing import Callable, Final, Optional, Tuple, TypeVar, Union, overload
 from typing_extensions import Self, TypeAlias
 
@@ -36,6 +37,9 @@ class Tile(IRValue):
     shape: Tuple[int]
     """Tile shape"""
 
+    size: int
+    """Number of elements"""
+
     def __init__(self, handle: IRHandle) -> None:
         """This constructor is not called by user. Use :py:func:`asc2.load` function to create a tile."""
         super().__init__()
@@ -45,6 +49,7 @@ class Tile(IRValue):
         self.shape: Final = tuple(ir.get_shape(ir_type))
         if len(self.shape) < 1:
             raise RuntimeError("Tile shape must have at least one dimension")
+        self.size: Final = math.prod(self.shape)
 
     @classmethod
     def from_ir(cls, handle: IRHandle) -> Self:
