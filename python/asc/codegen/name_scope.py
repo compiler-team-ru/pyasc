@@ -8,9 +8,11 @@
 
 from typing import Any, Dict, Optional, Set
 
+from ..common.compat import merge_dict
+
 
 class NameScope:
-    builtins: Dict[str, Any] = {
+    default_builtins: Dict[str, Any] = {
         b.__name__: b
         for b in (
             dict,
@@ -28,7 +30,9 @@ class NameScope:
         )
     }
 
-    def __init__(self, global_vars: Dict[str, Any], local_vars: Optional[Dict[str, Any]] = None):
+    def __init__(self, global_vars: Dict[str, Any], local_vars: Optional[Dict[str, Any]] = None,
+                 custom_builtins: Optional[Dict[str, Any]] = None):
+        self.builtins = merge_dict(self.default_builtins, custom_builtins or {})
         self.global_vars = global_vars
         self.local_vars = {} if local_vars is None else local_vars
         self.sentinel = object()
@@ -36,11 +40,11 @@ class NameScope:
         self.redefined: Set[str] = set()
 
     def __repr__(self) -> str:
-        return f"NameScope(globals={self.global_vars}, locals={self.local_vars})"
+        return f"NameScope(builtins={self.builtins}, globals={self.global_vars}, locals={self.local_vars})"
 
     def inherit(self, copy_globals=False):
         global_vars = self.global_vars.copy() if copy_globals else self.global_vars
-        return NameScope(global_vars, self.local_vars.copy())
+        return NameScope(global_vars, self.local_vars.copy(), self.builtins)
 
     def save(self, name: str, value: Any) -> None:
         if name not in self.local_vars:
