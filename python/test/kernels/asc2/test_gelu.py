@@ -21,7 +21,7 @@ def gelu_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, num_rows: 
                 num_columns: asc.ConstExpr, tile_size: asc.ConstExpr, approximate: asc.ConstExpr):
     x_gm = asc2.tensor(x_ptr, [num_rows, num_columns])
     out_gm = asc2.tensor(out_ptr, [num_rows, num_columns])
-    for i in asc2.range(asc2.block_idx(), num_rows, asc2.block_num()):
+    for i in range(asc2.block_idx(), num_rows, asc2.block_num(), parallel=True):
         row = asc2.load(x_gm, [1, tile_size], offsets=[i, 0])
         if approximate:
             pi = 3.141592653589793238462643383279502884
