@@ -49,6 +49,11 @@ def TransformMathOps : Pass<"asctile-transform-math-ops", "func::FuncOp"> {
   let dependentDialects = ["asctile::AscTileDialect"];
 }
 
+def TransformStoreFixpipe: Pass<"asctile-transform-store-fixpipe", "func::FuncOp"> {
+  let summary = "Transform store to support fixpipe";
+  let constructor = "mlir::asctile::createTransformStoreFixpipePass()";
+}
+
 def UnrollLoop : Pass<"asctile-unroll-loop", "func::FuncOp"> {
   let summary = "Unroll loops by unroll_factor";
   let constructor = "mlir::asctile::createUnrollLoopPass()";
