@@ -26,10 +26,10 @@ def matmul_kernel(a_ptr: asc.GlobalAddress, b_ptr: asc.GlobalAddress, c_ptr: asc
     m_elems_per_block = m_tile * m_tiles_per_block
     m_base_off = (m_elems_per_block * blockId) % a_shape[0]
     n_base_off = ((m_elems_per_block * blockId) // a_shape[0]) * (n_tile * n_tiles_per_block)
-    for j in asc2.range(n_tiles_per_block):
+    for j in range(n_tiles_per_block):
         b_offset = n_base_off + j * n_tile
         b_j = asc2.load(b_gm, [b_shape[0], n_tile], offsets=[0, b_offset], location=asc2.TileLocation.L0B)
-        for i in asc2.range(m_tiles_per_block):
+        for i in range(m_tiles_per_block):
             a_offset = m_base_off + i * m_tile
             a_i = asc2.load(a_gm, [m_tile, a_shape[1]], offsets=[a_offset, 0], location=asc2.TileLocation.L0A)
             c_ij = a_i @ b_j

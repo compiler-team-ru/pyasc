@@ -249,7 +249,7 @@ def jit(**options) -> Callable[[Callable[P, T]], JITFunction[P, T]]:
 
 
 def jit(fn: Optional[Callable[P, T]] = None, **options):
-    options.setdefault("custom_builtins", CustomBuiltins(range=asc_range))
+    options.setdefault("custom_builtins", {"range": asc_range})
 
     def decorator(fn: Callable[P, T]) -> JITFunction[P, T]:
         return JITFunction(fn, **options)

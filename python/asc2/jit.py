@@ -9,6 +9,7 @@
 from typing import Callable, Optional, TypeVar, overload
 from typing_extensions import ParamSpec
 
+from asc.language.tile.range import range as asc2_range
 from asc.runtime.jit import JITFunction
 
 P = ParamSpec("P")
@@ -39,6 +40,7 @@ def jit(fn: Optional[Callable[P, T]] = None, **options):
     JIT options may be provided as keyword arguments to be applied to the decorated kernel function.
     See :py:obj:`asc.CodegenOptions`, :py:obj:`asc.CompileOptions`, :py:obj:`asc.LaunchOptions` for the details.
     """
+    options.setdefault("custom_builtins", {"range": asc2_range})
     options.setdefault("insert_sync", True)
     options.setdefault("run_asc2_passes", True)
 

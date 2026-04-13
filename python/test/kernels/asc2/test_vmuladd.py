@@ -13,7 +13,7 @@ import asc.runtime.config as config
 import asc2
 
 
-@asc2.jit(always_compile=True)
+@asc2.jit(always_compile=True, vf_fusion=True)
 def vmuladd_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, z_ptr: asc.GlobalAddress,
                    out_ptr: asc.GlobalAddress, size: int, tile_size: asc.ConstExpr[int],
                    tile_per_block: asc.ConstExpr[int], buffer_factor: asc.ConstExpr[int]):
@@ -22,7 +22,7 @@ def vmuladd_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, z_ptr: as
     z_gm = asc2.tensor(z_ptr, [size])
     out_gm = asc2.tensor(out_ptr, [size])
     base_offset = asc2.block_idx() * tile_size * tile_per_block
-    for i in asc2.range(tile_per_block, unroll_factor=buffer_factor, parallel=True):
+    for i in range(tile_per_block, unroll_factor=buffer_factor, parallel=True):
         tile_offset = base_offset + i * tile_size
         x = asc2.load(x_gm, [tile_size], offsets=[tile_offset])
         y = asc2.load(y_gm, [tile_size], offsets=[tile_offset])
