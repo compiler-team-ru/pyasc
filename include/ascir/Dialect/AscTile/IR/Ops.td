@@ -120,14 +120,16 @@ def GetValueOp : AscTile_Op<"get_value", [
 }
 
 def SetValueOp : AscTile_Op<"set_value", [
-  ShapedMatchElemType<"base", "value">, MemoryEffectsOpInterface
+  AllElementTypesMatch<["base", "value"]>, MemoryEffectsOpInterface
 ]> {
   let summary = "Store value into a tensor";
-  let arguments = (ins AscTile_Numeric:$value,
+  let arguments = (ins AnyTypeOf<[AscTile_Numeric,
+                   TileOfLengthAndType<[1], [AscTile_Numeric]>]>:$value,
                    Arg<Tensor, "tensor to be updated", [MemWrite]>:$base,
                    Variadic<I32>:$offsets);
   let assemblyFormat = [{
-    $value `,` $base `[` $offsets `]` attr-dict `:` qualified(type($base))
+    $value `,` $base `[` $offsets `]` attr-dict `:` type($value) `,`
+    qualified(type($base))
   }];
 }
 
