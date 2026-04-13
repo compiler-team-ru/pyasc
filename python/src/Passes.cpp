@@ -147,6 +147,7 @@ void defineAscTilePasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_promote_pure_operations", createPromotePureOpsPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_split_cube_load", createSplitCubeLoadPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_transform_math_ops", createTransformMathOpsPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_transform_store_fixpipe", createTransformStoreFixpipePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_unroll_loop", createUnrollLoopPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_unscalarize_reduction", createUnscalarizeReductionPass);
 
