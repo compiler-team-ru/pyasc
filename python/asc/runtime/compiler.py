@@ -208,9 +208,11 @@ class Compiler:
                 passes.asctile.add_promote_pure_operations(pm)
                 passes.common.add_canonicalizer(pm)
                 passes.asctile.add_densify_unroll_groups(pm)
+            passes.asctile.add_split_cube_load(pm)
             passes.asctile.add_legalize_matmul(pm)
             passes.common.add_canonicalizer(pm)
             passes.asctile.add_transform_math_ops(pm)
+            passes.asctile.add_transform_store_fixpipe(pm)
             if platform_95:
                 passes.asctile.add_unscalarize_reduction(pm)
                 passes.common.add_canonicalizer(pm)

@@ -333,12 +333,14 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
         Value linearOffset = linearizeOffset(rewriter, loc, dstShape, op.getOffsets());
         dst = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, dstType, dst, linearOffset);
         if (value.getType().getLoc() == asctile::TileLocation::L0C) {
-            Value params = emitasc::InitStructBuilder(rewriter.getType<ascendc::FixpipeParamsV220Type>())
-                               .addField("nSize", srcShape[1])
-                               .addField("mSize", srcShape[0])
-                               .addField("srcStride", srcShape[0])
-                               .addField("dstStride", dstShape[1])
-                               .create(rewriter, loc);
+            auto paramsBuilder = emitasc::InitStructBuilder(rewriter.getType<ascendc::FixpipeParamsV220Type>())
+                                     .addField("nSize", srcShape[1])
+                                     .addField("mSize", srcShape[0])
+                                     .addField("srcStride", srcShape[0])
+                                     .addField("dstStride", dstShape[1]);
+            if (op->hasAttrOfType<UnitAttr>(asctile::attr::fixpipeRelu))
+                paramsBuilder.addField("reluEn", const1);
+            Value params = paramsBuilder.create(rewriter, loc);
             Value layout = rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::CO2LayoutType>(),
                                                                  ValueRange {consts.i32(1)}, ArrayAttr {}, true, true);
             auto fixPipeConfig = rewriter.create<ascendc::ConstructOp>(

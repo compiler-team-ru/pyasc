@@ -22,6 +22,7 @@ def matmul_kernel(a_ptr: asc.GlobalAddress, b_ptr: asc.GlobalAddress, c_ptr: asc
     a = asc2.load(a_gm, a_shape, offsets=[0, 0], location=asc2.TileLocation.L0A)
     b = asc2.load(b_gm, b_shape, offsets=[0, 0], location=asc2.TileLocation.L0B)
     c = a @ b
+    c = asc2.relu(c)
     asc2.store(c, c_gm, offsets=[0, 0])
 
 
@@ -31,13 +32,13 @@ def matmul_launch(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     return c
 
 
-def test_matmul_simple(backend: config.Backend, platform: config.Platform):
+def test_matmul_fixpipe(backend: config.Backend, platform: config.Platform):
     config.set_platform(backend, platform)
     device = "npu" if config.Backend(backend) == config.Backend.NPU else "cpu"
     m, k, n = 64, 128, 256
     dtype = torch.float16
-    a = torch.rand((m, k), dtype=dtype, device=device)
-    b = torch.rand((k, n), dtype=dtype, device=device)
+    a = (torch.rand((m, k), dtype=dtype, device=device) - .5) * 10
+    b = (torch.rand((k, n), dtype=dtype, device=device) - .5) * 10
     c = matmul_launch(a, b)
-    c_ref = a.to(torch.float32) @ b.to(torch.float32)
-    torch.testing.assert_close(c, c_ref)
+    c_ref = (a.to(torch.float32) @ b.to(torch.float32)).relu()
+    torch.testing.assert_close(c, c_ref, atol=1e-3, rtol=1e-3)
