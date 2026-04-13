@@ -49,6 +49,8 @@ class CodegenOptions:
     Usually, it must always be enabled, but may be disabled for the IR debugging purposes.
     """
 
+    custom_builtins: Dict[str, Any] = field(default_factory=dict)
+
 
 @dataclass
 class ReturnType:
@@ -92,7 +94,7 @@ class FunctionVisitor(ast.NodeVisitor):
         self.src = source_lines
         self.ir_function: Optional[ir.FuncOp] = None
         self.spec = spec
-        self.scope = NameScope(merge_dict(global_vars, spec.constexprs))
+        self.scope = NameScope(merge_dict(global_vars, spec.constexprs), custom_builtins=options.custom_builtins)
         self.location = location
         global_builder.get_ir_builder().set_insertion_point_to_start(global_builder.get_ir_module().get_body())
         global_builder.get_ir_builder().set_loc(self.location.filename, self.location.line_offset, 0)
@@ -505,8 +507,7 @@ class FunctionVisitor(ast.NodeVisitor):
             self.handle_static_range(node, args, kwargs, target)
             return
         elif inspect.isclass(func) and issubclass(func, (range, BaseRange)):
-            cls = BaseRange if issubclass(func, range) else func
-            range_obj = cls(*args, **kwargs)
+            range_obj = func(*args, **kwargs)
             iter_args = range_obj.start, range_obj.stop, range_obj.step
         else:
             self.raise_unsupported(

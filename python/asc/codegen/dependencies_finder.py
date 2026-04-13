@@ -42,7 +42,7 @@ class DependenciesFinder(ast.NodeVisitor):
         self.nonlocals = nonlocals_
 
         # Python builtins that can be accessed from pyasc kernels.
-        self.supported_python_builtins = set(NameScope.builtins)
+        self.supported_python_builtins = set(NameScope.default_builtins)
 
         self.supported_modules = {
             PYASC_MODULE,
@@ -77,9 +77,9 @@ class DependenciesFinder(ast.NodeVisitor):
             v1, _ = self.used_global_vals[k]
             v2, _ = func.used_global_vals[k]
             if v1 != v2:
-                raise RuntimeError(f"Global variable {var_name} has value {v1} when compiling {self.name}, \
-                    but inner kernel {func.__name__} has conflicting value {v2} from when it was first compiled. \
-                      This is not allowed.")
+                raise RuntimeError(
+                    f"Global variable {var_name} has value {v1} when compiling {self.name}, but inner kernel "
+                    f"{func.__name__} has conflicting value {v2} from when it was first compiled. This is not allowed.")
         self.used_global_vals.update(func.used_global_vals)
         # update hash
         func_key = func.cache_key

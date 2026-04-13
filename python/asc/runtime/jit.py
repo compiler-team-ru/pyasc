@@ -19,6 +19,7 @@ from ..codegen.function_visitor import CodegenOptions, FunctionVisitor
 from ..codegen.specialization import BaseArgType, PointerArgType, PlainArgType, Specialization, StructArgType, IRArgType
 from ..common.compat import get_annotations, merge_dict
 from ..language.core.dtype import DataType, KnownTypes as KT
+from ..language.core.range import range as asc_range
 from ..language.core.struct import Struct
 from ..language.core.utils import global_builder
 from .._C import ir
@@ -226,6 +227,7 @@ def jit(**options) -> Callable[[Callable[P, T]], JITFunction[P, T]]:
 
 
 def jit(fn: Optional[Callable[P, T]] = None, **options):
+    options.setdefault("custom_builtins", {"range": asc_range})
 
     def decorator(fn: Callable[P, T]) -> JITFunction[P, T]:
         return JITFunction(fn, **options)
