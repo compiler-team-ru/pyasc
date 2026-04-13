@@ -376,14 +376,18 @@ struct ConvertSetValue : ConvertOp<asctile::SetValueOp> {
     {
         auto base = op.getBase();
         auto loc = op.getLoc();
-        Value valueToStore = op.getValue();
+        Value src = rewriter.getRemappedValue(op.getValue());
+        if (auto srcType = dyn_cast<ascendc::LocalTensorType>(src.getType())) {
+            ascir::ConstantOpBuilder consts(rewriter);
+            src = rewriter.create<ascendc::LocalTensorGetValueOp>(loc, srcType.getElementType(), src, consts.i64(0));
+        }
         auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
         assert(tensorOp && "tensor must be created by asctile.tensor op");
-        SmallVector<Value> srcShape = getTensorShape(rewriter, tensorOp);
-        Value linearOffset = linearizeOffset(rewriter, loc, srcShape, op.getOffsets());
-        Value src = rewriter.getRemappedValue(base);
+        SmallVector<Value> dstShape = getTensorShape(rewriter, tensorOp);
+        Value linearOffset = linearizeOffset(rewriter, loc, dstShape, op.getOffsets());
+        Value dst = rewriter.getRemappedValue(base);
         Value offset = rewriter.create<emitc::CastOp>(loc, rewriter.getIntegerType(64, false), linearOffset);
-        rewriter.replaceOpWithNewOp<ascendc::GlobalTensorSetValueOp>(op, src, offset, valueToStore);
+        rewriter.replaceOpWithNewOp<ascendc::GlobalTensorSetValueOp>(op, dst, offset, src);
         return success();
     }
 };
