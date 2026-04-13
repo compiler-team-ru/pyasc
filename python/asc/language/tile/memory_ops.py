@@ -32,7 +32,7 @@ def infer_offsets(tensor_shape: Tuple[RuntimeInt], shape: Iterable[int], tile_id
 
 
 def copy(tile: Tile, shape: Optional[Iterable[int]] = None, *, offsets: Optional[Iterable[RuntimeInt]] = None,
-         location: TileLocation = TileLocation.UB, pad_value: RuntimeNumeric = 0) -> Tile:
+         location: TileLocation = TileLocation.UB) -> Tile:
     if shape is None:
         shape = tile.shape
     if offsets is None:
@@ -41,8 +41,7 @@ def copy(tile: Tile, shape: Optional[Iterable[int]] = None, *, offsets: Optional
     check_data_alignment(shape, tile.dtype)
     offsets = infer_offsets(tile.shape, shape, None, offsets)
     ir_type = ir.get_asctile_TileType(list(shape), tile.dtype.to_ir(), location)
-    pad_value = _mat(pad_value, tile.dtype).to_ir() if pad_value is not None else None
-    handle = global_builder.get_ir_builder().create_asctile_CopyOp(ir_type, tile.to_ir(), offsets, pad_value)
+    handle = global_builder.get_ir_builder().create_asctile_CopyOp(ir_type, tile.to_ir(), offsets)
     return Tile(handle)
 
 

@@ -62,17 +62,14 @@ def SplatOp
 }
 
 def CopyOp : AscTile_Op<"copy", [
-  AttrSizedOperandSegments,
   AllElementTypesMatch<["base", "result"]>,
-  OptionalShapedMatchElemType<"result", "padValue">,
 ]> {
   let summary = "Copy from a tile into a new subtile";
-  let arguments = (ins NumericTile:$base, Variadic<I32>:$offsets,
-                   Optional<AscTile_Numeric>:$padValue);
+  let arguments = (ins NumericTile:$base, Variadic<I32>:$offsets);
   let results = (outs NumericTile:$result);
   let assemblyFormat = [{
-    $base `[` $offsets `]` (`,` $padValue^)? attr-dict `:`
-    qualified(type($base)) `,` qualified(type($result))
+    $base `[` $offsets `]` attr-dict `:` qualified(type($base)) `,`
+    qualified(type($result))
   }];
   let hasCanonicalizeMethod = 1;
 }

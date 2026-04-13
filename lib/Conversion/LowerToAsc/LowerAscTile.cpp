@@ -196,7 +196,8 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
                                .addField("dstGap", const0)
                                .addField("ifTranspose", consts.i1(1))
                                .create(rewriter, loc);
-            auto forOp = rewriter.create<scf::ForOp>(loc, const0, srcStride, const1);
+            Value uBound = consts.i32(llvm::divideCeilSigned(dstShape[0], cubeKBlockSize));
+            auto forOp = rewriter.create<scf::ForOp>(loc, const0, uBound, const1);
             rewriter.setInsertionPointToStart(forOp.getBody());
             auto indVar = forOp.getInductionVar();
             auto cubeBlockSize = consts.i32(cubeBlock);
