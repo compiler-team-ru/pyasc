@@ -98,12 +98,18 @@ def store(value: RuntimeNumeric, tensor: Tensor, *, offsets: Iterable[RuntimeInt
 
 def store(value: Union[Tile, RuntimeNumeric], tensor: Tensor, *, tile_id: Optional[Iterable[RuntimeInt]] = None,
           offsets: Optional[Iterable[RuntimeInt]] = None) -> None:
-    if not isinstance(value, Tile):
-        if (tile_id is None) == (offsets is None):
-            raise ValueError("Exactly one of 'tile_id' or 'offsets' must be provided")
-        global_builder.get_ir_builder().create_asctile_SetValueOp(
-            _mat(value, tensor.dtype).to_ir(), tensor.to_ir(), to_ir_list(offsets))
+    builder = global_builder.get_ir_builder()
+    scalar_store = not isinstance(value, Tile) or value.size == 1
+    if scalar_store:
+        if tile_id is not None:
+            raise ValueError("'tile_id' argument cannot be used when storing a scalar value or a tile with 1 element")
+        if offsets is None:
+            raise ValueError("'offsets' argument must be provided")
+        value = value.to(tensor.dtype) if isinstance(value, Tile) else _mat(value, tensor.dtype)
+        builder.create_asctile_SetValueOp(value.to_ir(), tensor.to_ir(), to_ir_list(offsets))
         return
+    if (tile_id is None) == (offsets is None):
+        raise ValueError("Exactly one of 'tile_id' or 'offsets' must be provided")
     check_data_alignment(value.shape, value.dtype)
     offsets = infer_offsets(tensor.shape, value.shape, tile_id, offsets)
-    global_builder.get_ir_builder().create_asctile_StoreOp(value.to_ir(), tensor.to_ir(), offsets)
+    builder.create_asctile_StoreOp(value.to_ir(), tensor.to_ir(), offsets)
