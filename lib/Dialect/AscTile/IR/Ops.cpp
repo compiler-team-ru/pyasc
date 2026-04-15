@@ -156,6 +156,18 @@ bool ReshapeOp::areCastCompatible(TypeRange inputs, TypeRange outputs)
 OpFoldResult ReshapeOp::fold(FoldAdaptor) { return foldCastLike(*this); }
 
 //===----------------------------------------------------------------------===//
+// StoreFixpipeOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult StoreFixpipeOp::verify()
+{
+    if (!getQuantize() && getElementTypeOrSelf(getBase()) != getElementTypeOrSelf(getValue())) {
+        return emitOpError("failed to verify that all of {base, value} have same element type");
+    }
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
 // AscTileDialect
 //===----------------------------------------------------------------------===//
 
