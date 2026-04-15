@@ -121,7 +121,7 @@ struct LoweringConversionTarget : public ConversionTarget {
             asctile::DivSOp, asctile::MinSOp, asctile::MaxSOp, asctile::ShLSOp, asctile::ShRSOp,
             asctile::ReduceSumAs1dOp, asctile::ReduceMinAs1dOp, asctile::ReduceMaxAs1dOp, asctile::ReduceSumOp,
             asctile::ReduceMinOp, asctile::ReduceMaxOp, asctile::ReduceProdOp, asctile::AccumulatorOp,
-            asctile::MatmulAccOp, asctile::CopyOp
+            asctile::MatmulAccOp, asctile::CopyOp, asctile::StoreFixpipeOp
             //
             >();
         addLegalDialect<
@@ -324,6 +324,7 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
         Value src = rewriter.getRemappedValue(value);
         Value dst = rewriter.getRemappedValue(base);
         auto srcType = cast<ascendc::BaseTensorType>(src.getType());
+        assert(value.getType().getLoc() == asctile::TileLocation::UB && "Tile should be located in UB.");
         auto dstType = cast<ascendc::BaseTensorType>(dst.getType());
         ascir::ConstantOpBuilder consts(rewriter);
         SmallVector<Value> srcShape;
@@ -332,25 +333,8 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
         }
         SmallVector<Value> dstShape = getTensorShape(rewriter, tensorOp);
         auto const0 = consts.i32(0);
-        auto const1 = consts.i32(1);
         Value linearOffset = linearizeOffset(rewriter, loc, dstShape, op.getOffsets());
         dst = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, dstType, dst, linearOffset);
-        if (value.getType().getLoc() == asctile::TileLocation::L0C) {
-            auto paramsBuilder = emitasc::InitStructBuilder(rewriter.getType<ascendc::FixpipeParamsV220Type>())
-                                     .addField("nSize", srcShape[1])
-                                     .addField("mSize", srcShape[0])
-                                     .addField("srcStride", srcShape[0])
-                                     .addField("dstStride", dstShape[1]);
-            if (op->hasAttrOfType<UnitAttr>(asctile::attr::fixpipeRelu))
-                paramsBuilder.addField("reluEn", const1);
-            Value params = paramsBuilder.create(rewriter, loc);
-            Value layout = rewriter.create<ascendc::ConstructOp>(
-                loc, rewriter.getType<ascendc::CO2LayoutType>(), ValueRange{consts.i32(1)}, ArrayAttr{}, true, true);
-            auto fixPipeConfig = rewriter.create<ascendc::ConstructOp>(
-                loc, rewriter.getType<ascendc::FixpipeConfigType>(), ValueRange{layout}, ArrayAttr{}, true, true);
-            rewriter.replaceOpWithNewOp<ascendc::FixpipeOp>(op, dst, src, params, fixPipeConfig);
-            return success();
-        }
         auto numElements = calculateNumElements(rewriter, loc, dstShape);
         auto typeSize = ascendc::getElementTypeSize(srcType);
         auto typeSizeValue = consts.i32(typeSize);
@@ -913,6 +897,77 @@ struct ConvertMatmulAcc : ConvertOp<asctile::MatmulAccOp> {
     }
 };
 
+struct ConvertStoreFixpipe : ConvertOp<asctile::StoreFixpipeOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    LogicalResult convert(asctile::StoreFixpipeOp op, ConvertRewriter& rewriter) const override
+    {
+        auto base = op.getBase();
+        auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
+        assert(tensorOp && "tensor must be created by asctile.tensor op");
+        auto loc = op.getLoc();
+        auto value = op.getValue();
+        Value src = rewriter.getRemappedValue(value);
+        Value dst = rewriter.getRemappedValue(base);
+        auto srcType = cast<ascendc::BaseTensorType>(src.getType());
+        assert(value.getType().getLoc() == asctile::TileLocation::L0C && "Tile should be located in L0C.");
+        auto dstType = cast<ascendc::BaseTensorType>(dst.getType());
+        ascir::ConstantOpBuilder consts(rewriter);
+        SmallVector<Value> srcShape;
+        for (auto dim : srcType.getShape()) {
+            srcShape.push_back(consts.i32(dim));
+        }
+        SmallVector<Value> dstShape = getTensorShape(rewriter, tensorOp);
+        auto const1 = consts.i32(1);
+        Value linearOffset = linearizeOffset(rewriter, loc, dstShape, op.getOffsets());
+        dst = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, dstType, dst, linearOffset);
+        auto paramsBuilder = emitasc::InitStructBuilder(rewriter.getType<ascendc::FixpipeParamsV220Type>())
+                                 .addField("nSize", srcShape[1])
+                                 .addField("mSize", srcShape[0])
+                                 .addField("srcStride", srcShape[0])
+                                 .addField("dstStride", dstShape[1]);
+        if (op.getRelu())
+            paramsBuilder.addField("reluEn", const1);
+        if (op.getQuantize()) {
+            auto srcElType = srcType.getElementType();
+            auto dstElType = dstType.getElementType();
+            auto floatType = rewriter.getF32Type();
+            auto halfType = rewriter.getF16Type();
+            auto int32Type = rewriter.getIntegerType(32);
+            auto int8Type = rewriter.getIntegerType(8);
+            auto uint8Type = rewriter.getIntegerType(8, false);
+            int32_t mode;
+            if (srcElType == floatType && dstElType == halfType) {
+                mode = static_cast<int32_t>(ascendc::QuantMode::F322F16);
+            } else if (srcElType == floatType && dstElType == rewriter.getBF16Type()) {
+                mode = static_cast<int32_t>(ascendc::QuantMode::F322BF16);
+            } else if (srcElType == int32Type && dstElType == halfType) {
+                mode = static_cast<int32_t>(ascendc::QuantMode::DEQF16);
+            } else if (srcElType == floatType && (dstElType == int8Type || dstElType == uint8Type)) {
+                mode = static_cast<int32_t>(ascendc::QuantMode::QF322B8_PRE);
+            } else if (srcElType == int32Type && (dstElType == int8Type || dstElType == uint8Type)) {
+                mode = static_cast<int32_t>(ascendc::QuantMode::REQ8);
+            } else {
+                // TODO: Add support for VDEQF16, VQF322B8_PRE, VREQ8
+                op.emitError() << "Unsupported quant mode from " << srcElType << " to " << dstElType;
+                return failure();
+            }
+            auto quantMode = rewriter.create<ascendc::ConstructOp>(
+                loc, rewriter.getType<ascendc::QuantModesType>(), ValueRange{consts.i32(mode)},
+                rewriter.getTypeArrayAttr(rewriter.getType<ascendc::QuantModesType>()), true, true);
+            paramsBuilder.addField("quantPre", quantMode);
+        }
+        Value params = paramsBuilder.create(rewriter, loc);
+        Value layout = rewriter.create<ascendc::ConstructOp>(
+            loc, rewriter.getType<ascendc::CO2LayoutType>(), ValueRange{const1}, ArrayAttr{}, true, true);
+        auto fixPipeConfig = rewriter.create<ascendc::ConstructOp>(
+            loc, rewriter.getType<ascendc::FixpipeConfigType>(), ValueRange{layout}, ArrayAttr{}, true, true);
+        rewriter.replaceOpWithNewOp<ascendc::FixpipeOp>(op, dst, src, params, fixPipeConfig);
+        return success();
+    }
+};
+
 struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePass> {
     void runOnOperation() override
     {
@@ -925,7 +980,8 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
             //
             ConvertTensor, ConvertLoad, ConvertGetValue, ConvertStore, ConvertSetValue, ConvertSplat, ConvertRelu,
             ConvertCast, ConvertMatmul, ConvertReshape, ConvertBroadcast, ConvertSoftmax, ConvertRmsNorm,
-            ConvertAccumulator, ConvertMatmulAcc, ConvertCopy, ConvertToL2<asctile::AddSOp, ascendc::AddsL2Op>,
+            ConvertAccumulator, ConvertMatmulAcc, ConvertCopy, ConvertStoreFixpipe,
+            ConvertToL2<asctile::AddSOp, ascendc::AddsL2Op>,
             ConvertVecScalarToL2<asctile::SubSOp, ascendc::SubsL2Op, ascendc::SubL2Op>,
             ConvertToL2<asctile::MulSOp, ascendc::MulsL2Op>,
             ConvertVecScalarToL2<asctile::DivSOp, ascendc::DivsL2Op, ascendc::DivL2Op>,
