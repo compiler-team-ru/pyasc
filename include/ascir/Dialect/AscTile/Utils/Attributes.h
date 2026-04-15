@@ -17,7 +17,6 @@ namespace asctile {
 namespace attr {
 
 LITERAL isMatrixA = "asctile.is_matrix_a";
-LITERAL fixpipeRelu = "asctile.fixpipe_relu";
 LITERAL parallel = "asctile.parallel";
 LITERAL unrollFactor = "asctile.unroll_factor";
 LITERAL unrollGroup = "asctile.unroll_group";

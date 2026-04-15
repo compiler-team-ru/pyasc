@@ -22,12 +22,12 @@ def matmul_kernel(a_ptr: asc.GlobalAddress, b_ptr: asc.GlobalAddress, c_ptr: asc
     a = asc2.load(a_gm, a_shape, offsets=[0, 0], location=asc2.TileLocation.L0A)
     b = asc2.load(b_gm, b_shape, offsets=[0, 0], location=asc2.TileLocation.L0B)
     c = a @ b
-    c = asc2.relu(c)
+    c = asc2.relu(c).to(asc.float16)
     asc2.store(c, c_gm, offsets=[0, 0])
 
 
 def matmul_launch(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-    c = torch.zeros((a.shape[0], b.shape[1]), dtype=torch.float32)
+    c = torch.zeros((a.shape[0], b.shape[1]), dtype=torch.float16)
     matmul_kernel[1](a, b, c, a.shape, b.shape, c.shape)
     return c
 
@@ -40,5 +40,5 @@ def test_matmul_fixpipe(backend: config.Backend, platform: config.Platform):
     a = (torch.rand((m, k), dtype=dtype, device=device) - .5) * 10
     b = (torch.rand((k, n), dtype=dtype, device=device) - .5) * 10
     c = matmul_launch(a, b)
-    c_ref = (a.to(torch.float32) @ b.to(torch.float32)).relu()
+    c_ref = (a.to(torch.float32) @ b.to(torch.float32)).relu().to(torch.float16)
     torch.testing.assert_close(c, c_ref, atol=1e-3, rtol=1e-3)
