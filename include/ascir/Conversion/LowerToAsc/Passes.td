@@ -13,7 +13,7 @@
 
 include "mlir/Pass/PassBase.td"
 
-def ExpandMask : Pass<"ascendc-expand-mask", "func::FuncOp"> {
+def ExpandMask : Pass<"asclower-expand-mask", "func::FuncOp"> {
   let summary = "Update vector mask of nested operations and move them outside";
   let constructor = "mlir::asclower::createExpandMaskPass()";
   let dependentDialects = ["emitasc::EmitAscDialect"];
@@ -67,7 +67,7 @@ def LowerMath : Pass<"asclower-math", "func::FuncOp"> {
 def LowerSCF : Pass<"asclower-scf", "func::FuncOp"> {
   let summary = "Convert operand and result types of scf operations";
   let constructor = "mlir::asclower::createLowerSCFPass()";
-  let dependentDialects = ["scf::SCFDialect"];
+  let dependentDialects = ["ascendc::AscendCDialect", "scf::SCFDialect"];
 }
 
 def RealizeConversionCast
