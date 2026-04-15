@@ -90,63 +90,42 @@ template <typename MaxOp>
 struct MaxWithZeroToReluOp : OpRewritePattern<MaxOp> {
     using OpRewritePattern<MaxOp>::OpRewritePattern;
 
-    virtual bool isValidType(Type type) const = 0;
+    template <typename AttrOrValue>
+    static bool matchPatternZero(AttrOrValue value)
+    {
+        return matchPattern(value, m_AnyZeroFloat()) || matchPattern(value, m_Zero());
+    }
 
-    virtual bool isZero(Value value) const = 0;
+    static bool isZero(Value value)
+    {
+        if (auto cstOp = value.getDefiningOp<arith::ConstantOp>()) {
+            if (matchPatternZero(value))
+                return true;
+            auto splat = getSplatValue(cstOp);
+            return splat && matchPatternZero(*splat);
+        }
+        if (auto splatOp = value.getDefiningOp<asctile::SplatOp>())
+            return matchPatternZero(splatOp.getValue());
+        return false;
+    }
 
     LogicalResult matchAndRewrite(MaxOp op, PatternRewriter& rewriter) const override
     {
-        if (!isValidType(op.getType()))
+        auto type = op.getType();
+        if (!isa<asctile::TileType>(type))
             return failure();
-        arith::ConstantOp cstOp;
-        Value newLhs;
-        if (auto defOp = op.getLhs().template getDefiningOp<arith::ConstantOp>()) {
-            cstOp = defOp;
-            newLhs = op.getRhs();
-        } else if (auto defOp = op.getRhs().template getDefiningOp<arith::ConstantOp>()) {
-            cstOp = defOp;
-            newLhs = op.getLhs();
+        Value operand;
+        if (isZero(op.getLhs())) {
+            operand = op.getRhs();
+        } else if (isZero(op.getRhs())) {
+            operand = op.getLhs();
         }
-        if (!cstOp || !newLhs) {
+        if (!operand) {
             return failure();
         }
-        Value value = cstOp.getResult();
-        if (isZero(value)) {
-            rewriter.replaceOpWithNewOp<asctile::ReluOp>(op, op.getType(), newLhs);
-            return success();
-        }
-        return failure();
+        rewriter.replaceOpWithNewOp<asctile::ReluOp>(op, type, operand);
+        return success();
     }
-};
-
-template <typename MaxOp>
-struct MaxWithZeroToReluOpFloat : MaxWithZeroToReluOp<MaxOp> {
-    using MaxWithZeroToReluOp<MaxOp>::MaxWithZeroToReluOp;
-
-    bool isValidType(Type type) const override
-    {
-        if (auto vecType = dyn_cast<asctile::TileType>(type)) {
-            return isa<Float16Type, Float32Type>(vecType.getElementType());
-        }
-        return false;
-    }
-
-    bool isZero(Value value) const override { return matchPattern(value, m_AnyZeroFloat()); }
-};
-
-template <typename MaxOp>
-struct MaxWithZeroToReluOpInt : MaxWithZeroToReluOp<MaxOp> {
-    using MaxWithZeroToReluOp<MaxOp>::MaxWithZeroToReluOp;
-
-    bool isValidType(Type type) const override
-    {
-        if (auto vecType = dyn_cast<asctile::TileType>(type)) {
-            return vecType.getElementType().isInteger(32);
-        }
-        return false;
-    }
-
-    bool isZero(Value value) const override { return matchPattern(value, m_Zero()); }
 };
 
 struct ScalarizeCompare : OpRewritePattern<asctile::CmpOp> {
@@ -237,8 +216,8 @@ public:
         RewritePatternSet patterns(context);
         patterns.add<
             //
-            MaxWithZeroToReluOpFloat<arith::MaximumFOp>, MaxWithZeroToReluOpFloat<arith::MaxNumFOp>,
-            MaxWithZeroToReluOpInt<arith::MaxSIOp>
+            MaxWithZeroToReluOp<arith::MaximumFOp>, MaxWithZeroToReluOp<arith::MaxNumFOp>,
+            MaxWithZeroToReluOp<arith::MaxSIOp>
             //
             >(context, /*benefit=*/2);
         patterns.add<
