@@ -74,7 +74,7 @@ struct ConvertDenseConstant : ConvertOp<arith::ConstantOp> {
         for (auto [i, value] : llvm::enumerate(dense.getValues<TypedAttr>())) {
             Location uloc = rewriter.getUnknownLoc();
             Value cst = rewriter.create<arith::ConstantOp>(uloc, value);
-            rewriter.create<ascendc::LocalTensorSetValueOp>(uloc, cst, dst, consts.index(i));
+            rewriter.create<ascendc::LocalTensorSetValueOp>(uloc, dst, consts.i32(i), cst);
         }
         rewriter.replaceOp(op, dst);
         return success();
