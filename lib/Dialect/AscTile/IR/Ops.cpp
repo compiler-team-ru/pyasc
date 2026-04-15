@@ -162,6 +162,18 @@ OpFoldResult ReshapeOp::fold(FoldAdaptor)
 }
 
 //===----------------------------------------------------------------------===//
+// StoreFixpipeOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult StoreFixpipeOp::verify()
+{
+    if (!getQuantize() && getElementTypeOrSelf(getBase()) != getElementTypeOrSelf(getValue())) {
+        return emitOpError("failed to verify that all of {base, value} have same element type");
+    }
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
 // AscTileDialect
 //===----------------------------------------------------------------------===//
 

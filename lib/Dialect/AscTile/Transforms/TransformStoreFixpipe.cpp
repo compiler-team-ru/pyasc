@@ -10,7 +10,6 @@
 
 #include "ascir/Dialect/AscTile/Transforms/Passes.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
-#include "ascir/Dialect/AscTile/Utils/Attributes.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
@@ -32,13 +31,42 @@ struct TransformStoreOp : OpRewritePattern<asctile::StoreOp> {
 
     LogicalResult matchAndRewrite(asctile::StoreOp op, PatternRewriter &rewriter) const override
     {
+        auto value = op.getValue();
+        if (value.getType().getLoc() != TileLocation::L0C)
+            return failure();
+        rewriter.replaceOpWithNewOp<asctile::StoreFixpipeOp>(op, value, op.getBase(), op.getOffsets());
+        return success();
+    }
+};
+
+struct TransformFixpipeReluOp : OpRewritePattern<asctile::StoreFixpipeOp> {
+    using OpRewritePattern::OpRewritePattern;
+
+    LogicalResult matchAndRewrite(asctile::StoreFixpipeOp op, PatternRewriter &rewriter) const override
+    {
         auto reluOp = op.getValue().getDefiningOp<asctile::ReluOp>();
         if (!reluOp || reluOp.getType().getLoc() != TileLocation::L0C)
             return failure();
         auto operand = reluOp.getOperand();
         rewriter.startOpModification(op);
         op.getValueMutable().assign(operand);
-        op->setAttr(asctile::attr::fixpipeRelu, rewriter.getUnitAttr());
+        op.setRelu(true);
+        rewriter.finalizeOpModification(op);
+        return success();
+    }
+};
+
+struct TransformFixpipeCastOp : OpRewritePattern<asctile::StoreFixpipeOp> {
+    using OpRewritePattern::OpRewritePattern;
+
+    LogicalResult matchAndRewrite(asctile::StoreFixpipeOp op, PatternRewriter &rewriter) const override
+    {
+        auto castOp = op.getValue().getDefiningOp<asctile::CastOp>();
+        if (!castOp || castOp.getType().getLoc() != TileLocation::L0C)
+            return failure();
+        rewriter.startOpModification(op);
+        op.getValueMutable().assign(castOp.getIn());
+        op.setQuantize(true);
         rewriter.finalizeOpModification(op);
         return success();
     }
@@ -50,7 +78,7 @@ struct TransformStoreFixpipePass : public asctile::impl::TransformStoreFixpipeBa
         func::FuncOp funcOp = getOperation();
         MLIRContext *context = &getContext();
         RewritePatternSet patterns(context);
-        patterns.insert<TransformStoreOp>(context);
+        patterns.insert<TransformStoreOp, TransformFixpipeReluOp, TransformFixpipeCastOp>(context);
         if (applyPatternsAndFoldGreedily(funcOp, std::move(patterns)).failed())
             signalPassFailure();
     }

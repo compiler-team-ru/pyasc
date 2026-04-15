@@ -362,4 +362,17 @@ def AscTile_ReduceMinOp: AscTile_ReduceOp<"reduce_min">;
 def AscTile_ReduceMaxOp: AscTile_ReduceOp<"reduce_max">;
 def AscTile_ReduceProdOp: AscTile_ReduceOp<"reduce_prod">;
 
+def StoreFixpipeOp : AscTile_Op<"store_fixpipe", [MemoryEffectsOpInterface]> {
+  let summary = "Store a tile into a tensor";
+  let arguments = (ins NumericTile:$value,
+                   Arg<Tensor, "tensor to store to", [MemWrite]>:$base,
+                   Variadic<I32>:$offsets, UnitAttr:$relu,
+                   UnitAttr:$quantize);
+  let assemblyFormat = [{
+    $value `,` $base `[` $offsets `]` `,` $relu `,` $quantize attr-dict `:`
+    qualified(type($value)) `,` qualified(type($base))
+  }];
+  let hasVerifier = 1;
+}
+
 #endif // ASCTILE_OPS_TD
