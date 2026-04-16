@@ -82,9 +82,8 @@ class JITFunction(Function[P, T]):
             import torch
             if isinstance(value, torch.Tensor):
                 dtype_str = str(value.dtype)
-                if dtype_str.startswith("torch."):
-                    dtype_str = dtype_str[6:]
-                return PointerArgType(DataType(dtype_str))
+                dtype = DataType(dtype_str[6:] if dtype_str.startswith("torch.") else dtype_str)
+                return PlainArgType(dtype) if value.dim() == 0 else PointerArgType(dtype)
         except ModuleNotFoundError:
             pass
         # Mock arguments

@@ -110,7 +110,26 @@ class Launcher:
         return ub_capacity[Platform(rt.current_platform())]
 
     @staticmethod
-    def expand_kernel_args(args: Iterable[Any]) -> List[Union[np.generic, MemoryHandle]]:
+    def is_torch_scalar(value: Any) -> bool:
+        try:
+            import torch
+            return isinstance(value, torch.Tensor) and value.dim() == 0
+        except ModuleNotFoundError:
+            return False
+
+    @staticmethod
+    def scalar_to_bytes(value: Any) -> Optional[bytes]:
+        if isinstance(value, np.generic):
+            return value.tobytes()
+        try:
+            import torch
+            if isinstance(value, torch.Tensor):
+                return bytes(value.view(value.numel()).view(torch.uint8))
+        except ModuleNotFoundError:
+            return None
+
+    @classmethod
+    def expand_kernel_args(cls, args: Iterable[Any]) -> List[Union[np.generic, MemoryHandle]]:
         kernel_args = []
         for arg in args:
             if isinstance(arg, int):
@@ -119,7 +138,7 @@ class Launcher:
                 kernel_args.append(np.float32(arg))
             elif isinstance(arg, bool):
                 kernel_args.append(np.int8(int(arg)))
-            elif isinstance(arg, np.generic):
+            elif isinstance(arg, np.generic) or cls.is_torch_scalar(arg):
                 kernel_args.append(arg)
             elif isinstance(arg, Struct):
                 kernel_args.append(resolve_memory_handle(arg.pack()))
@@ -136,12 +155,14 @@ class Launcher:
         input_blobs: List[bytes] = []
         memory_args: List[MemoryHandle] = []
         for arg in kernel_args:
-            if isinstance(arg, np.generic):
-                input_blobs.append(arg.tobytes())
-                if arg.itemsize < 4:
-                    input_blobs.append(b"\0" * (4 - arg.itemsize))
-                elif arg.itemsize > 4 and arg.itemsize < 8:
-                    input_blobs.append(b"\0" * (8 - arg.itemsize))
+            scalar_bytes = self.scalar_to_bytes(arg)
+            if scalar_bytes is not None:
+                input_blobs.append(scalar_bytes)
+                item_size = len(scalar_bytes)
+                if item_size < 4:
+                    input_blobs.append(b"\0" * (4 - item_size))
+                elif item_size > 4 and item_size < 8:
+                    input_blobs.append(b"\0" * (8 - item_size))
             elif isinstance(arg, MemoryHandle):
                 if blobs_size(input_blobs) % 8 != 0:
                     input_blobs.append(b"\0" * 4)

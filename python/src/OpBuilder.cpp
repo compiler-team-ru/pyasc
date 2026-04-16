@@ -275,6 +275,7 @@ void bind_get_basic_type(py::class_<PyOpBuilder>& clss)
                 throw std::runtime_error("Unsupported width for FloatType");
             })
         .def("get_f16_type", [](PyOpBuilder& self) -> Type { return self->getF16Type(); })
+        .def("get_bf16_type", [](PyOpBuilder& self) -> Type { return self->getBF16Type(); })
         .def("get_f32_type", [](PyOpBuilder& self) -> Type { return self->getF32Type(); })
         .def("get_f64_type", [](PyOpBuilder& self) -> Type { return self->getF64Type(); });
 }
@@ -444,6 +445,9 @@ void bind_get_attributes(py::class_<PyOpBuilder>& clss)
             "get_i64_attr",
             [](PyOpBuilder& self, int64_t value) -> Attribute { return self->getI64IntegerAttr(value); })
         .def("get_f16_attr", [](PyOpBuilder& self, float value) -> Attribute { return self->getF16FloatAttr(value); })
+        .def(
+            "get_bf16_attr",
+            [](PyOpBuilder& self, float value) -> Attribute { return self->getFloatAttr(self->getBF16Type(), value); })
         .def("get_f32_attr", [](PyOpBuilder& self, float value) -> Attribute { return self->getF32FloatAttr(value); })
         .def("get_f64_attr", [](PyOpBuilder& self, double value) -> Attribute { return self->getF64FloatAttr(value); })
         .def(
@@ -601,6 +605,11 @@ void bind_create_float_constants(py::class_<PyOpBuilder>& clss)
             "get_f16",
             [](PyOpBuilder& self, float v) -> Value {
                 return self.create<arith::ConstantOp>(self->getF16FloatAttr(v));
+            })
+        .def(
+            "get_bf16",
+            [](PyOpBuilder& self, float v) -> Value {
+                return self.create<arith::ConstantOp>(self->getFloatAttr(self->getBF16Type(), v));
             })
         .def(
             "get_f32",

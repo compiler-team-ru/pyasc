@@ -31,6 +31,7 @@
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/DialectRegistry.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/MLIRContext.h"
@@ -257,6 +258,7 @@ void pyasc_bind_type(py::module& m)
 {
     using namespace pybind11::literals;
     py::class_<Type>(m, "Type", py::module_local())
+        .def("dump", &Type::dump)
         .def("is_integer", [](Type& self) -> bool { return self.isInteger(); })
         .def("is_index", &Type::isIndex)
         .def(
@@ -279,7 +281,9 @@ void pyasc_bind_type(py::module& m)
                     name += std::to_string(self.getIntOrFloatBitWidth());
                     return name;
                 }
-                if (isa<FloatType>(self)) {
+                if (isa<BFloat16Type>(self))
+                    return "bfloat16";
+                if (isa<Float16Type, Float32Type, Float64Type>(self)) {
                     std::string name = "float";
                     name += std::to_string(self.getIntOrFloatBitWidth());
                     return name;
