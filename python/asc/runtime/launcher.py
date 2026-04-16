@@ -145,7 +145,26 @@ class Launcher:
         return ub_capacity[Platform(rt.current_platform())]
 
     @staticmethod
-    def expand_kernel_args(args: Iterable[Any]) -> List[Union[np.generic, MemoryHandle]]:
+    def is_torch_scalar(value: Any) -> bool:
+        try:
+            import torch
+            return isinstance(value, torch.Tensor) and value.dim() == 0
+        except ModuleNotFoundError:
+            return False
+
+    @staticmethod
+    def scalar_to_bytes(value: Any) -> Optional[bytes]:
+        if isinstance(value, np.generic):
+            return value.tobytes()
+        try:
+            import torch
+            if isinstance(value, torch.Tensor):
+                return bytes(value.view(value.numel()).view(torch.uint8))
+        except ModuleNotFoundError:
+            return None
+
+    @classmethod
+    def expand_kernel_args(cls, args: Iterable[Any]) -> List[Union[np.generic, MemoryHandle]]:
         kernel_args = []
         for arg in args:
             if isinstance(arg, int):

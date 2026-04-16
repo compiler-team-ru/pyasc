@@ -94,7 +94,7 @@ class TileOfLengthAndType<list<int> allowedLengths, list<Type> allowedTypes>
   TileOf<allowedTypes>.summary # TileOfLength<allowedLengths>.summary,
   "::mlir::asctile::TileType">;
 
-def AscTile_Float : AnyTypeOf<[F16, F32]>;
+def AscTile_Float : AnyTypeOf<[F16, BF16, F32]>;
 def AscTile_Int : AnyTypeOf<[I8, I16, I32]>;
 def AscTile_Numeric : AnyTypeOf<[AscTile_Float, AscTile_Int]>;
 

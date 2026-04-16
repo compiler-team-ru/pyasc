@@ -165,7 +165,7 @@ func.func @emit_minf(%arg0 : f32, %arg1 : f32) {
 // CHECK-NEXT:  constexpr int32_t c32_i32 = 32;
 // CHECK-NEXT:  constexpr int64_t c64_i64 = 64;
 // CHECK-NEXT:  half c16_f16 = 1.60000e+01;
-// CHECK-NEXT:  bfloat16_t c1_602_bf16 = 1.6020e+00;
+// CHECK-NEXT:  bfloat16_t c1_602_f16 = 1.6020e+00;
 // CHECK-NEXT:  constexpr float c63_f32 = (float)6.300000000e+01;
 // CHECK-NEXT:  constexpr double c6_2999999999999998_f64 = (double)6.29999999999999980e+00;
 // CHECK-NEXT:  constexpr uint32_t c666_idx = 666;
