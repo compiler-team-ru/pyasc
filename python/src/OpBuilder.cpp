@@ -62,10 +62,7 @@ class PyOpBuilder {
     explicit PyOpBuilder(Operation *op) : builder(op), loc(op->getLoc()) {}
     ~PyOpBuilder() = default;
 
-    void setLoc(Location newLoc)
-    {
-        loc = newLoc;
-    }
+    void setLoc(Location newLoc) { loc = newLoc; }
 
     void setLoc(const std::string &name, bool reset = false)
     {
@@ -85,25 +82,13 @@ class PyOpBuilder {
         setLoc(newLoc);
     }
 
-    Location getLoc()
-    {
-        return loc;
-    }
+    Location getLoc() { return loc; }
 
-    void resetLoc()
-    {
-        loc = builder.getUnknownLoc();
-    }
+    void resetLoc() { loc = builder.getUnknownLoc(); }
 
-    OpBuilder &getBuilder()
-    {
-        return builder;
-    }
+    OpBuilder &getBuilder() { return builder; }
 
-    OpBuilder *operator->()
-    {
-        return &builder;
-    }
+    OpBuilder *operator->() { return &builder; }
 
     void setInsertionPointToStart(Block &block)
     {
@@ -150,21 +135,21 @@ class PyOpBuilder {
     }
 
     template <typename OpTy, typename... Args>
-    auto create(Args &&... args) -> OpTy
+    auto create(Args &&...args) -> OpTy
     {
         return builder.create<OpTy>(loc, std::forward<Args>(args)...);
     }
 
     // Overload to create or fold a single result operation.
     template <typename OpTy, typename... Args>
-    std::enable_if_t<OpTy::template hasTrait<OpTrait::OneResult>(), Value> createOrFold(Args &&... args)
+    std::enable_if_t<OpTy::template hasTrait<OpTrait::OneResult>(), Value> createOrFold(Args &&...args)
     {
         return builder.createOrFold<OpTy>(loc, std::forward<Args>(args)...);
     }
 
     // Overload to create or fold a zero result operation.
     template <typename OpTy, typename... Args>
-    std::enable_if_t<OpTy::template hasTrait<OpTrait::ZeroResults>(), OpTy> createOrFold(Args &&... args)
+    std::enable_if_t<OpTy::template hasTrait<OpTrait::ZeroResults>(), OpTy> createOrFold(Args &&...args)
     {
         return builder.createOrFold<OpTy>(loc, std::forward<Args>(args)...);
     }
@@ -417,9 +402,9 @@ void bind_get_special_type(py::class_<PyOpBuilder> &clss)
                  return self->getType<ascendc::DataCopyPadExtParamsType>(elementType);
              })
         .def("get_asc_MrgSortSrcListType",
-			[](PyOpBuilder &self, Type elementType) -> Type {
-				return self->getType<ascendc::MrgSortSrcListType>(elementType);
-			})
+             [](PyOpBuilder &self, Type elementType) -> Type {
+                 return self->getType<ascendc::MrgSortSrcListType>(elementType);
+             })
         .def("get_local_mem_allocator_type",
              [](PyOpBuilder &self, uint64_t hardware) -> Type {
                  return ascendc::LocalMemAllocatorType::get(self->getContext(), hardware);
@@ -598,8 +583,7 @@ void bind_create_airth_basic_operations(py::class_<PyOpBuilder> &clss)
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss
-        .def("create_arith_ConstantOp",
+    clss.def("create_arith_ConstantOp",
              [](PyOpBuilder &self, TypedAttr attr) -> Value { return self.create<arith::ConstantOp>(attr); })
         .def("create_arith_AddIOp",
              [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::AddIOp>(lhs, rhs); })
@@ -619,12 +603,14 @@ void bind_create_airth_basic_operations(py::class_<PyOpBuilder> &clss)
              [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::DivFOp>(lhs, rhs); })
         .def("create_arith_MaxSIOp",
              [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::MaxSIOp>(lhs, rhs); })
-        .def("create_arith_MaximumFOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::MaximumFOp>(lhs, rhs); })
+        .def(
+            "create_arith_MaximumFOp",
+            [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::MaximumFOp>(lhs, rhs); })
         .def("create_arith_MinSIOp",
              [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::MinSIOp>(lhs, rhs); })
-        .def("create_arith_MinimumFOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::MinimumFOp>(lhs, rhs); })
+        .def(
+            "create_arith_MinimumFOp",
+            [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::MinimumFOp>(lhs, rhs); })
         .def("create_arith_ShLIOp",
              [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::ShLIOp>(lhs, rhs); })
         .def("create_arith_ShRSIOp",
@@ -903,21 +889,21 @@ void bind_create_asc_pipe_operations(py::class_<PyOpBuilder> &clss)
                  self.create<ascendc::WaitFlagOp>(eventAttr, eventId);
              })
         .def("create_asc_CrossCoreSetFlagOp",
-			[](PyOpBuilder &self, Value flagId, uint8_t modeId, uint8_t pipe) {
-				auto pipeAttr = ascendc::symbolizePipe(pipe);
-				if (!pipeAttr) {
-					throw std::runtime_error("Unknown pipe for CrossCoreSetFlagOp");
-				}
-				self.create<ascendc::CrossCoreSetFlagOp>(flagId, modeId, *pipeAttr);
-			})
-		.def("create_asc_CrossCoreWaitFlagOp",
-			[](PyOpBuilder &self, Value flagId, uint8_t modeId, uint8_t pipe) {
-				auto pipeAttr = ascendc::symbolizePipe(pipe);
-				if (!pipeAttr) {
-					throw std::runtime_error("Unknown pipe for CrossCoreWaitFlagOp");
-				}
-				self.create<ascendc::CrossCoreWaitFlagOp>(flagId, modeId, *pipeAttr);
-			})
+             [](PyOpBuilder &self, Value flagId, uint8_t modeId, uint8_t pipe) {
+                 auto pipeAttr = ascendc::symbolizePipe(pipe);
+                 if (!pipeAttr) {
+                     throw std::runtime_error("Unknown pipe for CrossCoreSetFlagOp");
+                 }
+                 self.create<ascendc::CrossCoreSetFlagOp>(flagId, modeId, *pipeAttr);
+             })
+        .def("create_asc_CrossCoreWaitFlagOp",
+             [](PyOpBuilder &self, Value flagId, uint8_t modeId, uint8_t pipe) {
+                 auto pipeAttr = ascendc::symbolizePipe(pipe);
+                 if (!pipeAttr) {
+                     throw std::runtime_error("Unknown pipe for CrossCoreWaitFlagOp");
+                 }
+                 self.create<ascendc::CrossCoreWaitFlagOp>(flagId, modeId, *pipeAttr);
+             })
         .def("create_asc_TPipeAllocEventIDOp",
              [](PyOpBuilder &self, const Type &event_id, const Value &pipe, uint8_t event) -> Value {
                  auto eventAttr = get_hard_event(event, "TPipeAllocEventIDOp");
@@ -981,24 +967,29 @@ void bind_create_asc_common_operations(py::class_<PyOpBuilder> &clss)
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("create_asc_GatherMaskAndResult", [](PyOpBuilder &self, const Type &type, const Value &dst, const Value &src0,
-                                           const Value &src1Pattern, const Value &reduceMode, const Value &mask,
-                                           const Value &params, uint8_t mode) {
+    clss.def("create_asc_GatherMaskAndResult", [](PyOpBuilder &self, const Type &type, const Value &dst,
+                                                  const Value &src0, const Value &src1Pattern, const Value &reduceMode,
+                                                  const Value &mask, const Value &params, uint8_t mode) {
         auto modeAttr = ascendc::symbolizeGatherMaskMode(mode);
         if (!modeAttr) {
             throw std::runtime_error("Unknown mode for GatherMaskOp");
         }
-        return self.create<ascendc::GatherMaskOp>(type, dst, src0, src1Pattern, reduceMode, mask, params, *modeAttr).getResult();
+        return self.create<ascendc::GatherMaskOp>(type, dst, src0, src1Pattern, reduceMode, mask, params, *modeAttr)
+            .getResult();
     });
-    clss.def("create_asc_GetMrgSortResults", [](PyOpBuilder &self,
-             const Type &type1, const Type &type2, const Type &type3, const Type &type4) {
-        auto operation = self.create<ascendc::GetMrgSortResultOp>(type1, type2, type3, type4);
-        return py::make_tuple(operation.getResult(0), operation.getResult(1), operation.getResult(2), operation.getResult(3));
-    });
-    clss.def("create_asc_GetStoreAtomicConfigAndResult", [](PyOpBuilder &self, const Type &type, const Type &op) {
-        auto operation = self.create<ascendc::GetStoreAtomicConfigOp>(type, op);
-        return py::make_tuple(operation.getResult(0), operation.getResult(1));
-    }, "type"_a, "op"_a);
+    clss.def("create_asc_GetMrgSortResults",
+             [](PyOpBuilder &self, const Type &type1, const Type &type2, const Type &type3, const Type &type4) {
+                 auto operation = self.create<ascendc::GetMrgSortResultOp>(type1, type2, type3, type4);
+                 return py::make_tuple(operation.getResult(0), operation.getResult(1), operation.getResult(2),
+                                       operation.getResult(3));
+             });
+    clss.def(
+        "create_asc_GetStoreAtomicConfigAndResult",
+        [](PyOpBuilder &self, const Type &type, const Type &op) {
+            auto operation = self.create<ascendc::GetStoreAtomicConfigOp>(type, op);
+            return py::make_tuple(operation.getResult(0), operation.getResult(1));
+        },
+        "type"_a, "op"_a);
     clss.def("create_asc_SetStoreAtomicConfigOp", [](PyOpBuilder &self, uint8_t type, uint8_t op) {
         auto typeAttr = ascendc::symbolizeAtomicDtype(type);
         if (!typeAttr) {
@@ -1010,10 +1001,13 @@ void bind_create_asc_common_operations(py::class_<PyOpBuilder> &clss)
         }
         self.create<ascendc::SetStoreAtomicConfigOp>(*typeAttr, *opAttr);
     });
-    clss.def("create_asc_GetStoreAtomicConfigAndResult", [](PyOpBuilder &self, const Type &type, const Type &op) {
-        auto operation = self.create<ascendc::GetStoreAtomicConfigOp>(type, op);
-        return py::make_tuple(operation.getResult(0), operation.getResult(1));
-    }, "type"_a, "op"_a);
+    clss.def(
+        "create_asc_GetStoreAtomicConfigAndResult",
+        [](PyOpBuilder &self, const Type &type, const Type &op) {
+            auto operation = self.create<ascendc::GetStoreAtomicConfigOp>(type, op);
+            return py::make_tuple(operation.getResult(0), operation.getResult(1));
+        },
+        "type"_a, "op"_a);
 }
 
 void bind_create_asctile_operations(py::class_<PyOpBuilder> &clss)
@@ -1021,16 +1015,21 @@ void bind_create_asctile_operations(py::class_<PyOpBuilder> &clss)
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("create_asctile_CountMaskOp",
-        [](PyOpBuilder &self, Value &count, std::optional<Value> other) -> asctile::CountMaskOp {
-            Value otherVal = other.has_value() ? *other : Value();
-            return self.create<asctile::CountMaskOp>(count, otherVal);
-    }, py::arg("count"), py::arg("other") = py::none())
-    .def("create_asctile_BitwiseMaskOp",
-        [](PyOpBuilder &self, Value &highBits, Value &lowBits, std::optional<Value> other) -> asctile::BitwiseMaskOp {
-            Value otherVal = other.has_value() ? *other : Value();
-            return self.create<asctile::BitwiseMaskOp>(highBits, lowBits, otherVal);
-    }, py::arg("highBits"), py::arg("lowBits"), py::arg("other") = py::none())
+    clss.def(
+            "create_asctile_CountMaskOp",
+            [](PyOpBuilder &self, Value &count, std::optional<Value> other) -> asctile::CountMaskOp {
+                Value otherVal = other.has_value() ? *other : Value();
+                return self.create<asctile::CountMaskOp>(count, otherVal);
+            },
+            py::arg("count"), py::arg("other") = py::none())
+        .def(
+            "create_asctile_BitwiseMaskOp",
+            [](PyOpBuilder &self, Value &highBits, Value &lowBits,
+               std::optional<Value> other) -> asctile::BitwiseMaskOp {
+                Value otherVal = other.has_value() ? *other : Value();
+                return self.create<asctile::BitwiseMaskOp>(highBits, lowBits, otherVal);
+            },
+            py::arg("highBits"), py::arg("lowBits"), py::arg("other") = py::none())
 #include "ascir/Dialect/AscTile/IR/AscTileOpBindings.h.inc"
         ;
 }

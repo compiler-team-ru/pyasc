@@ -699,7 +699,8 @@ void pyasc_bind_scfop(py::module &m)
     using ret = py::return_value_policy;
     py::class_<scf::ForOp, OpState>(m, "ForOp", py::module_local())
         .def("get_induction_var", &scf::ForOp::getInductionVar)
-        .def("get_body", [](scf::ForOp &self) -> Block * { return self.getBody(); }, ret::reference);
+        .def(
+            "get_body", [](scf::ForOp &self) -> Block * { return self.getBody(); }, ret::reference);
     py::class_<scf::IfOp, OpState>(m, "IfOp", py::module_local())
         .def("get_then_block", &scf::IfOp::thenBlock, ret::reference)
         .def("get_else_block", &scf::IfOp::elseBlock, ret::reference)
