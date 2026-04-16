@@ -19,6 +19,7 @@
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Location.h"
 #include "mlir/Support/LogicalResult.h"
+#include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormatVariadic.h"
 
@@ -350,6 +351,9 @@ void CodeEmitter::printFloat(const APFloat &value)
         switch (llvm::APFloatBase::SemanticsToEnum(value.getSemantics())) {
             case llvm::APFloatBase::S_IEEEsingle:
                 os << "(float)";
+                break;
+            case llvm::APFloatBase::S_BFloat:
+                // bisheng compiler doesn't support explicit cast to bf16
                 break;
             case llvm::APFloatBase::S_IEEEdouble:
                 os << "(double)";
@@ -907,16 +911,24 @@ LogicalResult CodeEmitter::emitIntegerType(IntegerType &iType, Location loc, Typ
 
 LogicalResult CodeEmitter::emitFloatType(FloatType &fType, Location loc, Type type, bool emitAsUnsigned)
 {
-    switch (fType.getWidth()) {
-        case DTYPE_BIT_WIDTH_16:
-            return (os << "half"), success();
-        case DTYPE_BIT_WIDTH_32:
-            return (os << "float"), success();
-        case DTYPE_BIT_WIDTH_64:
-            return (os << "double"), success();
-        default:
-            return emitError(loc, "cannot emit float type ") << type;
-    }
+    return llvm::TypeSwitch<FloatType, LogicalResult>(fType)
+        .Case<Float16Type>([this](Float16Type type) {
+            os << "half";
+            return success();
+        })
+        .Case<BFloat16Type>([this](BFloat16Type type) {
+            os << "bfloat16_t";
+            return success();
+        })
+        .Case<Float32Type>([this](Float32Type type) {
+            os << "float";
+            return success();
+        })
+        .Case<Float64Type>([this](Float64Type type) {
+            os << "double";
+            return success();
+        })
+        .Default([loc](FloatType type) { return emitError(loc, "cannot emit float type ") << type; });
 }
 
 LogicalResult CodeEmitter::emitBaseMemRefType(BaseMemRefType &pType, Location loc, Type type, bool emitAsUnsigned)

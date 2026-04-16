@@ -159,20 +159,32 @@ func.func @emit_minf(%arg0 : f32, %arg1 : f32) {
   return
 }
 
-// CHECK:void emit_constants(float v1, float v2) {
-// CHECK-NEXT:  constexpr int32_t c0_i32 = 0;
-// CHECK-NEXT:  constexpr uint32_t c0_idx = 0;
-// CHECK-NEXT:  constexpr int64_t c1024_i64 = 1024;
+// CHECK:void emit_constants() {
+// CHECK-NEXT:  constexpr int8_t c8_i8 = 8;
+// CHECK-NEXT:  constexpr int16_t c16_i16 = 16;
+// CHECK-NEXT:  constexpr int32_t c32_i32 = 32;
+// CHECK-NEXT:  constexpr int64_t c64_i64 = 64;
+// CHECK-NEXT:  half c16_f16 = 1.60000e+01;
+// CHECK-NEXT:  bfloat16_t c1_602_f16 = 1.6020e+00;
+// CHECK-NEXT:  constexpr float c63_f32 = (float)6.300000000e+01;
+// CHECK-NEXT:  constexpr double c6_2999999999999998_f64 = (double)6.29999999999999980e+00;
+// CHECK-NEXT:  constexpr uint32_t c666_idx = 666;
 // CHECK-NEXT:  constexpr float cpInf_f32 = __builtin_inff();
 // CHECK-NEXT:  constexpr float cmInf_f32 = -__builtin_inff();
 // CHECK-NEXT:  return;
 // CHECK-NEXT:}
-func.func @emit_constants(%arg0 : f32, %arg1 : f32) {
-  %c0_i32 = arith.constant 0 : i32
-  %c0 = arith.constant 0 : index
-  %c1024_i64 = arith.constant 1024 : i64
-  %cstInf = arith.constant 0x7F800000 : f32
-  %cstmInf = arith.constant 0xFF800000 : f32
+func.func @emit_constants() {
+  %i8 = arith.constant 8 : i8
+  %i16 = arith.constant 16 : i16
+  %i32 = arith.constant 32 : i32
+  %i64 = arith.constant 64 : i64
+  %f16 = arith.constant 16.0 : f16
+  %bf16 = arith.constant 1.6 : bf16
+  %f32 = arith.constant 63.0 : f32
+  %f64 = arith.constant 6.3 : f64
+  %index = arith.constant 666 : index
+  %cst_inf = arith.constant 0x7F800000 : f32
+  %cst_minf = arith.constant 0xFF800000 : f32
   return
 }
 

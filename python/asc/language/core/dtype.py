@@ -17,7 +17,7 @@ from .utils import global_builder
 
 
 class DataType:
-    _re_matcher = re.compile("^(int|float|uint)([0-9]+)$")
+    _re_matcher = re.compile("^(u?int|b?float)([0-9]+)$")
 
     class Kind(Enum):
         Any = ""
@@ -31,7 +31,12 @@ class DataType:
         self.bitwidth: Optional[int] = None
         match = self._re_matcher.match(name)
         if match:
-            self.kind = self.Kind(match[1])
+            self.kind = {
+                "bfloat": self.Kind.Float,
+                "float": self.Kind.Float,
+                "int": self.Kind.Int,
+                "uint": self.Kind.UInt,
+            }.get(match[1], self.Kind.Any)
             self.bitwidth = int(match[2])
 
     def __eq__(self, other: DataType) -> bool:
@@ -92,6 +97,7 @@ class DataType:
             "uint32": builder.get_ui32_type,
             "uint64": builder.get_ui64_type,
             "float16": builder.get_f16_type,
+            "bfloat16": builder.get_bf16_type,
             "float32": builder.get_f32_type,
             "float64": builder.get_f64_type,
         }
@@ -109,6 +115,7 @@ int16 = DataType("int16")
 int32 = DataType("int32")
 int64 = DataType("int64")
 float16 = DataType("float16")
+bfloat16 = DataType("bfloat16")
 float32 = DataType("float32")
 float64 = DataType("float64")
 uint8 = DataType("uint8")
@@ -131,6 +138,7 @@ class KnownTypes:
     int32 = int32
     int64 = int64
     float16 = float16
+    bfloat16 = bfloat16
     float32 = float32
     float64 = float64
     uint8 = uint8
