@@ -435,6 +435,9 @@ void bindGetAttributes(py::class_<PyOpBuilder>& clss)
             "get_i64_attr",
             [](PyOpBuilder& self, int64_t value) -> Attribute { return self->getI64IntegerAttr(value); })
         .def("get_f16_attr", [](PyOpBuilder& self, float value) -> Attribute { return self->getF16FloatAttr(value); })
+        .def(
+            "get_bf16_attr",
+            [](PyOpBuilder& self, float value) -> Attribute { return self->getFloatAttr(self->getBF16Type(), value); })
         .def("get_f32_attr", [](PyOpBuilder& self, float value) -> Attribute { return self->getF32FloatAttr(value); })
         .def("get_f64_attr", [](PyOpBuilder& self, double value) -> Attribute { return self->getF64FloatAttr(value); })
         .def(

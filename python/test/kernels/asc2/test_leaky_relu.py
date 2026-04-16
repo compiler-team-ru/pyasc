@@ -6,7 +6,7 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-import numpy as np
+import torch
 
 import asc
 import asc.runtime.config as config
@@ -26,9 +26,10 @@ def leaky_relu_kernel(x_ptr: asc.GlobalAddress, alpha: float, out_ptr: asc.Globa
         asc2.store(out, out_gm, offsets=[tile_offset])
 
 
-def leaky_relu_launch(x: np.ndarray, alpha: float) -> np.ndarray:
-    out = np.empty_like(x)
-    size = out.size
+def leaky_relu_launch(x: torch.Tensor, alpha: torch.Tensor) -> torch.Tensor:
+    assert alpha.dim() == 0, "'alpha' must be a zero-dim tensor, that is, a scalar value"
+    out = torch.empty_like(x)
+    size = out.numel()
     core_num = 16
     tile_size = 128
     num_tiles = asc.ceildiv(size, tile_size)
@@ -38,9 +39,9 @@ def leaky_relu_launch(x: np.ndarray, alpha: float) -> np.ndarray:
 
 def test_leaky_relu(backend: config.Backend, platform: config.Platform):
     config.set_platform(backend, platform)
-    rng = np.random.default_rng(seed=2026)
+    device = "npu" if config.Backend(backend) == config.Backend.NPU else "cpu"
     size = 8192
-    x = rng.random(size, dtype=np.float32) * 3
-    alpha = 0.1
+    x = torch.rand(size, dtype=torch.bfloat16, device=device) * 10.0 - 5.0
+    alpha = torch.tensor(0.1, dtype=torch.bfloat16)
     out = leaky_relu_launch(x, alpha)
-    np.testing.assert_allclose(out, np.where(x >= 0, x, x * alpha))
+    torch.testing.assert_close(out, torch.where(x >= 0, x, x * alpha))

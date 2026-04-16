@@ -26,6 +26,7 @@ def constant_tile(value: Real, shape: TensorShape, dtype: DataType, loc: ir.Tile
         "int32": builder.get_i32_attr,
         "int64": builder.get_i64_attr,
         "float16": builder.get_f16_attr,
+        "bfloat16": builder.get_bf16_attr,
         "float32": builder.get_f32_attr,
         "float64": builder.get_f64_attr,
     }

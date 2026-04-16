@@ -861,19 +861,19 @@ LogicalResult CodeEmitter::emitIntegerType(IntegerType& iType, Location loc, Typ
 LogicalResult CodeEmitter::emitFloatType(FloatType& fType, Location loc, Type /*type*/, bool /*emitAsUnsigned*/)
 {
     return llvm::TypeSwitch<FloatType, LogicalResult>(fType)
-        .Case([this](Float16Type) {
+        .Case([this](Float16Type type) {
             os << "half";
             return success();
         })
-        .Case([this](BFloat16Type) {
+        .Case([this](BFloat16Type type) {
             os << "bfloat16_t";
             return success();
         })
-        .Case([this](Float32Type) {
+        .Case([this](Float32Type type) {
             os << "float";
             return success();
         })
-        .Case([this](Float64Type) {
+        .Case([this](Float64Type type) {
             os << "double";
             return success();
         })
