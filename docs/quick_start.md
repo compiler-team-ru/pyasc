@@ -171,7 +171,7 @@ pyasc支持通过pip快速安装和基于源码编译安装两种方式。
 
 #### 使用WebIDE安装
 
-对于无环境的用户，可直接使用WebIDE开发平台，即“**一站式开发平台**”，该平台为您提供在线可直接运行的昇腾环境，环境中已安装必备的软件包，无需手动安装。更多关于开发平台的介绍请参考[LINK](https://gitcode.com/org/cann/discussions/54)。
+对于无环境的用户，可直接使用WebIDE开发平台，即“**一站式开发平台**”。更多关于开发平台的介绍请参考[LINK](https://gitcode.com/org/cann/discussions/54)。
 
 1. 进入开源项目，单击“`云开发`”按钮，使用已认证过的华为云账号登录。若未注册或认证，请根据页面提示进行注册和认证。
 
@@ -181,7 +181,9 @@ pyasc支持通过pip快速安装和基于源码编译安装两种方式。
 
    <img src="./figures/webIDE.png" alt="云平台"  width="1000px" height="150px">
 
-#### 手动安装软件包
+WebIDE平台默认安装CANN8.5.0软件包，本仓建议用户在WebIDE平台上使用CANN master软件包，请访问[CANN master obs镜像网站](https://ascend.devcloud.huaweicloud.com/artifactory/cann-run-mirror/software/master)，下载**日期最新**的CANN包，安装方式见[手动安装软件包](#手动安装软件包)。如用户已更新过CANN软件包则无需重新安装。
+
+#### 手动安装软件包<a name=canninstall></a>
 
 若您选择手动安装软件包，请按照如下步骤选择正确的版本进行安装。
 
@@ -363,10 +365,3 @@ cd test
 sudo apt install lcov
 bash build_llt.sh --cov --check-ascir --llvm_install_path ${llvm_install_path} --lit_install_path ${lit_install_path}
 ```
-
-## FAQ
-### pip安装python依赖报错
-#### 问题描述
-在使用pip安装部分python依赖时可能出现提示`ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.`一般出现在[运行环境安装python依赖](#runtimepip)步骤，该提示为pip依赖解析器发出的警告，不影响后续样例以及UT执行。
-#### 解决措施
-更新CANN包至最新版本。
