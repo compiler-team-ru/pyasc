@@ -131,7 +131,7 @@ def verify_matmul_arguments(input: Tile, other: Tile) -> None:
         raise BinaryOperandTypeError(f"Input operands must be tiles, got {type(input)} and {type(other)}")
     if input.dtype != other.dtype:
         raise RuntimeError(f"Input tiles must have the same types, got {input.dtype} and {other.dtype}")
-    if input.dtype != KT.float32 and input.dtype != KT.float16:
+    if input.dtype not in (KT.float32, KT.float16, KT.bfloat16):
         raise RuntimeError(f"Input tiles have unsupported types: {input.dtype}")
     if len(input.shape) != 2 or len(other.shape) != 2:
         raise RuntimeError(f"Input tiles must have two dims, got {len(input.shape)} and {len(other.shape)}")

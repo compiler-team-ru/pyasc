@@ -52,8 +52,9 @@ def AscendC_LoadDataL0Op : CopyToL0Op<"load_data_l0", "LoadData", [AscFunc]> {
   }];
 }
 
-def AscendC_LoadDataG2LOp
-    : DataCopyOp<"load_data_g2l", "LoadData", [AscFunc, OpWithDstInterface, OpWithSrcInterface]> {
+def AscendC_LoadDataG2LOp : DataCopyOp<"load_data_g2l", "LoadData", [
+  AscFunc, OpWithDstInterface, OpWithSrcInterface
+]> {
   let description = "Perform 2D LoadData from GlobalTensor to LocalTensor";
   let arguments = (ins AscendC_LocalTensor:$dst,
                        AscendC_BaseTensorTypeInterface:$src,
@@ -63,8 +64,9 @@ def AscendC_LoadDataG2LOp
   }];
 }
 
-def AscendC_LoadDataL0V2Op
-    : DataCopyOp<"load_data_l0_v2", "LoadData", [AscFunc, OpWithDstInterface, OpWithSrcInterface]> {
+def AscendC_LoadDataL0V2Op : DataCopyOp<"load_data_l0_v2", "LoadData", [
+  AscFunc, OpWithDstInterface, OpWithSrcInterface
+]> {
   let description = "Perform 2D LoadData V2 between LocalTensor and LocalTensor";
   let arguments = (ins AscendC_LocalTensor:$dst,
                        AscendC_BaseTensorTypeInterface:$src,
@@ -74,8 +76,9 @@ def AscendC_LoadDataL0V2Op
   }];
 }
 
-def AscendC_LoadDataG2LV2Op
-    : DataCopyOp<"load_data_g2l_v2", "LoadData", [AscFunc, OpWithDstInterface, OpWithSrcInterface]> {
+def AscendC_LoadDataG2LV2Op : DataCopyOp<"load_data_g2l_v2", "LoadData", [
+  AscFunc, OpWithDstInterface, OpWithSrcInterface
+]> {
   let description = "Perform 2D LoadData V2 from GlobalTensor to LocalTensor";
   let arguments = (ins AscendC_LocalTensor:$dst,
                        AscendC_BaseTensorTypeInterface:$src,
@@ -126,7 +129,9 @@ def AscendC_LoadDataWithSparseOp
 }
 
 def AscendC_LoadDataWithTransposeOp
-    : CopyToL0Op<"load_data_with_transpose", "LoadDataWithTranspose", [AscFunc]> {
+    : APIOp<"load_data_with_transpose", "LoadDataWithTranspose", [
+  AscFunc, OpWithDstInterface, OpWithSrcInterface
+]> {
   let description = "Perform 2D LoadData with transpose between tensors";
   let arguments = (ins AscendC_LocalTensor:$dst, AscendC_LocalTensor:$src,
                        AscendC_LoadData2dTransposeParams:$loadDataParams);

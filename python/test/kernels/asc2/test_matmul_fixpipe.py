@@ -6,6 +6,7 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
+import pytest
 import torch
 
 import asc
@@ -32,11 +33,14 @@ def matmul_launch(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     return c
 
 
-def test_matmul_fixpipe(backend: config.Backend, platform: config.Platform):
+@pytest.mark.parametrize("m, k, n, dtype", [
+    (64, 128, 128, torch.float32),
+    (64, 128, 256, torch.float16),
+    (64, 128, 256, torch.bfloat16),
+])
+def test_matmul_fixpipe(backend: config.Backend, platform: config.Platform, m, k, n, dtype):
     config.set_platform(backend, platform)
     device = "npu" if config.Backend(backend) == config.Backend.NPU else "cpu"
-    m, k, n = 64, 128, 256
-    dtype = torch.float16
     a = (torch.rand((m, k), dtype=dtype, device=device) - .5) * 10
     b = (torch.rand((k, n), dtype=dtype, device=device) - .5) * 10
     c = matmul_launch(a, b)
