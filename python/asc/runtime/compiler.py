@@ -99,7 +99,7 @@ class CompileOptions:
 
     vf_fusion: bool = False
     """
-    Perform the merging of vector blocks. 
+    Perform the merging of vector blocks.
     The function can eliminate unnecessary memory accesses and improve data locality.
     """
 
@@ -225,6 +225,7 @@ class Compiler:
             passes.asclower.add_lower_asctile_i1(pm)
             passes.asclower.add_lower_math(pm)
             passes.asclower.add_lower_scf(pm)
+            passes.asclower.add_displace_concat(pm)
             passes.common.add_canonicalizer(pm)
             passes.asclower.add_realize_conversion_cast(pm)
             passes.asclower.add_expand_mask(pm)
