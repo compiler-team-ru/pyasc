@@ -19,6 +19,7 @@ namespace asclower {
 #define GEN_PASS_DECL
 #include "ascir/Conversion/LowerToAsc/Passes.h.inc"
 
+std::unique_ptr<Pass> createDisplaceConcatPass();
 std::unique_ptr<Pass> createExpandMaskPass();
 std::unique_ptr<Pass> createExpandMathPass();
 std::unique_ptr<Pass> createLowerArithPass();
