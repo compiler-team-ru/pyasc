@@ -224,6 +224,17 @@ void bindEnums(py::module& m)
         .value("NE", asctile::CompareMode::NE)
         .def_static(
             "symbolize", [](uint8_t mode) -> asctile::CompareMode { return static_cast<asctile::CompareMode>(mode); });
+
+    py::enum_<asctile::ReduceKind>(m, "ReduceKind", py::module_local())
+        .value("Sum", asctile::ReduceKind::Sum)
+        .value("Max", asctile::ReduceKind::Max)
+        .value("Min", asctile::ReduceKind::Min)
+        .value("Prod", asctile::ReduceKind::Prod)
+        .value("Mean", asctile::ReduceKind::Mean)
+        .value("All", asctile::ReduceKind::All)
+        .value("Any", asctile::ReduceKind::Any)
+        .value("XorSum", asctile::ReduceKind::XorSum)
+        .def_static("symbolize", [](int32_t kind) { return static_cast<asctile::ReduceKind>(kind); });
 }
 
 void bindContextAndDialect(py::module& m)

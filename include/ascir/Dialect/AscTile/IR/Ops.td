@@ -254,21 +254,17 @@ def SelectOp : AscTile_Op<"select", [
   }];
 }
 
-class AscTile_ReduceAs1dOp<string mnemonic>: AscTile_Op<mnemonic, [
+def ReduceAs1dOp : AscTile_Op<"reduce_as_1d", [
   Pure, AllElementTypesMatch<["operand", "result"]>
 ]> {
   let summary = "Reduce tile to 1-element tile or a scalar value";
-  let arguments = (ins NumericTile:$operand);
+  let arguments = (ins NumericTile:$operand, AscTile_ReduceKindAttr:$kind);
   let results = (outs AnyTypeOf<[AscTile_Numeric,
                  TileOfLengthAndType<[1], [AscTile_Numeric]>]>:$result);
   let assemblyFormat = [{
-    $operand attr-dict `:` qualified(type($operand)) `,` type($result)
+    $kind $operand attr-dict `:` qualified(type($operand)) `,` type($result)
   }];
 }
-
-def ReduceSumAs1dOp : AscTile_ReduceAs1dOp<"reduce_sum_as_1d">;
-def ReduceMaxAs1dOp : AscTile_ReduceAs1dOp<"reduce_max_as_1d">;
-def ReduceMinAs1dOp : AscTile_ReduceAs1dOp<"reduce_min_as_1d">;
 
 def AtomicRMWOp : AscTile_Op<"atomic_rmw", [
   AllElementTypesMatch<["base", "value"]>, MemoryEffectsOpInterface
@@ -346,21 +342,18 @@ def BroadcastOp : AscTile_Op<"broadcast", [
   }];
 }
 
-class AscTile_ReduceOp<string mnemonic> : AscTile_Op<mnemonic, [
+def ReduceOp : AscTile_Op<"reduce", [
   Pure, AllElementTypesMatch<["operand", "result"]>
 ]> {
   let summary = "Reduce tile to the provided shape";
-  let arguments = (ins NumericTile:$operand, I32ArrayAttr:$dims);
+  let arguments = (ins NumericTile:$operand, I32ArrayAttr:$dims,
+                   AscTile_ReduceKindAttr:$kind);
   let results = (outs NumericTile:$result);
   let assemblyFormat = [{
-    $operand attr-dict `:` qualified(type($operand)) `,` qualified(type($result))
+    $kind $operand attr-dict `:` qualified(type($operand)) `,`
+    qualified(type($result))
   }];
 }
-
-def AscTile_ReduceSumOp: AscTile_ReduceOp<"reduce_sum">;
-def AscTile_ReduceMinOp: AscTile_ReduceOp<"reduce_min">;
-def AscTile_ReduceMaxOp: AscTile_ReduceOp<"reduce_max">;
-def AscTile_ReduceProdOp: AscTile_ReduceOp<"reduce_prod">;
 
 def StoreFixpipeOp : AscTile_Op<"store_fixpipe", [MemoryEffectsOpInterface]> {
   let summary = "Store a tile into a tensor";
