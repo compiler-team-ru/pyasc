@@ -54,6 +54,7 @@ from asc.language.tile.prog_model_ops import (
 from asc.language.tile.shape_ops import (
     broadcast_to,
     expand_dims,
+    ravel,
     reshape,
     squeeze,
 )
@@ -137,6 +138,7 @@ __all__ = [
     # shape_ops
     "broadcast_to",
     "expand_dims",
+    "ravel",
     "reshape",
     "squeeze",
     # unary_ops
