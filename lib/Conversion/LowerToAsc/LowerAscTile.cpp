@@ -119,10 +119,8 @@ struct LoweringConversionTarget : public ConversionTarget {
             asctile::TensorOp, asctile::LoadOp, asctile::GetValueOp, asctile::StoreOp, asctile::SetValueOp,
             asctile::SplatOp, asctile::ReluOp, asctile::CastOp, asctile::SoftmaxOp, asctile::MatmulOp,
             asctile::ReshapeOp, asctile::BroadcastOp, asctile::AddSOp, asctile::SubSOp, asctile::MulSOp,
-            asctile::DivSOp, asctile::MinSOp, asctile::MaxSOp, asctile::ShLSOp, asctile::ShRSOp,
-            asctile::ReduceSumAs1dOp, asctile::ReduceMinAs1dOp, asctile::ReduceMaxAs1dOp, asctile::ReduceSumOp,
-            asctile::ReduceMinOp, asctile::ReduceMaxOp, asctile::ReduceProdOp, asctile::AccumulatorOp,
-            asctile::MatmulAccOp, asctile::CopyOp, asctile::StoreFixpipeOp
+            asctile::DivSOp, asctile::MinSOp, asctile::MaxSOp, asctile::ShLSOp, asctile::ShRSOp, asctile::ReduceAs1dOp,
+            asctile::ReduceOp, asctile::AccumulatorOp, asctile::MatmulAccOp, asctile::CopyOp, asctile::StoreFixpipeOp
             //
             >();
         addLegalDialect<
@@ -779,13 +777,12 @@ struct ConvertVecScalarToL2 : ConvertOp<TileOp> {
     }
 };
 
-template <typename TileOp, typename L2Op>
-struct ConvertReduceAs1d : ConvertOp<TileOp> {
-    using ConvertOp<TileOp>::ConvertOp;
-    using ConvertOp<TileOp>::createTensorOp;
-    using ConvertOp<TileOp>::calCount;
+struct ConvertReduceAs1d : ConvertOp<asctile::ReduceAs1dOp> {
+    using ConvertOp::calCount;
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
 
-    LogicalResult convert(TileOp op, ConvertRewriter& rewriter) const override
+    LogicalResult convert(asctile::ReduceAs1dOp op, ConvertRewriter& rewriter) const override
     {
         Type elemType = getElementTypeOrSelf(op.getType());
         unsigned int typeSize = ascendc::getTypeSize(elemType);
@@ -795,10 +792,16 @@ struct ConvertReduceAs1d : ConvertOp<TileOp> {
         Value dst = createTensorOp(rewriter, loc, 1, elemType);
         Value src = rewriter.getRemappedValue(op.getOperand());
         Value tmpBuff = createTensorOp(rewriter, loc, static_cast<int64_t>(finalSize), elemType);
-        if constexpr (std::is_same_v<L2Op, ascendc::ReduceSumL2Op>)
-            rewriter.create<L2Op>(loc, dst, src, tmpBuff, consts.i64(calCount(op.getOperand())));
+        Value count = consts.i64(calCount(op.getOperand()));
+        auto kind = op.getKind();
+        if (kind == asctile::ReduceKind::Sum)
+            rewriter.create<ascendc::ReduceSumL2Op>(loc, dst, src, tmpBuff, count);
+        else if (kind == asctile::ReduceKind::Max)
+            rewriter.create<ascendc::ReduceMaxL2Op>(loc, dst, src, tmpBuff, count, consts.i64(0));
+        else if (kind == asctile::ReduceKind::Min)
+            rewriter.create<ascendc::ReduceMinL2Op>(loc, dst, src, tmpBuff, count, consts.i64(0));
         else
-            rewriter.create<L2Op>(loc, dst, src, tmpBuff, consts.i64(calCount(op.getOperand())), consts.i64(0));
+            return op.emitOpError() << "with " << asctile::stringifyReduceKind(kind) << " is not supported";
         if (isa<asctile::TileType>(op.getType()))
             rewriter.replaceOp(op, dst);
         else
@@ -807,10 +810,9 @@ struct ConvertReduceAs1d : ConvertOp<TileOp> {
     }
 };
 
-template <typename TileOp, typename AscOp>
-struct ConvertReduce : ConvertOp<TileOp> {
-    using ConvertOp<TileOp>::ConvertOp;
-    using ConvertOp<TileOp>::createTensorOp;
+struct ConvertReduce : ConvertOp<asctile::ReduceOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
 
     static std::optional<ascendc::ReducePattern> findPattern(size_t length, uint64_t mask)
     {
@@ -872,7 +874,7 @@ struct ConvertReduce : ConvertOp<TileOp> {
         return std::pair(shape, findPattern(shape.size(), mask));
     }
 
-    LogicalResult convert(TileOp op, ConvertRewriter& rewriter) const override
+    LogicalResult convert(asctile::ReduceOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         Location loc = op.getLoc();
@@ -893,7 +895,17 @@ struct ConvertReduce : ConvertOp<TileOp> {
         Value dst = createTensorOp(rewriter, loc, op.getType());
         Value src = rewriter.getRemappedValue(op.getOperand());
         Value tmpBuff = createTensorOp(rewriter, loc, srcType.getNumElements() * 4, rewriter.getIntegerType(8, false));
-        rewriter.create<AscOp>(loc, dst, src, tmpBuff, srcShape, *pattern);
+        auto kind = op.getKind();
+        if (kind == asctile::ReduceKind::Sum)
+            rewriter.create<ascendc::ReduceSumOp>(loc, dst, src, tmpBuff, srcShape, *pattern);
+        else if (kind == asctile::ReduceKind::Max)
+            rewriter.create<ascendc::ReduceMaxOp>(loc, dst, src, tmpBuff, srcShape, *pattern);
+        else if (kind == asctile::ReduceKind::Min)
+            rewriter.create<ascendc::ReduceMinOp>(loc, dst, src, tmpBuff, srcShape, *pattern);
+        else if (kind == asctile::ReduceKind::Prod)
+            rewriter.create<ascendc::ReduceProdOp>(loc, dst, src, tmpBuff, srcShape, *pattern);
+        else
+            return op.emitOpError() << "with " << asctile::stringifyReduceKind(kind) << " is not supported";
         rewriter.replaceOp(op, dst);
         return success();
     }
@@ -1025,20 +1037,13 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
             //
             ConvertTensor, ConvertLoad, ConvertGetValue, ConvertStore, ConvertSetValue, ConvertSplat, ConvertRelu,
             ConvertCast, ConvertMatmul, ConvertReshape, ConvertBroadcast, ConvertSoftmax, ConvertRmsNorm,
-            ConvertAccumulator, ConvertMatmulAcc, ConvertCopy, ConvertStoreFixpipe,
+            ConvertAccumulator, ConvertMatmulAcc, ConvertCopy, ConvertStoreFixpipe, ConvertReduceAs1d, ConvertReduce,
             ConvertToL2<asctile::AddSOp, ascendc::AddsL2Op>,
             ConvertVecScalarToL2<asctile::SubSOp, ascendc::SubsL2Op, ascendc::SubL2Op>,
             ConvertToL2<asctile::MulSOp, ascendc::MulsL2Op>,
             ConvertVecScalarToL2<asctile::DivSOp, ascendc::DivsL2Op, ascendc::DivL2Op>,
             ConvertToL2<asctile::MinSOp, ascendc::MinsL2Op>, ConvertToL2<asctile::MaxSOp, ascendc::MaxsL2Op>,
-            ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>, ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>,
-            ConvertReduceAs1d<asctile::ReduceSumAs1dOp, ascendc::ReduceSumL2Op>,
-            ConvertReduceAs1d<asctile::ReduceMinAs1dOp, ascendc::ReduceMinL2Op>,
-            ConvertReduceAs1d<asctile::ReduceMaxAs1dOp, ascendc::ReduceMaxL2Op>,
-            ConvertReduce<asctile::ReduceSumOp, ascendc::ReduceSumOp>,
-            ConvertReduce<asctile::ReduceMinOp, ascendc::ReduceMinOp>,
-            ConvertReduce<asctile::ReduceMaxOp, ascendc::ReduceMaxOp>,
-            ConvertReduce<asctile::ReduceProdOp, ascendc::ReduceProdOp>
+            ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>, ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>
             //
             >(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())

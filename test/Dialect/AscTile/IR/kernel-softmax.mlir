@@ -11,11 +11,11 @@ module {
     %3 = ascendc.get_block_num : i32
     scf.for %arg4 = %2 to %arg2 step %3  : i32 {
       %4 = asctile.load %0[%arg4, %c0_i32], %cst : !asctile.tensor<?x?xf32>, !asctile.tile<1x1024xf32, UB>
-      %5 = asctile.reduce_max_as_1d %4 : !asctile.tile<1x1024xf32, UB>, f32
+      %5 = asctile.reduce_as_1d <max> %4 : !asctile.tile<1x1024xf32, UB>, f32
       %6 = asctile.splat %5 : !asctile.tile<1x1024xf32, UB>
       %7 = arith.subf %4, %6 : !asctile.tile<1x1024xf32, UB>
       %8 = math.exp %7 : !asctile.tile<1x1024xf32, UB>
-      %9 = asctile.reduce_sum_as_1d %8 : !asctile.tile<1x1024xf32, UB>, f32
+      %9 = asctile.reduce_as_1d <sum> %8 : !asctile.tile<1x1024xf32, UB>, f32
       %10 = asctile.splat %9 : !asctile.tile<1x1024xf32, UB>
       %11 = arith.divf %8, %10 : !asctile.tile<1x1024xf32, UB>
       asctile.store %11, %1[%arg4, %c0_i32] : !asctile.tile<1x1024xf32, UB>, !asctile.tensor<?x?xf32>

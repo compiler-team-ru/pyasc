@@ -268,7 +268,7 @@ func.func @lower_shrs(%arg0: !asctile.tile<16xf32, UB>, %arg1: f32) -> !asctile.
 // CHECK-NEXT:  return %3 : f32
 // CHECK-NEXT:}
 func.func @lower_reduce_sum_as_1d(%arg0: !asctile.tile<16x32x8xf32, UB>) -> f32 {
-  %0 = asctile.reduce_sum_as_1d %arg0 : !asctile.tile<16x32x8xf32, UB>, f32
+  %0 = asctile.reduce_as_1d <sum> %arg0 : !asctile.tile<16x32x8xf32, UB>, f32
   return %0 : f32
 }
 
@@ -281,7 +281,7 @@ func.func @lower_reduce_sum_as_1d(%arg0: !asctile.tile<16x32x8xf32, UB>) -> f32 
 // CHECK-NEXT:  return %3 : f32
 // CHECK-NEXT:}
 func.func @lower_reduce_min_as_1d(%arg0: !asctile.tile<16xf32, UB>) -> f32 {
-  %0 = asctile.reduce_min_as_1d %arg0 : !asctile.tile<16xf32, UB>, f32
+  %0 = asctile.reduce_as_1d <min> %arg0 : !asctile.tile<16xf32, UB>, f32
   return %0 : f32
 }
 
@@ -294,7 +294,7 @@ func.func @lower_reduce_min_as_1d(%arg0: !asctile.tile<16xf32, UB>) -> f32 {
 // CHECK-NEXT:  return %3 : f32
 // CHECK-NEXT:}
 func.func @lower_reduce_max_as_1d(%arg0: !asctile.tile<16xf32, UB>) -> f32 {
-  %0 = asctile.reduce_max_as_1d %arg0 : !asctile.tile<16xf32, UB>, f32
+  %0 = asctile.reduce_as_1d <max> %arg0 : !asctile.tile<16xf32, UB>, f32
   return %0 : f32
 }
 
@@ -307,7 +307,7 @@ func.func @lower_reduce_max_as_1d(%arg0: !asctile.tile<16xf32, UB>) -> f32 {
 // CHECK-NEXT:  return %2 : !asctile.tile<32xf32, UB>
 // CHECK-NEXT:}
 func.func @lower_reduce_sum(%arg0: !asctile.tile<64x32xf32, UB>) -> !asctile.tile<32xf32, UB> {
-  %0 = asctile.reduce_sum %arg0 {dims = [0 : i32]} : !asctile.tile<64x32xf32, UB>, !asctile.tile<32xf32, UB>
+  %0 = asctile.reduce <sum> %arg0 {dims = [0 : i32]} : !asctile.tile<64x32xf32, UB>, !asctile.tile<32xf32, UB>
   return %0 : !asctile.tile<32xf32, UB>
 }
 
@@ -320,7 +320,7 @@ func.func @lower_reduce_sum(%arg0: !asctile.tile<64x32xf32, UB>) -> !asctile.til
 // CHECK-NEXT:  return %2 : !asctile.tile<32xf32, UB>
 // CHECK-NEXT:}
 func.func @lower_reduce_min(%arg0: !asctile.tile<64x32xf32, UB>) -> !asctile.tile<32xf32, UB> {
-  %0 = asctile.reduce_min %arg0 {dims = [0 : i32]} : !asctile.tile<64x32xf32, UB>, !asctile.tile<32xf32, UB>
+  %0 = asctile.reduce <min> %arg0 {dims = [0 : i32]} : !asctile.tile<64x32xf32, UB>, !asctile.tile<32xf32, UB>
   return %0 : !asctile.tile<32xf32, UB>
 }
 
@@ -333,7 +333,7 @@ func.func @lower_reduce_min(%arg0: !asctile.tile<64x32xf32, UB>) -> !asctile.til
 // CHECK-NEXT:  return %2 : !asctile.tile<32xf32, UB>
 // CHECK-NEXT:}
 func.func @lower_reduce_max(%arg0: !asctile.tile<64x32xf32, UB>) -> !asctile.tile<32xf32, UB> {
-  %0 = asctile.reduce_max %arg0 {dims = [1 : i32]} : !asctile.tile<64x32xf32, UB>, !asctile.tile<32xf32, UB>
+  %0 = asctile.reduce <max> %arg0 {dims = [1 : i32]} : !asctile.tile<64x32xf32, UB>, !asctile.tile<32xf32, UB>
   return %0 : !asctile.tile<32xf32, UB>
 }
 
@@ -346,7 +346,7 @@ func.func @lower_reduce_max(%arg0: !asctile.tile<64x32xf32, UB>) -> !asctile.til
 // CHECK-NEXT:  return %2 : !asctile.tile<32xf32, UB>
 // CHECK-NEXT:}
 func.func @lower_reduce_prod(%arg0: !asctile.tile<64x32xf32, UB>) -> !asctile.tile<32xf32, UB> {
-  %0 = asctile.reduce_prod %arg0 {dims = [0 : i32]} : !asctile.tile<64x32xf32, UB>, !asctile.tile<32xf32, UB>
+  %0 = asctile.reduce <prod> %arg0 {dims = [0 : i32]} : !asctile.tile<64x32xf32, UB>, !asctile.tile<32xf32, UB>
   return %0 : !asctile.tile<32xf32, UB>
 }
 

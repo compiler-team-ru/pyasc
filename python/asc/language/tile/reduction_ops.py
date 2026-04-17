@@ -6,10 +6,10 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-from typing import Callable, List, Optional, Tuple, Union, overload
+from typing import List, Tuple, Union, overload
 
 from ..._C import ir
-from ..core.ir_value import PlainValue, IRHandle
+from ..core.ir_value import PlainValue
 from ..core.utils import global_builder
 from .tile import Tile, bind_tile_method
 
@@ -30,12 +30,13 @@ def get_reduction_shape(tensor_shape: Tuple[int], keep_dims: bool, dims: Tuple[i
     return result
 
 
-def op_reduce_impl(build_1d: Optional[Callable[..., IRHandle]], build: Callable[..., IRHandle], input: Tile,
-                   keep_dims: bool, dims: Tuple[int]) -> Union[Tile, PlainValue]:
+def op_reduce_impl(input: Tile, keep_dims: bool, dims: Tuple[int], kind: ir.ReduceKind,
+                   support_as_1d: bool) -> Union[Tile, PlainValue]:
+    builder = global_builder.get_ir_builder()
     if len(dims) == 0:
-        if build_1d is None:
+        if not support_as_1d:
             raise RuntimeError("Reduction to scalar not supported")
-        handle = build_1d(input.dtype.to_ir(), input.to_ir())
+        handle = builder.create_asctile_ReduceAs1dOp(input.dtype.to_ir(), input.to_ir(), kind)
         return PlainValue(handle)
     if not all(isinstance(dim, int) for dim in dims):
         raise RuntimeError("All reduction dimensions must be integers")
@@ -43,7 +44,7 @@ def op_reduce_impl(build_1d: Optional[Callable[..., IRHandle]], build: Callable[
     target_shape = get_reduction_shape(input.shape, keep_dims, dims)
     dtype = ir.get_element_type(input.to_ir().get_type())
     ir_type = ir.clone_shaped_type(input.to_ir().get_type(), dtype, target_shape)
-    handle = build(ir_type, input.to_ir(), dims_ir)
+    handle = builder.create_asctile_ReduceOp(ir_type, input.to_ir(), dims_ir, kind)
     return Tile(handle)
 
 
@@ -83,9 +84,7 @@ def reduce_sum(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, 
             input = asc2.load(x, [256, 256], offsets=[0, 0])
             result = asc2.reduce_sum(input)
     """
-    builder = global_builder.get_ir_builder()
-    return op_reduce_impl(builder.create_asctile_ReduceSumAs1dOp, builder.create_asctile_ReduceSumOp, input, keep_dims,
-                          dims)
+    return op_reduce_impl(input, keep_dims, dims, ir.ReduceKind.Sum, support_as_1d=True)
 
 
 @overload
@@ -124,9 +123,7 @@ def reduce_max(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, 
             input = asc2.load(x, [256, 256], offsets=[0, 0])
             result = asc2.reduce_max(input)
     """
-    builder = global_builder.get_ir_builder()
-    return op_reduce_impl(builder.create_asctile_ReduceMaxAs1dOp, builder.create_asctile_ReduceMaxOp, input, keep_dims,
-                          dims)
+    return op_reduce_impl(input, keep_dims, dims, ir.ReduceKind.Max, support_as_1d=True)
 
 
 @overload
@@ -165,9 +162,7 @@ def reduce_min(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, 
             input = asc2.load(x, [256, 256], offsets=[0, 0])
             result = asc2.reduce_min(input)
     """
-    builder = global_builder.get_ir_builder()
-    return op_reduce_impl(builder.create_asctile_ReduceMinAs1dOp, builder.create_asctile_ReduceMinOp, input, keep_dims,
-                          dims)
+    return op_reduce_impl(input, keep_dims, dims, ir.ReduceKind.Min, support_as_1d=True)
 
 
 @bind_tile_method(name="prod")
@@ -190,5 +185,4 @@ def reduce_prod(input: Tile, *dims: int, keep_dims: bool = False) -> Tile:
             input = asc2.load(x, [128, 256], offsets=[0, 0])
             result = asc2.reduce_prod(0)
     """
-    builder = global_builder.get_ir_builder()
-    return op_reduce_impl(None, builder.create_asctile_ReduceProdOp, input, keep_dims, dims)
+    return op_reduce_impl(input, keep_dims, dims, ir.ReduceKind.Prod, support_as_1d=False)
