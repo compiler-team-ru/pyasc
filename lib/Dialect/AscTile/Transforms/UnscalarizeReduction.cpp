@@ -50,17 +50,17 @@ struct ConvertTileScalar : OpConversionPattern<OpT> {
     }
 };
 
-template <typename OpT>
-struct ConvertReduce : OpConversionPattern<OpT> {
-    using OpConversionPattern<OpT>::OpConversionPattern;
-    using OpConversionPattern<OpT>::getTypeConverter;
+struct ConvertReduce : OpConversionPattern<asctile::ReduceAs1dOp> {
+    using OpConversionPattern::getTypeConverter;
+    using OpConversionPattern::OpConversionPattern;
 
-    LogicalResult
-    matchAndRewrite(OpT op, typename OpT::Adaptor adaptor, ConversionPatternRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(
+        asctile::ReduceAs1dOp op, asctile::ReduceAs1dOp::Adaptor adaptor,
+        ConversionPatternRewriter& rewriter) const override
     {
         auto resultType = getTypeConverter()->convertType(op.getType());
-        auto newOp = rewriter.replaceOpWithNewOp<OpT>(op, resultType, adaptor.getOperands(), op->getAttrs());
-        newOp->removeAttr(unscalarizeAttr);
+        rewriter.replaceOpWithNewOp<asctile::ReduceAs1dOp>(op, resultType, adaptor.getOperands(), op->getAttrs())
+            ->removeAttr(unscalarizeAttr);
         return success();
     }
 };
@@ -85,10 +85,9 @@ bool allUnscalarizableUsers(Operation* op)
     });
 }
 
-template <typename ReduceOp>
 void markOps(func::FuncOp root)
 {
-    root.walk([](ReduceOp op) {
+    root.walk([](asctile::ReduceAs1dOp op) {
         if (isa<asctile::TileType>(op.getType()) || !allUnscalarizableUsers(op))
             return;
         op->setAttr(unscalarizeAttr, UnitAttr::get(op.getContext()));
@@ -106,9 +105,7 @@ struct UnscalarizeReductionPass : public asctile::impl::UnscalarizeReductionBase
     void runOnOperation() override
     {
         func::FuncOp op = getOperation();
-        markOps<asctile::ReduceMinAs1dOp>(op);
-        markOps<asctile::ReduceMaxAs1dOp>(op);
-        markOps<asctile::ReduceSumAs1dOp>(op);
+        markOps(op);
         TypeConverter converter;
         converter.addConversion([](Type type) { return std::optional<Type>{type}; });
         converter.addConversion([](IntegerType type) { return asctile::TileType::get(1, type); });
@@ -129,8 +126,7 @@ struct UnscalarizeReductionPass : public asctile::impl::UnscalarizeReductionBase
             ConvertTileScalar<asctile::MinSOp, arith::MinimumFOp, arith::MinSIOp>,
             ConvertTileScalar<asctile::MaxSOp, arith::MaximumFOp, arith::MaxSIOp>,
             //
-            ConvertReduce<asctile::ReduceMaxAs1dOp>, ConvertReduce<asctile::ReduceMinAs1dOp>,
-            ConvertReduce<asctile::ReduceSumAs1dOp>, ConvertSplat
+            ConvertReduce, ConvertSplat
             //
             >(converter, context);
         if (applyFullConversion(op, target, std::move(patterns)).failed())
