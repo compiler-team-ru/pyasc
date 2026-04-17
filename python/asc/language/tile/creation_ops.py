@@ -51,3 +51,22 @@ def zeros_acc(shape: Iterable[int], dtype: DataType) -> Tile:
     ir_type = ir.get_asctile_TileType(shape, dtype.to_ir(), ir.TileLocation.L0C)
     handle = global_builder.get_ir_builder().create_asctile_AccumulatorOp(ir_type)
     return Tile.from_ir(handle)
+
+
+def concat(*inputs: Tile) -> Tile:
+    if not inputs or not all(isinstance(inp, Tile) for inp in inputs):
+        raise RuntimeError("All input arguments must be tiles")
+    same_shape = inputs[0].shape[1:]
+    if not all(inp.shape[1:] == same_shape for inp in inputs):
+        raise RuntimeError("All tiles must have the same shape except their first dimension")
+    dtype = inputs[0].dtype
+    if not all(inp.dtype == dtype for inp in inputs):
+        raise RuntimeError("All tiles must have the same dtype")
+    try:
+        dtype.sizeof()
+    except ValueError:
+        raise RuntimeError("Tile dtype size must fit an integer number of bytes")
+    result_shape = [sum(inp.shape[0] for inp in inputs), *same_shape]
+    ir_type = ir.get_asctile_TileType(result_shape, dtype.to_ir(), ir.TileLocation.UB)
+    handle = global_builder.get_ir_builder().create_asctile_ConcatOp(ir_type, [inp.to_ir() for inp in inputs])
+    return Tile.from_ir(handle)

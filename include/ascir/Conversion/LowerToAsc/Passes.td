@@ -13,6 +13,12 @@
 
 include "mlir/Pass/PassBase.td"
 
+def DisplaceConcat : Pass<"asclower-displace-concat", "func::FuncOp"> {
+  let summary = "Displace asctile.concat by rewriting related allocations";
+  let constructor = "mlir::asclower::createDisplaceConcatPass()";
+  let dependentDialects = ["arith::ArithDialect", "ascendc::AscendCDialect"];
+}
+
 def ExpandMask : Pass<"asclower-expand-mask", "func::FuncOp"> {
   let summary = "Update vector mask of nested operations and move them outside";
   let constructor = "mlir::asclower::createExpandMaskPass()";

@@ -375,4 +375,15 @@ def StoreFixpipeOp : AscTile_Op<"store_fixpipe", [MemoryEffectsOpInterface]> {
   let hasVerifier = 1;
 }
 
+def ConcatOp : AscTile_Op<"concat", [Pure, SameOperandsAndResultElementType]> {
+  let summary = "Concatenates the sequence of tiles along the first dimension";
+  let arguments = (ins Variadic<NumericTile>);
+  let results = (outs NumericTile:$result);
+  let assemblyFormat = [{
+    operands attr-dict `:` type(operands) `->` qualified(type($result))
+  }];
+  let hasFolder = 1;
+  let hasVerifier = 1;
+}
+
 #endif // ASCTILE_OPS_TD

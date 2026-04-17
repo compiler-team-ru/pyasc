@@ -35,6 +35,7 @@ from asc.language.tile.binary_ops import (
     sub,
 )
 from asc.language.tile.creation_ops import (
+    concat,
     full,
     full_like,
     zeros,
@@ -122,6 +123,7 @@ __all__ = [
     "right_shift",
     "sub",
     # creation_ops
+    "concat",
     "full",
     "full_like",
     "zeros",
