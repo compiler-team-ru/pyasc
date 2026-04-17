@@ -4,27 +4,14 @@ import asc2
 import pytest
 import torch
 
-# asc_op, torch_op, tuple of extra_arg, tensor_shape, dtype
+# asc_op, torch_op, *args, tensor_shape, dtype
 shape_ops = [
-    # asc2.broadcast_to
-    (asc2.broadcast_to, torch.broadcast_to, (4, 32), (1, 32), torch.float32),
-    (asc2.broadcast_to, torch.broadcast_to, (4, 32), (1, 32), torch.float16),
-    (asc2.broadcast_to, torch.broadcast_to, (4, 32), (1, 32), torch.int32),
-    (asc2.broadcast_to, torch.broadcast_to, (50, 32), (1, 32), torch.float32),
-    (asc2.broadcast_to, torch.broadcast_to, (50, 32), (1, 32), torch.float16),
-    (asc2.broadcast_to, torch.broadcast_to, (50, 32), (1, 32), torch.int32),
-    # asc2.reshape
-    (asc2.reshape, torch.reshape, (64, ), (2, 32), torch.float32),
-    (asc2.reshape, torch.reshape, (64, ), (2, 32), torch.float16),
-    (asc2.reshape, torch.reshape, (64, ), (2, 32), torch.int32),
-    # asc2.expand_dims
-    (asc2.expand_dims, torch.unsqueeze, (0, ), (32, ), torch.float32),
-    (asc2.expand_dims, torch.unsqueeze, (0, ), (32, ), torch.float16),
-    (asc2.expand_dims, torch.unsqueeze, (0, ), (32, ), torch.int32),
-    # asc2.squeeze
-    (asc2.squeeze, torch.squeeze, (0, ), (1, 32), torch.float32),
-    (asc2.squeeze, torch.squeeze, (0, ), (1, 32), torch.float16),
-    (asc2.squeeze, torch.squeeze, (0, ), (1, 32), torch.int32),
+    (asc2.broadcast_to, torch.broadcast_to, [4, 32], [1, 32], [torch.float16, torch.float32, torch.int32]),
+    (asc2.broadcast_to, torch.broadcast_to, [50, 32], [1, 32], [torch.float16, torch.float32, torch.int32]),
+    (asc2.reshape, torch.reshape, [64], [2, 32], [torch.float16, torch.float32, torch.int32]),
+    (asc2.ravel, torch.ravel, [], [2, 32], [torch.float16, torch.float32, torch.int32]),
+    (asc2.expand_dims, torch.unsqueeze, [0], [32], [torch.float16, torch.float32, torch.int32]),
+    (asc2.squeeze, torch.squeeze, [0], [1, 32], [torch.float16, torch.float32, torch.int32]),
 ]
 
 
@@ -36,31 +23,37 @@ def kernel(x_ptr: asc.GlobalAddress, z_ptr: asc.GlobalAddress, input_shape: asc.
     asc2.store(zt, asc2.tensor(z_ptr, output_shape), offsets=out_offsets)
 
 
-@pytest.mark.parametrize("asc_op, torch_op, arg, shape, dtype",
-                         [(asc_op, torch_op, arg, shape, dtype) for asc_op, torch_op, arg, shape, dtype in shape_ops])
-def test_shape_op(backend, platform, require_platform_95, asc_op, torch_op, arg, shape, dtype):
+def local_ids(obj) -> str:
+    if callable(obj):
+        return obj.__name__
+    return str(obj)
+
+
+@pytest.mark.parametrize("asc_op, torch_op, args, shape, dtype", [(asc_op, torch_op, args, shape, d)
+                                                                  for asc_op, torch_op, args, shape, dtypes in shape_ops
+                                                                  for d in dtypes], ids=local_ids)
+def test_shape_op(backend, platform, require_platform_95, asc_op, torch_op, args, shape, dtype: torch.dtype):
     if asc_op is asc2.broadcast_to:
         require_platform_95(platform)
     config.set_platform(backend, platform, check=False)
 
     def create_input(tensor_shape):
-        if dtype == torch.float32:
-            res = torch.randn(tensor_shape, dtype=dtype, device=device)
-            res = torch.clamp(res, 1, 100)
-        else:
-            res = torch.randint(1, 100, tensor_shape, dtype=dtype, device=device)
-        return res
+        if dtype.is_floating_point:
+            return torch.randn(tensor_shape, dtype=dtype, device="cpu").clamp(1, 100)
+        elif dtype.is_signed:
+            return torch.randint(1, 100, tensor_shape, dtype=dtype, device="cpu")
 
-    device = "cpu"
     x = create_input(shape)
-    if asc_op == asc2.expand_dims or asc_op == asc2.squeeze:
-        ref_z = torch_op(x, dim=arg[0])
+    if asc_op in (asc2.expand_dims, asc2.squeeze):
+        ref_z = torch_op(x, dim=args[0])
+    elif not args:
+        ref_z = torch_op(x)
     else:
-        ref_z = torch_op(x, arg)
+        ref_z = torch_op(x, args)
     z = create_input(ref_z.shape)
     in_offsets = (0, ) * len(x.shape)
     out_offsets = (0, ) * len(ref_z.shape)
-    kernel[1](x, z, x.shape, ref_z.shape, in_offsets, out_offsets, asc_op, arg)
+    kernel[1](x, z, x.shape, ref_z.shape, in_offsets, out_offsets, asc_op, args)
     torch.testing.assert_close(z, ref_z, atol=1e-3, rtol=1e-3)
 
 
