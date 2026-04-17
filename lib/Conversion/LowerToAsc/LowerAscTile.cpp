@@ -111,6 +111,21 @@ unsigned int calculateFinalTensorSize(const unsigned int& typeSize, int64_t calC
     return llvm::divideCeilSigned(firstMaxRepeat, elementsPerBlock) * elementsPerBlock;
 }
 
+std::pair<int, int> unpack2DShape(ArrayRef<int64_t> shape)
+{
+    assert(shape.size() == 1 || shape.size() == 2);
+    return {shape.size() == 2 ? shape[0] : 1, shape.back()};
+}
+
+bool check1D2DShape(Operation* op, ArrayRef<int64_t> shape)
+{
+    if (shape.size() != 1 && shape.size() != 2) {
+        op->emitError() << "invalid dimension of input tensor";
+        return false;
+    }
+    return true;
+}
+
 struct LoweringConversionTarget : public ConversionTarget {
     LoweringConversionTarget(TensorTypeConverter& converter, MLIRContext* context) : ConversionTarget(*context)
     {
@@ -486,23 +501,15 @@ struct ConvertSoftmax : ConvertOp<asctile::SoftmaxOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    static std::pair<int, int> unpackShape(ArrayRef<int64_t> shape)
-    {
-        assert(shape.size() == 1 || shape.size() == 2);
-        return {shape.size() == 2 ? shape[0] : 1, shape.back()};
-    }
-
     LogicalResult convert(asctile::SoftmaxOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loc = op.getLoc();
         auto tensorType = op.getType();
         auto shape = tensorType.getShape();
-        if (shape.size() != 1 && shape.size() != 2) {
-            op.emitError() << "invalid dimension of input tensor";
+        if (!check1D2DShape(op, shape))
             return failure();
-        }
-        auto [height, width] = unpackShape(shape);
+        auto [height, width] = unpack2DShape(shape);
         auto src = rewriter.getRemappedValue(op.getOperand());
         auto dst = createTensorOp(rewriter, loc, tensorType);
         auto elemType = tensorType.getElementType();
@@ -544,12 +551,6 @@ struct ConvertRmsNorm : ConvertOp<asctile::RmsNormOp> {
         int tailBsLength;
     };
 
-    static std::pair<int, int> unpackShape(ArrayRef<int64_t> shape)
-    {
-        assert(shape.size() == 1 || shape.size() == 2);
-        return {shape.size() == 2 ? shape[0] : 1, shape.back()};
-    }
-
     static int alignToBlock(const int inputValue, const int typeSize)
     {
         int alignUnit = ONE_BLK_SIZE / typeSize;
@@ -559,7 +560,7 @@ struct ConvertRmsNorm : ConvertOp<asctile::RmsNormOp> {
     // TODO: Refactor
     static RmsNormTiling getRmsNormTiling(ArrayRef<int64_t> shape, bool isBasicBlock, int typeSize)
     {
-        auto [bLength, inHLength] = unpackShape(shape);
+        auto [bLength, inHLength] = unpack2DShape(shape);
         auto sLength = 1;
         auto hLength = alignToBlock(inHLength, typeSize);
         auto bshLength = bLength * sLength * hLength;
@@ -603,18 +604,14 @@ struct ConvertRmsNorm : ConvertOp<asctile::RmsNormOp> {
         auto loc = op.getLoc();
         auto tensorType = op.getType();
         auto shape = tensorType.getShape();
-        auto elemType = tensorType.getElementType();
-        auto typeSize = elemType.isF16() ? 2 : 4;
-        if (shape.size() != 1 && shape.size() != 2) {
-            op.emitError() << "invalid dimension of input tensor";
+        if (!check1D2DShape(op, shape))
             return failure();
-        }
         auto src = rewriter.getRemappedValue(op.getInput());
         auto gammaTensor = rewriter.getRemappedValue(op.getGamma());
         auto epsilon = rewriter.getRemappedValue(op.getEpsilon());
         auto dst = createTensorOp(rewriter, loc, tensorType);
         constexpr bool isBasicBlock = false;
-        RmsNormTiling tilingStruct = getRmsNormTiling(shape, isBasicBlock, typeSize);
+        RmsNormTiling tilingStruct = getRmsNormTiling(shape, isBasicBlock, ascendc::getElementTypeSize(tensorType));
         auto sharedBufTensor = createTensorOp(rewriter, loc, TOTAL_UB_SIZE, rewriter.getIntegerType(8, false));
         Value tiling = emitasc::InitStructBuilder(rewriter.getType<ascendc::RmsNormTilingType>())
                            .addField("bLength", consts.i32(tilingStruct.bLength))
