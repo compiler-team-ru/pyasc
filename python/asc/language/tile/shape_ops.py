@@ -84,6 +84,11 @@ def reshape(input: Tile, *shape: int) -> Tile:
 
 
 @bind_tile_method
+def ravel(input: Tile) -> Tile:
+    return reshape(input, math.prod(input.shape))
+
+
+@bind_tile_method
 def expand_dims(input: Tile, *axis: int) -> Tile:
     shape = list(input.shape)
     axis = sorted(set(axis))

@@ -217,6 +217,9 @@ class Tile(IRValue):
     def reshape(self, *shape: int) -> Self:
         ...
 
+    def ravel(self) -> Self:
+        ...
+
     def expand_dims(self, *axis: int) -> Self:
         ...
 
