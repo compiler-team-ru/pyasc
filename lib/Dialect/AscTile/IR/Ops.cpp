@@ -14,6 +14,9 @@
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/TypeUtilities.h"
+#include "llvm/ADT/STLExtras.h"
+
+#include <numeric>
 
 using namespace mlir;
 using namespace mlir::asctile;
@@ -58,6 +61,36 @@ LogicalResult AccumulatorOp::canonicalize(AccumulatorOp op, PatternRewriter &rew
         return success();
     }
     return failure();
+}
+
+//===----------------------------------------------------------------------===//
+// ConcatOp
+//===----------------------------------------------------------------------===//
+
+OpFoldResult ConcatOp::fold([[maybe_unused]] FoldAdaptor adaptor)
+{
+    if (getNumOperands() == 1)
+        return getOperand(0);
+    return nullptr;
+}
+
+LogicalResult ConcatOp::verify()
+{
+    if (getNumOperands() < 1)
+        return emitOpError("must have at least one operand");
+    if (!llvm::all_of(getOperands(),
+                      [](Value opnd) { return cast<TileType>(opnd.getType()).getLoc() == TileLocation::UB; }))
+        return emitOpError("tile operands must have UB tile location");
+    if (!llvm::all_equal(llvm::map_range(
+            getOperands(), [](Value opnd) { return cast<TileType>(opnd.getType()).getShape().drop_front(); })))
+        return emitOpError("tile operands must have the same shape except their first dimension");
+    SmallVector<int64_t> firstDims(
+        llvm::map_range(getOperands(), [](Value opnd) { return cast<TileType>(opnd.getType()).getShape().front(); }));
+    SmallVector<int64_t> resultShape(cast<TileType>(getOperand(0).getType()).getShape());
+    resultShape.front() = std::accumulate(firstDims.begin(), firstDims.end(), 0, std::plus<int64_t>());
+    if (resultShape != getType().getShape())
+        return emitOpError() << "result tile shape must be [" << resultShape << "]";
+    return success();
 }
 
 //===----------------------------------------------------------------------===//
