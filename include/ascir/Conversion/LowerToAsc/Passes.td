@@ -48,6 +48,15 @@ def LowerAscTile : Pass<"asclower-asctile", "func::FuncOp"> {
   let constructor = "mlir::asclower::createLowerAscTilePass()";
   let dependentDialects = [
     "arith::ArithDialect", "ascendc::AscendCDialect", "emitasc::EmitAscDialect",
+  ];
+}
+
+def LowerAscTileDataTransfer
+    : Pass<"asclower-asctile-data-transfer", "func::FuncOp"> {
+  let summary = "Lower asctile data transfer operations to ascendc";
+  let constructor = "mlir::asclower::createLowerAscTileDataTransferPass()";
+  let dependentDialects = [
+    "arith::ArithDialect", "ascendc::AscendCDialect", "emitasc::EmitAscDialect",
     "scf::SCFDialect",
   ];
 }
