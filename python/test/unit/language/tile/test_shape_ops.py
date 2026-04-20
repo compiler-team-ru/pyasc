@@ -9,6 +9,7 @@ shape_ops = [
     (asc2.broadcast_to, torch.broadcast_to, [4, 32], [1, 32], [torch.float16, torch.float32, torch.int32]),
     (asc2.broadcast_to, torch.broadcast_to, [50, 32], [1, 32], [torch.float16, torch.float32, torch.int32]),
     (asc2.reshape, torch.reshape, [64], [2, 32], [torch.float16, torch.float32, torch.int32]),
+    (asc2.reshape, torch.reshape, [4, 16], [64], [torch.float16, torch.float32, torch.int32]),
     (asc2.ravel, torch.ravel, [], [2, 32], [torch.float16, torch.float32, torch.int32]),
     (asc2.expand_dims, torch.unsqueeze, [0], [32], [torch.float16, torch.float32, torch.int32]),
     (asc2.squeeze, torch.squeeze, [0], [1, 32], [torch.float16, torch.float32, torch.int32]),
