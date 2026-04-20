@@ -665,12 +665,8 @@ struct ConvertReshape : ConvertOp<asctile::ReshapeOp> {
 
     LogicalResult convert(asctile::ReshapeOp op, ConvertRewriter& rewriter) const override
     {
-        Location loc = op.getLoc();
-        Value dst = createTensorOp(rewriter, loc, op.getType());
-        Value src = rewriter.getRemappedValue(op.getIn());
-        ascir::ConstantOpBuilder consts(rewriter);
-        rewriter.create<ascendc::DataCopyL2Op>(loc, dst, src, consts.i64(calCount(dst)));
-        rewriter.replaceOp(op, dst);
+        rewriter.replaceOpWithNewOp<ascendc::LocalTensorReinterpretCastOp>(
+            op, converter().convertType(op.getType()), rewriter.getRemappedValue(op.getIn()));
         return success();
     }
 };

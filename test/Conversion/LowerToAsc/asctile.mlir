@@ -148,10 +148,9 @@ func.func @lower_matmul(%arg0: !asctile.tile<8x16xf32, UB>, %arg1: !asctile.tile
 }
 
 // CHECK-LABEL: func.func @lower_reshape(%arg0: !asctile.tile<16x16xf32, UB>) -> !asctile.tile<8x32xf32, UB> {
-// CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<16x16xf32, UB> to !ascendc.local_tensor<16x16xf32>
-// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <8x32xf32>
+// CHECK-NEXT:  %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<16x16xf32, UB> to !ascendc.local_tensor<16x16xf32>
+// CHECK-NEXT:  %1 = ascendc.reinterpret_cast %0 : !ascendc.local_tensor<16x16xf32> to !ascendc.local_tensor<8x32xf32>
 // CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<8x32xf32> to !asctile.tile<8x32xf32, UB>
-// CHECK-NEXT:  ascendc.data_copy_l2 %1, %0, %c256_i64 : !ascendc.local_tensor<8x32xf32>, !ascendc.local_tensor<16x16xf32>, i64
 // CHECK-NEXT:  return %2 : !asctile.tile<8x32xf32, UB>
 // CHECK-NEXT:}
 func.func @lower_reshape(%arg0: !asctile.tile<16x16xf32, UB>) -> !asctile.tile<8x32xf32, UB> {
