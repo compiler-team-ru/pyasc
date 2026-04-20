@@ -221,6 +221,7 @@ class Compiler:
             passes.asclower.add_lower_arith(pm)
             passes.asclower.add_lower_arith_binary(pm)
             passes.asclower.add_lower_atomic(pm)
+            passes.asclower.add_lower_asctile_data_transfer(pm)
             passes.asclower.add_lower_asctile(pm)
             passes.asclower.add_lower_asctile_i1(pm)
             passes.asclower.add_lower_math(pm)

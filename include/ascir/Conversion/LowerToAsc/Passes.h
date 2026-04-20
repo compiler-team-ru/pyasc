@@ -25,6 +25,7 @@ std::unique_ptr<Pass> createExpandMathPass();
 std::unique_ptr<Pass> createLowerArithPass();
 std::unique_ptr<Pass> createLowerArithBinaryPass();
 std::unique_ptr<Pass> createLowerAscTilePass();
+std::unique_ptr<Pass> createLowerAscTileDataTransferPass();
 std::unique_ptr<Pass> createLowerAscTileI1Pass();
 std::unique_ptr<Pass> createLowerAtomicPass();
 std::unique_ptr<Pass> createLowerMathPass();
