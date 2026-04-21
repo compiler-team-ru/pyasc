@@ -111,7 +111,7 @@ func.func @lower_store_dynamic(%arg0: memref<*xf32, 22>, %arg1: !asctile.tile<16
 // CHECK-NEXT:}
 func.func @lower_store_fixpipe_static(%arg0: memref<*xf32, 22>, %arg1: !asctile.tile<16x16xf32, L0C>, %arg2: i32, %arg3: i32) {
   %0 = asctile.tensor %arg0() : memref<*xf32, 22>, !asctile.tensor<32x32xf32>
-  asctile.store_fixpipe %arg1, %0 [%arg2, %arg3], ,  : !asctile.tile<16x16xf32, L0C>, !asctile.tensor<32x32xf32>
+  asctile.store_fixpipe %arg1, %0 [%arg2, %arg3] : !asctile.tile<16x16xf32, L0C>, !asctile.tensor<32x32xf32>
   return
 }
 
@@ -130,7 +130,7 @@ func.func @lower_store_fixpipe_static(%arg0: memref<*xf32, 22>, %arg1: !asctile.
 // CHECK-NEXT:}
 func.func @lower_store_fixpipe_static_relu(%arg0: memref<*xf32, 22>, %arg1: !asctile.tile<16x16xf32, L0C>, %arg2: i32, %arg3: i32) {
   %0 = asctile.tensor %arg0() : memref<*xf32, 22>, !asctile.tensor<32x32xf32>
-  asctile.store_fixpipe %arg1, %0 [%arg2, %arg3], unit, : !asctile.tile<16x16xf32, L0C>, !asctile.tensor<32x32xf32>
+  asctile.store_fixpipe %arg1, %0 [%arg2, %arg3] {relu} : !asctile.tile<16x16xf32, L0C>, !asctile.tensor<32x32xf32>
   return
 }
 
@@ -150,7 +150,7 @@ func.func @lower_store_fixpipe_static_relu(%arg0: memref<*xf32, 22>, %arg1: !asc
 // CHECK-NEXT:}
 func.func @lower_store_fixpipe_static_quantize(%arg0: memref<*xf32, 22>, %arg1: !asctile.tile<16x16xf32, L0C>, %arg2: i32, %arg3: i32) {
   %0 = asctile.tensor %arg0() : memref<*xf32, 22>, !asctile.tensor<32x32xf16>
-  asctile.store_fixpipe %arg1, %0 [%arg2, %arg3], unit, unit : !asctile.tile<16x16xf32, L0C>, !asctile.tensor<32x32xf16>
+  asctile.store_fixpipe %arg1, %0 [%arg2, %arg3] {quantize, relu} : !asctile.tile<16x16xf32, L0C>, !asctile.tensor<32x32xf16>
   return
 }
 
@@ -170,6 +170,6 @@ func.func @lower_store_fixpipe_static_quantize(%arg0: memref<*xf32, 22>, %arg1: 
 // CHECK-NEXT:}
 func.func @lower_store_fixpipe_dynamic_relu_quantize(%arg0: memref<*xf32, 22>, %arg1: !asctile.tile<16x16xf32, L0C>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32) {
   %0 = asctile.tensor %arg0(%arg4, %arg5) : memref<*xf32, 22>, !asctile.tensor<?x?xf16>
-  asctile.store_fixpipe %arg1, %0 [%arg2, %arg3], unit, unit : !asctile.tile<16x16xf32, L0C>, !asctile.tensor<?x?xf16>
+  asctile.store_fixpipe %arg1, %0 [%arg2, %arg3] {quantize, relu} : !asctile.tile<16x16xf32, L0C>, !asctile.tensor<?x?xf16>
   return
 }

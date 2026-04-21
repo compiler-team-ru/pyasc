@@ -362,8 +362,8 @@ def StoreFixpipeOp : AscTile_Op<"store_fixpipe", [MemoryEffectsOpInterface]> {
                    Variadic<I32>:$offsets, UnitAttr:$relu,
                    UnitAttr:$quantize);
   let assemblyFormat = [{
-    $value `,` $base `[` $offsets `]` `,` $relu `,` $quantize attr-dict `:`
-    qualified(type($value)) `,` qualified(type($base))
+    $value `,` $base `[` $offsets `]` attr-dict `:` qualified(type($value)) `,`
+    qualified(type($base))
   }];
   let hasVerifier = 1;
 }
