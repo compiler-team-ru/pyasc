@@ -20,12 +20,6 @@ class Backend(Enum):
 
 
 class Platform(Enum):
-    """Ascend NPU platform types.
-
-    This enum defines the supported Ascend chip variants for kernel compilation and execution. Each platform has
-    specific hardware characteristics that affect code generation and optimization.
-    """
-
     Ascend910B1 = "Ascend910B1"
     Ascend910B2 = "Ascend910B2"
     Ascend910B2C = "Ascend910B2C"
@@ -44,6 +38,14 @@ class Platform(Enum):
     Ascend950PR_9579 = "Ascend950PR_9579"
     Ascend950PR_9589 = "Ascend950PR_9589"
     Ascend950PR_9599 = "Ascend950PR_9599"
+
+
+class CompilationArch(Enum):
+    C220 = "c220"
+    C310 = "c310"
+
+    def __str__(self) -> str:
+        return self.value
 
 
 class KernelType(Enum):
@@ -120,6 +122,6 @@ def platform_to_arch(platform: Union[Platform, str]) -> CompilationArch:
     platform_name = Platform(platform).value
     if platform_name.startswith("Ascend910B") or platform_name.startswith("Ascend910_93"):
         return CompilationArch.C220
-    if platform_name.startswith("Ascend950PR_95"):
+    if platform_name.startswith("Ascend910_95") or platform_name.startswith("Ascend950PR_95"):
         return CompilationArch.C310
     raise ValueError(f"There is no compilation arch for '{platform.value}' platform")

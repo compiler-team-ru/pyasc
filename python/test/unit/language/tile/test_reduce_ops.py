@@ -54,9 +54,9 @@ def kernel_all(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress, inpu
 
 
 @pytest.mark.parametrize("op, torch_op, shape, dtype, keep_dims, dim", tests)
-def test_reduce(backend, platform, require_platform_95, op, torch_op, shape, dtype, keep_dims, dim):
+def test_reduce(backend, platform, require_c310, op, torch_op, shape, dtype, keep_dims, dim):
     if dim:
-        require_platform_95(platform)
+        require_c310(platform)
     config.set_platform(backend, platform, check=False)
 
     input = torch.randn(shape, dtype=dtype) * 2.0

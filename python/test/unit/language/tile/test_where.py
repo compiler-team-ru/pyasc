@@ -35,9 +35,9 @@ def where_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, z_ptr: asc.
     (asc2.less, torch.lt),
     (asc2.less_equal, torch.le),
 ])
-def test_where_ops(backend, platform, require_platform_95, asc_op, torch_op, dtype):
+def test_where_ops(backend, platform, require_c310, asc_op, torch_op, dtype):
     if dtype == torch.bfloat16:
-        require_platform_95(platform)
+        require_c310(platform)
     config.set_platform(backend, platform, check=False)
     x = create_tensor(dtype)
     y = create_tensor(dtype)
@@ -65,9 +65,9 @@ def where_scalar_kernel(x_ptr: asc.GlobalAddress, scalar, z_ptr: asc.GlobalAddre
     (asc2.less, torch.lt),
     (asc2.less_equal, torch.le),
 ])
-def test_where_and_scalar_ops(backend, platform, require_platform_95, asc_op, torch_op, dtype):
+def test_where_and_scalar_ops(backend, platform, require_c310, asc_op, torch_op, dtype):
     if dtype == torch.bfloat16:
-        require_platform_95(platform)
+        require_c310(platform)
     config.set_platform(backend, platform, check=False)
     x = create_tensor(dtype)
     y = torch.tensor(0.5, dtype=dtype)
