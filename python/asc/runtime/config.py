@@ -33,8 +33,13 @@ class Platform(Enum):
     Ascend910_9579 = "Ascend910_9579"
     Ascend910_9589 = "Ascend910_9589"
     Ascend910_9599 = "Ascend910_9599"
+    Ascend950PR_950z = "Ascend950PR_950z"
     Ascend950PR_9579 = "Ascend950PR_9579"
+    Ascend950PR_957b = "Ascend950PR_957b"
+    Ascend950PR_957c = "Ascend950PR_957c"
+    Ascend950PR_957d = "Ascend950PR_957d"
     Ascend950PR_9589 = "Ascend950PR_9589"
+    Ascend950PR_958b = "Ascend950PR_958b"
     Ascend950PR_9599 = "Ascend950PR_9599"
 
 

@@ -62,8 +62,13 @@ ub_capacity = {
     Platform.Ascend910_9579: 248 * 1024,
     Platform.Ascend910_9589: 248 * 1024,
     Platform.Ascend910_9599: 248 * 1024,
+    Platform.Ascend950PR_950z: 248 * 1024,
     Platform.Ascend950PR_9579: 248 * 1024,
+    Platform.Ascend950PR_957b: 248 * 1024,
+    Platform.Ascend950PR_957c: 248 * 1024,
+    Platform.Ascend950PR_957d: 248 * 1024,
     Platform.Ascend950PR_9589: 248 * 1024,
+    Platform.Ascend950PR_958b: 248 * 1024,
     Platform.Ascend950PR_9599: 248 * 1024,
 }
 
