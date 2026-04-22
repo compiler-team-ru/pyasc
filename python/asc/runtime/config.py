@@ -9,7 +9,7 @@
 from enum import Enum
 from typing import Optional, Union
 
-from asc.lib import runtime as rt
+from ..lib import runtime as rt
 
 
 class Backend(Enum):
@@ -18,7 +18,6 @@ class Backend(Enum):
 
 
 class Platform(Enum):
-    """get soc version"""
     Ascend910B1 = "Ascend910B1"
     Ascend910B2 = "Ascend910B2"
     Ascend910B2C = "Ascend910B2C"
@@ -39,8 +38,15 @@ class Platform(Enum):
     Ascend950PR_9599 = "Ascend950PR_9599"
 
 
+class CompilationArch(Enum):
+    C220 = "c220"
+    C310 = "c310"
+
+    def __str__(self) -> str:
+        return self.value
+
+
 class KernelType(Enum):
-    """get kernel type"""
     AIV_ONLY = 0
     AIC_ONLY = 1
     MIX_AIV_HARD_SYNC = 2
@@ -78,6 +84,13 @@ def set_platform(
         if backend == Backend.Model:
             error_msg += f"Please export LD_LIBRARY_PATH=$ASCEND_HOME_PATH/tools/"  \
                 "simulator/{soc_version.value}/lib:$LD_LIBRARY_PATH"
-
         raise RuntimeError(error_msg)
-        
+
+
+def platform_to_arch(platform: Union[Platform, str]) -> CompilationArch:
+    platform_name = Platform(platform).value
+    if platform_name.startswith("Ascend910B") or platform_name.startswith("Ascend910_93"):
+        return CompilationArch.C220
+    if platform_name.startswith("Ascend910_95") or platform_name.startswith("Ascend950PR_95"):
+        return CompilationArch.C310
+    raise ValueError(f"There is no compilation arch for '{platform.value}' platform")

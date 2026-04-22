@@ -60,9 +60,11 @@ void registerInlinerInterfaces(DialectRegistry& registry);
 
 ModuleOp getModule(Operation* op);
 
+StringRef getCompilationArch(Operation* op);
+
 StringRef getSocVersion(Operation* op);
 
-bool isTargetPlatform95(Operation* op);
+bool isTargetArchC310(Operation* op);
 
 } // namespace ascendc
 } // namespace mlir

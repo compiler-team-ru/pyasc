@@ -7,8 +7,8 @@ import asc2
 
 
 @pytest.fixture(autouse=True)
-def set_platform(backend: config.Backend, platform: config.Platform, require_platform_95):
-    require_platform_95(platform)
+def set_platform(backend: config.Backend, platform: config.Platform, require_c310):
+    require_c310(platform)
     config.set_platform(backend, platform, check=False)
 
 

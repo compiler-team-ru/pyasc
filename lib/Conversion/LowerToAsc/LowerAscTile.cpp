@@ -340,7 +340,7 @@ struct ConvertBroadcast : ConvertOp<asctile::BroadcastOp> {
         auto srcType = op.getOperand().getType();
         if (srcType.getNumElements() == 1) {
             Value dupSrc = src;
-            if (!ascendc::isTargetPlatform95(op)) {
+            if (!ascendc::isTargetArchC310(op)) {
                 dupSrc =
                     rewriter.create<ascendc::LocalTensorGetValueOp>(loc, srcType.getElementType(), src, consts.i64(0));
             }
@@ -411,8 +411,8 @@ struct ConvertVecScalarToL2 : ConvertOp<TileOp> {
         Value dst = createTensorOp(rewriter, loc, op.getType());
         Value lhs = rewriter.getRemappedValue(op->getOperand(0));
         Value rhs = rewriter.getRemappedValue(op->getOperand(1));
-        constexpr bool requirePlatform95 = !std::is_same_v<VectorOp, void>;
-        if (requirePlatform95 && !ascendc::isTargetPlatform95(op)) {
+        constexpr bool requireArchC310 = !std::is_same_v<VectorOp, void>;
+        if (requireArchC310 && !ascendc::isTargetArchC310(op)) {
             Value dup = createTensorOp(rewriter, loc, op.getType());
             rewriter.create<ascendc::DuplicateL2Op>(loc, dup, rhs, consts.i64(calCount(dst)));
             rewriter.create<VectorOp>(loc, dst, lhs, dup, consts.i64(calCount(dst)));

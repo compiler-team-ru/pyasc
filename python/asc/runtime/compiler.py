@@ -13,14 +13,13 @@ import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
-from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, final
 
 from .._C import ir, passes, translation
 from ..lib.runtime import CoreType, get_soc_version
 from ..lib.utils import get_ascend_path
-from .config import KernelType
+from .config import CompilationArch, KernelType, platform_to_arch
 from . import utils
 
 
@@ -104,13 +103,6 @@ class CompileOptions:
     """
 
 
-class CompilePlatform(Enum):
-    """get soc version"""
-    Ascend910B = "Ascend910B"
-    Ascend910_93 = "Ascend910_93"
-    Ascend910_95 = "Ascend910_95"
-
-
 @dataclass(frozen=True)
 class CompilationTarget:
     common_arch: Optional[str] = None
@@ -121,16 +113,12 @@ class CompilationTarget:
     cube_options: List[str] = field(default_factory=list)
 
     @staticmethod
-    def get(kernel_type: KernelType, platform: CompilePlatform) -> CompilationTarget:
-        if platform in [CompilePlatform.Ascend910B, CompilePlatform.Ascend910_93, CompilePlatform.Ascend910_95]:
+    def get(kernel_type: KernelType, arch: CompilationArch) -> CompilationTarget:
+        if arch in [CompilationArch.C220, CompilationArch.C310]:
             common_option = [
                 "-std=c++17", "--cce-disable-kernel-global-attr-check", "-mllvm", "-cce-aicore-stack-size=0x8000",
                 "-mllvm", "-cce-aicore-function-stack-size=0x8000", "-mllvm", "-cce-aicore-dcci-insert-for-scalar=false"
             ]
-            if platform == CompilePlatform.Ascend910B or platform == CompilePlatform.Ascend910_93:
-                arch = "c220"
-            elif platform == CompilePlatform.Ascend910_95:
-                arch = "c310"
             if kernel_type in [KernelType.MIX_AIC_1_1, KernelType.MIX_AIC_1_2]:
                 return CompilationTarget(vec_arch="dav-%s-vec" % arch, cube_arch="dav-%s-cube" % arch,
                                          common_options=common_option)
@@ -138,7 +126,7 @@ class CompilationTarget:
                 return CompilationTarget(common_arch="dav-%s-vec" % arch, common_options=common_option)
             else:
                 return CompilationTarget(common_arch="dav-%s-cube" % arch, common_options=common_option)
-        raise RuntimeError(f"Compilation is not supported for {CompilePlatform.value} platform")
+        raise RuntimeError(f"Compilation is not supported for {arch.value} platform")
 
 
 @dataclass(frozen=True)
@@ -158,12 +146,7 @@ class Compiler:
         if not self._check_compile_options():
             raise RuntimeError("Please check input compile option")
         self.dump_dir: Optional[Path] = None
-        self.platform = CompilePlatform.Ascend910B
-        if self.soc_version.value.startswith("Ascend910_93"):
-            self.platform = CompilePlatform.Ascend910_93
-        elif self.soc_version.value.startswith("Ascend910_95") or self.soc_version.value.startswith("Ascend950PR_95"):
-            self.platform = CompilePlatform.Ascend910_95
-
+        self.arch = platform_to_arch(self.soc_version)
         dump_dir = os.environ.get("PYASC_DUMP_PATH", None)
         if dump_dir is not None:
             try:
@@ -192,7 +175,7 @@ class Compiler:
         passes.common.add_cse(pm)
 
     def _schedule_lowering(self, pm: passes.PassManager) -> None:
-        platform_95 = self.platform == CompilePlatform.Ascend910_95
+        arch_c310 = self.arch == CompilationArch.C310
         reuse_ub_in_out = not self.options.densify_load_store and self.options.reuse_ub and self.options.reuse_ub_in_out
         passes.ascendc.add_privatize_func(pm)
         passes.common.add_inliner(pm)
@@ -212,7 +195,7 @@ class Compiler:
             passes.common.add_canonicalizer(pm)
             passes.asctile.add_transform_math_ops(pm)
             passes.asctile.add_transform_store_fixpipe(pm)
-            if platform_95:
+            if arch_c310:
                 passes.asctile.add_unscalarize_reduction(pm)
                 passes.common.add_canonicalizer(pm)
                 passes.common.add_cse(pm)
@@ -238,13 +221,13 @@ class Compiler:
                 self.add_unroll_loop(pm)
             passes.ascendc.add_reuse_ub_allocation(pm)
             passes.common.add_canonicalizer(pm)
-        passes.ascendc.add_hoist_ub_allocation(pm, exclude_in_out=not platform_95)
+        passes.ascendc.add_hoist_ub_allocation(pm, exclude_in_out=not arch_c310)
         if self.options.vf_fusion:
             passes.ascendc.add_fuse_vf_block(pm)
         if self.options.static_alloc:
             passes.ascendc.add_allocate_tensor(pm)
         else:
-            passes.ascendc.add_materialize_tensor(pm, always_buf=platform_95)
+            passes.ascendc.add_materialize_tensor(pm, always_buf=arch_c310)
         passes.ascendc.add_unify_pipe(pm)
         passes.common.add_canonicalizer(pm)
         passes.common.add_cse(pm)
@@ -256,7 +239,7 @@ class Compiler:
         if self.options.insert_sync:
             passes.ascendc.add_erase_sync(pm)
             passes.ascendc.add_hoist_que_bind(pm)
-            if self.platform != CompilePlatform.Ascend910_95:
+            if self.arch != CompilationArch.C310:
                 passes.ascendc.add_insert_sync(pm)
             else:
                 passes.ascendc.add_insert_bufid_sync(pm)
@@ -286,6 +269,7 @@ class Compiler:
     @final
     def run(self, mod: ir.ModuleOp, func_name: str) -> CompiledKernel:
         utils.FileUtils.dump_file(self.dump_dir, "codegen.mlir", str(mod))
+        mod.set_attr(ir.attr.compilation_arch, ir.Builder(mod.op).get_str_attr(self.arch.value))
         mod.set_attr(ir.attr.soc_version, ir.Builder(mod.op).get_str_attr(self.soc_version.value))
         if self.options.run_passes:
             self.run_passes(mod)
@@ -352,7 +336,7 @@ class Compiler:
         passes.ascendc.add_generate_boilerplate(pm)
         if self.options.matmul_cube_only:
             passes.ascendc.add_define_cube_only(pm)
-        passes.ascendc.add_legalize_kernel_args(pm, set_ffts_addr=(self.platform != CompilePlatform.Ascend910_95))
+        passes.ascendc.add_legalize_kernel_args(pm, set_ffts_addr=(self.arch != CompilationArch.C310))
         passes.ascendc.add_detect_kernel_type(pm)
         passes.ascendc.add_detect_enable_debug(pm)
         if self.options.verify_sync:
@@ -405,7 +389,7 @@ class Compiler:
         return kernel_code_with_dump
 
     def _gen_dst_kernel(self, tmp_dir: str, src: Path, dst: Path) -> None:
-        target = CompilationTarget.get(self.options.kernel_type, self.platform)
+        target = CompilationTarget.get(self.options.kernel_type, self.arch)
         common_options = []
         ascend_path = get_ascend_path()
         tikcpp_path = os.path.realpath(os.path.join(ascend_path, "compiler", "tikcpp"))
