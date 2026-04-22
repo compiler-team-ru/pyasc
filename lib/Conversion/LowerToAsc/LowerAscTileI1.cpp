@@ -70,7 +70,7 @@ struct ConvertCmp : public ConvertOp<asctile::CmpOp> {
         Value src1 = rewriter.getRemappedValue(op.getRhs());
         auto srcType = cast<ShapedType>(src0.getType());
         Value zero = ascir::ConstantOpBuilder(rewriter).i64(0);
-        if (isa<IntegerType>(srcType.getElementType()) && !ascendc::isTargetPlatform95(op)) {
+        if (isa<IntegerType>(srcType.getElementType()) && !ascendc::isTargetArchC310(op)) {
             unsigned bitWidth = srcType.getElementTypeBitWidth();
             if (bitWidth != 16 && bitWidth != 32)
                 return op.emitOpError("can only be lowered with i16 or i32 tile operands");

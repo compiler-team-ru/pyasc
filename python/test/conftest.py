@@ -26,14 +26,11 @@ def platform(request: pytest.FixtureRequest):
     return request.config.getoption("--platform")
 
 
-def require_platform_95_impl(platform: config.Platform):
-    platforms_95 = (config.Platform.Ascend910_9579, config.Platform.Ascend910_9589, config.Platform.Ascend910_9599,
-                    config.Platform.Ascend950PR_9579, config.Platform.Ascend950PR_9589,
-                    config.Platform.Ascend950PR_9599)
-    if platform not in platforms_95:
-        pytest.skip("platform is not supported")
+def require_c310_impl(platform: config.Platform):
+    if config.platform_to_arch(platform) != config.CompilationArch.C310:
+        pytest.skip(f"{platform.value} platform is not supported")
 
 
 @pytest.fixture
-def require_platform_95():
-    return require_platform_95_impl
+def require_c310():
+    return require_c310_impl

@@ -33,9 +33,9 @@ def local_ids(obj) -> str:
 @pytest.mark.parametrize("asc_op, torch_op, args, shape, dtype", [(asc_op, torch_op, args, shape, d)
                                                                   for asc_op, torch_op, args, shape, dtypes in shape_ops
                                                                   for d in dtypes], ids=local_ids)
-def test_shape_op(backend, platform, require_platform_95, asc_op, torch_op, args, shape, dtype: torch.dtype):
+def test_shape_op(backend, platform, require_c310, asc_op, torch_op, args, shape, dtype: torch.dtype):
     if asc_op is asc2.broadcast_to:
-        require_platform_95(platform)
+        require_c310(platform)
     config.set_platform(backend, platform, check=False)
 
     def create_input(tensor_shape):

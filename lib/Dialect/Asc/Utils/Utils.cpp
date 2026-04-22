@@ -83,6 +83,13 @@ ModuleOp getModule(Operation* op)
     return mod;
 }
 
+StringRef getCompilationArch(Operation* op)
+{
+    if (auto attr = getModule(op)->getAttrOfType<StringAttr>(ascendc::attr::compilationArch))
+        return attr.getValue();
+    return {};
+}
+
 StringRef getSocVersion(Operation* op)
 {
     if (auto attr = getModule(op)->getAttrOfType<StringAttr>(ascendc::attr::socVersion))
@@ -90,11 +97,7 @@ StringRef getSocVersion(Operation* op)
     return {};
 }
 
-bool isTargetPlatform95(Operation* op)
-{
-    auto socVersion = getSocVersion(op);
-    return socVersion.starts_with("Ascend910_95") || socVersion.starts_with("Ascend950PR_95");
-}
+bool isTargetArchC310(Operation* op) { return getCompilationArch(op) == "c310"; }
 
 } // namespace ascendc
 } // namespace mlir

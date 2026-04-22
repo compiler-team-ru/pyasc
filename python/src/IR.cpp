@@ -96,6 +96,7 @@ void bindAttrs(py::module& m)
     m.attr("ub_block_size") = py::int_(ascendc::ubBlockSize);
 
     auto modAttr = m.def_submodule("attr");
+    modAttr.attr("compilation_arch") = py::str(ascendc::attr::compilationArch);
     modAttr.attr("kernel_type") = py::str(ascendc::attr::kernelType);
     modAttr.attr("memory_consumed") = py::str(ascendc::attr::memoryConsumed);
     modAttr.attr("parallel") = py::str(asctile::attr::parallel);
