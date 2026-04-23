@@ -29,7 +29,8 @@ PyAsc documentation
    :maxdepth: 1
    :caption: High-level design
 
-   design/project-overview.md
+   design/design-overview.md
+   design/programming-models-insights.md
    design/software-pipelining.md
    design/automatic-synchronization.md
 

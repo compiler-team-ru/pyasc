@@ -1,14 +1,19 @@
-# Project overview
+# Design overview
+
+```{contents} Table of Contents
+:local:
+```
 
 ## 1. Goals & Scope
 
 **PyAsc2** is a tile-based programming model for writing Ascend NPU kernels in Python. It sits at a higher abstraction level than the original PyAsc (`asc`) model, which mapped Python APIs 1:1 to Ascend C intrinsics.
 
-**Core goals:**
-- Let developers express kernels in terms of *tensors* (ND-arrays in global memory) and *tiles* (fixed-shape chunks in on-chip memory), without managing buffer addresses, `TPipe`/`TQue` lifecycles, or synchronization barriers directly.
+**Core goals** (in priority order):
+- Let developers express kernels in terms of *tensors* (ND-arrays in global memory) and *tiles* (fixed-shape chunks in on-chip memory). Buffer addresses, `TPipe`/`TQue` lifecycles, and synchronization barriers are not exposed to the user.
+- Reach **≈90% of the performance of hand-optimized Ascend C operators** for representative workloads.
 - Provide a NumPy-like operation set: arithmetic, reductions, shape manipulation, masking, atomics.
-- Automate synchronization insertion, UB memory allocation, and loop unrolling through compiler passes.
-- Support Ascend910B, Ascend910_93, and Ascend910_95 hardware families.
+- **[Main engineering challenge]** Automate synchronization insertion, UB memory allocation, and ping-pong optimization through compiler passes and compiler hints.
+- Support Ascend **A2** (910B), **A3** (910C — two 910B dies in one package), and **A5** (950) hardware families.
 
 **Relationship to PyAsc1 (`asc`):**
 PyAsc2 is implemented *on top of* the existing PyAsc infrastructure. The `asc2.jit` decorator re-uses `JITFunction`, the same AST-to-IR codegen, the same MLIR pass manager, and the same Bisheng compilation step. What is new is the `asctile` MLIR dialect and a dedicated lowering pipeline that converts tile-level IR down to the `ascendc` dialect before the existing backend takes over.
@@ -19,25 +24,49 @@ PyAsc2 is implemented *on top of* the existing PyAsc infrastructure. The `asc2.j
 
 ---
 
-## 2. Key Challenges
+## 2. Key Challenges for Ascend NPU
 
-> **NOTE: This section is not finished.**
+Ascend A2 AI Core has two types of compute cores:
+- **AIC** (Cube) — matrix / tensor operations.
+- **AIV** (Vector) — vector operations; 1 AIC : 2 AIV ratio on A2.
 
-### 2.1 Programming Model
+Each core has its own MTE (DMA), Scalar Unit, and Compute Unit. AIC and AIV have no direct interconnect — data exchange goes through L2 / Global Memory.
 
-Defining a tile-based Python API that is expressive enough for real kernels while remaining statically compilable. The API must hide `TPipe`/`TQue` management and synchronization from the user, yet map cleanly to Ascend C intrinsics after lowering. Key open questions: ergonomics of multi-dimensional tiling, handling of mixed `UB`/`L0` tile locations, and interoperability with `asc` (PyAsc1) primitives.
+### 2.1 Synchronization Insertion
 
-### 2.2 Sync Insertion
+MTE and Compute Unit within each core run in parallel. Explicit `set_flag` / `wait_flag` barriers must be inserted between them. Missing barriers cause silent data hazards; redundant barriers cause stalls. Must be fully automated by the compiler.
 
-Automatic insertion of `set_flag`/`wait_flag` barriers between pipeline stages at the `ascendc` level. The challenge is correctly inferring producer/consumer relationships across loop iterations after tile-level unrolling, without inserting redundant or missing syncs. The `InsertBufIdSyncV2` algorithm addresses this for 910_95, but correctness across all hardware variants and unroll patterns is still being validated.
+### 2.2 Ping-Pong (Double Buffering)
 
-### 2.3 Ping-Pong Optimization
+MTE loads for tile N+1 must overlap with Compute on tile N. Requires the compiler to split the loop body, hoist loads, and insert correct barriers — without user annotation.
 
-Enabling double-buffering (ping-pong) at the tile level so that loads for the next iteration overlap with computation on the current tile. This requires the compiler to automatically split the loop body, hoist loads outside the dependency chain, and insert the correct sync barriers — without the user annotating it explicitly.
+### 2.3 UB Memory Allocation and Reuse
 
-### 2.4 UB Memory Allocation and Reuse
+On-chip UB (Unified Buffer) is ~256 KB per Da Vinci core (A2). After loop unrolling, many tile SSA values can be live simultaneously. The compiler must compute liveness and reuse freed UB regions. Tile shapes are statically known at JIT time; total live footprint must be validated at compile time.
 
-Mapping tile SSA values (which may be numerous after unrolling) to a finite on-chip UB region. Challenges include: computing liveness across unrolled iterations, reusing freed regions for new tiles of compatible size (`ReuseUBAllocation`), and ensuring the total live footprint does not exceed hardware UB limits (enforced by `ComputeMemoryConsumption`).
+### 2.4 Hardware Differences: A2/A3 vs A5
+
+**A3** (910C) is two A2 (910B) dies in one package — same Da Vinci architecture, same AIC / AIV model, same challenges as A2. This section therefore focuses on A5.
+
+A5 is not an incremental refresh of A2. It introduces new hardware capabilities (register-addressable SIMD, kernel-side printf) and two new Ascend C programming levels (covered in §9 and the companion *Programming Models Insights*). Findings below are derived from inspection of the CANN 9 SDK preview. <sup>[[58]](#ref-58)</sup>
+
+#### 2.4.1 Hardware Capability Deltas
+
+A5 adds the following hardware capabilities relative to A2: <sup>[[58]](#ref-58)</sup>
+
+- **Register file is first-class.** The vector register file is now exposed as a planned address space for tile computation.
+- **Low-precision matmul first-class.** Bit-mode matmul is now exposed as a dedicated hardware path, consistent with the new MX-family data formats (below).
+- **New data formats.** MXFP4, MXFP8, HiF8 (in addition to FP16 / BF16 / INT8); the type-conversion matrix grew roughly 3× to cover the new dtypes, including saturating casts.
+- **AIC↔AIV communication moves on-chip.** On A2/A3 there is no dedicated hardware channel between Cube and Vector cores — they exchange data through Global Memory (DMA in and out). On A5, a dedicated tag-based dual-channel FIFO lives in the consumer's on-chip SRAM to enable **zero-copy**. The PyPTO framework's TPUSH / TPOP protocol is the software layer built on top of this hardware. <sup>[[4]](#ref-4)</sup>
+- **Cross-core address resolution.** On-chip ring-buffer placement means the producer must know the consumer's SRAM base. Resolved via per-function constants plus an allocator-reserved region in the consumer's SRAM.
+- **Pipeline sync unchanged at the hardware level.** Handshake between memory engines and vector cores remains explicit — no new hardware barriers.
+
+#### 2.4.2 Implications for the Three DSL Challenges
+
+- **Sync insertion.** Three levels now coexist with different sync models: basic_api keeps explicit `set_flag` / `wait_flag` and TPipe events; MicroAPI adds `MaskReg` predication at the register-tile granularity (masks are not barriers — barriers remain basic_api's responsibility); SIMT-API adds warp-level primitives for fine-grained sync. A DSL must decide which model to expose (or hide) and stay coherent across levels.
+- **Ping-pong.** The on-chip TPUSH / TPOP ring buffer on A5 removes the GM round-trip for Cube ↔ Vector handoff — the cost model of a pipelined stage shifts substantially. On MicroAPI, pipelining is a concern at register-tile granularity, not UB-tile granularity, because loops iterate over `RegTensor` chunks.
+- **UB memory allocation.** Two new address-spaces to plan: the register file (first-class in MicroAPI) and the reserved consumer SRAM segment for the TPUSH / TPOP ring buffer (on A5, a fixed exclusion zone inside UB or L1). The DSL allocator must model both.
+- **Portability.** Targeting only basic_api is the conservative choice but forfeits A5's register-file throughput. Targeting MicroAPI reaches the register file but requires c310 (A5-only builds). A DSL that claims to target A2 + A5 must lower to basic_api only, or implement per-target lowering.
 
 ---
 
@@ -387,6 +416,31 @@ def softmax(x_ptr, out_ptr, rows: int, cols: int, TILE: asc.ConstExpr[int]):
         exp_x = asc2.exp(x - x.max())
         asc2.store(exp_x / exp_x.sum(), out_gm, offsets=[row, 0])
 ```
+
+---
+
+## 9. Insights from Existing Programming Models
+
+A comparative analysis of existing tile-based and kernel DSLs relevant to Ascend NPU (AscendC, Triton, cuTile, TileLang-Ascend, Triton-Ascend, PyPTO, Pallas, Mojo) is maintained in a companion document:
+
+→ [Programming Models Insights](programming-models-insights.md)
+
+The observations from that document inform the design decisions in §10.
+
+---
+
+## 10. Key Design Decisions
+
+_TODO: to be filled in._
+
+---
+
+## 11. References
+
+<a id="ref-4"></a>**[4]** PTO ISA — TPUSH/TPOP protocol.
+<https://github.com/hw-native-sys/pypto/blob/main/docs/en/reference/pto-isa/01-tpush_tpop.md>
+
+<a id="ref-58"></a>**[58]** CANN 9 SDK preview — 950 / A5 programming model findings (internal notes from SDK source inspection).
 
 ---
 
