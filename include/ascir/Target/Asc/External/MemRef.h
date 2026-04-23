@@ -15,13 +15,13 @@
 
 namespace mlir {
 
-LogicalResult printOperation(CodeEmitter &emitter, memref::AllocaOp op);
+LogicalResult printOperation(CodeEmitter& emitter, memref::AllocaOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, memref::LoadOp op);
+LogicalResult printOperation(CodeEmitter& emitter, memref::LoadOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, memref::StoreOp op);
+LogicalResult printOperation(CodeEmitter& emitter, memref::StoreOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, memref::CastOp op);
+LogicalResult printOperation(CodeEmitter& emitter, memref::CastOp op);
 
 } // namespace mlir
 

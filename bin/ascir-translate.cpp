@@ -28,14 +28,14 @@
 
 using namespace mlir;
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     registerAllTranslations();
 
     TranslateFromMLIRRegistration reg(
         "mlir-to-ascendc", "translate from mlir to Ascend C",
-        [](Operation *op, raw_ostream &output) { return translateToAscendC(op, output); },
-        [](DialectRegistry &registry) {
+        [](Operation* op, raw_ostream& output) { return translateToAscendC(op, output); },
+        [](DialectRegistry& registry) {
             registry.insert<
                 //
                 arith::ArithDialect, ascendc::AscendCDialect, cf::ControlFlowDialect, DLTIDialect,

@@ -29,22 +29,22 @@ using mlir::raw_indented_ostream;
 
 namespace {
 class GenOpEmitsDefs {
-  public:
-    explicit GenOpEmitsDefs(const RecordKeeper &records) : records(records) {}
-    void run(raw_ostream &os);
+public:
+    explicit GenOpEmitsDefs(const RecordKeeper& records) : records(records) {}
+    void run(raw_ostream& os);
 
-  private:
-    const RecordKeeper &records;
+private:
+    const RecordKeeper& records;
 };
 
-void printFuncDefine(raw_indented_ostream &os, const Record *def, StringRef opType)
+void printFuncDefine(raw_indented_ostream& os, const Record* def, StringRef opType)
 {
     os << mlir::asc::kRetType << mlir::asc::kSpaceSeparated << mlir::asc::kPrintFuncName;
     os << "(CodeEmitter &emitter, ";
     os << mlir::asc::kAscDialectNameSpace << opType << mlir::asc::kSpaceSeparated << "op) {\n";
 }
 
-std::string capitalizeFirstLetter(const std::string &str)
+std::string capitalizeFirstLetter(const std::string& str)
 {
     std::string capStr(str);
     if (!str.empty()) {
@@ -53,7 +53,7 @@ std::string capitalizeFirstLetter(const std::string &str)
     return capStr;
 }
 
-std::string genGetterName(const std::vector<mlir::asc::VirtualArg> &args, size_t i)
+std::string genGetterName(const std::vector<mlir::asc::VirtualArg>& args, size_t i)
 {
     if (i >= args.size()) {
         return std::string();
@@ -61,18 +61,15 @@ std::string genGetterName(const std::vector<mlir::asc::VirtualArg> &args, size_t
     return mlir::asc::kGetFunPrefix.str() + capitalizeFirstLetter(args[i].name);
 }
 
-bool hasTrait(const Record *def, StringRef traitName)
+bool hasTrait(const Record* def, StringRef traitName)
 {
     auto traits = def->getValueAsListOfDefs(mlir::asc::kTraitName);
-    return llvm::any_of(traits, [&](const Record *trait) { return trait->getName() == traitName; });
+    return llvm::any_of(traits, [&](const Record* trait) { return trait->getName() == traitName; });
 }
 
-void IndentedNewLine(raw_indented_ostream &os)
-{
-    os << mlir::asc::kLineBreak << mlir::asc::kIndentationSpace;
-}
+void IndentedNewLine(raw_indented_ostream& os) { os << mlir::asc::kLineBreak << mlir::asc::kIndentationSpace; }
 
-void printInferOperandType(raw_indented_ostream &os, StringRef operand, const std::string &varName)
+void printInferOperandType(raw_indented_ostream& os, StringRef operand, const std::string& varName)
 {
     os << "auto " << varName << " = op." << operand << "().getType();";
     IndentedNewLine(os);
@@ -80,7 +77,7 @@ void printInferOperandType(raw_indented_ostream &os, StringRef operand, const st
     IndentedNewLine(os);
 }
 
-void printTemplateType(raw_indented_ostream &os, StringRef operand, const std::string &varName)
+void printTemplateType(raw_indented_ostream& os, StringRef operand, const std::string& varName)
 {
     os << "auto " << varName << " = op." << operand << "();";
     IndentedNewLine(os);
@@ -88,7 +85,7 @@ void printTemplateType(raw_indented_ostream &os, StringRef operand, const std::s
     IndentedNewLine(os);
 }
 
-void printInferElementType(raw_indented_ostream &os, StringRef operand, StringRef typeName, StringRef elementName)
+void printInferElementType(raw_indented_ostream& os, StringRef operand, StringRef typeName, StringRef elementName)
 {
     os << "  auto " << typeName << " = op." << operand << "().getType();";
     IndentedNewLine(os);
@@ -98,8 +95,9 @@ void printInferElementType(raw_indented_ostream &os, StringRef operand, StringRe
     IndentedNewLine(os);
 }
 
-void printInferEnumType(raw_indented_ostream &os, StringRef operand, StringRef attrType, const std::string &typeName,
-                        const mlir::asc::VirtualArg &arg)
+void printInferEnumType(
+    raw_indented_ostream& os, StringRef operand, StringRef attrType, const std::string& typeName,
+    const mlir::asc::VirtualArg& arg)
 {
     os << "  auto " << typeName << "= op." << operand << "();";
     IndentedNewLine(os);
@@ -108,7 +106,7 @@ void printInferEnumType(raw_indented_ostream &os, StringRef operand, StringRef a
     IndentedNewLine(os);
 }
 
-void printFuncOutputDeclaration(raw_indented_ostream &os)
+void printFuncOutputDeclaration(raw_indented_ostream& os)
 {
     os << R"(  auto resNum = op.getOperation()->getNumResults();
   auto& os = emitter.ostream();
@@ -119,7 +117,7 @@ void printFuncOutputDeclaration(raw_indented_ostream &os)
     IndentedNewLine(os);
 }
 
-void printOperand(raw_indented_ostream &os, StringRef operand, const mlir::asc::VirtualArg &arg)
+void printOperand(raw_indented_ostream& os, StringRef operand, const mlir::asc::VirtualArg& arg)
 {
     if (arg.optional) {
         os << "EXEC_IF_TRUE(op." << operand << "(), ";
@@ -131,31 +129,31 @@ void printOperand(raw_indented_ostream &os, StringRef operand, const mlir::asc::
     IndentedNewLine(os);
 }
 
-void printOperandValue(raw_indented_ostream &os, StringRef operand, const mlir::asc::VirtualArg &arg)
+void printOperandValue(raw_indented_ostream& os, StringRef operand, const mlir::asc::VirtualArg& arg)
 {
     os << R"(os << emitter.getOrCreateName(op.)" << operand << "());";
     IndentedNewLine(os);
 }
 
-void printPointerOperandValue(raw_indented_ostream &os, StringRef operand, const mlir::asc::VirtualArg &arg)
+void printPointerOperandValue(raw_indented_ostream& os, StringRef operand, const mlir::asc::VirtualArg& arg)
 {
     os << "os << \"&\" << emitter.getOrCreateName(op." << operand << "());";
     IndentedNewLine(os);
 }
 
-void printPointerToIntOperandValue(raw_indented_ostream &os, StringRef operand, const mlir::asc::VirtualArg &arg)
+void printPointerToIntOperandValue(raw_indented_ostream& os, StringRef operand, const mlir::asc::VirtualArg& arg)
 {
     os << "os << \"reinterpret_cast<uint64_t>(\" << emitter.getOrCreateName(op." << operand << "()) << \")\";";
     IndentedNewLine(os);
 }
 
-bool hasTemplateParams(const std::vector<int64_t> &paramTypes)
+bool hasTemplateParams(const std::vector<int64_t>& paramTypes)
 {
-    return std::any_of(paramTypes.cbegin(), paramTypes.cend(),
-                       [](const auto &type) { return type > mlir::asc::kNormalType; });
+    return std::any_of(
+        paramTypes.cbegin(), paramTypes.cend(), [](const auto& type) { return type > mlir::asc::kNormalType; });
 }
 
-void printTemplateCallStart(raw_indented_ostream &os, const std::vector<int64_t> &paramTypes, bool isMemberFunc)
+void printTemplateCallStart(raw_indented_ostream& os, const std::vector<int64_t>& paramTypes, bool isMemberFunc)
 {
     if (isMemberFunc) {
         if (paramTypes[0] != mlir::asc::kNormalType) {
@@ -170,8 +168,9 @@ void printTemplateCallStart(raw_indented_ostream &os, const std::vector<int64_t>
     }
 }
 
-bool printTemplateParam(raw_indented_ostream &os, const Record *def, const std::vector<int64_t> &paramTypes,
-                        const std::vector<mlir::asc::VirtualArg> &args, bool isMemberFunc = false)
+bool printTemplateParam(
+    raw_indented_ostream& os, const Record* def, const std::vector<int64_t>& paramTypes,
+    const std::vector<mlir::asc::VirtualArg>& args, bool isMemberFunc = false)
 {
     if (!hasTemplateParams(paramTypes)) {
         return false;
@@ -191,28 +190,28 @@ bool printTemplateParam(raw_indented_ostream &os, const Record *def, const std::
         std::string elementTypeVar = "elType" + std::to_string(i);
         std::string attrTypeVar = "iAttr" + std::to_string(i);
         switch (paramTypes[i]) {
-            case mlir::asc::kInferType: // infer operand type
-                printInferOperandType(os, genGetterName(args, i), templateTypeVar);
-                break;
-            // infer operand element type, such as get T form LocalTensor<T>
-            case mlir::asc::kInferElementType:
-                printInferElementType(os, genGetterName(args, i), templateTypeVar, elementTypeVar);
-                break;
-            case mlir::asc::kInferEnumType: // pass by attr
-                printInferEnumType(
-                    os, genGetterName(args, i),
-                    mlir::asc::removeAscDialectNameSpace(args[i].cppType, def->getValueAsString("cppNamespace")),
-                    attrTypeVar, args[i]);
-                break;
-            case mlir::asc::kInferValue: // pass by value
-                printOperandValue(os, genGetterName(args, i), args[i]);
-                break;
-            case mlir::asc::kTemplateType: // pass by template type
-                printTemplateType(os, genGetterName(args, i), templateTypeVar);
-                break;
-            case mlir::asc::kInferTypeAttr: // type attribute, use directly as template type
-                printTemplateType(os, genGetterName(args, i), templateTypeVar);
-                break;
+        case mlir::asc::kInferType: // infer operand type
+            printInferOperandType(os, genGetterName(args, i), templateTypeVar);
+            break;
+        // infer operand element type, such as get T form LocalTensor<T>
+        case mlir::asc::kInferElementType:
+            printInferElementType(os, genGetterName(args, i), templateTypeVar, elementTypeVar);
+            break;
+        case mlir::asc::kInferEnumType: // pass by attr
+            printInferEnumType(
+                os, genGetterName(args, i),
+                mlir::asc::removeAscDialectNameSpace(args[i].cppType, def->getValueAsString("cppNamespace")),
+                attrTypeVar, args[i]);
+            break;
+        case mlir::asc::kInferValue: // pass by value
+            printOperandValue(os, genGetterName(args, i), args[i]);
+            break;
+        case mlir::asc::kTemplateType: // pass by template type
+            printTemplateType(os, genGetterName(args, i), templateTypeVar);
+            break;
+        case mlir::asc::kInferTypeAttr: // type attribute, use directly as template type
+            printTemplateType(os, genGetterName(args, i), templateTypeVar);
+            break;
         }
     }
     os << mlir::asc::kOutTemplateCallEnd;
@@ -220,9 +219,9 @@ bool printTemplateParam(raw_indented_ostream &os, const Record *def, const std::
     return true;
 }
 
-void printFunctionParam(raw_indented_ostream &os, const Record *def, const std::vector<int64_t> &paramTypes,
-                        const std::vector<mlir::asc::VirtualArg> &args, bool hasTemplate = false,
-                        bool isMemberFunc = false)
+void printFunctionParam(
+    raw_indented_ostream& os, const Record* def, const std::vector<int64_t>& paramTypes,
+    const std::vector<mlir::asc::VirtualArg>& args, bool hasTemplate = false, bool isMemberFunc = false)
 {
     size_t i = isMemberFunc ? 1 : 0;
     if (!hasTemplate) {
@@ -264,7 +263,7 @@ void printFunctionParam(raw_indented_ostream &os, const Record *def, const std::
        << "\n}\n";
 }
 
-void printOp(raw_indented_ostream &os, const Record *def)
+void printOp(raw_indented_ostream& os, const Record* def)
 {
     const auto opTypeFullName = def->getName();
     const auto opType = mlir::asc::removeDialectPrefix(opTypeFullName, "AscendC");
@@ -286,10 +285,10 @@ void printOp(raw_indented_ostream &os, const Record *def)
     }
 }
 
-void GenOpEmitsDefs::run(raw_ostream &os)
+void GenOpEmitsDefs::run(raw_ostream& os)
 {
     raw_indented_ostream ios(os);
-    for (const auto *def : records.getAllDerivedDefinitions("Op")) {
+    for (const auto* def : records.getAllDerivedDefinitions("Op")) {
         if (!def->getValueAsBit(mlir::asc::kAutoEmitAttr)) {
             continue;
         }
@@ -297,7 +296,7 @@ void GenOpEmitsDefs::run(raw_ostream &os)
     }
 }
 
-TableGen::Emitter::OptClass<GenOpEmitsDefs> registration("gen-opemit-defs",
-                                                         "Generate op emit methods from MLIR operation defs");
+TableGen::Emitter::OptClass<GenOpEmitsDefs>
+    registration("gen-opemit-defs", "Generate op emit methods from MLIR operation defs");
 
 } // namespace

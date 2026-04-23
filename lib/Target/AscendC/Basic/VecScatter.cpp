@@ -17,9 +17,9 @@ using namespace mlir::ascendc;
 // Scatter operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::ScatterL1Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::ScatterL1Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     auto maskName = printMask(emitter, op);
 
     os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDst()) << ", "

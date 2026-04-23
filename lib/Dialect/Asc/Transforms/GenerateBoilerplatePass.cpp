@@ -29,18 +29,16 @@ using namespace mlir::ascendc;
 namespace {
 
 class GenerateBoilerplatePass : public ascendc::impl::GenerateBoilerplateBase<GenerateBoilerplatePass> {
-  public:
+public:
     void runOnOperation() override
     {
         auto mod = getOperation();
         auto builder = ImplicitLocOpBuilder::atBlockBegin(mod->getLoc(), mod.getBody());
         builder.create<emitc::IncludeOp>("kernel_operator.h");
-        bool hasListTensorDesc = mod.walk([](ascendc::ListTensorDescOp) {
-                                    return WalkResult::interrupt();
-                                }).wasInterrupted();
-        bool hasListTensorDescV2 = mod.walk([](ascendc::ListTensorDescV2Op) {
-                                    return WalkResult::interrupt();
-                                }).wasInterrupted();
+        bool hasListTensorDesc =
+            mod.walk([](ascendc::ListTensorDescOp) { return WalkResult::interrupt(); }).wasInterrupted();
+        bool hasListTensorDescV2 =
+            mod.walk([](ascendc::ListTensorDescV2Op) { return WalkResult::interrupt(); }).wasInterrupted();
         if (hasListTensorDesc || hasListTensorDescV2) {
             builder.create<emitc::IncludeOp>("kernel_operator_list_tensor_intf.h");
         }
@@ -59,9 +57,6 @@ class GenerateBoilerplatePass : public ascendc::impl::GenerateBoilerplateBase<Ge
 
 namespace mlir {
 namespace ascendc {
-std::unique_ptr<Pass> createGenerateBoilerplatePass()
-{
-    return std::make_unique<GenerateBoilerplatePass>();
-}
+std::unique_ptr<Pass> createGenerateBoilerplatePass() { return std::make_unique<GenerateBoilerplatePass>(); }
 } // namespace ascendc
 } // namespace mlir

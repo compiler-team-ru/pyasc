@@ -17,10 +17,10 @@ using namespace mlir::ascendc;
 // System Variable operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::GetBlockIdxOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GetBlockIdxOp op)
 {
     FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << " = static_cast<";
     if (failed(emitter.emitType(op.getLoc(), op.getType()))) {
         return failure();
@@ -29,10 +29,10 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::GetBl
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::GetBlockNumOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GetBlockNumOp op)
 {
     FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << " = static_cast<";
     FAIL_OR(emitter.emitType(op.getLoc(), op.getType()));
     os << ">(" << ascNamespace << "::" << op.getAPIName() << "())";

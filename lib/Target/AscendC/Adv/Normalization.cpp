@@ -13,9 +13,9 @@
 using namespace mlir;
 using namespace mlir::ascendc;
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::RmsNormOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::RmsNormOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName() << "<";
     FAIL_OR(emitter.emitType(op.getLoc(), op.getDst().getType().getElementType()));
     os << ", " << op.getBasicBlock() << ">(" << emitter.getOrCreateName(op.getDst()) << ", "

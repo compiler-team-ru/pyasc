@@ -16,11 +16,11 @@ using namespace mlir::ascendc;
 namespace {
 
 struct AippMemberInfo {
-    const char *aippMemberName;
-    const std::vector<const char *> subMemberNames;
+    const char* aippMemberName;
+    const std::vector<const char*> subMemberNames;
 };
 
-const AippMemberInfo *getAippMemberInfo(size_t index)
+const AippMemberInfo* getAippMemberInfo(size_t index)
 {
     static const std::vector<AippMemberInfo> memberInfos = {
         {"paddingParams", {"paddingMode", "paddingValueCh0", "paddingValueCh1", "paddingValueCh2", "paddingValueCh3"}},
@@ -42,11 +42,11 @@ const AippMemberInfo *getAippMemberInfo(size_t index)
     return &memberInfos[index];
 }
 
-LogicalResult printAippMemberAssignment(CodeEmitter &emitter, ascendc::ConstructOp op, size_t memberIndex)
+LogicalResult printAippMemberAssignment(CodeEmitter& emitter, ascendc::ConstructOp op, size_t memberIndex)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
 
-    const AippMemberInfo *memberInfoPtr = getAippMemberInfo(memberIndex);
+    const AippMemberInfo* memberInfoPtr = getAippMemberInfo(memberIndex);
 
     if (!memberInfoPtr) {
         return op.emitError("Internal Error: Index out of bounds when accessing AippMemberInfo for member index ")
@@ -71,9 +71,9 @@ LogicalResult printAippMemberAssignment(CodeEmitter &emitter, ascendc::Construct
     return success();
 }
 
-LogicalResult printAippStructConstruction(CodeEmitter &emitter, ascendc::ConstructOp op)
+LogicalResult printAippStructConstruction(CodeEmitter& emitter, ascendc::ConstructOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     mlir::Type resultType = op->getResult(0).getType();
 
     return llvm::TypeSwitch<mlir::Type, LogicalResult>(resultType)
@@ -104,9 +104,10 @@ LogicalResult printAippStructConstruction(CodeEmitter &emitter, ascendc::Constru
 
             return success();
         })
-        .Case<ascendc::AippPaddingParamsType, ascendc::AippSwapParamsType, ascendc::AippSingleLineParamsType,
-              ascendc::AippDataTypeConvParamsType, ascendc::AippChannelPaddingParamsType,
-              ascendc::AippColorSpaceConvParamsType>([&](auto type) -> LogicalResult { return success(); })
+        .Case<
+            ascendc::AippPaddingParamsType, ascendc::AippSwapParamsType, ascendc::AippSingleLineParamsType,
+            ascendc::AippDataTypeConvParamsType, ascendc::AippChannelPaddingParamsType,
+            ascendc::AippColorSpaceConvParamsType>([&](auto type) -> LogicalResult { return success(); })
         .Default([](auto type) -> LogicalResult { return failure(); });
 }
 
@@ -116,13 +117,13 @@ LogicalResult printAippStructConstruction(CodeEmitter &emitter, ascendc::Constru
 // Other operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::ConstructOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::ConstructOp op)
 {
     if (succeeded(printAippStructConstruction(emitter, op))) {
         return success();
     }
 
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     if (op.getIsStatic()) {
         os << "static ";
     }
@@ -157,24 +158,24 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Const
         types.append(op->getOperandTypes().begin(), op->getOperandTypes().end());
     }
     llvm::interleaveComma(llvm::zip_equal(op.getOperands(), types), os, [&emitOperand](auto pair) {
-        const auto &[operand, type] = pair;
+        const auto& [operand, type] = pair;
         emitOperand(operand, type);
     });
     os << '}';
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::FftsCrossCoreSyncOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::FftsCrossCoreSyncOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << "ffts_cross_core_sync(" << ascendc::stringifyEnum(op.getPipe()).upper() << ", "
        << emitter.getOrCreateName(op.getConfig()) << ")";
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::GetMrgSortResultOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GetMrgSortResultOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     Value mrgSortList1Value = op.getMrgSortList1();
     Value mrgSortList2Value = op.getMrgSortList2();
     Value mrgSortList3Value = op.getMrgSortList3();
@@ -186,59 +187,55 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::GetMr
     os << "uint16_t " << emitter.getOrCreateName(mrgSortList4Value) << ";\n";
 
     os << ascNamespace << "::" << op.getAPIName();
-    os << "("  << emitter.getOrCreateName(mrgSortList1Value);
+    os << "(" << emitter.getOrCreateName(mrgSortList1Value);
     os << ", " << emitter.getOrCreateName(mrgSortList2Value);
     os << ", " << emitter.getOrCreateName(mrgSortList3Value);
     os << ", " << emitter.getOrCreateName(mrgSortList4Value) << ")";
-    
+
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::MrgSortOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::MrgSortOp op)
 {
-   static int elementCountListCounter = 0;
-   auto uniqueId = std::to_string(elementCountListCounter++);
-   auto& os = emitter.ostream();
-   auto elementCountListName = (emitter.getOrCreateName(op.getDst()) + "_element_count_list_" + uniqueId).str();
-   auto sortedNumName = (emitter.getOrCreateName(op.getDst()) + "_sorted_num_" + uniqueId).str();
-   os << "uint16_t " << elementCountListName << "[] = {";
-   llvm::interleaveComma(op.getElementCountList(), os, [&](Value operand) { os << emitter.getOrCreateName(operand); });
-   os << "};\n";
-   os << "uint32_t " << sortedNumName << "[] = {";
-   llvm::interleaveComma(op.getSortedNum(), os, [&](Value operand) { os << emitter.getOrCreateName(operand); });
-   os << "};\n";  
-   os << ascNamespace << "::" << op.getAPIName();
-   auto tensorType = cast<ascendc::LocalTensorType>(op.getDst().getType()).getElementType();
-   os << "<";
-   FAIL_OR(emitter.emitType(op.getLoc(), tensorType));
-   os << ", " << op.getIsExhaustedSuspension() << ">"
-      << "(" << emitter.getOrCreateName(op.getDst()) << ", "
-      << emitter.getOrCreateName(op.getSortList()) << ", "
-      << elementCountListName << ", " << sortedNumName << ", "
-      << emitter.getOrCreateName(op.getValidBit()) << ", "
-      << emitter.getOrCreateName(op.getRepeatTime()) << ")";
+    static int elementCountListCounter = 0;
+    auto uniqueId = std::to_string(elementCountListCounter++);
+    auto& os = emitter.ostream();
+    auto elementCountListName = (emitter.getOrCreateName(op.getDst()) + "_element_count_list_" + uniqueId).str();
+    auto sortedNumName = (emitter.getOrCreateName(op.getDst()) + "_sorted_num_" + uniqueId).str();
+    os << "uint16_t " << elementCountListName << "[] = {";
+    llvm::interleaveComma(op.getElementCountList(), os, [&](Value operand) { os << emitter.getOrCreateName(operand); });
+    os << "};\n";
+    os << "uint32_t " << sortedNumName << "[] = {";
+    llvm::interleaveComma(op.getSortedNum(), os, [&](Value operand) { os << emitter.getOrCreateName(operand); });
+    os << "};\n";
+    os << ascNamespace << "::" << op.getAPIName();
+    auto tensorType = cast<ascendc::LocalTensorType>(op.getDst().getType()).getElementType();
+    os << "<";
+    FAIL_OR(emitter.emitType(op.getLoc(), tensorType));
+    os << ", " << op.getIsExhaustedSuspension() << ">"
+       << "(" << emitter.getOrCreateName(op.getDst()) << ", " << emitter.getOrCreateName(op.getSortList()) << ", "
+       << elementCountListName << ", " << sortedNumName << ", " << emitter.getOrCreateName(op.getValidBit()) << ", "
+       << emitter.getOrCreateName(op.getRepeatTime()) << ")";
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::SortOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::SortOp op)
 {
-   auto& os = emitter.ostream();
-   os << ascNamespace << "::" << op.getAPIName();
-   auto tensorType = cast<ascendc::LocalTensorType>(op.getDst().getType()).getElementType();
-   os << "<";
-   FAIL_OR(emitter.emitType(op.getLoc(), tensorType));
-   os << ", " << op.getIsFullSort() << ">"
-      << "(" << emitter.getOrCreateName(op.getDst()) << ", "
-      << emitter.getOrCreateName(op.getConcat()) << ", "
-      << emitter.getOrCreateName(op.getIndex()) << ", "
-      << emitter.getOrCreateName(op.getTmp()) << ", "
-      << emitter.getOrCreateName(op.getRepeatTime()) << ")";
+    auto& os = emitter.ostream();
+    os << ascNamespace << "::" << op.getAPIName();
+    auto tensorType = cast<ascendc::LocalTensorType>(op.getDst().getType()).getElementType();
+    os << "<";
+    FAIL_OR(emitter.emitType(op.getLoc(), tensorType));
+    os << ", " << op.getIsFullSort() << ">"
+       << "(" << emitter.getOrCreateName(op.getDst()) << ", " << emitter.getOrCreateName(op.getConcat()) << ", "
+       << emitter.getOrCreateName(op.getIndex()) << ", " << emitter.getOrCreateName(op.getTmp()) << ", "
+       << emitter.getOrCreateName(op.getRepeatTime()) << ")";
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::PopStackBufferOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::PopStackBufferOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName() << "<";
     FAIL_OR(emitter.emitType(op.getLoc(), op.getTensor().getType().getElementType()));
     os << ", ";
@@ -247,54 +244,50 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::PopSt
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::SetFftsBaseAddrOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::SetFftsBaseAddrOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << "set_ffts_base_addr(*" << emitter.getOrCreateName(op.getOperand()) << ")";
     return success();
 }
 
-LogicalResult mlir::printOperation(CodeEmitter &emitter, LLVM::UndefOp op)
+LogicalResult mlir::printOperation(CodeEmitter& emitter, LLVM::UndefOp op)
 {
     return emitter.emitVariableDeclaration(op->getResult(0), false);
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::ResetMaskOp op);
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::ResetMaskOp op);
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::FixpipeOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::FixpipeOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     FAIL_OR(printFixpipeTemplate(emitter, op));
-    os << "(" << emitter.getOrCreateName(op.getDst()) << ", "
-       << emitter.getOrCreateName(op.getSrc()) << ", "
+    os << "(" << emitter.getOrCreateName(op.getDst()) << ", " << emitter.getOrCreateName(op.getSrc()) << ", "
        << emitter.getOrCreateName(op.getIntriParams()) << ")";
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::FixpipeWithWorkspaceOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::FixpipeWithWorkspaceOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     FAIL_OR(printFixpipeTemplate(emitter, op));
-    os << "(" << emitter.getOrCreateName(op.getDst()) << ", "
-       << emitter.getOrCreateName(op.getSrc()) << ", "
-       << emitter.getOrCreateName(op.getCbufWorkspace()) << ", "
-       << emitter.getOrCreateName(op.getIntriParams()) << ")";
+    os << "(" << emitter.getOrCreateName(op.getDst()) << ", " << emitter.getOrCreateName(op.getSrc()) << ", "
+       << emitter.getOrCreateName(op.getCbufWorkspace()) << ", " << emitter.getOrCreateName(op.getIntriParams()) << ")";
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::GetStoreAtomicConfigOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GetStoreAtomicConfigOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     Value atomicTypeValue = op.getAtomicType();
     Value atomicOpValue = op.getAtomicOp();
-
 
     os << "uint16_t " << emitter.getOrCreateName(atomicTypeValue) << ";\n";
     os << "uint16_t " << emitter.getOrCreateName(atomicOpValue) << ";\n";
 
     os << ascNamespace << "::" << op.getAPIName();
-    os << "("  << emitter.getOrCreateName(atomicTypeValue);
+    os << "(" << emitter.getOrCreateName(atomicTypeValue);
     os << ", " << emitter.getOrCreateName(atomicOpValue) << ")";
-    
+
     return success();
 }

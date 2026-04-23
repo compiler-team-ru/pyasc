@@ -12,26 +12,26 @@
 
 using namespace mlir;
 
-LogicalResult mlir::printOperation(CodeEmitter &emitter, emitc::ConstantOp constantOp)
+LogicalResult mlir::printOperation(CodeEmitter& emitter, emitc::ConstantOp constantOp)
 {
-    Operation *operation = constantOp.getOperation();
+    Operation* operation = constantOp.getOperation();
     Attribute value = constantOp.getValue();
 
     return printConstantOp(emitter, operation, value);
 }
 
-LogicalResult mlir::printOperation(CodeEmitter &emitter, emitc::VariableOp variableOp)
+LogicalResult mlir::printOperation(CodeEmitter& emitter, emitc::VariableOp variableOp)
 {
-    Operation *operation = variableOp.getOperation();
+    Operation* operation = variableOp.getOperation();
     Attribute value = variableOp.getValue();
 
     return printConstantOp(emitter, operation, value);
 }
 
-LogicalResult mlir::printOperation(CodeEmitter &emitter, emitc::CastOp castOp)
+LogicalResult mlir::printOperation(CodeEmitter& emitter, emitc::CastOp castOp)
 {
-    raw_ostream &os = emitter.ostream();
-    Operation &op = *castOp.getOperation();
+    raw_ostream& os = emitter.ostream();
+    Operation& op = *castOp.getOperation();
 
     if (failed(emitter.emitAssignPrefix(op))) {
         return failure();
@@ -46,15 +46,15 @@ LogicalResult mlir::printOperation(CodeEmitter &emitter, emitc::CastOp castOp)
     return success();
 }
 
-LogicalResult mlir::printOperation(CodeEmitter &emitter, emitc::VerbatimOp verbatimOp)
+LogicalResult mlir::printOperation(CodeEmitter& emitter, emitc::VerbatimOp verbatimOp)
 {
     emitter.ostream() << verbatimOp.getValue();
     return success();
 }
 
-LogicalResult mlir::printOperation(CodeEmitter &emitter, emitc::IncludeOp includeOp)
+LogicalResult mlir::printOperation(CodeEmitter& emitter, emitc::IncludeOp includeOp)
 {
-    raw_ostream &os = emitter.ostream();
+    raw_ostream& os = emitter.ostream();
 
     os << "#include ";
     if (includeOp.getIsStandardInclude()) {

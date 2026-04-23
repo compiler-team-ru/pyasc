@@ -16,9 +16,9 @@ using namespace mlir::ascendc;
 namespace {
 
 template <typename CopyOpTy>
-LogicalResult emitCopyTemplateArgs(CodeEmitter &emitter, CopyOpTy op)
+LogicalResult emitCopyTemplateArgs(CodeEmitter& emitter, CopyOpTy op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
 
     os << "<";
     auto tensorType = cast<LocalTensorType>(op.getDst().getType());
@@ -36,9 +36,9 @@ LogicalResult emitCopyTemplateArgs(CodeEmitter &emitter, CopyOpTy op)
 // Data transfer operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::DataCopySliceOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::DataCopySliceOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     auto dstName = (emitter.getOrCreateName(op.getDst()) + "_slice_info").str();
     auto srcName = (emitter.getOrCreateName(op.getSrc()) + "_slice_info").str();
 
@@ -56,9 +56,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::DataC
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::CopyL0Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::CopyL0Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
 
     auto maskName = printMask(emitter, op);
 
@@ -72,9 +72,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::CopyL
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::CopyL1Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::CopyL1Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName();
     FAIL_OR(emitCopyTemplateArgs(emitter, op));
 

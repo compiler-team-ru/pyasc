@@ -28,25 +28,25 @@ using mlir::raw_indented_ostream;
 
 namespace {
 class GenOpEmitsDecls {
-  public:
-    explicit GenOpEmitsDecls(const RecordKeeper &records) : records(records) {}
-    void run(raw_ostream &os);
+public:
+    explicit GenOpEmitsDecls(const RecordKeeper& records) : records(records) {}
+    void run(raw_ostream& os);
 
-  private:
-    const RecordKeeper &records;
+private:
+    const RecordKeeper& records;
 };
 
-void printOpType(raw_indented_ostream &os, const Record *def)
+void printOpType(raw_indented_ostream& os, const Record* def)
 {
     const auto opTypeFullName = def->getName();
     const auto opType = mlir::asc::removeDialectPrefix(opTypeFullName, mlir::asc::kAscDialectName);
     os << mlir::asc::kAscDialectNameSpace << opType << " ,";
 }
 
-void GenOpEmitsDecls::run(raw_ostream &os)
+void GenOpEmitsDecls::run(raw_ostream& os)
 {
     raw_indented_ostream ios(os);
-    for (const auto *def : records.getAllDerivedDefinitions("Op")) {
+    for (const auto* def : records.getAllDerivedDefinitions("Op")) {
         if (!def->getValueAsBit(mlir::asc::kAutoEmitAttr)) {
             continue;
         }
@@ -54,6 +54,6 @@ void GenOpEmitsDecls::run(raw_ostream &os)
     }
 }
 
-TableGen::Emitter::OptClass<GenOpEmitsDecls> registration("gen-opemit-decls",
-                                                          "Generate op emit methods from MLIR operation decls");
+TableGen::Emitter::OptClass<GenOpEmitsDecls>
+    registration("gen-opemit-decls", "Generate op emit methods from MLIR operation decls");
 } // namespace

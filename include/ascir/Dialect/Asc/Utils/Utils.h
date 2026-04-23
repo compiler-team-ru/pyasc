@@ -24,14 +24,11 @@ template <typename OpT>
 struct HoistOpPattern : public OpRewritePattern<OpT> {
     using OpRewritePattern<OpT>::OpRewritePattern;
 
-    virtual bool hoistable(OpT) const
-    {
-        return true;
-    }
+    virtual bool hoistable(OpT) const { return true; }
 
-    LogicalResult matchAndRewrite(OpT op, PatternRewriter &rewriter) const override
+    LogicalResult matchAndRewrite(OpT op, PatternRewriter& rewriter) const override
     {
-        Operation *parent = op->getParentOp();
+        Operation* parent = op->getParentOp();
         if (isa<func::FuncOp>(parent))
             return failure();
         if (!hoistable(op))
@@ -47,11 +44,11 @@ struct HoistOpPattern : public OpRewritePattern<OpT> {
     }
 };
 
-bool opPrecedes(Operation *lhs, Operation *rhs);
+bool opPrecedes(Operation* lhs, Operation* rhs);
 
-bool opPrecedes(Operation *lhs, Operation *rhs, DominanceInfo &di);
+bool opPrecedes(Operation* lhs, Operation* rhs, DominanceInfo& di);
 
-void registerInlinerInterfaces(DialectRegistry &registry);
+void registerInlinerInterfaces(DialectRegistry& registry);
 
 } // namespace ascendc
 } // namespace mlir

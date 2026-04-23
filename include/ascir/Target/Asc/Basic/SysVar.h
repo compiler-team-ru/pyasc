@@ -20,9 +20,9 @@ namespace ascendc {
 // System Variable operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::GetBlockIdxOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::GetBlockIdxOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::GetBlockNumOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::GetBlockNumOp op);
 
 } // namespace ascendc
 } // namespace mlir

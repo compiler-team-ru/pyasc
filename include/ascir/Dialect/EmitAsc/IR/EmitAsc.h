@@ -34,7 +34,7 @@
 namespace mlir {
 namespace emitasc {
 
-void registerExternalModels(DialectRegistry &registry);
+void registerExternalModels(DialectRegistry& registry);
 
 } // namespace emitasc
 } // namespace mlir

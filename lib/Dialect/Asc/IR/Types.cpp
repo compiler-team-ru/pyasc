@@ -29,23 +29,20 @@ template <typename ConcreteT>
 class BaseTensorImpl {
     using BaseT = typename ConcreteT::Base;
 
-  public:
+public:
     static ConcreteT get(ArrayRef<int64_t> shape, Type elementType)
     {
         return BaseT::get(elementType.getContext(), shape, elementType);
     }
 
-    static ConcreteT get(Type elementType)
-    {
-        return ConcreteT::get({}, elementType);
-    }
+    static ConcreteT get(Type elementType) { return ConcreteT::get({}, elementType); }
 
     static ConcreteT get(BaseTensorType baseType)
     {
         return BaseT::get(baseType.getContext(), baseType.getShape(), baseType.getElementType());
     }
 
-    static Type parse(AsmParser &odsParser)
+    static Type parse(AsmParser& odsParser)
     {
         Type elementType;
         if (odsParser.parseLess())
@@ -54,9 +51,9 @@ class BaseTensorImpl {
         if (odsParser.parseOptionalStar()) {
             // No '*' consumed => tensor is ranked (i.e. has shape)
             if (odsParser.parseDimensionList(shape)) {
-                odsParser.emitError(odsParser.getNameLoc(),
-                                    "either dimension list (for ranked tensor) or '*' symbol (for "
-                                    "unranked tensor) must be declared");
+                odsParser.emitError(
+                    odsParser.getNameLoc(), "either dimension list (for ranked tensor) or '*' symbol (for "
+                                            "unranked tensor) must be declared");
                 return Type();
             }
         } else if (odsParser.parseXInDimensionList()) {
@@ -68,7 +65,7 @@ class BaseTensorImpl {
         return ConcreteT::get(shape, elementType);
     }
 
-    static void print(const ConcreteT &tensor, AsmPrinter &odsPrinter)
+    static void print(const ConcreteT& tensor, AsmPrinter& odsPrinter)
     {
         odsPrinter << "<";
         ArrayRef<int64_t> shape = tensor.getShape();
@@ -86,17 +83,14 @@ class BaseTensorImpl {
         odsPrinter << tensor.getElementType() << ">";
     }
 
-    static ShapedType cloneWith(const ConcreteT &tensor, std::optional<ArrayRef<int64_t>> shape, Type elementType)
+    static ShapedType cloneWith(const ConcreteT& tensor, std::optional<ArrayRef<int64_t>> shape, Type elementType)
     {
         if (shape)
             return ConcreteT::get(*shape, elementType);
         return ConcreteT::get(tensor.getShape(), elementType);
     }
 
-    static bool hasRank(const ConcreteT &tensor)
-    {
-        return !tensor.getShape().empty();
-    }
+    static bool hasRank(const ConcreteT& tensor) { return !tensor.getShape().empty(); }
 };
 
 //===----------------------------------------------------------------------===//
@@ -118,12 +112,12 @@ BaseGlobalTensorType BaseGlobalTensorType::get(BaseTensorType baseType)
     return BaseTensorImpl<BaseGlobalTensorType>::get(baseType);
 }
 
-Type BaseGlobalTensorType::parse(AsmParser &odsParser)
+Type BaseGlobalTensorType::parse(AsmParser& odsParser)
 {
     return BaseTensorImpl<BaseGlobalTensorType>::parse(odsParser);
 }
 
-void BaseGlobalTensorType::print(AsmPrinter &odsPrinter) const
+void BaseGlobalTensorType::print(AsmPrinter& odsPrinter) const
 {
     BaseTensorImpl<BaseGlobalTensorType>::print(*this, odsPrinter);
 }
@@ -133,10 +127,7 @@ ShapedType BaseGlobalTensorType::cloneWith(std::optional<ArrayRef<int64_t>> shap
     return BaseTensorImpl<BaseGlobalTensorType>::cloneWith(*this, shape, elementType);
 }
 
-bool BaseGlobalTensorType::hasRank() const
-{
-    return BaseTensorImpl<BaseGlobalTensorType>::hasRank(*this);
-}
+bool BaseGlobalTensorType::hasRank() const { return BaseTensorImpl<BaseGlobalTensorType>::hasRank(*this); }
 
 //===----------------------------------------------------------------------===//
 // BaseLocalTensorType
@@ -157,12 +148,9 @@ BaseLocalTensorType BaseLocalTensorType::get(BaseTensorType baseType)
     return BaseTensorImpl<BaseLocalTensorType>::get(baseType);
 }
 
-Type BaseLocalTensorType::parse(AsmParser &odsParser)
-{
-    return BaseTensorImpl<BaseLocalTensorType>::parse(odsParser);
-}
+Type BaseLocalTensorType::parse(AsmParser& odsParser) { return BaseTensorImpl<BaseLocalTensorType>::parse(odsParser); }
 
-void BaseLocalTensorType::print(AsmPrinter &odsPrinter) const
+void BaseLocalTensorType::print(AsmPrinter& odsPrinter) const
 {
     BaseTensorImpl<BaseLocalTensorType>::print(*this, odsPrinter);
 }
@@ -172,10 +160,7 @@ ShapedType BaseLocalTensorType::cloneWith(std::optional<ArrayRef<int64_t>> shape
     return BaseTensorImpl<BaseLocalTensorType>::cloneWith(*this, shape, elementType);
 }
 
-bool BaseLocalTensorType::hasRank() const
-{
-    return BaseTensorImpl<BaseLocalTensorType>::hasRank(*this);
-}
+bool BaseLocalTensorType::hasRank() const { return BaseTensorImpl<BaseLocalTensorType>::hasRank(*this); }
 
 //===----------------------------------------------------------------------===//
 // GlobalTensorType
@@ -186,22 +171,16 @@ GlobalTensorType GlobalTensorType::get(ArrayRef<int64_t> shape, Type elementType
     return BaseTensorImpl<GlobalTensorType>::get(shape, elementType);
 }
 
-GlobalTensorType GlobalTensorType::get(Type elementType)
-{
-    return BaseTensorImpl<GlobalTensorType>::get(elementType);
-}
+GlobalTensorType GlobalTensorType::get(Type elementType) { return BaseTensorImpl<GlobalTensorType>::get(elementType); }
 
 GlobalTensorType GlobalTensorType::get(BaseTensorType baseType)
 {
     return BaseTensorImpl<GlobalTensorType>::get(baseType);
 }
 
-Type GlobalTensorType::parse(AsmParser &odsParser)
-{
-    return BaseTensorImpl<GlobalTensorType>::parse(odsParser);
-}
+Type GlobalTensorType::parse(AsmParser& odsParser) { return BaseTensorImpl<GlobalTensorType>::parse(odsParser); }
 
-void GlobalTensorType::print(AsmPrinter &odsPrinter) const
+void GlobalTensorType::print(AsmPrinter& odsPrinter) const
 {
     BaseTensorImpl<GlobalTensorType>::print(*this, odsPrinter);
 }
@@ -211,10 +190,7 @@ ShapedType GlobalTensorType::cloneWith(std::optional<ArrayRef<int64_t>> shape, T
     return BaseTensorImpl<GlobalTensorType>::cloneWith(*this, shape, elementType);
 }
 
-bool GlobalTensorType::hasRank() const
-{
-    return BaseTensorImpl<GlobalTensorType>::hasRank(*this);
-}
+bool GlobalTensorType::hasRank() const { return BaseTensorImpl<GlobalTensorType>::hasRank(*this); }
 
 //===----------------------------------------------------------------------===//
 // LocalTensorType
@@ -225,35 +201,20 @@ LocalTensorType LocalTensorType::get(ArrayRef<int64_t> shape, Type elementType)
     return BaseTensorImpl<LocalTensorType>::get(shape, elementType);
 }
 
-LocalTensorType LocalTensorType::get(Type elementType)
-{
-    return BaseTensorImpl<LocalTensorType>::get(elementType);
-}
+LocalTensorType LocalTensorType::get(Type elementType) { return BaseTensorImpl<LocalTensorType>::get(elementType); }
 
-LocalTensorType LocalTensorType::get(BaseTensorType baseType)
-{
-    return BaseTensorImpl<LocalTensorType>::get(baseType);
-}
+LocalTensorType LocalTensorType::get(BaseTensorType baseType) { return BaseTensorImpl<LocalTensorType>::get(baseType); }
 
-Type LocalTensorType::parse(AsmParser &odsParser)
-{
-    return BaseTensorImpl<LocalTensorType>::parse(odsParser);
-}
+Type LocalTensorType::parse(AsmParser& odsParser) { return BaseTensorImpl<LocalTensorType>::parse(odsParser); }
 
-void LocalTensorType::print(AsmPrinter &odsPrinter) const
-{
-    BaseTensorImpl<LocalTensorType>::print(*this, odsPrinter);
-}
+void LocalTensorType::print(AsmPrinter& odsPrinter) const { BaseTensorImpl<LocalTensorType>::print(*this, odsPrinter); }
 
 ShapedType LocalTensorType::cloneWith(std::optional<ArrayRef<int64_t>> shape, Type elementType) const
 {
     return BaseTensorImpl<LocalTensorType>::cloneWith(*this, shape, elementType);
 }
 
-bool LocalTensorType::hasRank() const
-{
-    return BaseTensorImpl<LocalTensorType>::hasRank(*this);
-}
+bool LocalTensorType::hasRank() const { return BaseTensorImpl<LocalTensorType>::hasRank(*this); }
 
 //===----------------------------------------------------------------------===//
 // AscendCDialect

@@ -27,10 +27,10 @@ using namespace mlir;
 namespace {
 
 struct HoistQueBindPass : public ascendc::impl::HoistQueBindBase<HoistQueBindPass> {
-  public:
+public:
     void runOnOperation() override
     {
-        MLIRContext *context = &getContext();
+        MLIRContext* context = &getContext();
         RewritePatternSet patterns(context);
         patterns.add<
             //
@@ -49,9 +49,6 @@ struct HoistQueBindPass : public ascendc::impl::HoistQueBindBase<HoistQueBindPas
 
 namespace mlir {
 namespace ascendc {
-std::unique_ptr<Pass> createHoistQueBindPass()
-{
-    return std::make_unique<HoistQueBindPass>();
-}
+std::unique_ptr<Pass> createHoistQueBindPass() { return std::make_unique<HoistQueBindPass>(); }
 } // namespace ascendc
 } // namespace mlir

@@ -17,9 +17,9 @@ using namespace mlir::ascendc;
 // AIPP Emitters
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, SetAippFunctionsOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, SetAippFunctionsOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName();
 
     os << "(";

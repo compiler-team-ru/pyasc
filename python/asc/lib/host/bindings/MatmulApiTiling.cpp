@@ -19,15 +19,16 @@ namespace py = pybind11;
 
 namespace pybind11 {
 namespace asc {
-void pyasc_init_matmul_api_tiling(py::module &m)
+void pyasc_init_matmul_api_tiling(py::module& m)
 {
     using namespace matmul_tiling;
 
     // MatmulConfigParams struct
     py::class_<MatmulConfigParams>(m, "MatmulConfigParams", py::module_local())
-        .def(py::init<int32_t, bool, ScheduleType, MatrixTraverse, bool>(), "mm_config_type"_a = 1,
-             "enable_l1_cache_ub"_a = false, "schedule_type"_a = ScheduleType::INNER_PRODUCT,
-             "traverse"_a = MatrixTraverse::NOSET, "en_vec_nd2nz"_a = false)
+        .def(
+            py::init<int32_t, bool, ScheduleType, MatrixTraverse, bool>(), "mm_config_type"_a = 1,
+            "enable_l1_cache_ub"_a = false, "schedule_type"_a = ScheduleType::INNER_PRODUCT,
+            "traverse"_a = MatrixTraverse::NOSET, "en_vec_nd2nz"_a = false)
         .def_readwrite("mm_config_type", &MatmulConfigParams::mmConfigType)
         .def_readwrite("enable_l1_cache_ub", &MatmulConfigParams::enableL1CacheUB)
         .def_readwrite("schedule_type", &MatmulConfigParams::scheduleType)
@@ -38,7 +39,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
     py::class_<MatmulApiTilingBase>(m, "MatmulApiTilingBase", py::module_local())
         // Enable methods
         .def(
-            "enable_bias", [](MatmulApiTilingBase &self, bool isBiasIn) { return self.EnableBias(isBiasIn); },
+            "enable_bias", [](MatmulApiTilingBase& self, bool isBiasIn) { return self.EnableBias(isBiasIn); },
             "is_bias_in"_a = false,
             R"doc(
           设置Bias是否参与运算，设置的信息必须与Kernel侧保持一致。
@@ -77,7 +78,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         // Get methods
         .def(
-            "get_base_k", [](MatmulApiTilingBase &self) { return self.GetBaseK(); },
+            "get_base_k", [](MatmulApiTilingBase& self) { return self.GetBaseK(); },
             R"doc(
           获取Tiling计算得到的baseK值。
 
@@ -115,7 +116,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
               bask_k = tiling.get_base_k()
           )doc")
         .def(
-            "get_base_m", [](MatmulApiTilingBase &self) { return self.GetBaseM(); },
+            "get_base_m", [](MatmulApiTilingBase& self) { return self.GetBaseM(); },
             R"doc(
           获取Tiling计算得到的baseM值。
 
@@ -153,7 +154,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
               bask_m = tiling.get_base_m()
           )doc")
         .def(
-            "get_base_n", [](MatmulApiTilingBase &self) { return self.GetBaseN(); },
+            "get_base_n", [](MatmulApiTilingBase& self) { return self.GetBaseN(); },
             R"doc(
           获取Tiling计算得到的baseN值。
 
@@ -192,11 +193,11 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "get_tiling",
-            [](MatmulApiTilingBase &self, py::object &tiling) {
+            [](MatmulApiTilingBase& self, py::object& tiling) {
                 py::object method = tiling.attr("addressof");
                 py::object result = method();
                 auto cpp_int = py::cast<size_t>(result);
-                auto *tiling_new = reinterpret_cast<TCubeTiling *>(cpp_int);
+                auto* tiling_new = reinterpret_cast<TCubeTiling*>(cpp_int);
                 return self.GetTiling(*tiling_new);
             },
             "tiling"_a,
@@ -243,7 +244,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
         // Set methods
         .def(
             "set_a_layout",
-            [](MatmulApiTilingBase &self, int32_t b, int32_t s, int32_t n, int32_t g, int32_t d) {
+            [](MatmulApiTilingBase& self, int32_t b, int32_t s, int32_t n, int32_t g, int32_t d) {
                 return self.SetALayout(b, s, n, g, d);
             },
             "b"_a, "s"_a, "n"_a, "g"_a, "d"_a,
@@ -315,7 +316,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "set_a_type",
-            [](MatmulApiTilingBase &self, TPosition pos, CubeFormat type, DataType dataType, bool isTrans) {
+            [](MatmulApiTilingBase& self, TPosition pos, CubeFormat type, DataType dataType, bool isTrans) {
                 return self.SetAType(pos, type, dataType, isTrans);
             },
             "pos"_a, "type"_a, "data_type"_a, "is_trans"_a,
@@ -360,7 +361,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "set_b_layout",
-            [](MatmulApiTilingBase &self, int32_t b, int32_t s, int32_t n, int32_t g, int32_t d) {
+            [](MatmulApiTilingBase& self, int32_t b, int32_t s, int32_t n, int32_t g, int32_t d) {
                 return self.SetBLayout(b, s, n, g, d);
             },
             "b"_a, "s"_a, "n"_a, "g"_a, "d"_a,
@@ -432,7 +433,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "set_b_type",
-            [](MatmulApiTilingBase &self, TPosition pos, CubeFormat type, DataType dataType, bool isTrans) {
+            [](MatmulApiTilingBase& self, TPosition pos, CubeFormat type, DataType dataType, bool isTrans) {
                 return self.SetBType(pos, type, dataType, isTrans);
             },
             "pos"_a, "type"_a, "data_type"_a, "is_trans"_a,
@@ -477,7 +478,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "set_batch_info_for_normal",
-            [](MatmulApiTilingBase &self, int32_t batchA, int32_t batchB, int32_t m, int32_t n, int32_t k) {
+            [](MatmulApiTilingBase& self, int32_t batchA, int32_t batchB, int32_t m, int32_t n, int32_t k) {
                 return self.SetBatchInfoForNormal(batchA, batchB, m, n, k);
             },
             "batch_a"_a, "batch_b"_a, "m"_a, "n"_a, "k"_a,
@@ -533,7 +534,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
               ret = tiling.get_tiling(tiling_data)
           )doc")
         .def(
-            "set_batch_num", [](MatmulApiTilingBase &self, int32_t batch) { return self.SetBatchNum(batch); },
+            "set_batch_num", [](MatmulApiTilingBase& self, int32_t batch) { return self.SetBatchNum(batch); },
             "batch"_a,
             R"doc(
           设置多Batch计算的最大Batch数，最大Batch数为A矩阵batchA和B矩阵batchB中的最大值。
@@ -599,7 +600,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "set_bias_type",
-            [](MatmulApiTilingBase &self, TPosition pos, CubeFormat type, DataType dataType) {
+            [](MatmulApiTilingBase& self, TPosition pos, CubeFormat type, DataType dataType) {
                 return self.SetBiasType(pos, type, dataType);
             },
             "pos"_a, "type"_a, "data_type"_a,
@@ -642,7 +643,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "set_buffer_space",
-            [](MatmulApiTilingBase &self, int32_t l1Size, int32_t l0CSize, int32_t ubSize, int32_t btSize) {
+            [](MatmulApiTilingBase& self, int32_t l1Size, int32_t l0CSize, int32_t ubSize, int32_t btSize) {
                 return self.SetBufferSpace(l1Size, l0CSize, ubSize, btSize);
             },
             "l1_size"_a = -1, "l0_c_size"_a = -1, "ub_size"_a = -1, "bt_size"_a = -1,
@@ -687,7 +688,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "set_c_layout",
-            [](MatmulApiTilingBase &self, int32_t b, int32_t s, int32_t n, int32_t g, int32_t d) {
+            [](MatmulApiTilingBase& self, int32_t b, int32_t s, int32_t n, int32_t g, int32_t d) {
                 return self.SetCLayout(b, s, n, g, d);
             },
             "b"_a, "s"_a, "n"_a, "g"_a, "d"_a,
@@ -759,7 +760,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "set_c_type",
-            [](MatmulApiTilingBase &self, TPosition pos, CubeFormat type, DataType dataType) {
+            [](MatmulApiTilingBase& self, TPosition pos, CubeFormat type, DataType dataType) {
                 return self.SetCType(pos, type, dataType);
             },
             "pos"_a, "type"_a, "data_type"_a,
@@ -804,7 +805,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "set_dequant_type",
-            [](MatmulApiTilingBase &self, DequantType dequantType) { return self.SetDequantType(dequantType); },
+            [](MatmulApiTilingBase& self, DequantType dequantType) { return self.SetDequantType(dequantType); },
             "dequant_type"_a,
             R"doc(
           该接口用于设置量化或反量化的模式。
@@ -849,7 +850,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "set_double_buffer",
-            [](MatmulApiTilingBase &self, bool a, bool b, bool c, bool bias, bool transND2NZ, bool transNZ2ND) {
+            [](MatmulApiTilingBase& self, bool a, bool b, bool c, bool bias, bool transND2NZ, bool transNZ2ND) {
                 return self.SetDoubleBuffer(a, b, c, bias, transND2NZ, transNZ2ND);
             },
             "a"_a, "b"_a, "c"_a, "bias"_a, "trans_nd2nz"_a = true, "trans_nz2nd"_a = true,
@@ -872,7 +873,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "set_fix_split",
-            [](MatmulApiTilingBase &self, int32_t baseMIn, int32_t baseNIn, int32_t baseKIn) {
+            [](MatmulApiTilingBase& self, int32_t baseMIn, int32_t baseNIn, int32_t baseKIn) {
                 return self.SetFixSplit(baseMIn, baseNIn, baseKIn);
             },
             "base_m_in"_a = -1, "base_n_in"_a = -1, "base_k_in"_a = -1,
@@ -918,7 +919,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
               ret = tiling.get_tiling(tiling_data)
           )doc")
         .def(
-            "set_mad_type", [](MatmulApiTilingBase &self, MatrixMadType madType) { return self.SetMadType(madType); },
+            "set_mad_type", [](MatmulApiTilingBase& self, MatrixMadType madType) { return self.SetMadType(madType); },
             "mad_type"_a,
             R"doc(
           设置是否使能HF32模式。当前版本暂不支持。
@@ -939,7 +940,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "set_matmul_config_params",
-            [](MatmulApiTilingBase &self, int32_t mmConfigType, bool enableL1CacheUB, ScheduleType scheduleType,
+            [](MatmulApiTilingBase& self, int32_t mmConfigType, bool enableL1CacheUB, ScheduleType scheduleType,
                MatrixTraverse traverse, bool enVecND2NZ) {
                 return self.SetMatmulConfigParams(mmConfigType, enableL1CacheUB, scheduleType, traverse, enVecND2NZ);
             },
@@ -997,13 +998,13 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "set_matmul_config_params",
-            [](MatmulApiTilingBase &self, const MatmulConfigParams &configParams) {
+            [](MatmulApiTilingBase& self, const MatmulConfigParams& configParams) {
                 return self.SetMatmulConfigParams(configParams);
             },
             "config_params"_a)
         .def(
             "set_org_shape",
-            [](MatmulApiTilingBase &self, int32_t orgMIn, int32_t orgNIn, int32_t orgKIn) {
+            [](MatmulApiTilingBase& self, int32_t orgMIn, int32_t orgNIn, int32_t orgKIn) {
                 return self.SetOrgShape(orgMIn, orgNIn, orgKIn);
             },
             "org_m_in"_a, "org_n_in"_a, "org_k_in"_a,
@@ -1053,13 +1054,13 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "set_org_shape",
-            [](MatmulApiTilingBase &self, int32_t orgMIn, int32_t orgNIn, int32_t orgKaIn, int32_t orgKbIn) {
+            [](MatmulApiTilingBase& self, int32_t orgMIn, int32_t orgNIn, int32_t orgKaIn, int32_t orgKbIn) {
                 return self.SetOrgShape(orgMIn, orgNIn, orgKaIn, orgKbIn);
             },
             "org_m_in"_a, "org_n_in"_a, "org_ka_in"_a, "org_kb_in"_a)
         .def(
             "set_shape",
-            [](MatmulApiTilingBase &self, int32_t m, int32_t n, int32_t k) { return self.SetShape(m, n, k); }, "m"_a,
+            [](MatmulApiTilingBase& self, int32_t m, int32_t n, int32_t k) { return self.SetShape(m, n, k); }, "m"_a,
             "n"_a, "k"_a,
             R"doc(
           设置Matmul计算的形状m、n、k，该形状可以为原始完整矩阵或其局部矩阵，单位为元素。该形状的矩阵乘可以由单核或多核计算完成。
@@ -1099,7 +1100,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
               ret = tiling.get_tiling(tiling_data)
           )doc")
         .def(
-            "set_sparse", [](MatmulApiTilingBase &self, bool isSparceIn) { return self.SetSparse(isSparceIn); },
+            "set_sparse", [](MatmulApiTilingBase& self, bool isSparceIn) { return self.SetSparse(isSparceIn); },
             "is_sparce_in"_a = false,
             R"doc(
           设置Matmul的使用场景是否为Sparse Matmul场景。
@@ -1143,7 +1144,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "set_traverse",
-            [](MatmulApiTilingBase &self, MatrixTraverse traverse) { return self.SetTraverse(traverse); }, "traverse"_a,
+            [](MatmulApiTilingBase& self, MatrixTraverse traverse) { return self.SetTraverse(traverse); }, "traverse"_a,
             R"doc(
           设置固定的Matmul计算方向，M轴优先还是N轴优先。
 
@@ -1182,7 +1183,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "set_split_range",
-            [](MatmulApiTilingBase &self, int32_t maxBaseM, int32_t maxBaseN, int32_t maxBaseK, int32_t minBaseM,
+            [](MatmulApiTilingBase& self, int32_t maxBaseM, int32_t maxBaseN, int32_t maxBaseK, int32_t minBaseM,
                int32_t minBaseN, int32_t minBaseK) {
                 return self.SetSplitRange(maxBaseM, maxBaseN, maxBaseK, minBaseM, minBaseN, minBaseK);
             },
@@ -1218,8 +1219,9 @@ void pyasc_init_matmul_api_tiling(py::module &m)
 
     // MatmulApiTiling class
     py::class_<MatmulApiTiling, MatmulApiTilingBase>(m, "MatmulApiTiling", py::module_local())
-        .def(py::init<const platform_ascendc::PlatformAscendC &>(),
-             R"doc(
+        .def(
+            py::init<const platform_ascendc::PlatformAscendC&>(),
+            R"doc(
           创建MatmulApiTiling对象。
 
           **对应的Ascend C函数原型**
@@ -1263,8 +1265,9 @@ void pyasc_init_matmul_api_tiling(py::module &m)
 
     // MultiCoreMatmulTiling class
     py::class_<MultiCoreMatmulTiling, MatmulApiTilingBase>(m, "MultiCoreMatmulTiling", py::module_local())
-        .def(py::init<const platform_ascendc::PlatformAscendC &>(),
-             R"doc(
+        .def(
+            py::init<const platform_ascendc::PlatformAscendC&>(),
+            R"doc(
           创建MultiCoreMatmulTiling对象。
 
           **对应的Ascend C函数原型**
@@ -1308,7 +1311,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
         // Enable methods
         .def(
             "enable_multi_core_split_k",
-            [](MultiCoreMatmulTiling &self, bool flag) { return self.EnableMultiCoreSplitK(flag); }, "flag"_a,
+            [](MultiCoreMatmulTiling& self, bool flag) { return self.EnableMultiCoreSplitK(flag); }, "flag"_a,
             R"doc(
           多核场景，通过该接口使能切K轴。不调用该接口的情况下，默认不切K轴。在GetTiling接口调用前使用。
 
@@ -1351,7 +1354,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
         // Get methods
         .def(
             "get_core_num",
-            [](MultiCoreMatmulTiling &self) -> py::object {
+            [](MultiCoreMatmulTiling& self) -> py::object {
                 int32_t dim, mDim, nDim;
                 auto ret = self.GetCoreNum(dim, mDim, nDim);
                 if (ret != 0) {
@@ -1402,7 +1405,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "get_single_shape",
-            [](MultiCoreMatmulTiling &self) -> py::object {
+            [](MultiCoreMatmulTiling& self) -> py::object {
                 int32_t shapeM, shapeN, shapeK;
                 auto ret = self.GetSingleShape(shapeM, shapeN, shapeK);
                 if (ret != 0) {
@@ -1459,7 +1462,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
         // Set methods
         .def(
             "set_align_split",
-            [](MultiCoreMatmulTiling &self, int32_t alignM, int32_t alignN, int32_t alignK) {
+            [](MultiCoreMatmulTiling& self, int32_t alignM, int32_t alignN, int32_t alignK) {
                 return self.SetAlignSplit(alignM, alignN, alignK);
             },
             "align_m"_a, "align_n"_a, "align_k"_a,
@@ -1503,7 +1506,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
               ret1 = tiling.get_tiling(tiling_data)
           )doc")
         .def(
-            "set_dim", [](MultiCoreMatmulTiling &self, int32_t dim) { return self.SetDim(dim); }, "dim"_a,
+            "set_dim", [](MultiCoreMatmulTiling& self, int32_t dim) { return self.SetDim(dim); }, "dim"_a,
             R"doc(
           设置多核Matmul时，参与运算的核数。
 
@@ -1543,7 +1546,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "set_single_shape",
-            [](MultiCoreMatmulTiling &self, int32_t singleMIn, int32_t singleNIn, int32_t singleKIn) {
+            [](MultiCoreMatmulTiling& self, int32_t singleMIn, int32_t singleNIn, int32_t singleKIn) {
                 return self.SetSingleShape(singleMIn, singleNIn, singleKIn);
             },
             "single_m_in"_a = -1, "single_n_in"_a = -1, "single_k_in"_a = -1,
@@ -1588,7 +1591,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
           )doc")
         .def(
             "set_single_range",
-            [](MultiCoreMatmulTiling &self, int32_t maxM, int32_t maxN, int32_t maxK, int32_t minM, int32_t minN,
+            [](MultiCoreMatmulTiling& self, int32_t maxM, int32_t maxN, int32_t maxK, int32_t minM, int32_t minN,
                int32_t minK) { return self.SetSingleRange(maxM, maxN, maxK, minM, minN, minK); },
             "max_m"_a = -1, "max_n"_a = -1, "max_k"_a = -1, "min_m"_a = -1, "min_n"_a = -1, "min_k"_a = -1,
             R"doc(
@@ -1636,8 +1639,9 @@ void pyasc_init_matmul_api_tiling(py::module &m)
 
     // BatchMatmulTiling class
     py::class_<BatchMatmulTiling, MatmulApiTilingBase>(m, "BatchMatmulTiling", py::module_local())
-        .def(py::init<const platform_ascendc::PlatformAscendC &>(),
-             R"doc(
+        .def(
+            py::init<const platform_ascendc::PlatformAscendC&>(),
+            R"doc(
           创建BatchMatmulTiling对象。
 
           **对应的Ascend C函数原型**
@@ -1681,7 +1685,7 @@ void pyasc_init_matmul_api_tiling(py::module &m)
         // Get methods
         .def(
             "get_core_num",
-            [](BatchMatmulTiling &self) -> py::object {
+            [](BatchMatmulTiling& self) -> py::object {
                 int32_t dim, mDim, nDim, batchCoreM, batchCoreN;
                 auto ret = self.GetCoreNum(dim, mDim, nDim, batchCoreM, batchCoreN);
                 if (ret != 0) {

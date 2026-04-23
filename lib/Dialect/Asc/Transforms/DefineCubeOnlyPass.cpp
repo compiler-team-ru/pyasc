@@ -30,7 +30,7 @@ using namespace mlir::ascendc;
 namespace {
 
 class DefineCubeOnlyPass : public ascendc::impl::DefineCubeOnlyBase<DefineCubeOnlyPass> {
-  public:
+public:
     void runOnOperation() override
     {
         auto mod = getOperation();
@@ -44,9 +44,6 @@ class DefineCubeOnlyPass : public ascendc::impl::DefineCubeOnlyBase<DefineCubeOn
 
 namespace mlir {
 namespace ascendc {
-std::unique_ptr<Pass> createDefineCubeOnlyPass()
-{
-    return std::make_unique<DefineCubeOnlyPass>();
-}
+std::unique_ptr<Pass> createDefineCubeOnlyPass() { return std::make_unique<DefineCubeOnlyPass>(); }
 } // namespace ascendc
 } // namespace mlir

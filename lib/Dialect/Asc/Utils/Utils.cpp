@@ -24,33 +24,30 @@ using AllowInline = ascir::AllowlistInlinerInterface<T...>;
 
 namespace ascendc {
 
-bool opPrecedes(Operation *lhs, Operation *rhs)
-{
-    return lhs != rhs && lhs->isBeforeInBlock(rhs);
-}
+bool opPrecedes(Operation* lhs, Operation* rhs) { return lhs != rhs && lhs->isBeforeInBlock(rhs); }
 
-bool opPrecedes(Operation *lhs, Operation *rhs, DominanceInfo &di)
+bool opPrecedes(Operation* lhs, Operation* rhs, DominanceInfo& di)
 {
     if (lhs == rhs) {
         return false;
     }
-    Block *lhsBlk = lhs->getBlock();
-    Block *rhsBlk = rhs->getBlock();
+    Block* lhsBlk = lhs->getBlock();
+    Block* rhsBlk = rhs->getBlock();
     if (lhsBlk == rhsBlk) {
         return lhs->isBeforeInBlock(rhs);
     }
-    Block *dtr = di.findNearestCommonDominator(lhsBlk, rhsBlk);
-    Operation *lhsAnc = dtr->findAncestorOpInBlock(*lhs);
-    Operation *rhsAnc = dtr->findAncestorOpInBlock(*rhs);
+    Block* dtr = di.findNearestCommonDominator(lhsBlk, rhsBlk);
+    Operation* lhsAnc = dtr->findAncestorOpInBlock(*lhs);
+    Operation* rhsAnc = dtr->findAncestorOpInBlock(*rhs);
     return lhsAnc->isBeforeInBlock(rhsAnc);
 }
 
-void registerInlinerInterfaces(DialectRegistry &registry)
+void registerInlinerInterfaces(DialectRegistry& registry)
 {
-    registry.addExtension(+[](MLIRContext *ctx, BuiltinDialect *dialect) {
+    registry.addExtension(+[](MLIRContext* ctx, BuiltinDialect* dialect) {
         dialect->addInterface<AllowInline<UnrealizedConversionCastOp>>();
     });
-    registry.addExtension(+[](MLIRContext *ctx, emitc::EmitCDialect *dialect) {
+    registry.addExtension(+[](MLIRContext* ctx, emitc::EmitCDialect* dialect) {
         dialect->addInterface<AllowInline<emitc::CastOp, emitc::ConstantOp>>();
     });
 }

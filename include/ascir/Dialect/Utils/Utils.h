@@ -21,11 +21,8 @@ namespace mlir {
 
 template <typename T>
 struct PointerLikeTypeHash {
-    std::hash<const void *> h;
-    size_t operator()(const T &op) const
-    {
-        return h(op.getAsOpaquePointer());
-    }
+    std::hash<const void*> h;
+    size_t operator()(const T& op) const { return h(op.getAsOpaquePointer()); }
 };
 
 template <typename T>

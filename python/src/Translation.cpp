@@ -26,9 +26,9 @@ using namespace mlir;
 
 namespace pybind11 {
 namespace asc {
-void pyasc_init_translation(py::module &&m)
+void pyasc_init_translation(py::module&& m)
 {
-    m.def("ir_to_ascendc", [](ModuleOp &mod) -> std::string {
+    m.def("ir_to_ascendc", [](ModuleOp& mod) -> std::string {
         std::string result;
         llvm::raw_string_ostream os(result);
         if (translateToAscendC(mod.getOperation(), os).failed())

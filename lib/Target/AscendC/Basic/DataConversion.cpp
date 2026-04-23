@@ -40,7 +40,7 @@ mlir::Type inferElementTypeFromAddrList(ValueRange addrList)
         return nullptr;
     }
 
-    mlir::Operation *definingOp = firstAddr.getDefiningOp();
+    mlir::Operation* definingOp = firstAddr.getDefiningOp();
     if (definingOp) {
         if (auto getPhyAddrOp = dyn_cast<ascendc::LocalTensorGetPhyAddrOp>(definingOp)) {
             mlir::Value tensorValue = getPhyAddrOp.getTensor();
@@ -55,14 +55,14 @@ mlir::Type inferElementTypeFromAddrList(ValueRange addrList)
 mlir::Type inferElementTypeFromAddrTensor(mlir::ascendc::TransDataTo5HDOp op)
 {
     for (mlir::Value addrTensor : {op.getDst(), op.getSrc()}) {
-        for (Operation *user : addrTensor.getUsers()) {
+        for (Operation* user : addrTensor.getUsers()) {
             if (auto setValueOp = dyn_cast<ascendc::LocalTensorSetValueOp>(user)) {
                 if (setValueOp.getTensor() != addrTensor) {
                     continue;
                 }
 
                 mlir::Value valueToSet = setValueOp.getValue();
-                mlir::Operation *definingOp = valueToSet.getDefiningOp();
+                mlir::Operation* definingOp = valueToSet.getDefiningOp();
                 if (!definingOp) {
                     continue;
                 }
@@ -86,9 +86,9 @@ mlir::Type inferElementTypeFromAddrTensor(mlir::ascendc::TransDataTo5HDOp op)
 // Data Conversion operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TransDataTo5HDTensorListOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::TransDataTo5HDTensorListOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     if (op.getDstList().empty())
         return success();
 
@@ -121,9 +121,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Trans
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TransDataTo5HDUintListOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::TransDataTo5HDUintListOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     if (op.getDstList().empty())
         return success();
 
@@ -154,9 +154,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Trans
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TransDataTo5HDOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::TransDataTo5HDOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
 
     os << ascNamespace << "::" << op.getAPIName() << "<";
     mlir::Type elementType = inferElementTypeFromAddrTensor(op);

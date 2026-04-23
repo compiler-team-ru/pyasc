@@ -18,7 +18,7 @@ namespace py = pybind11;
 
 namespace pybind11 {
 namespace asc {
-void pyasc_init_enums(py::module &m)
+void pyasc_init_enums(py::module& m)
 {
     using namespace matmul_tiling;
 

@@ -41,13 +41,13 @@
 
 #define DEBUG_TYPE "translate-to-ascendc"
 
-#define FAIL_OR(expr)                                                                                                  \
-    if (failed(expr))                                                                                                  \
+#define FAIL_OR(expr) \
+    if (failed(expr)) \
     return failure()
 
-#define EXEC_IF_TRUE(condition, expr)                                                                                  \
-    if (condition) {                                                                                                   \
-        expr                                                                                                           \
+#define EXEC_IF_TRUE(condition, expr) \
+    if (condition) {                  \
+        expr                          \
     }
 namespace mlir {
 
@@ -62,7 +62,7 @@ using LogicalResultForT = LogicalResultIf<llvm::is_one_of<T, AllowedTypes...>::v
 // When generating code for an `scf.for op`, printing a trailing semicolon is
 // handled within the `printOperation` function.
 template <typename OpType>
-bool needsSemicolon(const OpType &op)
+bool needsSemicolon(const OpType& op)
 {
     return !isa<scf::IfOp, scf::ForOp, scf::IndexSwitchOp, scf::YieldOp>(op);
 }
@@ -79,12 +79,12 @@ LogicalResult isScalarOperation(OpType op)
     return success();
 }
 
-LogicalResult printConstantOp(CodeEmitter &emitter, Operation *operation, Attribute value);
+LogicalResult printConstantOp(CodeEmitter& emitter, Operation* operation, Attribute value);
 
 template <typename OpType>
-LogicalResult printIsSetMaskCastTemplate(CodeEmitter &emitter, OpType op)
+LogicalResult printIsSetMaskCastTemplate(CodeEmitter& emitter, OpType op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     auto dstType = cast<ascendc::LocalTensorType>(op.getDst().getType()).getElementType();
     auto srcType = cast<ascendc::LocalTensorType>(op.getSrc1().getType()).getElementType();
     os << ascNamespace << "::" << op.getAPIName() << "<";
@@ -96,9 +96,9 @@ LogicalResult printIsSetMaskCastTemplate(CodeEmitter &emitter, OpType op)
 }
 
 template <typename OpType>
-LogicalResult printIsSetMaskTemplate(CodeEmitter &emitter, OpType op)
+LogicalResult printIsSetMaskTemplate(CodeEmitter& emitter, OpType op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     auto tensorType = cast<ascendc::LocalTensorType>(op.getDst().getType()).getElementType();
     os << ascNamespace << "::" << op.getAPIName() << "<";
     FAIL_OR(emitter.emitType(op.getLoc(), tensorType));
@@ -107,11 +107,11 @@ LogicalResult printIsSetMaskTemplate(CodeEmitter &emitter, OpType op)
 }
 
 template <typename OpType>
-auto printMask(CodeEmitter &emitter, OpType op)
+auto printMask(CodeEmitter& emitter, OpType op)
 {
     static int maskCounter = 0;
     auto uniqueId = std::to_string(maskCounter++);
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     auto maskName = (emitter.getOrCreateName(op.getDst()) + "_mask_list" + uniqueId).str();
     os << "uint64_t " << maskName << "[] = {";
     llvm::interleaveComma(op.getMask(), os, [&](Value operand) { os << emitter.getOrCreateName(operand); });
@@ -126,13 +126,13 @@ namespace ascendc {
 // Mask operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::SetVectorMaskL0Op op);
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::SetVectorMaskL1Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::SetVectorMaskL0Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::SetVectorMaskL1Op op);
 
 } // namespace ascendc
 
 } // namespace mlir
 
-mlir::LogicalResult emitOperation(mlir::CodeEmitter &emitter, mlir::Operation &op, bool trailingSemicolon);
+mlir::LogicalResult emitOperation(mlir::CodeEmitter& emitter, mlir::Operation& op, bool trailingSemicolon);
 
 #endif // ASCIR_TARGET_ASC_COMMON_H

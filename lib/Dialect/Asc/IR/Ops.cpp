@@ -22,7 +22,7 @@ using namespace mlir::ascendc;
 
 namespace {
 
-LogicalResult eraseUnusedOp(Operation *op, PatternRewriter &rewriter)
+LogicalResult eraseUnusedOp(Operation* op, PatternRewriter& rewriter)
 {
     if (!op->getUses().empty()) {
         return failure();
@@ -37,7 +37,7 @@ LogicalResult eraseUnusedOp(Operation *op, PatternRewriter &rewriter)
 // GlobalTensorOp
 //===----------------------------------------------------------------------===//
 
-LogicalResult GlobalTensorOp::canonicalize(GlobalTensorOp op, PatternRewriter &rewriter)
+LogicalResult GlobalTensorOp::canonicalize(GlobalTensorOp op, PatternRewriter& rewriter)
 {
     return eraseUnusedOp(op, rewriter);
 }
@@ -46,7 +46,7 @@ LogicalResult GlobalTensorOp::canonicalize(GlobalTensorOp op, PatternRewriter &r
 // LocalTensorOp
 //===----------------------------------------------------------------------===//
 
-LogicalResult LocalTensorOp::canonicalize(LocalTensorOp op, PatternRewriter &rewriter)
+LogicalResult LocalTensorOp::canonicalize(LocalTensorOp op, PatternRewriter& rewriter)
 {
     return eraseUnusedOp(op, rewriter);
 }
@@ -55,9 +55,9 @@ LogicalResult LocalTensorOp::canonicalize(LocalTensorOp op, PatternRewriter &rew
 // PipeBarrierOp
 //===----------------------------------------------------------------------===//
 
-LogicalResult PipeBarrierOp::canonicalize(PipeBarrierOp op, PatternRewriter &rewriter)
+LogicalResult PipeBarrierOp::canonicalize(PipeBarrierOp op, PatternRewriter& rewriter)
 {
-    Block *block = op->getBlock();
+    Block* block = op->getBlock();
     auto nextIt = std::next(Block::iterator(op));
     if (nextIt == block->end())
         return failure();

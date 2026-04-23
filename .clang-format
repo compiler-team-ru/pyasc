@@ -11,7 +11,7 @@
 #   Using clang-format to reformat a file:
 #     clang-format -i -style=Google <file>
 
-BasedOnStyle: Google
+BasedOnStyle: LLVM
 ColumnLimit: 120
 AccessModifierOffset: -4
 SortIncludes: false

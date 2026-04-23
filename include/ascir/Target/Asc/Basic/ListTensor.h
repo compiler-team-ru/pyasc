@@ -16,7 +16,7 @@
 namespace mlir {
 namespace ascendc {
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::TensorDescOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::TensorDescOp op);
 
 LogicalResult printOperation(CodeEmitter& emitter, ascendc::TensorDescSetShapeAddrOp op);
 

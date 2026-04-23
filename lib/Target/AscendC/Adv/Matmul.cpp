@@ -13,9 +13,9 @@
 using namespace mlir;
 using namespace mlir::ascendc;
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::MatmulInitOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::MatmulInitOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << emitter.getOrCreateName(op.getMatmul()) << "." << op.getAPIName() << "(&"
        << emitter.getOrCreateName(op.getCubeTiling());
     if (auto pipe = op.getPipe()) {
@@ -25,10 +25,10 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Matmu
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::MatmulGetMatmulApiTilingOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::MatmulGetMatmulApiTilingOp op)
 {
     FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << " = " << op.getAPIName();
     FAIL_OR(emitter.emitAscMatmulSimplifiedTemplate(op.getLoc(), op.getMatmulType(), false));
     os << "(" << emitter.getOrCreateName(op.getMmCFG()) << ", " << emitter.getOrCreateName(op.getL1Size()) << ")";
@@ -36,20 +36,19 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Matmu
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::MatmulEndOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::MatmulEndOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << emitter.getOrCreateName(op.getMatmul()) << "." << op.getAPIName() << "()";
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::RegistMatmulObjOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::RegistMatmulObjOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << "using namespace " << ascNamespace << ";\n";
     os << op.getAPIName() << "(&" << emitter.getOrCreateName(op.getPipe()) << ", "
-       << emitter.getOrCreateName(op.getWorkspace()) << ", "
-       << emitter.getOrCreateName(op.getMatmul());
+       << emitter.getOrCreateName(op.getWorkspace()) << ", " << emitter.getOrCreateName(op.getMatmul());
     if (auto tiling = op.getTiling()) {
         os << ", &" << emitter.getOrCreateName(tiling);
     }

@@ -26,7 +26,7 @@ using namespace mlir;
 namespace {
 
 template <typename OpT>
-void eraseOps(Operation *root)
+void eraseOps(Operation* root)
 {
     root->walk([](OpT op) { op.erase(); });
 }
@@ -62,9 +62,6 @@ struct EraseSyncPass : public ascendc::impl::EraseSyncBase<EraseSyncPass> {
 
 namespace mlir {
 namespace ascendc {
-std::unique_ptr<Pass> createEraseSyncPass()
-{
-    return std::make_unique<EraseSyncPass>();
-}
+std::unique_ptr<Pass> createEraseSyncPass() { return std::make_unique<EraseSyncPass>(); }
 } // namespace ascendc
 } // namespace mlir

@@ -15,15 +15,15 @@
 
 namespace mlir {
 
-LogicalResult printOperation(CodeEmitter &emitter, emitc::ConstantOp constantOp);
+LogicalResult printOperation(CodeEmitter& emitter, emitc::ConstantOp constantOp);
 
-LogicalResult printOperation(CodeEmitter &emitter, emitc::VariableOp variableOp);
+LogicalResult printOperation(CodeEmitter& emitter, emitc::VariableOp variableOp);
 
-LogicalResult printOperation(CodeEmitter &emitter, emitc::CastOp castOp);
+LogicalResult printOperation(CodeEmitter& emitter, emitc::CastOp castOp);
 
-LogicalResult printOperation(CodeEmitter &emitter, emitc::IncludeOp includeOp);
+LogicalResult printOperation(CodeEmitter& emitter, emitc::IncludeOp includeOp);
 
-LogicalResult printOperation(CodeEmitter &emitter, emitc::VerbatimOp verbatimOp);
+LogicalResult printOperation(CodeEmitter& emitter, emitc::VerbatimOp verbatimOp);
 
 } // namespace mlir
 

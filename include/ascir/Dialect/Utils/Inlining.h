@@ -20,33 +20,21 @@ template <typename... AllowedOpT>
 struct AllowlistInlinerInterface : public DialectInlinerInterface {
     using DialectInlinerInterface::DialectInlinerInterface;
 
-    bool isLegalToInline(Operation *op, Region *, bool, IRMapping &) const override
-    {
-        return isa<AllowedOpT...>(op);
-    }
+    bool isLegalToInline(Operation* op, Region*, bool, IRMapping&) const override { return isa<AllowedOpT...>(op); }
 };
 
 struct PermissiveInlinerInterface : public DialectInlinerInterface {
     using DialectInlinerInterface::DialectInlinerInterface;
 
-    bool isLegalToInline(Operation *, Operation *, bool) const override
-    {
-        return true;
-    }
+    bool isLegalToInline(Operation*, Operation*, bool) const override { return true; }
 
-    bool isLegalToInline(Region *, Region *, bool, IRMapping &) const override
-    {
-        return true;
-    }
+    bool isLegalToInline(Region*, Region*, bool, IRMapping&) const override { return true; }
 
-    bool isLegalToInline(Operation *, Region *, bool, IRMapping &) const override
-    {
-        return true;
-    }
+    bool isLegalToInline(Operation*, Region*, bool, IRMapping&) const override { return true; }
 
-    void handleTerminator(Operation *, Block *) const override {}
+    void handleTerminator(Operation*, Block*) const override {}
 
-    void handleTerminator(Operation *, ValueRange) const override {}
+    void handleTerminator(Operation*, ValueRange) const override {}
 };
 
 } // namespace ascir

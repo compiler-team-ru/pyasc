@@ -17,9 +17,9 @@ using namespace mlir::ascendc;
 // Debug operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::PrintfOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::PrintfOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName() << "(\"" << op.getDesc() << "\"";
     if (!op.getVars().empty()) {
         os << ", ";

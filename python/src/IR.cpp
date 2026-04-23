@@ -88,7 +88,7 @@ std::optional<SmallVector<emitasc::KernelArgument>> getKernelArgAttrs(ModuleOp o
 
 namespace pybind11 {
 namespace asc {
-void pyasc_bind_enums(py::module &m)
+void pyasc_bind_enums(py::module& m)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
@@ -152,8 +152,8 @@ void pyasc_bind_enums(py::module &m)
         .value("ORDER_INDEX_VALUE", ascendc::ReduceOrder::ORDER_INDEX_VALUE)
         .value("ORDER_ONLY_VALUE", ascendc::ReduceOrder::ORDER_ONLY_VALUE)
         .value("ORDER_ONLY_INDEX", ascendc::ReduceOrder::ORDER_ONLY_INDEX)
-        .def_static("symbolize",
-                    [](uint8_t v) -> ascendc::ReduceOrder { return static_cast<ascendc::ReduceOrder>(v); });
+        .def_static(
+            "symbolize", [](uint8_t v) -> ascendc::ReduceOrder { return static_cast<ascendc::ReduceOrder>(v); });
 
     py::enum_<ascendc::RoundMode>(m, "RoundMode", py::module_local())
         .value("CAST_NONE", ascendc::RoundMode::CAST_NONE)
@@ -166,8 +166,8 @@ void pyasc_bind_enums(py::module &m)
         .def_static("symbolize", [](uint8_t v) -> ascendc::RoundMode { return static_cast<ascendc::RoundMode>(v); });
 
     py::enum_<ascendc::TPosition>(m, "TPosition", py::module_local())
-        .def_static("symbolize",
-                    [](uint8_t pos) -> ascendc::TPosition { return static_cast<ascendc::TPosition>(pos); });
+        .def_static(
+            "symbolize", [](uint8_t pos) -> ascendc::TPosition { return static_cast<ascendc::TPosition>(pos); });
 
     py::enum_<ascendc::CMPMODE>(m, "CMPMODE", py::module_local())
         .value("LT", ascendc::CMPMODE::LT)
@@ -176,26 +176,24 @@ void pyasc_bind_enums(py::module &m)
         .value("LE", ascendc::CMPMODE::LE)
         .value("GE", ascendc::CMPMODE::GE)
         .value("NE", ascendc::CMPMODE::NE)
-        .def_static("symbolize", [](uint8_t cmp_mode) -> ascendc::CMPMODE {
-            return static_cast<ascendc::CMPMODE>(cmp_mode);
-        });
+        .def_static(
+            "symbolize", [](uint8_t cmp_mode) -> ascendc::CMPMODE { return static_cast<ascendc::CMPMODE>(cmp_mode); });
 
     py::enum_<ascendc::SELMODE>(m, "SELMODE", py::module_local())
         .value("VSEL_CMPMASK_SPR", ascendc::SELMODE::VSEL_CMPMASK_SPR)
         .value("VSEL_TENSOR_SCALAR_MODE", ascendc::SELMODE::VSEL_TENSOR_SCALAR_MODE)
         .value("VSEL_TENSOR_TENSOR_MODE", ascendc::SELMODE::VSEL_TENSOR_TENSOR_MODE)
-        .def_static("symbolize", [](uint8_t sel_mode) -> ascendc::SELMODE {
-            return static_cast<ascendc::SELMODE>(sel_mode);
-        });
+        .def_static(
+            "symbolize", [](uint8_t sel_mode) -> ascendc::SELMODE { return static_cast<ascendc::SELMODE>(sel_mode); });
 }
 
-void pyasc_bind_context_and_dialect(py::module &m)
+void pyasc_bind_context_and_dialect(py::module& m)
 {
     py::class_<MLIRContext>(m, "Context", py::module_local())
         .def(py::init<>())
-        .def("disable_multithreading", [](MLIRContext &self) { self.disableMultithreading(); });
+        .def("disable_multithreading", [](MLIRContext& self) { self.disableMultithreading(); });
 
-    m.def("load_dialects", [](MLIRContext &context) {
+    m.def("load_dialects", [](MLIRContext& context) {
         DialectRegistry registry;
         registry.insert<
             //
@@ -212,39 +210,42 @@ void pyasc_bind_context_and_dialect(py::module &m)
     });
 }
 
-void pyasc_bind_type(py::module &m)
+void pyasc_bind_type(py::module& m)
 {
     using namespace pybind11::literals;
     py::class_<Type>(m, "Type", py::module_local())
-        .def("is_integer", [](Type &self) -> bool { return self.isInteger(); })
+        .def("is_integer", [](Type& self) -> bool { return self.isInteger(); })
         .def("is_index", &Type::isIndex)
-        .def("__eq__",
-             [](Type &self, py::object &other) {
-                 Type *other_ty = py::cast<Type *>(other);
-                 return (other_ty != nullptr) && (*other_ty == self);
-             })
-        .def("__ne__",
-             [](Type &self, py::object &other) {
-                 Type *other_ty = py::cast<Type *>(other);
-                 return (other_ty == nullptr) || (*other_ty != self);
-             })
-        .def("get_py_name",
-             [](Type &self) -> std::optional<std::string> {
-                 if (isa<IntegerType>(self)) {
-                     std::string name = self.isUnsignedInteger() ? "uint" : "int";
-                     name += std::to_string(self.getIntOrFloatBitWidth());
-                     return name;
-                 }
-                 if (isa<FloatType>(self)) {
-                     std::string name = "float";
-                     name += std::to_string(self.getIntOrFloatBitWidth());
-                     return name;
-                 }
-                 if (isa<NoneType>(self))
-                     return "void";
-                 return std::nullopt;
-             })
-        .def("__str__", [](Type &self) {
+        .def(
+            "__eq__",
+            [](Type& self, py::object& other) {
+                Type* other_ty = py::cast<Type*>(other);
+                return (other_ty != nullptr) && (*other_ty == self);
+            })
+        .def(
+            "__ne__",
+            [](Type& self, py::object& other) {
+                Type* other_ty = py::cast<Type*>(other);
+                return (other_ty == nullptr) || (*other_ty != self);
+            })
+        .def(
+            "get_py_name",
+            [](Type& self) -> std::optional<std::string> {
+                if (isa<IntegerType>(self)) {
+                    std::string name = self.isUnsignedInteger() ? "uint" : "int";
+                    name += std::to_string(self.getIntOrFloatBitWidth());
+                    return name;
+                }
+                if (isa<FloatType>(self)) {
+                    std::string name = "float";
+                    name += std::to_string(self.getIntOrFloatBitWidth());
+                    return name;
+                }
+                if (isa<NoneType>(self))
+                    return "void";
+                return std::nullopt;
+            })
+        .def("__str__", [](Type& self) {
             std::string str;
             llvm::raw_string_ostream os(str);
             self.print(os);
@@ -253,29 +254,30 @@ void pyasc_bind_type(py::module &m)
         });
 }
 
-void pyasc_bind_memref(py::module &m)
+void pyasc_bind_memref(py::module& m)
 {
     using namespace pybind11::literals;
-    m.def("get_element_type", [](const Type &shapedType) -> Type {
+    m.def("get_element_type", [](const Type& shapedType) -> Type {
         auto type = llvm::dyn_cast_if_present<ShapedType>(shapedType);
         if (!type)
             throw std::runtime_error("get_element_type(): must be shaped type");
         return type.getElementType();
     });
 
-    m.def("get_shape", [](const Type &shapedType) -> std::vector<int64_t> {
+    m.def("get_shape", [](const Type& shapedType) -> std::vector<int64_t> {
         auto type = llvm::dyn_cast_if_present<ShapedType>(shapedType);
         if (!type)
             throw std::runtime_error("get_shape(): must be shaped type");
         return type.getShape().vec();
     });
 
-    m.def("get_vector_type",
-          [](Type &elementType, std::vector<int64_t> &shape) -> Type { return VectorType::get(shape, elementType); });
+    m.def("get_vector_type", [](Type& elementType, std::vector<int64_t>& shape) -> Type {
+        return VectorType::get(shape, elementType);
+    });
 
     m.def(
         "get_memref_type",
-        [](Type &elementType, const std::variant<std::vector<int64_t>, int64_t> &shape,
+        [](Type& elementType, const std::variant<std::vector<int64_t>, int64_t>& shape,
            std::optional<int64_t> addressSpace) -> Type {
             Attribute memorySpace;
             if (auto as = addressSpace.value_or(0)) {
@@ -285,15 +287,15 @@ void pyasc_bind_memref(py::module &m)
             if (std::holds_alternative<int64_t>(shape)) {
                 sh.push_back(std::get<int64_t>(shape));
             } else {
-                const auto &shapeVec = std::get<std::vector<int64_t>>(shape);
+                const auto& shapeVec = std::get<std::vector<int64_t>>(shape);
                 sh.append(shapeVec.begin(), shapeVec.end());
             }
-            return MemRefType::get(sh, elementType, AffineMap {}, memorySpace);
+            return MemRefType::get(sh, elementType, AffineMap{}, memorySpace);
         },
         "element_type"_a, "shape"_a, "address_space"_a = py::none());
     m.def(
         "get_unranked_memref_type",
-        [](Type &elementType, std::optional<int64_t> addressSpace) -> Type {
+        [](Type& elementType, std::optional<int64_t> addressSpace) -> Type {
             Attribute memorySpace;
             if (auto as = addressSpace.value_or(0))
                 memorySpace = IntegerAttr::get(IntegerType::get(elementType.getContext(), INDEX_64), as);
@@ -302,30 +304,32 @@ void pyasc_bind_memref(py::module &m)
         "element_type"_a, "address_space"_a = py::none());
 }
 
-void pyasc_bind_tensor_type(py::module &m)
+void pyasc_bind_tensor_type(py::module& m)
 {
     using namespace pybind11::literals;
-    m.def("get_global_tensor_type", [](Type &elementType, std::vector<int64_t> &shape) -> Type {
+    m.def("get_global_tensor_type", [](Type& elementType, std::vector<int64_t>& shape) -> Type {
         return ascendc::GlobalTensorType::get(shape, elementType);
     });
 
-    m.def("get_global_tensor_type",
-          [](Type &elementType) -> Type { return ascendc::GlobalTensorType::get(elementType); });
+    m.def("get_global_tensor_type", [](Type& elementType) -> Type {
+        return ascendc::GlobalTensorType::get(elementType);
+    });
 
-    m.def("get_local_tensor_type", [](Type &elementType, std::vector<int64_t> &shape) -> Type {
+    m.def("get_local_tensor_type", [](Type& elementType, std::vector<int64_t>& shape) -> Type {
         return ascendc::LocalTensorType::get(shape, elementType);
     });
 
-    m.def("get_local_tensor_type",
-          [](Type &elementType) -> Type { return ascendc::LocalTensorType::get(elementType); });
+    m.def(
+        "get_local_tensor_type", [](Type& elementType) -> Type { return ascendc::LocalTensorType::get(elementType); });
 
-    m.def("get_opaque_type_name",
-          [](Type &type) -> std::string { return cast<emitc::OpaqueType>(type).getValue().str(); });
+    m.def("get_opaque_type_name", [](Type& type) -> std::string {
+        return cast<emitc::OpaqueType>(type).getValue().str();
+    });
 }
 
-void pyasc_bind_location(py::module &m)
+void pyasc_bind_location(py::module& m)
 {
-    py::class_<Location>(m, "Location", py::module_local()).def("__str__", [](Location &self) {
+    py::class_<Location>(m, "Location", py::module_local()).def("__str__", [](Location& self) {
         std::string str;
         llvm::raw_string_ostream os(str);
         self.print(os);
@@ -333,43 +337,44 @@ void pyasc_bind_location(py::module &m)
     });
 }
 
-void pyasc_bind_value(py::module &m)
+void pyasc_bind_value(py::module& m)
 {
     using ret = py::return_value_policy;
     py::class_<Value>(m, "Value", py::module_local())
         .def("get_context", &Value::getContext, ret::reference)
         .def(
             "get_defining_op",
-            [](Value &self) -> std::optional<Operation *> {
-                auto *def = self.getDefiningOp();
+            [](Value& self) -> std::optional<Operation*> {
+                auto* def = self.getDefiningOp();
                 if (def)
                     return def;
                 return std::nullopt;
             },
             ret::reference)
-        .def("replace_all_uses_with", [](Value &self, Value &newValue) { self.replaceAllUsesWith(newValue); })
-        .def("replace_uses_in_block",
-             [](Value &self, Block *block, Value &newValue) {
-                 self.replaceUsesWithIf(newValue, [block](OpOperand &opnd) -> bool {
-                     auto *op = opnd.getOwner();
-                     Block *parentBlock = op->getBlock();
-                     while (parentBlock) {
-                         if (parentBlock == block)
-                             return true;
-                         if (auto *parentOp = parentBlock->getParentOp())
-                             parentBlock = parentOp->getBlock();
-                         else
-                             parentBlock = nullptr;
-                     }
-                     return false;
-                 });
-             })
+        .def("replace_all_uses_with", [](Value& self, Value& newValue) { self.replaceAllUsesWith(newValue); })
+        .def(
+            "replace_uses_in_block",
+            [](Value& self, Block* block, Value& newValue) {
+                self.replaceUsesWithIf(newValue, [block](OpOperand& opnd) -> bool {
+                    auto* op = opnd.getOwner();
+                    Block* parentBlock = op->getBlock();
+                    while (parentBlock) {
+                        if (parentBlock == block)
+                            return true;
+                        if (auto* parentOp = parentBlock->getParentOp())
+                            parentBlock = parentOp->getBlock();
+                        else
+                            parentBlock = nullptr;
+                    }
+                    return false;
+                });
+            })
         .def("get_type", &Value::getType)
         .def("dump", &Value::dump)
-        .def("id", [](Value &self) { return reinterpret_cast<uint64_t>(self.getImpl()); });
+        .def("id", [](Value& self) { return reinterpret_cast<uint64_t>(self.getImpl()); });
 }
 
-void pyasc_bind_region(py::module &m)
+void pyasc_bind_region(py::module& m)
 {
     using ret = py::return_value_policy;
     py::class_<OpResult, Value>(m, "OpResult", py::module_local());
@@ -378,51 +383,53 @@ void pyasc_bind_region(py::module &m)
         .def("get_parent_region", &Region::getParentRegion, ret::reference)
         .def(
             "get_block",
-            [](Region &self, unsigned index) -> Block & {
+            [](Region& self, unsigned index) -> Block& {
                 if (index >= self.getBlocks().size())
                     throw std::runtime_error("block index is out of range");
                 return *std::next(self.begin(), index);
             },
             ret::reference)
-        .def("size", [](Region &self) { return self.getBlocks().size(); })
+        .def("size", [](Region& self) { return self.getBlocks().size(); })
         .def("empty", &Region::empty)
-        .def("id", [](Region &self) { return (uint64_t)&self; });
+        .def("id", [](Region& self) { return (uint64_t)&self; });
 }
 
-void pyasc_bind_blocks(py::module &m)
+void pyasc_bind_blocks(py::module& m)
 {
     using ret = py::return_value_policy;
     py::class_<Block>(m, "Block", py::module_local())
         .def(py::init())
         .def("dump", &Block::dump)
-        .def("id", [](Block &self) { return (uint64_t)&self; })
+        .def("id", [](Block& self) { return (uint64_t)&self; })
         .def("has_terminator", &Block::mightHaveTerminator)
         .def("get_terminator", &Block::getTerminator, ret::reference)
-        .def("add_argument",
-             [](Block &self, Type &type) -> BlockArgument {
-                 return self.addArgument(type, UnknownLoc::get(type.getContext()));
-             })
+        .def(
+            "add_argument",
+            [](Block& self, Type& type) -> BlockArgument {
+                return self.addArgument(type, UnknownLoc::get(type.getContext()));
+            })
         .def("get_argument", &Block::getArgument)
-        .def("get_arguments", [](Block &self) -> std::vector<BlockArgument> { return self.getArguments().vec(); })
-        .def("merge_block_before",
-             [](Block &self, Block &dst) {
-                 // See RewriterBase::mergeBlocks()
-                 if (self.getNumArguments() != 0)
-                     throw std::runtime_error("Unable to merge block with arguments");
-                 dst.getOperations().splice(dst.begin(), self.getOperations());
-                 self.dropAllUses();
-                 if (self.getParent())
-                     self.erase();
-             })
+        .def("get_arguments", [](Block& self) -> std::vector<BlockArgument> { return self.getArguments().vec(); })
+        .def(
+            "merge_block_before",
+            [](Block& self, Block& dst) {
+                // See RewriterBase::mergeBlocks()
+                if (self.getNumArguments() != 0)
+                    throw std::runtime_error("Unable to merge block with arguments");
+                dst.getOperations().splice(dst.begin(), self.getOperations());
+                self.dropAllUses();
+                if (self.getParent())
+                    self.erase();
+            })
         .def("clear", &Block::clear)
         .def("erase", &Block::erase);
 }
 
-void pyasc_bind_inline_block(py::module &m)
+void pyasc_bind_inline_block(py::module& m)
 {
     m.def(
         "inline_block_at_end",
-        [](Block *src, Block *dst, const std::optional<std::vector<Value>> &args) {
+        [](Block* src, Block* dst, const std::optional<std::vector<Value>>& args) {
             // See RewriterBase::inlineBlockBefore()
             ValueRange argValues({});
             if (args)
@@ -443,27 +450,28 @@ void pyasc_bind_inline_block(py::module &m)
         "src"_a, "dst"_a, "args"_a = py::none());
 }
 
-void pyasc_bind_attritube(py::module &m)
+void pyasc_bind_attritube(py::module& m)
 {
     using ret = py::return_value_policy;
     py::class_<Attribute>(m, "Attribute", py::module_local())
         .def("dump", &Attribute::dump)
-        .def("id", [](Attribute &self) { return reinterpret_cast<uint64_t>(self.getAsOpaquePointer()); });
+        .def("id", [](Attribute& self) { return reinterpret_cast<uint64_t>(self.getAsOpaquePointer()); });
 
     py::class_<ArrayAttr, Attribute>(m, "ArrayAttr", py::module_local());
 
-    m.def("get_type_attr", [](const Type &type) -> Attribute { return TypeAttr::get(type); });
+    m.def("get_type_attr", [](const Type& type) -> Attribute { return TypeAttr::get(type); });
 }
 
-void pyasc_bind_operation(py::module &m)
+void pyasc_bind_operation(py::module& m)
 {
     using ret = py::return_value_policy;
     py::class_<Operation, std::unique_ptr<Operation, py::nodelete>>(m, "Operation", py::module_local())
-        .def("get_name",
-             [](Operation &self) {
-                 llvm::StringRef opName = self.getName().getStringRef();
-                 return opName.str();
-             })
+        .def(
+            "get_name",
+            [](Operation& self) {
+                llvm::StringRef opName = self.getName().getStringRef();
+                return opName.str();
+            })
         .def("get_num_operands", &Operation::getNumOperands)
         .def("get_operand", &Operation::getOperand)
         .def("get_num_results", &Operation::getNumResults)
@@ -471,30 +479,34 @@ void pyasc_bind_operation(py::module &m)
         .def("get_num_regions", &Operation::getNumRegions)
         .def("get_region", &Operation::getRegion, ret::reference)
         .def("get_block", &Operation::getBlock, ret::reference)
-        .def("has_unit_attr",
-             [](Operation &self, const std::string &name) -> bool { return self.hasAttrOfType<UnitAttr>(name); })
-        .def("get_str_attr",
-             [](Operation &self, const std::string &name) -> std::optional<std::string> {
-                 auto ret = self.getAttrOfType<StringAttr>(name);
-                 if (!ret)
-                     return std::nullopt;
-                 return ret.getValue().str();
-             })
-        .def("get_bool_attr",
-             [](Operation &self, const std::string &name) -> std::optional<bool> {
-                 auto ret = self.getAttrOfType<BoolAttr>(name);
-                 if (!ret)
-                     return std::nullopt;
-                 return ret.getValue();
-             })
-        .def("get_integer_attr",
-             [](Operation &self, const std::string &name) -> py::object {
-                 auto ret = self.getAttrOfType<IntegerAttr>(name);
-                 if (!ret)
-                     return py::none();
-                 return py::int_(ret.getValue().getSExtValue());
-             })
-        .def("get_flat_symbol_ref_attr", [](Operation &self, const std::string &name) -> py::object {
+        .def(
+            "has_unit_attr",
+            [](Operation& self, const std::string& name) -> bool { return self.hasAttrOfType<UnitAttr>(name); })
+        .def(
+            "get_str_attr",
+            [](Operation& self, const std::string& name) -> std::optional<std::string> {
+                auto ret = self.getAttrOfType<StringAttr>(name);
+                if (!ret)
+                    return std::nullopt;
+                return ret.getValue().str();
+            })
+        .def(
+            "get_bool_attr",
+            [](Operation& self, const std::string& name) -> std::optional<bool> {
+                auto ret = self.getAttrOfType<BoolAttr>(name);
+                if (!ret)
+                    return std::nullopt;
+                return ret.getValue();
+            })
+        .def(
+            "get_integer_attr",
+            [](Operation& self, const std::string& name) -> py::object {
+                auto ret = self.getAttrOfType<IntegerAttr>(name);
+                if (!ret)
+                    return py::none();
+                return py::int_(ret.getValue().getSExtValue());
+            })
+        .def("get_flat_symbol_ref_attr", [](Operation& self, const std::string& name) -> py::object {
             auto ret = self.getAttrOfType<FlatSymbolRefAttr>(name);
             if (!ret)
                 return py::none();
@@ -502,112 +514,118 @@ void pyasc_bind_operation(py::module &m)
         });
 }
 
-void pyasc_bind_opstate(py::module &m)
+void pyasc_bind_opstate(py::module& m)
 {
     using ret = py::return_value_policy;
     py::class_<OpState>(m, "OpState", py::module_local())
         .def("get_context", &OpState::getContext, ret::reference)
-        .def("set_attr", [](OpState &self, std::string &name, Attribute &attr) { self->setAttr(name, attr); })
-        .def("get_num_results", [](OpState &self) -> unsigned { return self->getNumResults(); })
-        .def("get_result",
-             [](OpState &self, unsigned idx) -> Value {
-                 if (idx >= self->getNumResults())
-                     throw pybind11::index_error("Op result index out of range");
-                 return self->getResult(idx);
-             })
+        .def("set_attr", [](OpState& self, std::string& name, Attribute& attr) { self->setAttr(name, attr); })
+        .def("get_num_results", [](OpState& self) -> unsigned { return self->getNumResults(); })
+        .def(
+            "get_result",
+            [](OpState& self, unsigned idx) -> Value {
+                if (idx >= self->getNumResults())
+                    throw pybind11::index_error("Op result index out of range");
+                return self->getResult(idx);
+            })
         .def(
             "get_region",
-            [](OpState &self, unsigned idx) -> Region & {
+            [](OpState& self, unsigned idx) -> Region& {
                 if (idx >= self->getNumRegions())
                     throw pybind11::index_error("Op region index out of range");
                 return self->getRegion(idx);
             },
             ret::reference)
-        .def("dump", [](OpState &self) { self->dump(); })
-        .def("__str__",
-             [](OpState &self) -> std::string {
-                 std::string str;
-                 llvm::raw_string_ostream os(str);
-                 auto printingFlags = getOpPrintingFlags();
-                 self->print(os, printingFlags);
-                 return str;
-             })
-        .def("append_operand", [](OpState &self, Value &val) { self->insertOperands(self->getNumOperands(), val); })
-        .def("verify", [](OpState &self) -> bool { return succeeded(verify(self.getOperation())); })
+        .def("dump", [](OpState& self) { self->dump(); })
+        .def(
+            "__str__",
+            [](OpState& self) -> std::string {
+                std::string str;
+                llvm::raw_string_ostream os(str);
+                auto printingFlags = getOpPrintingFlags();
+                self->print(os, printingFlags);
+                return str;
+            })
+        .def("append_operand", [](OpState& self, Value& val) { self->insertOperands(self->getNumOperands(), val); })
+        .def("verify", [](OpState& self) -> bool { return succeeded(verify(self.getOperation())); })
         .def_property_readonly("op", &OpState::getOperation, ret::reference);
 }
 
-void pyasc_bind_moduleop(py::module &m)
+void pyasc_bind_moduleop(py::module& m)
 {
     using ret = py::return_value_policy;
     py::class_<ModuleOp, OpState>(m, "ModuleOp", py::module_local())
         .def("dump", &ModuleOp::dump)
         .def(
-            "get_body", [](ModuleOp &self) -> Block * { return self.getBody(); }, ret::reference)
+            "get_body", [](ModuleOp& self) -> Block* { return self.getBody(); }, ret::reference)
         .def(
             "has_function",
-            [](ModuleOp &self, const std::string &name, const std::optional<Type> &type) -> bool {
-                auto *op = SymbolTable::lookupSymbolIn(self, name);
+            [](ModuleOp& self, const std::string& name, const std::optional<Type>& type) -> bool {
+                auto* op = SymbolTable::lookupSymbolIn(self, name);
                 if (auto funcOp = dyn_cast_if_present<func::FuncOp>(op))
                     return !type || funcOp.getFunctionType() == *type;
                 return false;
             },
             "name"_a, "type"_a = py::none())
-        .def("need_insert_sync",
-             [](ModuleOp &self) {
-                 auto result = self.walk([](ascendc::LocalTensorAutoOp) { return WalkResult::interrupt(); });
-                 return result.wasInterrupted();
-             })
-        .def("erase", [](ModuleOp &self) { self->erase(); });
+        .def(
+            "need_insert_sync",
+            [](ModuleOp& self) {
+                auto result = self.walk([](ascendc::LocalTensorAutoOp) { return WalkResult::interrupt(); });
+                return result.wasInterrupted();
+            })
+        .def("erase", [](ModuleOp& self) { self->erase(); });
 }
 
-void pyasc_bind_funcop(py::module &m)
+void pyasc_bind_funcop(py::module& m)
 {
     using ret = py::return_value_policy;
     py::class_<func::FuncOp, OpState>(m, "FuncOp", py::module_local())
-        .def("get_arg",
-             [](func::FuncOp &self, unsigned idx) -> BlockArgument {
-                 if (idx >= self.getNumArguments())
-                     throw pybind11::index_error("Function argument index out of range");
-                 return self.getArgument(idx);
-             })
+        .def(
+            "get_arg",
+            [](func::FuncOp& self, unsigned idx) -> BlockArgument {
+                if (idx >= self.getNumArguments())
+                    throw pybind11::index_error("Function argument index out of range");
+                return self.getArgument(idx);
+            })
         .def("get_num_args", &func::FuncOp::getNumArguments)
         .def(
-            "add_entry_block", [](func::FuncOp &self) -> Block * { return self.addEntryBlock(); }, ret::reference)
-        .def("set_type",
-             [](func::FuncOp &self, const Type &funcType) {
-                 auto type = dyn_cast<FunctionType>(funcType);
-                 if (!type)
-                     throw std::runtime_error("set_type(): must be FunctionType");
-                 self.setFunctionType(type);
-             })
-        .def("set_arg_names",
-             [](func::FuncOp &self, const std::vector<std::string> &names) {
-                 if (names.size() != self.getNumArguments())
-                     throw std::runtime_error("Number of names must be equal to number of arguments");
-                 for (unsigned i = 0; i < names.size(); i++) {
-                     auto arg = self.getArgument(i);
-                     auto name = StringAttr::get(self.getContext(), names[i]);
-                     arg.setLoc(NameLoc::get(name, arg.getLoc()));
-                 }
-             })
+            "add_entry_block", [](func::FuncOp& self) -> Block* { return self.addEntryBlock(); }, ret::reference)
         .def(
-            "get_body", [](func::FuncOp &self) -> Block & { return self.getFunctionBody().front(); }, ret::reference)
-        .def("make_aicore",
-             [](func::FuncOp &self) { self->setAttr(ascendc::attr::aicore, UnitAttr::get(self.getContext())); })
-        .def("make_global", [](func::FuncOp &self) {
+            "set_type",
+            [](func::FuncOp& self, const Type& funcType) {
+                auto type = dyn_cast<FunctionType>(funcType);
+                if (!type)
+                    throw std::runtime_error("set_type(): must be FunctionType");
+                self.setFunctionType(type);
+            })
+        .def(
+            "set_arg_names",
+            [](func::FuncOp& self, const std::vector<std::string>& names) {
+                if (names.size() != self.getNumArguments())
+                    throw std::runtime_error("Number of names must be equal to number of arguments");
+                for (unsigned i = 0; i < names.size(); i++) {
+                    auto arg = self.getArgument(i);
+                    auto name = StringAttr::get(self.getContext(), names[i]);
+                    arg.setLoc(NameLoc::get(name, arg.getLoc()));
+                }
+            })
+        .def(
+            "get_body", [](func::FuncOp& self) -> Block& { return self.getFunctionBody().front(); }, ret::reference)
+        .def(
+            "make_aicore",
+            [](func::FuncOp& self) { self->setAttr(ascendc::attr::aicore, UnitAttr::get(self.getContext())); })
+        .def("make_global", [](func::FuncOp& self) {
             self.setPublic();
             self->setAttr(ascendc::attr::global, UnitAttr::get(self.getContext()));
         });
 }
 
-void pyasc_bind_scfop(py::module &m)
+void pyasc_bind_scfop(py::module& m)
 {
     using ret = py::return_value_policy;
     py::class_<scf::ForOp, OpState>(m, "ForOp", py::module_local())
         .def("get_induction_var", &scf::ForOp::getInductionVar)
-        .def(
-            "get_body", [](scf::ForOp &self) -> Block * { return self.getBody(); }, ret::reference);
+        .def("get_body", [](scf::ForOp& self) -> Block* { return self.getBody(); }, ret::reference);
     py::class_<scf::IfOp, OpState>(m, "IfOp", py::module_local())
         .def("get_then_block", &scf::IfOp::thenBlock, ret::reference)
         .def("get_else_block", &scf::IfOp::elseBlock, ret::reference)
@@ -620,13 +638,13 @@ void pyasc_bind_scfop(py::module &m)
     py::class_<scf::ConditionOp, OpState>(m, "ConditionOp", py::module_local());
 }
 
-void pyasc_bind_kernel_argument(py::module &m)
+void pyasc_bind_kernel_argument(py::module& m)
 {
     py::enum_<emitasc::KernelArgument>(m, "KernelArgument", py::module_local())
         .value("Explicit", emitasc::KernelArgument::Explicit)
         .value("FftsAddr", emitasc::KernelArgument::FftsAddr);
 
-    m.def("get_kernel_arg_attrs", [](ModuleOp &mod) -> py::object {
+    m.def("get_kernel_arg_attrs", [](ModuleOp& mod) -> py::object {
         auto kernelArgs = getKernelArgAttrs(mod);
         if (!kernelArgs) {
             return py::none();
@@ -639,7 +657,7 @@ void pyasc_bind_kernel_argument(py::module &m)
     });
 }
 
-void pyasc_init_ir(py::module &&m)
+void pyasc_init_ir(py::module&& m)
 {
     pyasc_bind_enums(m);
     pyasc_bind_context_and_dialect(m);

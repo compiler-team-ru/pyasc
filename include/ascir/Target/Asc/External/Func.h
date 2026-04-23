@@ -15,13 +15,13 @@
 
 namespace mlir {
 
-LogicalResult printOperation(CodeEmitter &codeEmitter, func::ConstantOp constantOp);
+LogicalResult printOperation(CodeEmitter& codeEmitter, func::ConstantOp constantOp);
 
-LogicalResult printOperation(CodeEmitter &codeEmitter, func::CallOp callOp);
+LogicalResult printOperation(CodeEmitter& codeEmitter, func::CallOp callOp);
 
-LogicalResult printOperation(CodeEmitter &codeEmitter, func::ReturnOp returnOp);
+LogicalResult printOperation(CodeEmitter& codeEmitter, func::ReturnOp returnOp);
 
-LogicalResult printOperation(CodeEmitter &codeEmitter, func::FuncOp functionOp);
+LogicalResult printOperation(CodeEmitter& codeEmitter, func::FuncOp functionOp);
 
 } // namespace mlir
 

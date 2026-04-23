@@ -14,7 +14,7 @@
 
 using namespace llvm;
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     InitLLVM y(argc, argv);
     cl::ParseCommandLineOptions(argc, argv);

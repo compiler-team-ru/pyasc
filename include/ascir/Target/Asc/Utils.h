@@ -19,8 +19,8 @@ namespace mlir {
 /// Convenience functions to produce interleaved output with functions returning a LogicalResult.
 /// This is different than those in STLExtras as functions used on each element doesn't return a string.
 template <typename ForwardIterator, typename UnaryFunctor, typename NullaryFunctor>
-inline LogicalResult interleaveWithError(ForwardIterator beginIter, ForwardIterator endIter, UnaryFunctor eachFn,
-                                         NullaryFunctor betweenFn)
+inline LogicalResult
+interleaveWithError(ForwardIterator beginIter, ForwardIterator endIter, UnaryFunctor eachFn, NullaryFunctor betweenFn)
 {
     if (beginIter == endIter)
         return success();
@@ -36,13 +36,13 @@ inline LogicalResult interleaveWithError(ForwardIterator beginIter, ForwardItera
 }
 
 template <typename Container, typename UnaryFunctor, typename NullaryFunctor>
-inline LogicalResult interleaveWithError(const Container &container, UnaryFunctor eachFn, NullaryFunctor betweenFn)
+inline LogicalResult interleaveWithError(const Container& container, UnaryFunctor eachFn, NullaryFunctor betweenFn)
 {
     return interleaveWithError(std::cbegin(container), std::cend(container), eachFn, betweenFn);
 }
 
 template <typename Container, typename UnaryFunctor>
-inline LogicalResult interleaveCommaWithError(const Container &c, raw_ostream &os, UnaryFunctor eachFn)
+inline LogicalResult interleaveCommaWithError(const Container& c, raw_ostream& os, UnaryFunctor eachFn)
 {
     return interleaveWithError(std::cbegin(c), std::cend(c), eachFn, [&]() { os << ", "; });
 }

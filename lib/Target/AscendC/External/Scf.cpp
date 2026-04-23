@@ -12,9 +12,9 @@
 
 using namespace mlir;
 
-LogicalResult mlir::emitBlock(CodeEmitter &codeEmitter, Block &block)
+LogicalResult mlir::emitBlock(CodeEmitter& codeEmitter, Block& block)
 {
-    for (auto &op : block) {
+    for (auto& op : block) {
         if (isa<scf::YieldOp>(op) && op.getNumOperands() == 0) {
             continue;
         }
@@ -23,9 +23,9 @@ LogicalResult mlir::emitBlock(CodeEmitter &codeEmitter, Block &block)
     return success();
 }
 
-LogicalResult mlir::printOperation(CodeEmitter &codeEmitter, scf::ForOp forOp)
+LogicalResult mlir::printOperation(CodeEmitter& codeEmitter, scf::ForOp forOp)
 {
-    raw_indented_ostream &os = codeEmitter.ostream();
+    raw_indented_ostream& os = codeEmitter.ostream();
 
     OperandRange operands = forOp.getInitArgs();
     Block::BlockArgListType iterArgs = forOp.getRegionIterArgs();
@@ -56,7 +56,7 @@ LogicalResult mlir::printOperation(CodeEmitter &codeEmitter, scf::ForOp forOp)
     os << " += " << codeEmitter.getOrCreateName(forOp.getStep()) << ") {\n";
     os.indent();
 
-    Region &forRegion = forOp.getRegion();
+    Region& forRegion = forOp.getRegion();
     auto regionOps = forRegion.getOps();
 
     // We skip the trailing yield op because this updates the result variables
@@ -64,7 +64,7 @@ LogicalResult mlir::printOperation(CodeEmitter &codeEmitter, scf::ForOp forOp)
     // the end of a loop iteration and set the result variables after the for
     // loop.
     for (auto it = regionOps.begin(); std::next(it) != regionOps.end(); ++it) {
-        Operation &op = *it;
+        Operation& op = *it;
         if (failed(emitOperation(codeEmitter, op, needsSemicolon(op)))) {
             return failure();
         }
@@ -85,21 +85,21 @@ LogicalResult mlir::printOperation(CodeEmitter &codeEmitter, scf::ForOp forOp)
     llvm::interleave(
         llvm::zip(results, iterArgs),
         [&](auto pair) {
-            auto &[result, iterArg] = pair;
+            auto& [result, iterArg] = pair;
             os << codeEmitter.getOrCreateName(result) << " = " << codeEmitter.getOrCreateName(iterArg) << ";";
         },
         [&] { os << "\n"; });
     return success();
 }
 
-LogicalResult mlir::printOperation(CodeEmitter &codeEmitter, scf::IfOp ifOp)
+LogicalResult mlir::printOperation(CodeEmitter& codeEmitter, scf::IfOp ifOp)
 {
-    auto &os = codeEmitter.ostream();
+    auto& os = codeEmitter.ostream();
 
     for (OpResult result : ifOp.getResults()) {
-        if (failed(codeEmitter.emitVariableDeclaration(result,
-                                                       /*trailingSemicolon=*/true)))
-        {
+        if (failed(codeEmitter.emitVariableDeclaration(
+                result,
+                /*trailingSemicolon=*/true))) {
             return failure();
         }
     }
@@ -120,12 +120,12 @@ LogicalResult mlir::printOperation(CodeEmitter &codeEmitter, scf::IfOp ifOp)
     return success();
 }
 
-LogicalResult mlir::printOperation(CodeEmitter &codeEmitter, scf::IndexSwitchOp op)
+LogicalResult mlir::printOperation(CodeEmitter& codeEmitter, scf::IndexSwitchOp op)
 {
     for (auto result : op.getResults()) {
         FAIL_OR(codeEmitter.emitVariableDeclaration(result, true));
     }
-    auto &os = codeEmitter.ostream();
+    auto& os = codeEmitter.ostream();
     os << "switch(" << codeEmitter.getOrCreateName(op.getArg()) << ") {\n";
     for (auto [i, value] : llvm::enumerate(op.getCases())) {
         os << "case " << value << ": {\n";
@@ -140,10 +140,10 @@ LogicalResult mlir::printOperation(CodeEmitter &codeEmitter, scf::IndexSwitchOp 
     return success();
 }
 
-LogicalResult mlir::printOperation(CodeEmitter &codeEmitter, scf::YieldOp yieldOp)
+LogicalResult mlir::printOperation(CodeEmitter& codeEmitter, scf::YieldOp yieldOp)
 {
-    auto &os = codeEmitter.ostream();
-    Operation *parentOp = yieldOp->getParentOp();
+    auto& os = codeEmitter.ostream();
+    Operation* parentOp = yieldOp->getParentOp();
     return interleaveWithError(
         llvm::zip(parentOp->getResults(), yieldOp.getOperands()),
         [&](auto pair) -> LogicalResult {
@@ -156,12 +156,12 @@ LogicalResult mlir::printOperation(CodeEmitter &codeEmitter, scf::YieldOp yieldO
         [&] { os << "\n"; });
 }
 
-LogicalResult mlir::printOperation(CodeEmitter &codeEmitter, scf::ConditionOp conditionOp)
+LogicalResult mlir::printOperation(CodeEmitter& codeEmitter, scf::ConditionOp conditionOp)
 {
-    raw_indented_ostream &os = codeEmitter.ostream();
+    raw_indented_ostream& os = codeEmitter.ostream();
     os << "if (!" << codeEmitter.getOrCreateName(conditionOp.getCondition()) << ") {\n";
     os.indent();
-    Operation &parentOp = *conditionOp.getOperation()->getParentOp();
+    Operation& parentOp = *conditionOp.getOperation()->getParentOp();
     if (auto whileOp = dyn_cast<scf::WhileOp>(parentOp)) {
         for (auto [result, arg] : llvm::zip(whileOp.getResults(), conditionOp.getArgs())) {
             os << codeEmitter.getOrCreateName(result) << " = " << codeEmitter.getOrCreateName(arg) << ";\n";
@@ -173,9 +173,9 @@ LogicalResult mlir::printOperation(CodeEmitter &codeEmitter, scf::ConditionOp co
     return success();
 }
 
-LogicalResult mlir::printOperation(CodeEmitter &codeEmitter, scf::WhileOp whileOp)
+LogicalResult mlir::printOperation(CodeEmitter& codeEmitter, scf::WhileOp whileOp)
 {
-    auto &os = codeEmitter.ostream();
+    auto& os = codeEmitter.ostream();
     for (OpResult result : whileOp.getResults()) {
         FAIL_OR(codeEmitter.emitVariableDeclaration(result, true));
     }
@@ -186,7 +186,7 @@ LogicalResult mlir::printOperation(CodeEmitter &codeEmitter, scf::WhileOp whileO
     }
     os << "while (true) {\n";
     os.indent();
-    for (Operation &op : whileOp.getBefore().getOps()) {
+    for (Operation& op : whileOp.getBefore().getOps()) {
         FAIL_OR(emitOperation(codeEmitter, op, /*trailingSemicolon=*/true));
     }
     auto afterArgs = whileOp.getAfterArguments();
@@ -195,7 +195,7 @@ LogicalResult mlir::printOperation(CodeEmitter &codeEmitter, scf::WhileOp whileO
         FAIL_OR(codeEmitter.emitType(whileOp.getLoc(), arg.getType()));
         os << " " << codeEmitter.getOrCreateName(arg) << " = " << codeEmitter.getOrCreateName(init) << ";\n";
     }
-    for (Operation &op : whileOp.getAfter().getOps()) {
+    for (Operation& op : whileOp.getAfter().getOps()) {
         if (auto yield = dyn_cast<scf::YieldOp>(op)) {
             for (auto [result, operand] : llvm::zip(beforeArgs, yield.getOperands()))
                 os << codeEmitter.getOrCreateName(result) << " = " << codeEmitter.getOrCreateName(operand) << ";\n";

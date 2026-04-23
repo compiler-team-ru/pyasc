@@ -20,9 +20,9 @@ namespace ascendc {
 // GlobalTensor operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::GlobalTensorSubIndexOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::GlobalTensorSubIndexOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::GlobalTensorBracketOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::GlobalTensorBracketOp op);
 
 } // namespace ascendc
 } // namespace mlir

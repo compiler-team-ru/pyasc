@@ -43,7 +43,7 @@ struct MaterializeLocalTensor : OpRewritePattern<ascendc::LocalTensorAutoOp> {
         llvm_unreachable("position is undefined because tensor cannot be enqueued");
     }
 
-    LogicalResult matchAndRewrite(ascendc::LocalTensorAutoOp op, PatternRewriter &rewriter) const override
+    LogicalResult matchAndRewrite(ascendc::LocalTensorAutoOp op, PatternRewriter& rewriter) const override
     {
         auto type = op.getType();
         auto loc = op.getLoc();
@@ -84,7 +84,7 @@ class MaterializeTensorPass : public ascendc::impl::MaterializeTensorBase<Materi
         if (funcOp.isDeclaration()) {
             return;
         }
-        MLIRContext *context = &getContext();
+        MLIRContext* context = &getContext();
         RewritePatternSet patterns(context);
         patterns.add<MaterializeLocalTensor>(context);
         if (applyPatternsAndFoldGreedily(funcOp, std::move(patterns)).failed()) {
@@ -96,9 +96,6 @@ class MaterializeTensorPass : public ascendc::impl::MaterializeTensorBase<Materi
 
 namespace mlir {
 namespace ascendc {
-std::unique_ptr<Pass> createMaterializeTensorPass()
-{
-    return std::make_unique<MaterializeTensorPass>();
-}
+std::unique_ptr<Pass> createMaterializeTensorPass() { return std::make_unique<MaterializeTensorPass>(); }
 } // namespace ascendc
 } // namespace mlir

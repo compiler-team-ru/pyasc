@@ -15,13 +15,13 @@
 
 namespace mlir {
 namespace ascendc {
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::MatmulInitOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::MatmulInitOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::MatmulGetMatmulApiTilingOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::MatmulGetMatmulApiTilingOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::MatmulEndOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::MatmulEndOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::RegistMatmulObjOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::RegistMatmulObjOp op);
 
 } // namespace ascendc
 } // namespace mlir

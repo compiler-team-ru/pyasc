@@ -17,7 +17,7 @@ namespace py = pybind11;
 
 namespace pybind11 {
 namespace asc {
-void pyasc_init_platform(py::module &m)
+void pyasc_init_platform(py::module& m)
 {
     using ret = py::return_value_policy;
     using namespace platform_ascendc;
@@ -30,7 +30,7 @@ void pyasc_init_platform(py::module &m)
             "get_instance", []() { return PlatformAscendCManager::GetInstance(); }, ret::reference)
         .def_static(
             "get_instance",
-            [](const std::string &socVersion) { return PlatformAscendCManager::GetInstance(socVersion.c_str()); },
+            [](const std::string& socVersion) { return PlatformAscendCManager::GetInstance(socVersion.c_str()); },
             ret::reference, "soc_version"_a);
 }
 } // namespace asc

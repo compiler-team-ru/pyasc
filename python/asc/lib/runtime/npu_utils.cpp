@@ -20,8 +20,8 @@
 #include "profiling/aprof_pub.h"
 #include "runtime/rt.h"
 #else
-#include "experiment/msprof/toolchain/prof_api.h"	 
-#include "experiment/msprof/toolchain/prof_data_config.h"	 
+#include "experiment/msprof/toolchain/prof_api.h"
+#include "experiment/msprof/toolchain/prof_data_config.h"
 #include "experiment/runtime/runtime/rt.h"
 #endif
 
@@ -30,13 +30,13 @@ static unsigned int msprofFlagL0 = 0;
 static unsigned int msprofFlagL1 = 0;
 
 extern "C" {
-int ProfCtrlHandle(unsigned int ctrlType, void *ctrlData, unsigned int dataLen)
+int ProfCtrlHandle(unsigned int ctrlType, void* ctrlData, unsigned int dataLen)
 {
     if (ctrlType != PROF_CTRL_SWITCH || ctrlData == nullptr || dataLen < sizeof(MsprofCommandHandle)) {
         return 1;
     }
 
-    MsprofCommandHandle *handle = static_cast<MsprofCommandHandle *>(ctrlData);
+    MsprofCommandHandle* handle = static_cast<MsprofCommandHandle*>(ctrlData);
     const uint64_t profSwitch = handle->profSwitch;
     const uint64_t profType = handle->type;
     if (profType == PROF_COMMANDHANDLE_TYPE_START) {
@@ -63,7 +63,7 @@ int ProfCtrlHandle(unsigned int ctrlType, void *ctrlData, unsigned int dataLen)
 }
 }
 
-static PyObject *aclInit(PyObject *self, PyObject *args)
+static PyObject* aclInit(PyObject* self, PyObject* args)
 {
     aclError ret = aclInit(nullptr);
     if (PyErr_Occurred()) {
@@ -73,7 +73,7 @@ static PyObject *aclInit(PyObject *self, PyObject *args)
     return Py_BuildValue("i", ret);
 }
 
-static PyObject *aclFinalize(PyObject *self, PyObject *args)
+static PyObject* aclFinalize(PyObject* self, PyObject* args)
 {
     aclError ret = aclFinalize();
     if (PyErr_Occurred()) {
@@ -83,7 +83,7 @@ static PyObject *aclFinalize(PyObject *self, PyObject *args)
     return Py_BuildValue("i", ret);
 }
 
-static PyObject *MsprofSysCycleTime(PyObject *self, PyObject *args)
+static PyObject* MsprofSysCycleTime(PyObject* self, PyObject* args)
 {
     if (!msprofFlagL0 && !msprofFlagL1) {
         return Py_BuildValue("k", 0);
@@ -98,7 +98,7 @@ static PyObject *MsprofSysCycleTime(PyObject *self, PyObject *args)
     return Py_BuildValue("k", time);
 }
 
-static PyObject *MsprofReportApi(PyObject *self, PyObject *args)
+static PyObject* MsprofReportApi(PyObject* self, PyObject* args)
 {
     if (!msprofFlagL0 && !msprofFlagL1) {
         return Py_BuildValue("i", 1);
@@ -106,7 +106,7 @@ static PyObject *MsprofReportApi(PyObject *self, PyObject *args)
 
     unsigned long start = 0;
     unsigned long end = 0;
-    const char *opName = "";
+    const char* opName = "";
 
     if (!PyArg_ParseTuple(args, "kks", &start, &end, &opName)) {
         return nullptr;
@@ -132,14 +132,14 @@ static PyObject *MsprofReportApi(PyObject *self, PyObject *args)
     return Py_BuildValue("i", ret);
 }
 
-static PyObject *MsprofReportCompactInfo(PyObject *self, PyObject *args)
+static PyObject* MsprofReportCompactInfo(PyObject* self, PyObject* args)
 {
     if (!msprofFlagL1) {
         return Py_BuildValue("i", 1);
     }
 
     unsigned long time;
-    const char *opName;
+    const char* opName;
     unsigned int blockNum;
     unsigned int taskType;
 
@@ -167,13 +167,13 @@ static PyObject *MsprofReportCompactInfo(PyObject *self, PyObject *args)
     return Py_BuildValue("i", ret);
 }
 
-static PyObject *MsprofReportAdditionalInfo(PyObject *self, PyObject *args)
+static PyObject* MsprofReportAdditionalInfo(PyObject* self, PyObject* args)
 {
     if (!msprofFlagL1) {
         return Py_BuildValue("i", 1);
     }
     unsigned long time;
-    const char *opName;
+    const char* opName;
     if (!PyArg_ParseTuple(args, "ks", &time, &opName)) {
         return nullptr;
     }
@@ -186,10 +186,10 @@ static PyObject *MsprofReportAdditionalInfo(PyObject *self, PyObject *args)
     tensorInfo.type = MSPROF_REPORT_NODE_TENSOR_INFO_TYPE;
     tensorInfo.threadId = threadId;
     tensorInfo.timeStamp = time;
-    auto profTensorData = reinterpret_cast<MsprofTensorInfo *>(tensorInfo.data);
+    auto profTensorData = reinterpret_cast<MsprofTensorInfo*>(tensorInfo.data);
     profTensorData->opName = hashId;
 
-    int32_t ret = MsprofReportAdditionalInfo(false, static_cast<void *>(&tensorInfo), sizeof(MsprofAdditionalInfo));
+    int32_t ret = MsprofReportAdditionalInfo(false, static_cast<void*>(&tensorInfo), sizeof(MsprofAdditionalInfo));
     if (PyErr_Occurred()) {
         return nullptr;
     }
@@ -210,7 +210,7 @@ static PyModuleDef ModuleDef = {PyModuleDef_HEAD_INIT, "npu_utils", "Npu utils",
 
 PyMODINIT_FUNC PyInit_npu_utils(void)
 {
-    PyObject *m = PyModule_Create(&ModuleDef);
+    PyObject* m = PyModule_Create(&ModuleDef);
     if (m == nullptr) {
         return nullptr;
     }

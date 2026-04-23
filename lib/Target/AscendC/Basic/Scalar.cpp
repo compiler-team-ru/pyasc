@@ -17,9 +17,9 @@ using namespace mlir::ascendc;
 // Scalar operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::ScalarCastOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::ScalarCastOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     FAIL_OR(emitter.emitType(op.getLoc(), op.getDtype()));
     os << " " << emitter.getOrCreateName(op.getValueOut()) << " = ";
     os << ascNamespace << "::" << op.getAPIName() << "<";

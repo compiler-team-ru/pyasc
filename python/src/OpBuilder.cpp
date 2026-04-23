@@ -54,16 +54,13 @@ class PyOpBuilder {
     OpBuilder builder;
     Location loc;
 
-  public:
-    explicit PyOpBuilder(MLIRContext *context) : builder(context), loc(builder.getUnknownLoc()) {}
+public:
+    explicit PyOpBuilder(MLIRContext* context) : builder(context), loc(builder.getUnknownLoc()) {}
     ~PyOpBuilder() = default;
 
-    void setLoc(Location newLoc)
-    {
-        loc = newLoc;
-    }
+    void setLoc(Location newLoc) { loc = newLoc; }
 
-    void setLoc(const std::string &name, bool reset = false)
+    void setLoc(const std::string& name, bool reset = false)
     {
         if (reset) {
             setLoc(NameLoc::get(builder.getStringAttr(name)));
@@ -72,7 +69,7 @@ class PyOpBuilder {
         }
     }
 
-    void setLoc(const std::string &fileName, int line, int column, const std::optional<std::string> &name)
+    void setLoc(const std::string& fileName, int line, int column, const std::optional<std::string>& name)
     {
         Location newLoc = FileLineColLoc::get(builder.getContext(), fileName, line, column);
         if (name) {
@@ -81,27 +78,15 @@ class PyOpBuilder {
         setLoc(newLoc);
     }
 
-    Location getLoc()
-    {
-        return loc;
-    }
+    Location getLoc() { return loc; }
 
-    void resetLoc()
-    {
-        loc = builder.getUnknownLoc();
-    }
+    void resetLoc() { loc = builder.getUnknownLoc(); }
 
-    OpBuilder &getBuilder()
-    {
-        return builder;
-    }
+    OpBuilder& getBuilder() { return builder; }
 
-    OpBuilder *operator->()
-    {
-        return &builder;
-    }
+    OpBuilder* operator->() { return &builder; }
 
-    void setInsertionPointToStart(Block &block)
+    void setInsertionPointToStart(Block& block)
     {
         if (!block.empty()) {
             setLoc(block.begin()->getLoc());
@@ -111,7 +96,7 @@ class PyOpBuilder {
         builder.setInsertionPointToStart(&block);
     }
 
-    void setInsertionPointToEnd(Block &block)
+    void setInsertionPointToEnd(Block& block)
     {
         if (!block.empty()) {
             setLoc(block.back().getLoc());
@@ -121,7 +106,7 @@ class PyOpBuilder {
         builder.setInsertionPointToEnd(&block);
     }
 
-    void setInsertionPointAfter(Operation &op)
+    void setInsertionPointAfter(Operation& op)
     {
         setLoc(op.getLoc());
         builder.setInsertionPointAfter(&op);
@@ -139,39 +124,39 @@ class PyOpBuilder {
         builder.restoreInsertionPoint(pt);
     }
 
-    Operation *create(StringRef operationName, ValueRange operands, TypeRange types = {},
-                      ArrayRef<NamedAttribute> attributes = {})
+    Operation*
+    create(StringRef operationName, ValueRange operands, TypeRange types = {}, ArrayRef<NamedAttribute> attributes = {})
     {
         return builder.create(loc, builder.getStringAttr(operationName), operands, types, attributes);
     }
 
     template <typename OpTy, typename... Args>
-    auto create(Args &&... args) -> OpTy
+    auto create(Args&&... args) -> OpTy
     {
         return builder.create<OpTy>(loc, std::forward<Args>(args)...);
     }
 
     // Overload to create or fold a single result operation.
     template <typename OpTy, typename... Args>
-    std::enable_if_t<OpTy::template hasTrait<OpTrait::OneResult>(), Value> createOrFold(Args &&... args)
+    std::enable_if_t<OpTy::template hasTrait<OpTrait::OneResult>(), Value> createOrFold(Args&&... args)
     {
         return builder.createOrFold<OpTy>(loc, std::forward<Args>(args)...);
     }
 
     // Overload to create or fold a zero result operation.
     template <typename OpTy, typename... Args>
-    std::enable_if_t<OpTy::template hasTrait<OpTrait::ZeroResults>(), OpTy> createOrFold(Args &&... args)
+    std::enable_if_t<OpTy::template hasTrait<OpTrait::ZeroResults>(), OpTy> createOrFold(Args&&... args)
     {
         return builder.createOrFold<OpTy>(loc, std::forward<Args>(args)...);
     }
 
     std::optional<func::FuncOp> getCurrentFunction()
     {
-        Block *block = builder.getInsertionBlock();
+        Block* block = builder.getInsertionBlock();
         if (!block) {
             return std::nullopt;
         }
-        Operation *parent = block->getParentOp();
+        Operation* parent = block->getParentOp();
         if (!parent) {
             return std::nullopt;
         }
@@ -189,12 +174,12 @@ class PyOpBuilder {
 namespace pybind11 {
 namespace asc {
 
-[[noreturn]] void throw_op_error(const std::string &opName, const std::string &reason)
+[[noreturn]] void throw_op_error(const std::string& opName, const std::string& reason)
 {
     throw std::runtime_error(opName + ": " + reason);
 }
 
-ascendc::HardEvent get_hard_event(uint8_t event, const std::string &opName)
+ascendc::HardEvent get_hard_event(uint8_t event, const std::string& opName)
 {
     if (auto eventAttr = ascendc::symbolizeHardEvent(event)) {
         return *eventAttr;
@@ -202,508 +187,564 @@ ascendc::HardEvent get_hard_event(uint8_t event, const std::string &opName)
     throw_op_error(opName, "unknown hard event");
 }
 
-void bind_init(py::class_<PyOpBuilder> &clss)
+void bind_init(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def(py::init<MLIRContext *>());
+    clss.def(py::init<MLIRContext*>());
 }
 
-void bind_locations(py::class_<PyOpBuilder> &clss)
+void bind_locations(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
     clss.def("get_loc", &PyOpBuilder::getLoc)
         .def(
-            "set_loc", [](PyOpBuilder &self, Location &loc) { self.setLoc(loc); }, "loc"_a)
+            "set_loc", [](PyOpBuilder& self, Location& loc) { self.setLoc(loc); }, "loc"_a)
         .def(
-            "set_loc", [](PyOpBuilder &self, const std::string &name, bool reset) { self.setLoc(name, reset); },
+            "set_loc", [](PyOpBuilder& self, const std::string& name, bool reset) { self.setLoc(name, reset); },
             "name"_a, "reset"_a = false)
         .def(
             "set_loc",
-            [](PyOpBuilder &self, const std::string &fileName, int line, int column,
-               const std::optional<std::string> &name) { self.setLoc(fileName, line, column, name); },
+            [](PyOpBuilder& self, const std::string& fileName, int line, int column,
+               const std::optional<std::string>& name) { self.setLoc(fileName, line, column, name); },
             "filename"_a, "line"_a, "column"_a, "name"_a = py::none());
 }
 
-void bind_modify_insertion_point(py::class_<PyOpBuilder> &clss)
+void bind_modify_insertion_point(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("set_insertion_point_to_start",
-             [](PyOpBuilder &self, Block &block) { self.setInsertionPointToStart(block); })
-        .def("set_insertion_point_to_end", [](PyOpBuilder &self, Block &block) { self.setInsertionPointToEnd(block); })
-        .def("set_insertion_point", [](PyOpBuilder &self, Operation &op) { self->setInsertionPoint(&op); })
-        .def("set_insertion_point", [](PyOpBuilder &self, OpState &op) { self->setInsertionPoint(op.getOperation()); })
-        .def("set_insertion_point_after", [](PyOpBuilder &self, Operation &op) { self.setInsertionPointAfter(op); })
+    clss.def(
+            "set_insertion_point_to_start",
+            [](PyOpBuilder& self, Block& block) { self.setInsertionPointToStart(block); })
+        .def("set_insertion_point_to_end", [](PyOpBuilder& self, Block& block) { self.setInsertionPointToEnd(block); })
+        .def("set_insertion_point", [](PyOpBuilder& self, Operation& op) { self->setInsertionPoint(&op); })
+        .def("set_insertion_point", [](PyOpBuilder& self, OpState& op) { self->setInsertionPoint(op.getOperation()); })
+        .def("set_insertion_point_after", [](PyOpBuilder& self, Operation& op) { self.setInsertionPointAfter(op); })
         .def(
-            "get_insertion_block", [](PyOpBuilder &self) -> Block * { return self->getInsertionBlock(); },
+            "get_insertion_block", [](PyOpBuilder& self) -> Block* { return self->getInsertionBlock(); },
             ret::reference)
-        .def("save_insertion_point",
-             [](PyOpBuilder &self) -> OpBuilder::InsertPoint { return self->saveInsertionPoint(); })
+        .def(
+            "save_insertion_point",
+            [](PyOpBuilder& self) -> OpBuilder::InsertPoint { return self->saveInsertionPoint(); })
         .def("restore_insertion_point", &PyOpBuilder::restoreInsertionPoint)
         .def("get_current_function", &PyOpBuilder::getCurrentFunction);
 }
 
-void bind_get_basic_type(py::class_<PyOpBuilder> &clss)
+void bind_get_basic_type(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("get_none_type", [](PyOpBuilder &self) -> Type { return self->getNoneType(); })
-        .def("get_index_type", [](PyOpBuilder &self) -> Type { return self->getIndexType(); })
-        .def("get_int_type", [](PyOpBuilder &self, unsigned width) -> Type { return self->getIntegerType(width); })
-        .def("get_i1_type", [](PyOpBuilder &self) -> Type { return self->getI1Type(); })
-        .def("get_i8_type", [](PyOpBuilder &self) -> Type { return self->getI8Type(); })
-        .def("get_i16_type", [](PyOpBuilder &self) -> Type { return self->getI16Type(); })
-        .def("get_i32_type", [](PyOpBuilder &self) -> Type { return self->getI32Type(); })
-        .def("get_i64_type", [](PyOpBuilder &self) -> Type { return self->getI64Type(); })
-        .def("get_uint_type",
-             [](PyOpBuilder &self, unsigned width) -> Type { return self->getIntegerType(width, false); })
-        .def("get_ui8_type", [](PyOpBuilder &self) -> Type { return self->getIntegerType(8U, false); })
-        .def("get_ui16_type", [](PyOpBuilder &self) -> Type { return self->getIntegerType(16U, false); })
-        .def("get_ui32_type", [](PyOpBuilder &self) -> Type { return self->getIntegerType(32U, false); })
-        .def("get_ui64_type", [](PyOpBuilder &self) -> Type { return self->getIntegerType(64U, false); })
-        .def("get_float_type",
-             [](PyOpBuilder &self, unsigned width) -> Type {
-                 if (width == 16U) {
-                     return self->getF16Type();
-                 }
-                 if (width == 32U) {
-                     return self->getF32Type();
-                 }
-                 if (width == 64U) {
-                     return self->getF64Type();
-                 }
-                 throw std::runtime_error("Unsupported width for FloatType");
-             })
-        .def("get_f16_type", [](PyOpBuilder &self) -> Type { return self->getF16Type(); })
-        .def("get_f32_type", [](PyOpBuilder &self) -> Type { return self->getF32Type(); })
-        .def("get_f64_type", [](PyOpBuilder &self) -> Type { return self->getF64Type(); });
+    clss.def("get_none_type", [](PyOpBuilder& self) -> Type { return self->getNoneType(); })
+        .def("get_index_type", [](PyOpBuilder& self) -> Type { return self->getIndexType(); })
+        .def("get_int_type", [](PyOpBuilder& self, unsigned width) -> Type { return self->getIntegerType(width); })
+        .def("get_i1_type", [](PyOpBuilder& self) -> Type { return self->getI1Type(); })
+        .def("get_i8_type", [](PyOpBuilder& self) -> Type { return self->getI8Type(); })
+        .def("get_i16_type", [](PyOpBuilder& self) -> Type { return self->getI16Type(); })
+        .def("get_i32_type", [](PyOpBuilder& self) -> Type { return self->getI32Type(); })
+        .def("get_i64_type", [](PyOpBuilder& self) -> Type { return self->getI64Type(); })
+        .def(
+            "get_uint_type",
+            [](PyOpBuilder& self, unsigned width) -> Type { return self->getIntegerType(width, false); })
+        .def("get_ui8_type", [](PyOpBuilder& self) -> Type { return self->getIntegerType(8U, false); })
+        .def("get_ui16_type", [](PyOpBuilder& self) -> Type { return self->getIntegerType(16U, false); })
+        .def("get_ui32_type", [](PyOpBuilder& self) -> Type { return self->getIntegerType(32U, false); })
+        .def("get_ui64_type", [](PyOpBuilder& self) -> Type { return self->getIntegerType(64U, false); })
+        .def(
+            "get_float_type",
+            [](PyOpBuilder& self, unsigned width) -> Type {
+                if (width == 16U) {
+                    return self->getF16Type();
+                }
+                if (width == 32U) {
+                    return self->getF32Type();
+                }
+                if (width == 64U) {
+                    return self->getF64Type();
+                }
+                throw std::runtime_error("Unsupported width for FloatType");
+            })
+        .def("get_f16_type", [](PyOpBuilder& self) -> Type { return self->getF16Type(); })
+        .def("get_f32_type", [](PyOpBuilder& self) -> Type { return self->getF32Type(); })
+        .def("get_f64_type", [](PyOpBuilder& self) -> Type { return self->getF64Type(); });
 }
 
-void bind_get_special_type(py::class_<PyOpBuilder> &clss)
+void bind_get_special_type(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
     clss.def(
             "get_function_type",
-            [](PyOpBuilder &self, const std::vector<Type> &inTypes, const std::optional<std::vector<Type>> &outTypes)
+            [](PyOpBuilder& self, const std::vector<Type>& inTypes, const std::optional<std::vector<Type>>& outTypes)
                 -> Type { return self->getFunctionType(inTypes, outTypes.value_or(noTypes)); },
             "in_types"_a, "out_types"_a = py::none())
-        .def("get_opaque_type",
-             [](PyOpBuilder &self, const std::string &name) -> Type {
-                 return self->getType<emitc::OpaqueType>(self->getStringAttr(name));
-             })
-        .def("get_queue_type",
-             [](PyOpBuilder &self, uint8_t position, int64_t depth) -> Type {
-                 auto pos = ascendc::symbolizeTPosition(position);
-                 if (!pos) {
-                     throw std::runtime_error("Unknown position for QueueType");
-                 }
-                 return self->getType<ascendc::QueueType>(*pos, depth);
-             })
-        .def("get_quebind_type",
-             [](PyOpBuilder &self, uint8_t src, uint8_t dst, int64_t depth) -> Type {
-                 auto srcPos = ascendc::symbolizeTPosition(src);
-                 if (!srcPos) {
-                     throw std::runtime_error("Unknown position for QueBindType");
-                 }
-                 auto dstPos = ascendc::symbolizeTPosition(dst);
-                 if (!dstPos) {
-                     throw std::runtime_error("Unknown position for QueBindType");
-                 }
-                 return self->getType<ascendc::QueBindType>(*srcPos, *dstPos, depth);
-             })
-        .def("get_buffer_type",
-             [](PyOpBuilder &self, uint8_t position) -> Type {
-                 auto pos = ascendc::symbolizeTPosition(position);
-                 if (!pos) {
-                     throw std::runtime_error("Unknown position for TBufType");
-                 }
-                 return self->getType<ascendc::TBufType>(*pos);
-             })
-        .def("get_tbuf_pool_type",
-             [](PyOpBuilder &self, uint8_t position, uint32_t bufIDSize) -> Type {
-                 auto pos = ascendc::symbolizeTPosition(position);
-                 if (!pos) {
-                     throw std::runtime_error("Unknown position for TBufType");
-                 }
+        .def(
+            "get_opaque_type",
+            [](PyOpBuilder& self, const std::string& name) -> Type {
+                return self->getType<emitc::OpaqueType>(self->getStringAttr(name));
+            })
+        .def(
+            "get_queue_type",
+            [](PyOpBuilder& self, uint8_t position, int64_t depth) -> Type {
+                auto pos = ascendc::symbolizeTPosition(position);
+                if (!pos) {
+                    throw std::runtime_error("Unknown position for QueueType");
+                }
+                return self->getType<ascendc::QueueType>(*pos, depth);
+            })
+        .def(
+            "get_quebind_type",
+            [](PyOpBuilder& self, uint8_t src, uint8_t dst, int64_t depth) -> Type {
+                auto srcPos = ascendc::symbolizeTPosition(src);
+                if (!srcPos) {
+                    throw std::runtime_error("Unknown position for QueBindType");
+                }
+                auto dstPos = ascendc::symbolizeTPosition(dst);
+                if (!dstPos) {
+                    throw std::runtime_error("Unknown position for QueBindType");
+                }
+                return self->getType<ascendc::QueBindType>(*srcPos, *dstPos, depth);
+            })
+        .def(
+            "get_buffer_type",
+            [](PyOpBuilder& self, uint8_t position) -> Type {
+                auto pos = ascendc::symbolizeTPosition(position);
+                if (!pos) {
+                    throw std::runtime_error("Unknown position for TBufType");
+                }
+                return self->getType<ascendc::TBufType>(*pos);
+            })
+        .def(
+            "get_tbuf_pool_type",
+            [](PyOpBuilder& self, uint8_t position, uint32_t bufIDSize) -> Type {
+                auto pos = ascendc::symbolizeTPosition(position);
+                if (!pos) {
+                    throw std::runtime_error("Unknown position for TBufType");
+                }
 
-                 return self->getType<ascendc::TBufPoolType>(*pos, bufIDSize);
-             })
-        .def("get_matmul_type",
-             [](PyOpBuilder &self, uint8_t posA, uint8_t fmtA, Type typeA, bool istransA, uint8_t layoutA, uint8_t posB,
-                uint8_t fmtB, Type typeB, bool istransB, uint8_t layoutB, uint8_t posC, uint8_t fmtC, Type typeC,
-                bool istransC, uint8_t layoutC, uint8_t posBias, uint8_t fmtBias, Type typeBias, bool do_norm,
-                bool do_basic_block, bool do_multi_data_load, int32_t basic_m, int32_t basic_n, int32_t basic_k,
-                bool intrinsics_check, bool is_n_batch, bool en_vec_nd2nz, bool do_special_basic_block,
-                int32_t do_mte2_preload, int32_t single_core_m, int32_t single_core_n, int32_t single_core_k,
-                int32_t step_m, int32_t step_n, int32_t base_mn, int32_t single_core_mn, bool en_unit_flag,
-                bool is_per_tensor, bool has_anti_quant_offset, bool do_ib_share_norm, bool do_special_mdl,
-                bool enable_init, int32_t batch_mode, bool enable_end, bool enable_get_tensor_c,
-                bool enable_set_org_shape, bool enable_set_bias, bool enable_set_tail, bool enable_quant_vector,
-                bool enable_set_define_data, int32_t iterate_mode, bool enable_reuse, bool enable_ub_reuse,
-                bool enable_l1_cache_ub, bool intra_block_part_sum, int32_t iterate_order, int32_t schedule_type,
-                bool enable_double_cache, bool is_bias_batch, bool enable_static_pad_zeros, bool is_partial_output,
-                bool enable_mix_dual_master, bool is_a2b2_shared, bool is_enable_channel_split,
-                bool enable_kdim_reorder_load, bool is_co1_shared, int32_t shared_co1_buffer_size,
-                int32_t batch_out_mode) -> Type {
-                 auto sposA = ascendc::symbolizeTPosition(posA);
-                 auto sfmtA = ascendc::symbolizeCubeFormat(fmtA);
-                 auto slayoutA = ascendc::symbolizeLayoutMode(layoutA);
-                 auto sposB = ascendc::symbolizeTPosition(posB);
-                 auto sfmtB = ascendc::symbolizeCubeFormat(fmtB);
-                 auto slayoutB = ascendc::symbolizeLayoutMode(layoutB);
-                 auto sposC = ascendc::symbolizeTPosition(posC);
-                 auto sfmtC = ascendc::symbolizeCubeFormat(fmtC);
-                 auto slayoutC = ascendc::symbolizeLayoutMode(layoutC);
-                 auto sposBias = ascendc::symbolizeTPosition(posBias);
-                 auto sfmtBias = ascendc::symbolizeCubeFormat(fmtBias);
-                 mlir::MLIRContext *ctx = self.getBuilder().getContext();
-                 IntegerType i32 = IntegerType::get(ctx, 32);
-                 IntegerType i8 = IntegerType::get(ctx, 8);
-                 auto matmul_config_attr = ascendc::MatmulConfigAttr::get(
-                     self.getBuilder().getContext(), BoolAttr::get(ctx, do_norm), BoolAttr::get(ctx, do_basic_block),
-                     BoolAttr::get(ctx, do_multi_data_load), IntegerAttr::get(i32, basic_m),
-                     IntegerAttr::get(i32, basic_n), IntegerAttr::get(i32, basic_k),
-                     BoolAttr::get(ctx, intrinsics_check), BoolAttr::get(ctx, is_n_batch),
-                     BoolAttr::get(ctx, en_vec_nd2nz), BoolAttr::get(ctx, do_special_basic_block),
-                     IntegerAttr::get(i32, do_mte2_preload), IntegerAttr::get(i32, single_core_m),
-                     IntegerAttr::get(i32, single_core_n), IntegerAttr::get(i32, single_core_k),
-                     IntegerAttr::get(i32, step_m), IntegerAttr::get(i32, step_n), IntegerAttr::get(i32, base_mn),
-                     IntegerAttr::get(i32, single_core_mn), BoolAttr::get(ctx, en_unit_flag),
-                     BoolAttr::get(ctx, is_per_tensor), BoolAttr::get(ctx, has_anti_quant_offset),
-                     BoolAttr::get(ctx, do_ib_share_norm), BoolAttr::get(ctx, do_special_mdl),
-                     BoolAttr::get(ctx, enable_init), IntegerAttr::get(i32, batch_mode), BoolAttr::get(ctx, enable_end),
-                     BoolAttr::get(ctx, enable_get_tensor_c), BoolAttr::get(ctx, enable_set_org_shape),
-                     BoolAttr::get(ctx, enable_set_bias), BoolAttr::get(ctx, enable_set_tail),
-                     BoolAttr::get(ctx, enable_quant_vector), BoolAttr::get(ctx, enable_set_define_data),
-                     IntegerAttr::get(i32, iterate_mode), BoolAttr::get(ctx, enable_reuse),
-                     BoolAttr::get(ctx, enable_ub_reuse), BoolAttr::get(ctx, enable_l1_cache_ub),
-                     BoolAttr::get(ctx, intra_block_part_sum), IntegerAttr::get(i32, iterate_order),
-                     IntegerAttr::get(i32, schedule_type), BoolAttr::get(ctx, enable_double_cache),
-                     BoolAttr::get(ctx, is_bias_batch), BoolAttr::get(ctx, enable_static_pad_zeros),
-                     BoolAttr::get(ctx, is_partial_output), BoolAttr::get(ctx, enable_mix_dual_master),
-                     BoolAttr::get(ctx, is_a2b2_shared), BoolAttr::get(ctx, is_enable_channel_split),
-                     BoolAttr::get(ctx, enable_kdim_reorder_load), BoolAttr::get(ctx, is_co1_shared),
-                     IntegerAttr::get(i32, shared_co1_buffer_size), IntegerAttr::get(i32, batch_out_mode));
-                 return self->getType<ascendc::MatmulType>(
-                     *sposA, *sfmtA, typeA, istransA, *slayoutA, *sposB, *sfmtB, typeB, istransB, *slayoutB, *sposC,
-                     *sfmtC, typeC, istransC, *slayoutC, *sposBias, *sfmtBias, typeBias, matmul_config_attr);
-             })
-        .def("get_asc_MaskType", [](PyOpBuilder &self) -> Type { return self->getType<ascendc::MaskType>(); })
-        .def("get_emitasc_PyStructType",
-             [](PyOpBuilder &self, const std::string &name, const std::vector<Type> &types,
-                const std::vector<std::string> &names) -> Type {
-                 if (types.size() != names.size()) {
-                     throw std::runtime_error("Not equal types and names sizes");
-                 }
-                 SmallVector<StringRef> refs(names.begin(), names.end());
-                 return self->getType<emitasc::PyStructType>(self->getStringAttr(name), self->getTypeArrayAttr(types),
-                                                             self->getStrArrayAttr(refs));
-             })
-        .def("get_asc_DataCopyPadExtParamsType",
-             [](PyOpBuilder &self, Type elementType) -> Type {
-                 return self->getType<ascendc::DataCopyPadExtParamsType>(elementType);
-             })
-        .def("get_asc_MrgSortSrcListType",
-			[](PyOpBuilder &self, Type elementType) -> Type {
-				return self->getType<ascendc::MrgSortSrcListType>(elementType);
-			})
-        .def("get_local_mem_allocator_type",
-             [](PyOpBuilder &self, uint64_t hardware) -> Type {
-                 return ascendc::LocalMemAllocatorType::get(self->getContext(), hardware);
-             })
+                return self->getType<ascendc::TBufPoolType>(*pos, bufIDSize);
+            })
+        .def(
+            "get_matmul_type",
+            [](PyOpBuilder& self, uint8_t posA, uint8_t fmtA, Type typeA, bool istransA, uint8_t layoutA, uint8_t posB,
+               uint8_t fmtB, Type typeB, bool istransB, uint8_t layoutB, uint8_t posC, uint8_t fmtC, Type typeC,
+               bool istransC, uint8_t layoutC, uint8_t posBias, uint8_t fmtBias, Type typeBias, bool do_norm,
+               bool do_basic_block, bool do_multi_data_load, int32_t basic_m, int32_t basic_n, int32_t basic_k,
+               bool intrinsics_check, bool is_n_batch, bool en_vec_nd2nz, bool do_special_basic_block,
+               int32_t do_mte2_preload, int32_t single_core_m, int32_t single_core_n, int32_t single_core_k,
+               int32_t step_m, int32_t step_n, int32_t base_mn, int32_t single_core_mn, bool en_unit_flag,
+               bool is_per_tensor, bool has_anti_quant_offset, bool do_ib_share_norm, bool do_special_mdl,
+               bool enable_init, int32_t batch_mode, bool enable_end, bool enable_get_tensor_c,
+               bool enable_set_org_shape, bool enable_set_bias, bool enable_set_tail, bool enable_quant_vector,
+               bool enable_set_define_data, int32_t iterate_mode, bool enable_reuse, bool enable_ub_reuse,
+               bool enable_l1_cache_ub, bool intra_block_part_sum, int32_t iterate_order, int32_t schedule_type,
+               bool enable_double_cache, bool is_bias_batch, bool enable_static_pad_zeros, bool is_partial_output,
+               bool enable_mix_dual_master, bool is_a2b2_shared, bool is_enable_channel_split,
+               bool enable_kdim_reorder_load, bool is_co1_shared, int32_t shared_co1_buffer_size,
+               int32_t batch_out_mode) -> Type {
+                auto sposA = ascendc::symbolizeTPosition(posA);
+                auto sfmtA = ascendc::symbolizeCubeFormat(fmtA);
+                auto slayoutA = ascendc::symbolizeLayoutMode(layoutA);
+                auto sposB = ascendc::symbolizeTPosition(posB);
+                auto sfmtB = ascendc::symbolizeCubeFormat(fmtB);
+                auto slayoutB = ascendc::symbolizeLayoutMode(layoutB);
+                auto sposC = ascendc::symbolizeTPosition(posC);
+                auto sfmtC = ascendc::symbolizeCubeFormat(fmtC);
+                auto slayoutC = ascendc::symbolizeLayoutMode(layoutC);
+                auto sposBias = ascendc::symbolizeTPosition(posBias);
+                auto sfmtBias = ascendc::symbolizeCubeFormat(fmtBias);
+                mlir::MLIRContext* ctx = self.getBuilder().getContext();
+                IntegerType i32 = IntegerType::get(ctx, 32);
+                IntegerType i8 = IntegerType::get(ctx, 8);
+                auto matmul_config_attr = ascendc::MatmulConfigAttr::get(
+                    self.getBuilder().getContext(), BoolAttr::get(ctx, do_norm), BoolAttr::get(ctx, do_basic_block),
+                    BoolAttr::get(ctx, do_multi_data_load), IntegerAttr::get(i32, basic_m),
+                    IntegerAttr::get(i32, basic_n), IntegerAttr::get(i32, basic_k),
+                    BoolAttr::get(ctx, intrinsics_check), BoolAttr::get(ctx, is_n_batch),
+                    BoolAttr::get(ctx, en_vec_nd2nz), BoolAttr::get(ctx, do_special_basic_block),
+                    IntegerAttr::get(i32, do_mte2_preload), IntegerAttr::get(i32, single_core_m),
+                    IntegerAttr::get(i32, single_core_n), IntegerAttr::get(i32, single_core_k),
+                    IntegerAttr::get(i32, step_m), IntegerAttr::get(i32, step_n), IntegerAttr::get(i32, base_mn),
+                    IntegerAttr::get(i32, single_core_mn), BoolAttr::get(ctx, en_unit_flag),
+                    BoolAttr::get(ctx, is_per_tensor), BoolAttr::get(ctx, has_anti_quant_offset),
+                    BoolAttr::get(ctx, do_ib_share_norm), BoolAttr::get(ctx, do_special_mdl),
+                    BoolAttr::get(ctx, enable_init), IntegerAttr::get(i32, batch_mode), BoolAttr::get(ctx, enable_end),
+                    BoolAttr::get(ctx, enable_get_tensor_c), BoolAttr::get(ctx, enable_set_org_shape),
+                    BoolAttr::get(ctx, enable_set_bias), BoolAttr::get(ctx, enable_set_tail),
+                    BoolAttr::get(ctx, enable_quant_vector), BoolAttr::get(ctx, enable_set_define_data),
+                    IntegerAttr::get(i32, iterate_mode), BoolAttr::get(ctx, enable_reuse),
+                    BoolAttr::get(ctx, enable_ub_reuse), BoolAttr::get(ctx, enable_l1_cache_ub),
+                    BoolAttr::get(ctx, intra_block_part_sum), IntegerAttr::get(i32, iterate_order),
+                    IntegerAttr::get(i32, schedule_type), BoolAttr::get(ctx, enable_double_cache),
+                    BoolAttr::get(ctx, is_bias_batch), BoolAttr::get(ctx, enable_static_pad_zeros),
+                    BoolAttr::get(ctx, is_partial_output), BoolAttr::get(ctx, enable_mix_dual_master),
+                    BoolAttr::get(ctx, is_a2b2_shared), BoolAttr::get(ctx, is_enable_channel_split),
+                    BoolAttr::get(ctx, enable_kdim_reorder_load), BoolAttr::get(ctx, is_co1_shared),
+                    IntegerAttr::get(i32, shared_co1_buffer_size), IntegerAttr::get(i32, batch_out_mode));
+                return self->getType<ascendc::MatmulType>(
+                    *sposA, *sfmtA, typeA, istransA, *slayoutA, *sposB, *sfmtB, typeB, istransB, *slayoutB, *sposC,
+                    *sfmtC, typeC, istransC, *slayoutC, *sposBias, *sfmtBias, typeBias, matmul_config_attr);
+            })
+        .def("get_asc_MaskType", [](PyOpBuilder& self) -> Type { return self->getType<ascendc::MaskType>(); })
+        .def(
+            "get_emitasc_PyStructType",
+            [](PyOpBuilder& self, const std::string& name, const std::vector<Type>& types,
+               const std::vector<std::string>& names) -> Type {
+                if (types.size() != names.size()) {
+                    throw std::runtime_error("Not equal types and names sizes");
+                }
+                SmallVector<StringRef> refs(names.begin(), names.end());
+                return self->getType<emitasc::PyStructType>(
+                    self->getStringAttr(name), self->getTypeArrayAttr(types), self->getStrArrayAttr(refs));
+            })
+        .def(
+            "get_asc_DataCopyPadExtParamsType",
+            [](PyOpBuilder& self, Type elementType) -> Type {
+                return self->getType<ascendc::DataCopyPadExtParamsType>(elementType);
+            })
+        .def(
+            "get_asc_MrgSortSrcListType",
+            [](PyOpBuilder& self, Type elementType) -> Type {
+                return self->getType<ascendc::MrgSortSrcListType>(elementType);
+            })
+        .def(
+            "get_local_mem_allocator_type",
+            [](PyOpBuilder& self, uint64_t hardware) -> Type {
+                return ascendc::LocalMemAllocatorType::get(self->getContext(), hardware);
+            })
 #include "ascir/API/AscTypeBindings.h.inc"
         ;
 }
 
-void bind_get_attributes(py::class_<PyOpBuilder> &clss)
+void bind_get_attributes(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("get_index_attr", [](PyOpBuilder &self, int64_t value) -> Attribute { return self->getIndexAttr(value); })
-        .def("get_i64_attr",
-             [](PyOpBuilder &self, int64_t value) -> Attribute { return self->getI64IntegerAttr(value); })
-        .def("get_i32_attr",
-             [](PyOpBuilder &self, int32_t value) -> Attribute { return self->getI32IntegerAttr(value); })
-        .def("get_str_attr",
-             [](PyOpBuilder &self, const std::string &value) -> Attribute { return self->getStringAttr(value); })
-        .def("get_unit_attr", [](PyOpBuilder &self) -> Attribute { return self->getUnitAttr(); })
-        .def("get_type_array_attr",
-             [](PyOpBuilder &self, const std::vector<Type> &types) -> ArrayAttr {
-                 return self->getTypeArrayAttr(types);
-             })
-        .def("get_opaque_attr",
-             [](PyOpBuilder &self, const std::string &value) -> Attribute {
-                 return self->getAttr<emitc::OpaqueAttr>(value);
-             })
-        .def("set_emit_as_unsigned",
-             [](PyOpBuilder &self, Operation &op) { op.setAttr(ascendc::attr::emitAsUnsigned, self->getUnitAttr()); });
+    clss.def("get_index_attr", [](PyOpBuilder& self, int64_t value) -> Attribute { return self->getIndexAttr(value); })
+        .def(
+            "get_i64_attr",
+            [](PyOpBuilder& self, int64_t value) -> Attribute { return self->getI64IntegerAttr(value); })
+        .def(
+            "get_i32_attr",
+            [](PyOpBuilder& self, int32_t value) -> Attribute { return self->getI32IntegerAttr(value); })
+        .def(
+            "get_str_attr",
+            [](PyOpBuilder& self, const std::string& value) -> Attribute { return self->getStringAttr(value); })
+        .def("get_unit_attr", [](PyOpBuilder& self) -> Attribute { return self->getUnitAttr(); })
+        .def(
+            "get_type_array_attr",
+            [](PyOpBuilder& self, const std::vector<Type>& types) -> ArrayAttr {
+                return self->getTypeArrayAttr(types);
+            })
+        .def(
+            "get_opaque_attr",
+            [](PyOpBuilder& self, const std::string& value) -> Attribute {
+                return self->getAttr<emitc::OpaqueAttr>(value);
+            })
+        .def("set_emit_as_unsigned", [](PyOpBuilder& self, Operation& op) {
+            op.setAttr(ascendc::attr::emitAsUnsigned, self->getUnitAttr());
+        });
 }
-void bind_create_operations(py::class_<PyOpBuilder> &clss)
+void bind_create_operations(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
     clss.def(
             "create",
-            [](PyOpBuilder &self, const std::string &name, const std::vector<Value> &operands,
-               const std::vector<Type> &types) -> Operation * { return self.create(name, operands, types); },
+            [](PyOpBuilder& self, const std::string& name, const std::vector<Value>& operands,
+               const std::vector<Type>& types) -> Operation* { return self.create(name, operands, types); },
             ret::reference)
         .def(
             "create_block",
-            [](PyOpBuilder &self, std::optional<Region *> parent,
-               const std::optional<std::vector<Type>> &types) -> Block * {
-                Region *region = parent.value_or(self->getBlock()->getParent());
+            [](PyOpBuilder& self, std::optional<Region*> parent,
+               const std::optional<std::vector<Type>>& types) -> Block* {
+                Region* region = parent.value_or(self->getBlock()->getParent());
                 auto typesVec = types.value_or(noTypes);
                 std::vector<Location> locs(typesVec.size(), self->getUnknownLoc());
                 return self->createBlock(region, Region::iterator(), types.value_or(noTypes), locs);
             },
             "parent"_a = py::none(), "types"_a = py::none(), ret::reference)
-        .def("create_ModuleOp", [](PyOpBuilder &self) -> ModuleOp { return self.create<ModuleOp>(); })
-        .def("create_UnrealizedConversionCastOp",
-             [](PyOpBuilder &self, const Type &result, const Value &value) -> Value {
-                 auto op = self.create<UnrealizedConversionCastOp>(result, value);
-                 return op.getResult(0);
-             });
+        .def("create_ModuleOp", [](PyOpBuilder& self) -> ModuleOp { return self.create<ModuleOp>(); })
+        .def(
+            "create_UnrealizedConversionCastOp",
+            [](PyOpBuilder& self, const Type& result, const Value& value) -> Value {
+                auto op = self.create<UnrealizedConversionCastOp>(result, value);
+                return op.getResult(0);
+            });
 }
 
-void bind_create_operations_function(py::class_<PyOpBuilder> &clss)
+void bind_create_operations_function(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("create_func_FuncOp",
-             [](PyOpBuilder &self, const std::string &name, const Type &type) -> func::FuncOp {
-                 auto funcTy = dyn_cast<FunctionType>(type);
-                 if (!funcTy) {
-                     throw std::invalid_argument("Invalid function type");
-                 }
-                 return self.create<func::FuncOp>(name, funcTy);
-             })
+    clss.def(
+            "create_func_FuncOp",
+            [](PyOpBuilder& self, const std::string& name, const Type& type) -> func::FuncOp {
+                auto funcTy = dyn_cast<FunctionType>(type);
+                if (!funcTy) {
+                    throw std::invalid_argument("Invalid function type");
+                }
+                return self.create<func::FuncOp>(name, funcTy);
+            })
         .def(
             "create_func_ReturnOp",
-            [](PyOpBuilder &self, const std::optional<std::vector<Value>> &operands) {
+            [](PyOpBuilder& self, const std::optional<std::vector<Value>>& operands) {
                 self.create<func::ReturnOp>(operands.value_or(noValues));
             },
             "operands"_a = py::none())
         .def(
             "create_func_CallOp",
-            [](PyOpBuilder &self, const std::string &name, const std::optional<std::vector<Value>> &args,
-               const std::optional<std::vector<Type>> &retTypes) -> OpState {
-                return self.create<func::CallOp>(self->getStringAttr(name), retTypes.value_or(noTypes),
-                                                 args.value_or(noValues));
+            [](PyOpBuilder& self, const std::string& name, const std::optional<std::vector<Value>>& args,
+               const std::optional<std::vector<Type>>& retTypes) -> OpState {
+                return self.create<func::CallOp>(
+                    self->getStringAttr(name), retTypes.value_or(noTypes), args.value_or(noValues));
             },
             "name"_a, "args"_a = py::none(), "ret_types"_a = py::none());
 }
 
-void bind_create_signed_constants(py::class_<PyOpBuilder> &clss)
+void bind_create_signed_constants(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("get_index", [](PyOpBuilder &self, int64_t v) -> Value { return self.create<arith::ConstantIndexOp>(v); })
-        .def("get_i1",
-             [](PyOpBuilder &self, bool v) -> Value { return self.create<arith::ConstantOp>(self->getBoolAttr(v)); })
-        .def("get_i8",
-             [](PyOpBuilder &self, int8_t v) -> Value {
-                 return self.create<arith::ConstantOp>(self->getI8IntegerAttr(v));
-             })
-        .def("get_i16",
-             [](PyOpBuilder &self, int16_t v) -> Value {
-                 return self.create<arith::ConstantOp>(self->getI16IntegerAttr(v));
-             })
-        .def("get_i32",
-             [](PyOpBuilder &self, int32_t v) -> Value {
-                 return self.create<arith::ConstantOp>(self->getI32IntegerAttr(v));
-             })
-        .def("get_i64", [](PyOpBuilder &self, int64_t v) -> Value {
+    clss.def("get_index", [](PyOpBuilder& self, int64_t v) -> Value { return self.create<arith::ConstantIndexOp>(v); })
+        .def(
+            "get_i1",
+            [](PyOpBuilder& self, bool v) -> Value { return self.create<arith::ConstantOp>(self->getBoolAttr(v)); })
+        .def(
+            "get_i8",
+            [](PyOpBuilder& self, int8_t v) -> Value {
+                return self.create<arith::ConstantOp>(self->getI8IntegerAttr(v));
+            })
+        .def(
+            "get_i16",
+            [](PyOpBuilder& self, int16_t v) -> Value {
+                return self.create<arith::ConstantOp>(self->getI16IntegerAttr(v));
+            })
+        .def(
+            "get_i32",
+            [](PyOpBuilder& self, int32_t v) -> Value {
+                return self.create<arith::ConstantOp>(self->getI32IntegerAttr(v));
+            })
+        .def("get_i64", [](PyOpBuilder& self, int64_t v) -> Value {
             return self.create<arith::ConstantOp>(self->getI64IntegerAttr(v));
         });
 }
 
-void bind_create_unsigned_constants(py::class_<PyOpBuilder> &clss)
+void bind_create_unsigned_constants(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("get_ui8",
-             [](PyOpBuilder &self, uint8_t v) -> Value {
-                 auto type = self->getIntegerType(8U, false);
-                 return self.create<emitc::ConstantOp>(type, self->getIntegerAttr(type, v));
-             })
-        .def("get_ui16",
-             [](PyOpBuilder &self, uint16_t v) -> Value {
-                 auto type = self->getIntegerType(16U, false);
-                 return self.create<emitc::ConstantOp>(type, self->getIntegerAttr(type, v));
-             })
-        .def("get_ui32",
-             [](PyOpBuilder &self, uint32_t v) -> Value {
-                 auto type = self->getIntegerType(32U, false);
-                 return self.create<emitc::ConstantOp>(type, self->getIntegerAttr(type, v));
-             })
-        .def("get_ui64", [](PyOpBuilder &self, uint64_t v) -> Value {
+    clss.def(
+            "get_ui8",
+            [](PyOpBuilder& self, uint8_t v) -> Value {
+                auto type = self->getIntegerType(8U, false);
+                return self.create<emitc::ConstantOp>(type, self->getIntegerAttr(type, v));
+            })
+        .def(
+            "get_ui16",
+            [](PyOpBuilder& self, uint16_t v) -> Value {
+                auto type = self->getIntegerType(16U, false);
+                return self.create<emitc::ConstantOp>(type, self->getIntegerAttr(type, v));
+            })
+        .def(
+            "get_ui32",
+            [](PyOpBuilder& self, uint32_t v) -> Value {
+                auto type = self->getIntegerType(32U, false);
+                return self.create<emitc::ConstantOp>(type, self->getIntegerAttr(type, v));
+            })
+        .def("get_ui64", [](PyOpBuilder& self, uint64_t v) -> Value {
             auto type = self->getIntegerType(64U, false);
             return self.create<emitc::ConstantOp>(type, self->getIntegerAttr(type, v));
         });
 }
 
-void bind_create_float_constants(py::class_<PyOpBuilder> &clss)
+void bind_create_float_constants(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("get_f16",
-             [](PyOpBuilder &self, float v) -> Value {
-                 return self.create<arith::ConstantOp>(self->getF16FloatAttr(v));
-             })
-        .def("get_f32",
-             [](PyOpBuilder &self, float v) -> Value {
-                 return self.create<arith::ConstantOp>(self->getF32FloatAttr(v));
-             })
-        .def("get_f64", [](PyOpBuilder &self, double v) -> Value {
+    clss.def(
+            "get_f16",
+            [](PyOpBuilder& self, float v) -> Value {
+                return self.create<arith::ConstantOp>(self->getF16FloatAttr(v));
+            })
+        .def(
+            "get_f32",
+            [](PyOpBuilder& self, float v) -> Value {
+                return self.create<arith::ConstantOp>(self->getF32FloatAttr(v));
+            })
+        .def("get_f64", [](PyOpBuilder& self, double v) -> Value {
             return self.create<arith::ConstantOp>(self->getF64FloatAttr(v));
         });
 }
 
-void bind_create_airth_basic_operations(py::class_<PyOpBuilder> &clss)
+void bind_create_airth_basic_operations(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("create_arith_AddIOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::AddIOp>(lhs, rhs); })
-        .def("create_arith_AddFOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::AddFOp>(lhs, rhs); })
-        .def("create_arith_SubIOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::SubIOp>(lhs, rhs); })
-        .def("create_arith_SubFOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::SubFOp>(lhs, rhs); })
-        .def("create_arith_MulIOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::MulIOp>(lhs, rhs); })
-        .def("create_arith_MulFOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::MulFOp>(lhs, rhs); })
-        .def("create_arith_DivSIOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::DivSIOp>(lhs, rhs); })
-        .def("create_arith_DivFOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::DivFOp>(lhs, rhs); });
+    clss.def(
+            "create_arith_AddIOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::AddIOp>(lhs, rhs); })
+        .def(
+            "create_arith_AddFOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::AddFOp>(lhs, rhs); })
+        .def(
+            "create_arith_SubIOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::SubIOp>(lhs, rhs); })
+        .def(
+            "create_arith_SubFOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::SubFOp>(lhs, rhs); })
+        .def(
+            "create_arith_MulIOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::MulIOp>(lhs, rhs); })
+        .def(
+            "create_arith_MulFOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::MulFOp>(lhs, rhs); })
+        .def(
+            "create_arith_DivSIOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::DivSIOp>(lhs, rhs); })
+        .def("create_arith_DivFOp", [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value {
+            return self.create<arith::DivFOp>(lhs, rhs);
+        });
 }
 
-void bind_create_airth_special_operations(py::class_<PyOpBuilder> &clss)
+void bind_create_airth_special_operations(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("create_arith_CeilDivSIOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value {
-                 return self.create<arith::CeilDivSIOp>(lhs, rhs);
-             })
-        .def("create_arith_RemSIOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::RemSIOp>(lhs, rhs); })
-        .def("create_arith_RemFOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::RemFOp>(lhs, rhs); })
-        .def("create_arith_ShLIOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::ShLIOp>(lhs, rhs); })
-        .def("create_arith_ShRSIOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::ShRSIOp>(lhs, rhs); });
+    clss.def(
+            "create_arith_CeilDivSIOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value {
+                return self.create<arith::CeilDivSIOp>(lhs, rhs);
+            })
+        .def(
+            "create_arith_RemSIOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::RemSIOp>(lhs, rhs); })
+        .def(
+            "create_arith_RemFOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::RemFOp>(lhs, rhs); })
+        .def(
+            "create_arith_ShLIOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::ShLIOp>(lhs, rhs); })
+        .def("create_arith_ShRSIOp", [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value {
+            return self.create<arith::ShRSIOp>(lhs, rhs);
+        });
 }
 
-void bind_create_airth_comparison_operations(py::class_<PyOpBuilder> &clss)
+void bind_create_airth_comparison_operations(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("create_arith_AndIOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::AndIOp>(lhs, rhs); })
-        .def("create_arith_OrIOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::OrIOp>(lhs, rhs); })
-        .def("create_arith_XOrIOp",
-             [](PyOpBuilder &self, Value &lhs, Value &rhs) -> Value { return self.create<arith::XOrIOp>(lhs, rhs); })
-        .def("create_arith_CmpIOp",
-             [](PyOpBuilder &self, arith::CmpIPredicate pred, Value &lhs, Value &rhs) -> Value {
-                 return self.create<arith::CmpIOp>(pred, lhs, rhs);
-             })
-        .def("create_arith_CmpFOp", [](PyOpBuilder &self, arith::CmpFPredicate pred, Value &lhs, Value &rhs) -> Value {
+    clss.def(
+            "create_arith_AndIOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::AndIOp>(lhs, rhs); })
+        .def(
+            "create_arith_OrIOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::OrIOp>(lhs, rhs); })
+        .def(
+            "create_arith_XOrIOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::XOrIOp>(lhs, rhs); })
+        .def(
+            "create_arith_CmpIOp",
+            [](PyOpBuilder& self, arith::CmpIPredicate pred, Value& lhs, Value& rhs) -> Value {
+                return self.create<arith::CmpIOp>(pred, lhs, rhs);
+            })
+        .def("create_arith_CmpFOp", [](PyOpBuilder& self, arith::CmpFPredicate pred, Value& lhs, Value& rhs) -> Value {
             return self.create<arith::CmpFOp>(pred, lhs, rhs);
         });
 }
 
-void bind_create_airth_extended_operations(py::class_<PyOpBuilder> &clss)
+void bind_create_airth_extended_operations(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("create_arith_NegFOp",
-             [](PyOpBuilder &self, Value &opnd) -> Value { return self.create<arith::NegFOp>(opnd); })
-        .def("create_arith_IndexCastOp",
-             [](PyOpBuilder &self, Value &value, Type &result) -> Value {
-                 return self.create<arith::IndexCastOp>(result, value);
-             })
-        .def("create_arith_SIToFPOp",
-             [](PyOpBuilder &self, Value &in, Type &out) -> Value { return self.create<arith::SIToFPOp>(out, in); })
-        .def("create_arith_FPToSIOp",
-             [](PyOpBuilder &self, Value &in, Type &out) -> Value { return self.create<arith::FPToSIOp>(out, in); })
-        .def("create_arith_TruncIOp",
-             [](PyOpBuilder &self, Value &in, Type &out) -> Value { return self.create<arith::TruncIOp>(out, in); })
-        .def("create_arith_TruncFOp",
-             [](PyOpBuilder &self, Value &in, Type &out) -> Value { return self.create<arith::TruncFOp>(out, in); })
-        .def("create_arith_ExtSIOp",
-             [](PyOpBuilder &self, Value &in, Type &out) -> Value { return self.create<arith::ExtSIOp>(out, in); })
-        .def("create_arith_ExtFOp",
-             [](PyOpBuilder &self, Value &in, Type &out) -> Value { return self.create<arith::ExtFOp>(out, in); });
+    clss.def(
+            "create_arith_NegFOp",
+            [](PyOpBuilder& self, Value& opnd) -> Value { return self.create<arith::NegFOp>(opnd); })
+        .def(
+            "create_arith_IndexCastOp",
+            [](PyOpBuilder& self, Value& value, Type& result) -> Value {
+                return self.create<arith::IndexCastOp>(result, value);
+            })
+        .def(
+            "create_arith_SIToFPOp",
+            [](PyOpBuilder& self, Value& in, Type& out) -> Value { return self.create<arith::SIToFPOp>(out, in); })
+        .def(
+            "create_arith_FPToSIOp",
+            [](PyOpBuilder& self, Value& in, Type& out) -> Value { return self.create<arith::FPToSIOp>(out, in); })
+        .def(
+            "create_arith_TruncIOp",
+            [](PyOpBuilder& self, Value& in, Type& out) -> Value { return self.create<arith::TruncIOp>(out, in); })
+        .def(
+            "create_arith_TruncFOp",
+            [](PyOpBuilder& self, Value& in, Type& out) -> Value { return self.create<arith::TruncFOp>(out, in); })
+        .def(
+            "create_arith_ExtSIOp",
+            [](PyOpBuilder& self, Value& in, Type& out) -> Value { return self.create<arith::ExtSIOp>(out, in); })
+        .def("create_arith_ExtFOp", [](PyOpBuilder& self, Value& in, Type& out) -> Value {
+            return self.create<arith::ExtFOp>(out, in);
+        });
 }
 
-void bind_create_scf_operations(py::class_<PyOpBuilder> &clss)
+void bind_create_scf_operations(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
     clss.def(
             "create_scf_ForOp",
-            [](PyOpBuilder &self, Value &lb, Value &ub, Value &step, std::optional<std::vector<Value>> &initArgs)
+            [](PyOpBuilder& self, Value& lb, Value& ub, Value& step, std::optional<std::vector<Value>>& initArgs)
                 -> scf::ForOp { return self.create<scf::ForOp>(lb, ub, step, initArgs.value_or(noValues)); },
             "lb"_a, "ub"_a, "step"_a, "init_args"_a = py::none())
         .def(
             "create_scf_IfOp",
-            [](PyOpBuilder &self, Value &condition, const std::optional<std::vector<Type>> &retTypes, bool withElse)
+            [](PyOpBuilder& self, Value& condition, const std::optional<std::vector<Type>>& retTypes, bool withElse)
                 -> scf::IfOp { return self.create<scf::IfOp>(retTypes.value_or(noTypes), condition, withElse); },
             "condition"_a, "ret_types"_a = py::none(), "with_else"_a = false)
         .def(
             "create_scf_YieldOp",
-            [](PyOpBuilder &self, std::optional<std::vector<Value>> &yields) -> scf::YieldOp {
+            [](PyOpBuilder& self, std::optional<std::vector<Value>>& yields) -> scf::YieldOp {
                 return self.create<scf::YieldOp>(yields.value_or(noValues));
             },
             "yields"_a = py::none())
         .def(
             "create_scf_WhileOp",
-            [](PyOpBuilder &self, const std::optional<std::vector<Type>> &retTypes,
-               const std::optional<std::vector<Value>> &initArgs) -> scf::WhileOp {
+            [](PyOpBuilder& self, const std::optional<std::vector<Type>>& retTypes,
+               const std::optional<std::vector<Value>>& initArgs) -> scf::WhileOp {
                 return self.create<scf::WhileOp>(retTypes.value_or(noTypes), initArgs.value_or(noValues));
             },
             "ret_types"_a = py::none(), "init_args"_a = py::none())
         .def(
             "create_scf_ConditionOp",
-            [](PyOpBuilder &self, Value &cond, const std::optional<std::vector<Value>> &args) -> scf::ConditionOp {
+            [](PyOpBuilder& self, Value& cond, const std::optional<std::vector<Value>>& args) -> scf::ConditionOp {
                 return self.create<scf::ConditionOp>(cond, args.value_or(noValues));
             },
             "condition"_a, "args"_a = py::none());
 }
 
-void bind_create_memref_operations(py::class_<PyOpBuilder> &clss)
+void bind_create_memref_operations(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
     clss.def(
             "create_memref_AllocaOp",
-            [](PyOpBuilder &self, const Type &type, bool emitAsUnsigned) -> Value {
+            [](PyOpBuilder& self, const Type& type, bool emitAsUnsigned) -> Value {
                 auto mrType = dyn_cast<MemRefType>(type);
                 if (!mrType) {
                     throw std::runtime_error("create_memref_AllocaOp(): must be MemRefType");
@@ -717,138 +758,153 @@ void bind_create_memref_operations(py::class_<PyOpBuilder> &clss)
             "type"_a, "unsigned"_a = false)
         .def(
             "create_memref_LoadOp",
-            [](PyOpBuilder &self, const Value &base, const std::vector<Value> &indices) -> Value {
+            [](PyOpBuilder& self, const Value& base, const std::vector<Value>& indices) -> Value {
                 return self.create<memref::LoadOp>(base, indices);
             },
             "base"_a, "indices"_a)
         .def(
             "create_memref_StoreOp",
-            [](PyOpBuilder &self, const Value &src, const Value &base, const std::vector<Value> &indices) {
+            [](PyOpBuilder& self, const Value& src, const Value& base, const std::vector<Value>& indices) {
                 self.create<memref::StoreOp>(src, base, indices);
             },
             "src"_a, "base"_a, "indices"_a);
 }
 
-void bind_create_vector_operations(py::class_<PyOpBuilder> &clss)
+void bind_create_vector_operations(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
     clss.def(
             "create_vector_LoadOp",
-            [](PyOpBuilder &self, Type &result, Value &base, const std::optional<std::vector<Value>> &indices)
+            [](PyOpBuilder& self, Type& result, Value& base, const std::optional<std::vector<Value>>& indices)
                 -> Value { return self.create<vector::LoadOp>(result, base, indices.value_or(noValues)); },
             "result"_a, "base"_a, "indices"_a = py::none())
         .def(
             "create_vector_StoreOp",
-            [](PyOpBuilder &self, Value &value, Value &base, const std::optional<std::vector<Value>> &indices) {
+            [](PyOpBuilder& self, Value& value, Value& base, const std::optional<std::vector<Value>>& indices) {
                 self.create<vector::StoreOp>(value, base, indices.value_or(noValues));
             },
             "value"_a, "base"_a, "indices"_a = py::none());
 }
 
-void bind_create_emitc_operations(py::class_<PyOpBuilder> &clss)
+void bind_create_emitc_operations(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("create_emitc_CastOp",
-             [](PyOpBuilder &self, const Value &in, const Type &type) -> Value {
-                 return self.create<emitc::CastOp>(type, in);
-             })
-        .def("create_emitc_ConstantOp",
-             [](PyOpBuilder &self, const Attribute &value, const Type &type) -> Value {
-                 return self.create<emitc::ConstantOp>(type, value);
-             })
-        .def("create_emitc_IncludeOp",
-             [](PyOpBuilder &self, const std::string &filename) { self.create<emitc::IncludeOp>(StringRef(filename)); })
-        .def("create_emitc_VerbatimOp",
-             [](PyOpBuilder &self, const std::string &str) { self.create<emitc::VerbatimOp>(StringRef(str)); });
+    clss.def(
+            "create_emitc_CastOp",
+            [](PyOpBuilder& self, const Value& in, const Type& type) -> Value {
+                return self.create<emitc::CastOp>(type, in);
+            })
+        .def(
+            "create_emitc_ConstantOp",
+            [](PyOpBuilder& self, const Attribute& value, const Type& type) -> Value {
+                return self.create<emitc::ConstantOp>(type, value);
+            })
+        .def(
+            "create_emitc_IncludeOp",
+            [](PyOpBuilder& self, const std::string& filename) { self.create<emitc::IncludeOp>(StringRef(filename)); })
+        .def("create_emitc_VerbatimOp", [](PyOpBuilder& self, const std::string& str) {
+            self.create<emitc::VerbatimOp>(StringRef(str));
+        });
 }
 
-void bind_create_emitasc_operations(py::class_<PyOpBuilder> &clss)
+void bind_create_emitasc_operations(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("create_emitasc_CopyStructOp",
-             [](PyOpBuilder &self, const Value &base) -> Value {
-                 return self.create<emitasc::CopyStructOp>(cast<MemRefType>(base.getType()).getElementType(), base);
-             })
-        .def("create_emitasc_MemberOp",
-             [](PyOpBuilder &self, const Value &base, const std::string &field, const Type &type) -> Value {
-                 return self.create<emitasc::MemberOp>(type, base, field);
-             })
-        .def("create_emitasc_PtrOffsetOp",
-             [](PyOpBuilder &self, Value &base, Value &offset) -> Value {
-                 return self.create<emitasc::PtrOffsetOp>(base.getType(), base, IntegerAttr(), offset);
-             })
-        .def("create_emitasc_SetMemberOp",
-             [](PyOpBuilder &self, const Value &base, const std::string &field, const Value &value) {
-                 self.create<emitasc::SetMemberOp>(base, field, value);
-             })
+    clss.def(
+            "create_emitasc_CopyStructOp",
+            [](PyOpBuilder& self, const Value& base) -> Value {
+                return self.create<emitasc::CopyStructOp>(cast<MemRefType>(base.getType()).getElementType(), base);
+            })
+        .def(
+            "create_emitasc_MemberOp",
+            [](PyOpBuilder& self, const Value& base, const std::string& field, const Type& type) -> Value {
+                return self.create<emitasc::MemberOp>(type, base, field);
+            })
+        .def(
+            "create_emitasc_PtrOffsetOp",
+            [](PyOpBuilder& self, Value& base, Value& offset) -> Value {
+                return self.create<emitasc::PtrOffsetOp>(base.getType(), base, IntegerAttr(), offset);
+            })
+        .def(
+            "create_emitasc_SetMemberOp",
+            [](PyOpBuilder& self, const Value& base, const std::string& field, const Value& value) {
+                self.create<emitasc::SetMemberOp>(base, field, value);
+            })
         .def(
             "create_emitasc_VerbatimOp",
-            [](PyOpBuilder &self, const std::string &value, const std::optional<std::vector<Value>> &args) {
+            [](PyOpBuilder& self, const std::string& value, const std::optional<std::vector<Value>>& args) {
                 self.create<emitasc::VerbatimOp>(self->getStringAttr(value), args.value_or(noValues));
             },
             "value"_a, "args"_a = py::none());
 }
 
-void bind_create_asc_pipe_operations(py::class_<PyOpBuilder> &clss)
+void bind_create_asc_pipe_operations(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("create_asc_FftsCrossCoreSyncOp",
-             [](PyOpBuilder &self, uint8_t pipe, const Value &config) {
-                 auto pipeAttr = ascendc::symbolizePipe(pipe);
-                 if (!pipeAttr) {
-                     throw std::runtime_error("Unknown pipe for FftsCrossCoreSyncOp");
-                 }
-                 self.create<ascendc::FftsCrossCoreSyncOp>(*pipeAttr, config);
-             })
-        .def("create_asc_PipeOp", [](PyOpBuilder &self) -> Value { return self.create<ascendc::PipeOp>(); })
-        .def("create_asc_PipeBarrierOp",
-             [](PyOpBuilder &self, uint8_t pipe) {
-                 auto pipeAttr = ascendc::symbolizePipe(pipe);
-                 if (!pipeAttr) {
-                     throw std::runtime_error("Unknown pipe for PipeBarrierOp");
-                 }
-                 self.create<ascendc::PipeBarrierOp>(*pipeAttr);
-             })
-        .def("create_asc_SetFlagOp",
-             [](PyOpBuilder &self, uint8_t event, Value eventId) {
-                 auto eventAttr = get_hard_event(event, "SetFlagOp");
-                 self.create<ascendc::SetFlagOp>(eventAttr, eventId);
-             })
-        .def("create_asc_WaitFlagOp",
-             [](PyOpBuilder &self, uint8_t event, Value eventId) {
-                 auto eventAttr = get_hard_event(event, "WaitFlagOp");
-                 self.create<ascendc::WaitFlagOp>(eventAttr, eventId);
-             })
-        .def("create_asc_CrossCoreSetFlagOp",
-			[](PyOpBuilder &self, Value flagId, uint8_t modeId, uint8_t pipe) {
-				auto pipeAttr = ascendc::symbolizePipe(pipe);
-				if (!pipeAttr) {
-					throw std::runtime_error("Unknown pipe for CrossCoreSetFlagOp");
-				}
-				self.create<ascendc::CrossCoreSetFlagOp>(flagId, modeId, *pipeAttr);
-			})
-		.def("create_asc_CrossCoreWaitFlagOp",
-			[](PyOpBuilder &self, Value flagId, uint8_t modeId, uint8_t pipe) {
-				auto pipeAttr = ascendc::symbolizePipe(pipe);
-				if (!pipeAttr) {
-					throw std::runtime_error("Unknown pipe for CrossCoreWaitFlagOp");
-				}
-				self.create<ascendc::CrossCoreWaitFlagOp>(flagId, modeId, *pipeAttr);
-			})
-        .def("create_asc_TPipeAllocEventIDOp",
-             [](PyOpBuilder &self, const Type &event_id, const Value &pipe, uint8_t event) -> Value {
-                 auto eventAttr = get_hard_event(event, "TPipeAllocEventIDOp");
-                 return self.create<ascendc::TPipeAllocEventIDOp>(event_id, pipe, eventAttr);
-             })
-        .def("create_asc_DataSyncBarrierOp", [](PyOpBuilder &self, uint8_t memDsbType) {
+    clss.def(
+            "create_asc_FftsCrossCoreSyncOp",
+            [](PyOpBuilder& self, uint8_t pipe, const Value& config) {
+                auto pipeAttr = ascendc::symbolizePipe(pipe);
+                if (!pipeAttr) {
+                    throw std::runtime_error("Unknown pipe for FftsCrossCoreSyncOp");
+                }
+                self.create<ascendc::FftsCrossCoreSyncOp>(*pipeAttr, config);
+            })
+        .def("create_asc_PipeOp", [](PyOpBuilder& self) -> Value { return self.create<ascendc::PipeOp>(); })
+        .def(
+            "create_asc_PipeBarrierOp",
+            [](PyOpBuilder& self, uint8_t pipe) {
+                auto pipeAttr = ascendc::symbolizePipe(pipe);
+                if (!pipeAttr) {
+                    throw std::runtime_error("Unknown pipe for PipeBarrierOp");
+                }
+                self.create<ascendc::PipeBarrierOp>(*pipeAttr);
+            })
+        .def(
+            "create_asc_SetFlagOp",
+            [](PyOpBuilder& self, uint8_t event, Value eventId) {
+                auto eventAttr = get_hard_event(event, "SetFlagOp");
+                self.create<ascendc::SetFlagOp>(eventAttr, eventId);
+            })
+        .def(
+            "create_asc_WaitFlagOp",
+            [](PyOpBuilder& self, uint8_t event, Value eventId) {
+                auto eventAttr = get_hard_event(event, "WaitFlagOp");
+                self.create<ascendc::WaitFlagOp>(eventAttr, eventId);
+            })
+        .def(
+            "create_asc_CrossCoreSetFlagOp",
+            [](PyOpBuilder& self, Value flagId, uint8_t modeId, uint8_t pipe) {
+                auto pipeAttr = ascendc::symbolizePipe(pipe);
+                if (!pipeAttr) {
+                    throw std::runtime_error("Unknown pipe for CrossCoreSetFlagOp");
+                }
+                self.create<ascendc::CrossCoreSetFlagOp>(flagId, modeId, *pipeAttr);
+            })
+        .def(
+            "create_asc_CrossCoreWaitFlagOp",
+            [](PyOpBuilder& self, Value flagId, uint8_t modeId, uint8_t pipe) {
+                auto pipeAttr = ascendc::symbolizePipe(pipe);
+                if (!pipeAttr) {
+                    throw std::runtime_error("Unknown pipe for CrossCoreWaitFlagOp");
+                }
+                self.create<ascendc::CrossCoreWaitFlagOp>(flagId, modeId, *pipeAttr);
+            })
+        .def(
+            "create_asc_TPipeAllocEventIDOp",
+            [](PyOpBuilder& self, const Type& event_id, const Value& pipe, uint8_t event) -> Value {
+                auto eventAttr = get_hard_event(event, "TPipeAllocEventIDOp");
+                return self.create<ascendc::TPipeAllocEventIDOp>(event_id, pipe, eventAttr);
+            })
+        .def("create_asc_DataSyncBarrierOp", [](PyOpBuilder& self, uint8_t memDsbType) {
             auto memDsbAttr = ascendc::symbolizeMemDsbT(memDsbType);
             if (!memDsbAttr) {
                 throw std::runtime_error("Unknown MemDsbT type for DataSyncBarrierOp");
@@ -857,43 +913,46 @@ void bind_create_asc_pipe_operations(py::class_<PyOpBuilder> &clss)
         });
 }
 
-void bind_create_asc_event_operations(py::class_<PyOpBuilder> &clss)
+void bind_create_asc_event_operations(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("create_asc_TPipeReleaseEventIDOp",
-             [](PyOpBuilder &self, const Value &pipe, const Value &id, uint8_t event) {
-                 auto eventAttr = get_hard_event(event, "TPipeReleaseEventIDOp");
-                 self.create<ascendc::TPipeReleaseEventIDOp>(pipe, id, eventAttr);
-             })
-        .def("create_asc_TPipeFetchEventIDOp",
-             [](PyOpBuilder &self, const Type &event_id, const Value &pipe, uint8_t event) -> Value {
-                 auto eventAttr = get_hard_event(event, "TPipeFetchEventIDOp");
-                 return self.create<ascendc::TPipeFetchEventIDOp>(event_id, pipe, eventAttr);
-             })
+    clss.def(
+            "create_asc_TPipeReleaseEventIDOp",
+            [](PyOpBuilder& self, const Value& pipe, const Value& id, uint8_t event) {
+                auto eventAttr = get_hard_event(event, "TPipeReleaseEventIDOp");
+                self.create<ascendc::TPipeReleaseEventIDOp>(pipe, id, eventAttr);
+            })
+        .def(
+            "create_asc_TPipeFetchEventIDOp",
+            [](PyOpBuilder& self, const Type& event_id, const Value& pipe, uint8_t event) -> Value {
+                auto eventAttr = get_hard_event(event, "TPipeFetchEventIDOp");
+                return self.create<ascendc::TPipeFetchEventIDOp>(event_id, pipe, eventAttr);
+            })
         .def(
             "create_asc_PrintfOp",
-            [](PyOpBuilder &self, const std::string &desc, const std::optional<std::vector<Value>> &vars) {
+            [](PyOpBuilder& self, const std::string& desc, const std::optional<std::vector<Value>>& vars) {
                 self.create<ascendc::PrintfOp>(self->getStringAttr(desc), vars.value_or(noValues));
             },
             "desc"_a, "vars"_a = py::none())
-        .def("create_asc_GlobalTensorSetL2CacheHintOp",
-             [](PyOpBuilder &self, const Value &tensor, uint8_t mode, uint8_t rwMode) {
-                 auto modeAttr = ascendc::symbolizeCacheMode(mode);
-                 auto rwModeAttr = ascendc::symbolizeCacheRwMode(rwMode);
+        .def(
+            "create_asc_GlobalTensorSetL2CacheHintOp",
+            [](PyOpBuilder& self, const Value& tensor, uint8_t mode, uint8_t rwMode) {
+                auto modeAttr = ascendc::symbolizeCacheMode(mode);
+                auto rwModeAttr = ascendc::symbolizeCacheRwMode(rwMode);
 
-                 if (!modeAttr) {
-                     throw std::runtime_error("Unknown mode for GlobalTensorSetL2CacheHintOp");
-                 }
-                 if (!rwModeAttr) {
-                     throw std::runtime_error("Unknown rwMode for GlobalTensorSetL2CacheHintOp");
-                 }
-                 self.create<ascendc::GlobalTensorSetL2CacheHintOp>(tensor, *modeAttr, *rwModeAttr);
-             })
+                if (!modeAttr) {
+                    throw std::runtime_error("Unknown mode for GlobalTensorSetL2CacheHintOp");
+                }
+                if (!rwModeAttr) {
+                    throw std::runtime_error("Unknown rwMode for GlobalTensorSetL2CacheHintOp");
+                }
+                self.create<ascendc::GlobalTensorSetL2CacheHintOp>(tensor, *modeAttr, *rwModeAttr);
+            })
         .def(
             "create_asc_LocalTensorAutoOp",
-            [](PyOpBuilder &self, const Type &result) -> Value {
+            [](PyOpBuilder& self, const Type& result) -> Value {
                 return self.create<ascendc::LocalTensorAutoOp>(result);
             },
             "result"_a)
@@ -901,30 +960,37 @@ void bind_create_asc_event_operations(py::class_<PyOpBuilder> &clss)
         ;
 }
 
-void bind_create_asc_common_operations(py::class_<PyOpBuilder> &clss)
+void bind_create_asc_common_operations(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;
 
-    clss.def("create_asc_GatherMaskAndResult", [](PyOpBuilder &self, const Type &type, const Value &dst, const Value &src0,
-                                           const Value &src1Pattern, const Value &reduceMode, const Value &mask,
-                                           const Value &params, uint8_t mode) {
-        auto modeAttr = ascendc::symbolizeGatherMaskMode(mode);
-        if (!modeAttr) {
-            throw std::runtime_error("Unknown mode for GatherMaskOp");
-        }
-        return self.create<ascendc::GatherMaskOp>(type, dst, src0, src1Pattern, reduceMode, mask, params, *modeAttr).getResult();
-    });
-    clss.def("create_asc_GetMrgSortResults", [](PyOpBuilder &self, 
-             const Type &type1, const Type &type2, const Type &type3, const Type &type4) {
-        auto operation = self.create<ascendc::GetMrgSortResultOp>(type1, type2, type3, type4);
-        return py::make_tuple(operation.getResult(0), operation.getResult(1), operation.getResult(2), operation.getResult(3));
-    });
-    clss.def("create_asc_GetStoreAtomicConfigAndResult", [](PyOpBuilder &self, const Type &type, const Type &op) {
-        auto operation = self.create<ascendc::GetStoreAtomicConfigOp>(type, op);
-        return py::make_tuple(operation.getResult(0), operation.getResult(1));
-    }, "type"_a, "op"_a);
-    clss.def("create_asc_SetStoreAtomicConfigOp", [](PyOpBuilder &self, uint8_t type, uint8_t op) {
+    clss.def(
+        "create_asc_GatherMaskAndResult",
+        [](PyOpBuilder& self, const Type& type, const Value& dst, const Value& src0, const Value& src1Pattern,
+           const Value& reduceMode, const Value& mask, const Value& params, uint8_t mode) {
+            auto modeAttr = ascendc::symbolizeGatherMaskMode(mode);
+            if (!modeAttr) {
+                throw std::runtime_error("Unknown mode for GatherMaskOp");
+            }
+            return self.create<ascendc::GatherMaskOp>(type, dst, src0, src1Pattern, reduceMode, mask, params, *modeAttr)
+                .getResult();
+        });
+    clss.def(
+        "create_asc_GetMrgSortResults",
+        [](PyOpBuilder& self, const Type& type1, const Type& type2, const Type& type3, const Type& type4) {
+            auto operation = self.create<ascendc::GetMrgSortResultOp>(type1, type2, type3, type4);
+            return py::make_tuple(
+                operation.getResult(0), operation.getResult(1), operation.getResult(2), operation.getResult(3));
+        });
+    clss.def(
+        "create_asc_GetStoreAtomicConfigAndResult",
+        [](PyOpBuilder& self, const Type& type, const Type& op) {
+            auto operation = self.create<ascendc::GetStoreAtomicConfigOp>(type, op);
+            return py::make_tuple(operation.getResult(0), operation.getResult(1));
+        },
+        "type"_a, "op"_a);
+    clss.def("create_asc_SetStoreAtomicConfigOp", [](PyOpBuilder& self, uint8_t type, uint8_t op) {
         auto typeAttr = ascendc::symbolizeAtomicDtype(type);
         if (!typeAttr) {
             throw std::runtime_error("Unknown type for AtomicDtype");
@@ -935,13 +1001,16 @@ void bind_create_asc_common_operations(py::class_<PyOpBuilder> &clss)
         }
         self.create<ascendc::SetStoreAtomicConfigOp>(*typeAttr, *opAttr);
     });
-    clss.def("create_asc_GetStoreAtomicConfigAndResult", [](PyOpBuilder &self, const Type &type, const Type &op) {
-        auto operation = self.create<ascendc::GetStoreAtomicConfigOp>(type, op);
-        return py::make_tuple(operation.getResult(0), operation.getResult(1));
-    }, "type"_a, "op"_a);
+    clss.def(
+        "create_asc_GetStoreAtomicConfigAndResult",
+        [](PyOpBuilder& self, const Type& type, const Type& op) {
+            auto operation = self.create<ascendc::GetStoreAtomicConfigOp>(type, op);
+            return py::make_tuple(operation.getResult(0), operation.getResult(1));
+        },
+        "type"_a, "op"_a);
 }
 
-void pyasc_init_ir_builder(py::module &m)
+void pyasc_init_ir_builder(py::module& m)
 {
     using ret = py::return_value_policy;
     using namespace pybind11::literals;

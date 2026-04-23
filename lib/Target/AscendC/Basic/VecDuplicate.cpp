@@ -18,9 +18,9 @@ using namespace mlir::ascendc;
 // Duplicate operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::DuplicateL0Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::DuplicateL0Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     FAIL_OR(printIsSetMaskTemplate(emitter, op));
     os << "(" << emitter.getOrCreateName(op.getDst()) << ", " << emitter.getOrCreateName(op.getScalar()) << ", "
        << emitter.getOrCreateName(op.getMask()) << ", " << emitter.getOrCreateName(op.getRepeatTimes()) << ", "
@@ -29,9 +29,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Dupli
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::DuplicateL1Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::DuplicateL1Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     auto maskName = printMask(emitter, op);
 
     FAIL_OR(printIsSetMaskTemplate(emitter, op));
@@ -42,9 +42,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Dupli
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::DuplicateL2Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::DuplicateL2Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDst()) << ", "
        << emitter.getOrCreateName(op.getScalar()) << ", " << emitter.getOrCreateName(op.getCalCount()) << ")";
     return success();

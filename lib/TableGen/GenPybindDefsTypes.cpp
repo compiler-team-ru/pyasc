@@ -27,18 +27,18 @@ namespace {
 using TypeNamePair = std::pair<std::string, std::string>;
 
 class GenPybindDefsTypes {
-    const RecordKeeper &records;
+    const RecordKeeper& records;
 
-  public:
-    explicit GenPybindDefsTypes(const RecordKeeper &records) : records(records) {}
+public:
+    explicit GenPybindDefsTypes(const RecordKeeper& records) : records(records) {}
 
-    void run(raw_ostream &os);
+    void run(raw_ostream& os);
 };
 
-void GenPybindDefsTypes::run(raw_ostream &os)
+void GenPybindDefsTypes::run(raw_ostream& os)
 {
     raw_indented_ostream ios(os);
-    for (const auto *def : records.getAllDerivedDefinitions("APIType")) {
+    for (const auto* def : records.getAllDerivedDefinitions("APIType")) {
         if (!def->getValueAsBit("genTypedef")) {
             continue;
         }
@@ -49,7 +49,7 @@ void GenPybindDefsTypes::run(raw_ostream &os)
     }
 }
 
-TableGen::Emitter::OptClass<GenPybindDefsTypes> registration("gen-pybind-defs-types",
-                                                             "Generate PyOpBuilder methods from API Types defs");
+TableGen::Emitter::OptClass<GenPybindDefsTypes>
+    registration("gen-pybind-defs-types", "Generate PyOpBuilder methods from API Types defs");
 
 } // namespace

@@ -16,15 +16,14 @@
 namespace mlir {
 
 template <typename UnaryOpType>
-auto printOperation(CodeEmitter &emitter, UnaryOpType op)
-    -> LogicalResultForT<UnaryOpType, math::AbsFOp, math::SqrtOp, math::ExpOp, math::LogOp, math::CosOp, math::SinOp,
-                         math::Log2Op, math::ErfOp, math::CeilOp, math::FloorOp, math::RsqrtOp, math::Exp2Op,
-                         math::RoundOp>
+auto printOperation(CodeEmitter& emitter, UnaryOpType op) -> LogicalResultForT<
+    UnaryOpType, math::AbsFOp, math::SqrtOp, math::ExpOp, math::LogOp, math::CosOp, math::SinOp, math::Log2Op,
+    math::ErfOp, math::CeilOp, math::FloorOp, math::RsqrtOp, math::Exp2Op, math::RoundOp>
 {
     if (failed(isScalarOperation(op)) || failed(emitter.emitAssignPrefix(*op.getOperation()))) {
         return failure();
     }
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     if constexpr (std::is_same_v<UnaryOpType, math::AbsFOp>) {
         auto lhs = emitter.getOrCreateName(op.getOperand());
         os << "(" << lhs << " > static_cast<";
@@ -61,11 +60,11 @@ auto printOperation(CodeEmitter &emitter, UnaryOpType op)
 }
 
 template <typename BinaryOpType>
-LogicalResultForT<BinaryOpType, math::Atan2Op> printOperation(CodeEmitter &emitter, BinaryOpType op)
+LogicalResultForT<BinaryOpType, math::Atan2Op> printOperation(CodeEmitter& emitter, BinaryOpType op)
 {
     FAIL_OR(isScalarOperation(op));
     FAIL_OR(emitter.emitAssignPrefix(*op.getOperation()));
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     if constexpr (std::is_same_v<BinaryOpType, math::Atan2Op>) {
         auto lhs = emitter.getOrCreateName(op.getLhs());
         auto rhs = emitter.getOrCreateName(op.getRhs());
@@ -77,9 +76,9 @@ LogicalResultForT<BinaryOpType, math::Atan2Op> printOperation(CodeEmitter &emitt
     return failure();
 }
 
-LogicalResult printOperation(CodeEmitter &emitter, math::FmaOp op);
+LogicalResult printOperation(CodeEmitter& emitter, math::FmaOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, math::CopySignOp op);
+LogicalResult printOperation(CodeEmitter& emitter, math::CopySignOp op);
 
 } // namespace mlir
 

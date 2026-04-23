@@ -20,7 +20,7 @@ namespace ascir {
 struct ConstantOpBuilder {
     using ConstantOp = ::mlir::arith::ConstantOp;
 
-    ConstantOpBuilder(OpBuilder &builder) : builder(builder) {}
+    ConstantOpBuilder(OpBuilder& builder) : builder(builder) {}
     ~ConstantOpBuilder() = default;
 
     ConstantOp create(TypedAttr attr)
@@ -29,60 +29,27 @@ struct ConstantOpBuilder {
         return op;
     }
 
-    ConstantOp create(IndexType type, int64_t value)
-    {
-        return create(builder.getIndexAttr(value));
-    }
+    ConstantOp create(IndexType type, int64_t value) { return create(builder.getIndexAttr(value)); }
 
-    ConstantOp create(IntegerType type, int64_t value)
-    {
-        return create(builder.getIntegerAttr(type, value));
-    }
+    ConstantOp create(IntegerType type, int64_t value) { return create(builder.getIntegerAttr(type, value)); }
 
-    ConstantOp create(FloatType type, double value)
-    {
-        return create(builder.getFloatAttr(type, value));
-    }
+    ConstantOp create(FloatType type, double value) { return create(builder.getFloatAttr(type, value)); }
 
-    Value index(int64_t value)
-    {
-        return create(builder.getIndexType(), value);
-    }
+    Value index(int64_t value) { return create(builder.getIndexType(), value); }
 
-    Value i64(int64_t value)
-    {
-        return create(builder.getI64Type(), value);
-    }
+    Value i64(int64_t value) { return create(builder.getI64Type(), value); }
 
-    Value i32(int32_t value)
-    {
-        return create(builder.getI32Type(), value);
-    }
+    Value i32(int32_t value) { return create(builder.getI32Type(), value); }
 
-    Value i16(int16_t value)
-    {
-        return create(builder.getI16Type(), value);
-    }
+    Value i16(int16_t value) { return create(builder.getI16Type(), value); }
 
-    Value i8(int8_t value)
-    {
-        return create(builder.getI8Type(), value);
-    }
+    Value i8(int8_t value) { return create(builder.getI8Type(), value); }
 
-    Value f64(double value)
-    {
-        return create(builder.getF64Type(), value);
-    }
+    Value f64(double value) { return create(builder.getF64Type(), value); }
 
-    Value f32(float value)
-    {
-        return create(builder.getF32Type(), value);
-    }
+    Value f32(float value) { return create(builder.getF32Type(), value); }
 
-    Value f16(float value)
-    {
-        return create(builder.getF16Type(), value);
-    }
+    Value f16(float value) { return create(builder.getF16Type(), value); }
 
     template <typename IntType>
     Value integer(IntType value)
@@ -90,8 +57,8 @@ struct ConstantOpBuilder {
         return create(builder.getIntegerType(sizeof(IntType) * CHAR_BIT), value);
     }
 
-  private:
-    OpBuilder &builder;
+private:
+    OpBuilder& builder;
 };
 
 } // namespace ascir

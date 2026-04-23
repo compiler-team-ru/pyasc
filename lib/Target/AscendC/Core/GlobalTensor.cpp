@@ -17,18 +17,18 @@ using namespace mlir::ascendc;
 // GlobalTensor operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::GlobalTensorSubIndexOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GlobalTensorSubIndexOp op)
 {
     FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << " = " << emitter.getOrCreateName(op.getTensor()) << "[" << emitter.getOrCreateName(op.getIndex()) << "]";
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::GlobalTensorBracketOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GlobalTensorBracketOp op)
 {
     FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << " = " << emitter.getOrCreateName(op.getTensor()) << "(" << emitter.getOrCreateName(op.getIndex()) << ")";
     return success();
 }

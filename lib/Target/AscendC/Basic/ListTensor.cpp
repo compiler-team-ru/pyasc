@@ -13,10 +13,9 @@
 using namespace mlir;
 using namespace mlir::ascendc;
 
-
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TensorDescOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::TensorDescOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     if (op->getNumResults() == 1) {
         FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
         os << " = ";
@@ -27,26 +26,22 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Tenso
     return success();
 }
 
-
 LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::TensorDescSetShapeAddrOp op)
 {
     auto& os = emitter.ostream();
-    os << emitter.getOrCreateName(op.getTensorDesc()) << "." << op.getAPIName() << "(" 
-    << "(uint64_t* )" << emitter.getOrCreateName(op.getShapePtr()) << ")";
+    os << emitter.getOrCreateName(op.getTensorDesc()) << "." << op.getAPIName() << "("
+       << "(uint64_t* )" << emitter.getOrCreateName(op.getShapePtr()) << ")";
     return success();
 }
-
 
 LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::ListTensorDescV2Op op)
 {
     FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
     auto& os = emitter.ostream();
-    os << " = " << "AscendC::ListTensorDesc(" << emitter.getOrCreateName(op.getData()) 
-    << ", " << emitter.getOrCreateName(op.getLength())
-    << ", " << emitter.getOrCreateName(op.getShapeSize()) << ")";
+    os << " = " << "AscendC::ListTensorDesc(" << emitter.getOrCreateName(op.getData()) << ", "
+       << emitter.getOrCreateName(op.getLength()) << ", " << emitter.getOrCreateName(op.getShapeSize()) << ")";
     return success();
 }
-
 
 LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::ListTensorDescGetDataPtrOp op)
 {

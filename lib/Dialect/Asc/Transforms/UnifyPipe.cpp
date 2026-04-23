@@ -42,19 +42,13 @@ void unifyPipe(func::FuncOp root)
 }
 
 class UnifyPipePass : public ascendc::impl::UnifyPipeBase<UnifyPipePass> {
-    void runOnOperation() override
-    {
-        unifyPipe(getOperation());
-    }
+    void runOnOperation() override { unifyPipe(getOperation()); }
 };
 
 } // namespace
 
 namespace mlir {
 namespace ascendc {
-std::unique_ptr<Pass> createUnifyPipePass()
-{
-    return std::make_unique<UnifyPipePass>();
-}
+std::unique_ptr<Pass> createUnifyPipePass() { return std::make_unique<UnifyPipePass>(); }
 } // namespace ascendc
 } // namespace mlir

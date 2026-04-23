@@ -13,9 +13,9 @@
 using namespace mlir;
 using namespace mlir::ascendc;
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::QuantOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::QuantOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName() << "<";
     FAIL_OR(emitter.emitType(op.getLoc(), op.getSrcTensor().getType().getElementType()));
     os << ", " << op.getIsReuseSource();

@@ -22,7 +22,7 @@
 namespace mlir {
 namespace ascir {
 
-inline void registerDialects(DialectRegistry &registry)
+inline void registerDialects(DialectRegistry& registry)
 {
     registerAllDialects(registry);
     registry.insert<ascendc::AscendCDialect, emitasc::EmitAscDialect>();
@@ -30,10 +30,7 @@ inline void registerDialects(DialectRegistry &registry)
     emitasc::registerExternalModels(registry);
 }
 
-inline void registerExtensions(DialectRegistry &registry)
-{
-    registerAllExtensions(registry);
-}
+inline void registerExtensions(DialectRegistry& registry) { registerAllExtensions(registry); }
 
 inline void registerPasses()
 {

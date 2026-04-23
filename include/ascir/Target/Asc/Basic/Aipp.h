@@ -20,7 +20,7 @@ namespace ascendc {
 // AIPP operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, SetAippFunctionsOp op);
+LogicalResult printOperation(CodeEmitter& emitter, SetAippFunctionsOp op);
 
 } // namespace ascendc
 } // namespace mlir

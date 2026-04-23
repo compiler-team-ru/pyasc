@@ -17,10 +17,10 @@ using namespace mlir::ascendc;
 // TQueQind operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TQueBindAllocTensorOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::TQueBindAllocTensorOp op)
 {
     FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << " = " << emitter.getOrCreateName(op.getQueue()) << "." << op.getAPIName() << "<";
     Type elType = op.getTensor().getType().getElementType();
     FAIL_OR(emitter.emitType(op.getLoc(), elType));
@@ -28,9 +28,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TQueB
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TQueBindAllocTensorInPlaceOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::TQueBindAllocTensorInPlaceOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << emitter.getOrCreateName(op.getQueue()) << "." << op.getAPIName() << "<";
     Type elType = op.getTensor().getType().getElementType();
     FAIL_OR(emitter.emitType(op.getLoc(), elType));
@@ -38,10 +38,10 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TQueB
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TQueBindDequeTensorOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::TQueBindDequeTensorOp op)
 {
     FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << " = " << emitter.getOrCreateName(op.getQueue()) << "." << op.getAPIName() << "<";
     Type elType = op.getTensor().getType().getElementType();
     FAIL_OR(emitter.emitType(op.getLoc(), elType));
@@ -49,9 +49,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TQueB
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TQueBindDequeTensorInPlaceOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::TQueBindDequeTensorInPlaceOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << emitter.getOrCreateName(op.getQueue()) << "." << op.getAPIName() << "<";
     Type elType = op.getTensor().getType().getElementType();
     FAIL_OR(emitter.emitType(op.getLoc(), elType));
@@ -59,10 +59,10 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TQueB
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TQueBindDequeTensorPosOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::TQueBindDequeTensorPosOp op)
 {
     FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << " = " << emitter.getOrCreateName(op.getQueue()) << "." << op.getAPIName() << "<";
     CodeEmitter::emitTPosition(os, op.getSrcUserPos());
     os << ", ";
@@ -74,9 +74,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TQueB
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TQueBindEnqueTensorPosOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::TQueBindEnqueTensorPosOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << emitter.getOrCreateName(op.getQueue()) << "." << op.getAPIName() << "<";
     CodeEmitter::emitTPosition(os, op.getSrcUserPos());
     os << ", ";
@@ -85,10 +85,10 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TQueB
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::ToQueBindOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::ToQueBindOp op)
 {
     FAIL_OR(emitter.emitType(op.getLoc(), op.getType()));
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << "& " << emitter.getOrCreateName(op.getResult()) << " = " << emitter.getOrCreateName(op.getOperand());
     return success();
 }

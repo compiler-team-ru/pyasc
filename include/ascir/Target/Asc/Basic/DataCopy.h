@@ -20,11 +20,11 @@ namespace ascendc {
 // Data copy operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::DataCopySliceOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::DataCopySliceOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::CopyL0Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::CopyL0Op op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::CopyL1Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::CopyL1Op op);
 
 } // namespace ascendc
 } // namespace mlir

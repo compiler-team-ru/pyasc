@@ -58,7 +58,7 @@ void enqueueTensors(func::FuncOp funcOp)
     });
 }
 
-void createSetGetValueSync(bool isBefore, OpBuilder &builder, Location loc)
+void createSetGetValueSync(bool isBefore, OpBuilder& builder, Location loc)
 {
     ascendc::HardEvent currentEvent = isBefore ? ascendc::HardEvent::V_S : ascendc::HardEvent::S_V;
     Value pipe = builder.create<ascendc::PipeOp>(loc);
@@ -68,7 +68,7 @@ void createSetGetValueSync(bool isBefore, OpBuilder &builder, Location loc)
     builder.create<ascendc::WaitFlagOp>(loc, currentEvent, eventId);
 }
 
-void syncGetValueOp(func::FuncOp &funcOp)
+void syncGetValueOp(func::FuncOp& funcOp)
 {
     funcOp.walk([](ascendc::APIOp op) {
         if (isa<ascendc::LocalTensorGetValueOp, ascendc::GlobalTensorGetValueOp>(op)) {
@@ -81,7 +81,7 @@ void syncGetValueOp(func::FuncOp &funcOp)
     });
 }
 
-void syncSetValueOp(func::FuncOp &funcOp)
+void syncSetValueOp(func::FuncOp& funcOp)
 {
     funcOp.walk([](ascendc::APIOp op) {
         if (isa<ascendc::LocalTensorSetValueOp, ascendc::GlobalTensorSetValueOp>(op)) {
@@ -104,11 +104,11 @@ void syncSetValueOp(func::FuncOp &funcOp)
     });
 }
 
-bool reEnque(OpBuilder &b, Location loc, ascendc::TQueBindEnqueTensorOp enq, ascendc::TQueBindDequeTensorOp deq)
+bool reEnque(OpBuilder& b, Location loc, ascendc::TQueBindEnqueTensorOp enq, ascendc::TQueBindDequeTensorOp deq)
 {
     DominanceInfo di;
     if (!di.dominates(enq, deq)) {
-        auto *enqParent = deq->getParentRegion()->findAncestorOpInRegion(*enq);
+        auto* enqParent = deq->getParentRegion()->findAncestorOpInRegion(*enq);
         if (!enqParent) {
             enq.emitOpError("failed to be hoisted to tensor deque op scope");
             return false;
@@ -120,31 +120,31 @@ bool reEnque(OpBuilder &b, Location loc, ascendc::TQueBindEnqueTensorOp enq, asc
     return true;
 }
 
-bool dequeueTensors(Region &region)
+bool dequeueTensors(Region& region)
 {
     DominanceInfo di;
     bool res = true;
-    for (Block &block : region) {
-        for (Operation &op : llvm::make_early_inc_range(block)) {
+    for (Block& block : region) {
+        for (Operation& op : llvm::make_early_inc_range(block)) {
             auto enq = dyn_cast<ascendc::TQueBindEnqueTensorOp>(op);
             if (!enq) {
-                for (Region &inner : op.getRegions()) {
+                for (Region& inner : op.getRegions()) {
                     res &= dequeueTensors(inner);
                 }
                 continue;
             }
             auto tensor = enq.getTensor();
-            std::vector<Operation *> users;
-            llvm::copy_if(tensor.getUsers(), std::back_inserter(users), [&](Operation *user) {
+            std::vector<Operation*> users;
+            llvm::copy_if(tensor.getUsers(), std::back_inserter(users), [&](Operation* user) {
                 return !isa<ascendc::TQueBindFreeTensorOp>(user) && ascendc::opPrecedes(enq, user, di);
             });
             if (users.empty()) {
                 continue;
             }
-            Operation *firstUser = *std::min_element(users.begin(), users.end(), [&](Operation *lhs, Operation *rhs) {
+            Operation* firstUser = *std::min_element(users.begin(), users.end(), [&](Operation* lhs, Operation* rhs) {
                 return ascendc::opPrecedes(lhs, rhs, di);
             });
-            auto *userInSameRegion = enq->getParentRegion()->findAncestorOpInRegion(*firstUser);
+            auto* userInSameRegion = enq->getParentRegion()->findAncestorOpInRegion(*firstUser);
             if (userInSameRegion) {
                 firstUser = userInSameRegion;
             }
@@ -153,8 +153,8 @@ bool dequeueTensors(Region &region)
             if (!reEnque(builder, op.getLoc(), enq, deq)) {
                 return false;
             }
-            tensor.replaceUsesWithIf(deq.getTensor(), [&](OpOperand &opnd) {
-                auto *owner = opnd.getOwner();
+            tensor.replaceUsesWithIf(deq.getTensor(), [&](OpOperand& opnd) {
+                auto* owner = opnd.getOwner();
                 return llvm::is_contained(users, owner);
             });
         }
@@ -172,7 +172,7 @@ void canonicalizeBarriers(func::FuncOp funcOp)
 }
 
 struct InsertSyncPass : public ascendc::impl::InsertSyncBase<InsertSyncPass> {
-  public:
+public:
     void runOnOperation() override
     {
         func::FuncOp funcOp = getOperation();
@@ -194,9 +194,6 @@ struct InsertSyncPass : public ascendc::impl::InsertSyncBase<InsertSyncPass> {
 
 namespace mlir {
 namespace ascendc {
-std::unique_ptr<Pass> createInsertSyncPass()
-{
-    return std::make_unique<InsertSyncPass>();
-}
+std::unique_ptr<Pass> createInsertSyncPass() { return std::make_unique<InsertSyncPass>(); }
 } // namespace ascendc
 } // namespace mlir

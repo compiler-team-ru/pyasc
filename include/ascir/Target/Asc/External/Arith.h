@@ -16,25 +16,24 @@
 namespace mlir {
 
 template <typename BinaryOpType>
-auto printOperation(CodeEmitter &emitter, BinaryOpType op)
-    -> LogicalResultForT<BinaryOpType, arith::AddIOp, arith::MulIOp, arith::DivSIOp, arith::RemSIOp, arith::SubIOp,
-                         arith::CeilDivSIOp, arith::AndIOp, arith::OrIOp, arith::ShLIOp, arith::MaximumFOp,
-                         arith::MaxNumFOp, arith::MinimumFOp, arith::MinNumFOp, arith::AddFOp, arith::DivFOp,
-                         arith::ShRSIOp, arith::ShRUIOp, arith::SubFOp, arith::MaxSIOp, arith::MulFOp, arith::MinSIOp,
-                         arith::XOrIOp, arith::DivUIOp>
+auto printOperation(CodeEmitter& emitter, BinaryOpType op) -> LogicalResultForT<
+    BinaryOpType, arith::AddIOp, arith::MulIOp, arith::DivSIOp, arith::RemSIOp, arith::SubIOp, arith::CeilDivSIOp,
+    arith::AndIOp, arith::OrIOp, arith::ShLIOp, arith::MaximumFOp, arith::MaxNumFOp, arith::MinimumFOp,
+    arith::MinNumFOp, arith::AddFOp, arith::DivFOp, arith::ShRSIOp, arith::ShRUIOp, arith::SubFOp, arith::MaxSIOp,
+    arith::MulFOp, arith::MinSIOp, arith::XOrIOp, arith::DivUIOp>
 {
     if (failed(isScalarOperation(op)) || failed(emitter.emitAssignPrefix(*op.getOperation()))) {
         return failure();
     }
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     if constexpr (std::is_same_v<BinaryOpType, arith::CeilDivSIOp>) {
         os << "(" << emitter.getOrCreateName(op.getLhs()) << " + " << emitter.getOrCreateName(op.getRhs()) << " - 1) / "
            << emitter.getOrCreateName(op.getRhs());
         return success();
     }
-    if constexpr (llvm::is_one_of<BinaryOpType, arith::MaximumFOp, arith::MaxNumFOp, arith::MinimumFOp,
-                                  arith::MinNumFOp, arith::MinSIOp, arith::MaxSIOp>::value)
-    {
+    if constexpr (llvm::is_one_of<
+                      BinaryOpType, arith::MaximumFOp, arith::MaxNumFOp, arith::MinimumFOp, arith::MinNumFOp,
+                      arith::MinSIOp, arith::MaxSIOp>::value) {
         auto lhs = emitter.getOrCreateName(op.getLhs());
         auto rhs = emitter.getOrCreateName(op.getRhs());
         os << "((" << lhs;
@@ -75,31 +74,31 @@ auto printOperation(CodeEmitter &emitter, BinaryOpType op)
 }
 
 template <typename CastOpType>
-auto printOperation(CodeEmitter &emitter, CastOpType op)
-    -> LogicalResultForT<CastOpType, arith::ExtUIOp, arith::ExtSIOp, arith::ExtFOp, arith::TruncIOp, arith::TruncFOp,
-                         arith::FPToSIOp, arith::FPToUIOp, arith::SIToFPOp, arith::UIToFPOp>
+auto printOperation(CodeEmitter& emitter, CastOpType op) -> LogicalResultForT<
+    CastOpType, arith::ExtUIOp, arith::ExtSIOp, arith::ExtFOp, arith::TruncIOp, arith::TruncFOp, arith::FPToSIOp,
+    arith::FPToUIOp, arith::SIToFPOp, arith::UIToFPOp>
 {
     FAIL_OR(emitter.emitAssignPrefix(*op.getOperation()));
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << "static_cast<";
     FAIL_OR(emitter.emitType(op.getLoc(), op.getType()));
     os << ">(" << emitter.getOrCreateName(op.getIn()) << ")";
     return success();
 }
 
-LogicalResult printOperation(CodeEmitter &emitter, arith::ConstantOp constantOp);
+LogicalResult printOperation(CodeEmitter& emitter, arith::ConstantOp constantOp);
 
-LogicalResult printOperation(CodeEmitter &emitter, arith::MulUIExtendedOp op);
+LogicalResult printOperation(CodeEmitter& emitter, arith::MulUIExtendedOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, arith::CmpIOp op);
+LogicalResult printOperation(CodeEmitter& emitter, arith::CmpIOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, arith::CmpFOp op);
+LogicalResult printOperation(CodeEmitter& emitter, arith::CmpFOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, arith::BitcastOp op);
+LogicalResult printOperation(CodeEmitter& emitter, arith::BitcastOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, arith::SelectOp op);
+LogicalResult printOperation(CodeEmitter& emitter, arith::SelectOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, arith::IndexCastOp op);
+LogicalResult printOperation(CodeEmitter& emitter, arith::IndexCastOp op);
 
 } // namespace mlir
 

@@ -20,10 +20,7 @@ extern "C" {
  * @brief get chipType
  * @return RT_ERROR_NONE for ok
  */
-RTS_API rtError_t GetSocVersionWrapper(char_t *ver, const uint32_t maxLen)
-{
-    return rtGetSocVersion(ver, maxLen);
-}
+RTS_API rtError_t GetSocVersionWrapper(char_t* ver, const uint32_t maxLen) { return rtGetSocVersion(ver, maxLen); }
 
 /**
  * @ingroup dvrt_dev
@@ -32,10 +29,7 @@ RTS_API rtError_t GetSocVersionWrapper(char_t *ver, const uint32_t maxLen)
  * @return RT_ERROR_NONE for ok
  * @return RT_ERROR_INVALID_VALUE for error input
  */
-RTS_API rtError_t GetDeviceCountWrapper(int32_t *cnt)
-{
-    return rtGetDeviceCount(cnt);
-}
+RTS_API rtError_t GetDeviceCountWrapper(int32_t* cnt) { return rtGetDeviceCount(cnt); }
 
 /**
  * @ingroup dvrt_dev
@@ -69,7 +63,7 @@ RTS_API rtError_t GetDeviceCountWrapper(int32_t *cnt)
  * @return RT_ERROR_NONE for ok
  * @return RT_ERROR_DRV_ERR for error
  */
-RTS_API rtError_t GetDeviceInfoWrapper(uint32_t deviceId, int32_t moduleType, int32_t infoType, int64_t *val)
+RTS_API rtError_t GetDeviceInfoWrapper(uint32_t deviceId, int32_t moduleType, int32_t infoType, int64_t* val)
 {
     return rtGetDeviceInfo(deviceId, moduleType, infoType, val);
 }
@@ -80,10 +74,7 @@ RTS_API rtError_t GetDeviceInfoWrapper(uint32_t deviceId, int32_t moduleType, in
  * @return RT_ERROR_NONE for ok
  * @return RT_ERROR_INVALID_VALUE for error input
  */
-RTS_API rtError_t DeviceResetWrapper(int32_t devId)
-{
-    return rtDeviceReset(devId);
-}
+RTS_API rtError_t DeviceResetWrapper(int32_t devId) { return rtDeviceReset(devId); }
 
 /**
  * @ingroup dvrt_dev
@@ -92,10 +83,7 @@ RTS_API rtError_t DeviceResetWrapper(int32_t devId)
  * @return RT_ERROR_NONE for ok
  * @return RT_ERROR_INVALID_VALUE for error input
  */
-RTS_API rtError_t SetDeviceWrapper(int32_t devId)
-{
-    return rtSetDevice(devId);
-}
+RTS_API rtError_t SetDeviceWrapper(int32_t devId) { return rtSetDevice(devId); }
 
 /**
  * @ingroup dvrt_stream
@@ -105,10 +93,7 @@ RTS_API rtError_t SetDeviceWrapper(int32_t devId)
  * @return RT_ERROR_NONE for ok
  * @return RT_ERROR_INVALID_VALUE for error input
  */
-RTS_API rtError_t StreamCreateWrapper(rtStream_t *stm, int32_t priority)
-{
-    return rtStreamCreate(stm, priority);
-}
+RTS_API rtError_t StreamCreateWrapper(rtStream_t* stm, int32_t priority) { return rtStreamCreate(stm, priority); }
 
 /**
  * @ingroup dvrt_stream
@@ -117,10 +102,7 @@ RTS_API rtError_t StreamCreateWrapper(rtStream_t *stm, int32_t priority)
  * @return RT_ERROR_NONE for ok
  * @return RT_ERROR_INVALID_VALUE for error input
  */
-RTS_API rtError_t StreamDestroyWrapper(rtStream_t stm)
-{
-    return rtStreamDestroy(stm);
-}
+RTS_API rtError_t StreamDestroyWrapper(rtStream_t stm) { return rtStreamDestroy(stm); }
 
 /**
  * @ingroup rt_kernel
@@ -130,7 +112,7 @@ RTS_API rtError_t StreamDestroyWrapper(rtStream_t stm)
  * @return RT_ERROR_NONE for ok
  * @return RT_ERROR_INVALID_VALUE for error input
  */
-RTS_API rtError_t DevBinaryRegisterWrapper(const rtDevBinary_t *bin, void **hdl)
+RTS_API rtError_t DevBinaryRegisterWrapper(const rtDevBinary_t* bin, void** hdl)
 {
     return rtDevBinaryRegister(bin, hdl);
 }
@@ -142,10 +124,7 @@ RTS_API rtError_t DevBinaryRegisterWrapper(const rtDevBinary_t *bin, void **hdl)
  * @return RT_ERROR_NONE for ok
  * @return RT_ERROR_INVALID_VALUE for error input
  */
-RTS_API rtError_t DevBinaryUnRegisterWrapper(void *hdl)
-{
-    return rtDevBinaryUnRegister(hdl);
-}
+RTS_API rtError_t DevBinaryUnRegisterWrapper(void* hdl) { return rtDevBinaryUnRegister(hdl); }
 
 /**
  * @ingroup rt_kernel
@@ -158,8 +137,8 @@ RTS_API rtError_t DevBinaryUnRegisterWrapper(void *hdl)
  * @return RT_ERROR_NONE for ok
  * @return RT_ERROR_INVALID_VALUE for error input
  */
-RTS_API rtError_t FunctionRegisterWrapper(void *binHandle, const void *stubFunc, const char_t *stubName,
-                                          const void *kernelInfoExt, uint32_t funcMode)
+RTS_API rtError_t FunctionRegisterWrapper(
+    void* binHandle, const void* stubFunc, const char_t* stubName, const void* kernelInfoExt, uint32_t funcMode)
 {
     return rtFunctionRegister(binHandle, stubFunc, stubName, kernelInfoExt, funcMode);
 }
@@ -174,7 +153,7 @@ RTS_API rtError_t FunctionRegisterWrapper(void *binHandle, const void *stubFunc,
  * @return RT_ERROR_NONE for ok
  * @return RT_ERROR_INVALID_VALUE for error input
  */
-RTS_API rtError_t MallocWrapper(void **devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId)
+RTS_API rtError_t MallocWrapper(void** devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId)
 {
     return rtMalloc(devPtr, size, type, moduleId);
 }
@@ -190,7 +169,7 @@ RTS_API rtError_t MallocWrapper(void **devPtr, uint64_t size, rtMemType_t type, 
  * @return RT_ERROR_NONE for ok
  * @return RT_ERROR_INVALID_VALUE for error input
  */
-RTS_API rtError_t MemcpyWrapper(void *dst, uint64_t destMax, const void *src, uint64_t cnt, rtMemcpyKind_t kind)
+RTS_API rtError_t MemcpyWrapper(void* dst, uint64_t destMax, const void* src, uint64_t cnt, rtMemcpyKind_t kind)
 {
     return rtMemcpy(dst, destMax, src, cnt, kind);
 }
@@ -207,8 +186,8 @@ RTS_API rtError_t MemcpyWrapper(void *dst, uint64_t destMax, const void *src, ui
  * @return RT_ERROR_NONE for ok
  * @return RT_ERROR_INVALID_VALUE for error input
  */
-RTS_API rtError_t KernelLaunchWrapper(const void *stubFunc, uint32_t blockNum, void *args, uint32_t argsSize,
-                                      rtSmDesc_t *smDesc, rtStream_t stm)
+RTS_API rtError_t KernelLaunchWrapper(
+    const void* stubFunc, uint32_t blockNum, void* args, uint32_t argsSize, rtSmDesc_t* smDesc, rtStream_t stm)
 {
     return rtKernelLaunch(stubFunc, blockNum, args, argsSize, smDesc, stm);
 }
@@ -233,10 +212,7 @@ RTS_API rtError_t StreamSynchronizeWithTimeoutWrapper(rtStream_t stm, int32_t ti
  * @return RT_ERROR_NONE for ok
  * @return RT_ERROR_INVALID_VALUE for error input
  */
-RTS_API rtError_t StreamSynchronizeWrapper(rtStream_t stm)
-{
-    return rtStreamSynchronize(stm);
-}
+RTS_API rtError_t StreamSynchronizeWrapper(rtStream_t stm) { return rtStreamSynchronize(stm); }
 
 /**
  * @ingroup dvrt_mem
@@ -245,10 +221,7 @@ RTS_API rtError_t StreamSynchronizeWrapper(rtStream_t stm)
  * @return RT_ERROR_NONE for ok
  * @return RT_ERROR_INVALID_VALUE for error input
  */
-RTS_API rtError_t FreeWrapper(void *devPtr)
-{
-    return rtFree(devPtr);
-}
+RTS_API rtError_t FreeWrapper(void* devPtr) { return rtFree(devPtr); }
 
 /**
  * @ingroup dvrt_dev
@@ -256,15 +229,9 @@ RTS_API rtError_t FreeWrapper(void *devPtr)
  * @return RT_ERROR_NONE for ok
  * @return RT_ERROR_INVALID_VALUE for error input
  */
-RTS_API rtError_t DeviceSynchronizeWrapper(void)
-{
-    return rtDeviceSynchronize();
-}
+RTS_API rtError_t DeviceSynchronizeWrapper(void) { return rtDeviceSynchronize(); }
 
-RTS_API rtError_t GetC2cCtrlAddrWrapper(uint64_t *addr, uint32_t *len)
-{
-    return rtGetC2cCtrlAddr(addr, len);
-}
+RTS_API rtError_t GetC2cCtrlAddrWrapper(uint64_t* addr, uint32_t* len) { return rtGetC2cCtrlAddr(addr, len); }
 
 /**
  * @ingroup profiling_base
@@ -274,8 +241,5 @@ RTS_API rtError_t GetC2cCtrlAddrWrapper(uint64_t *addr, uint32_t *len)
  * @return RT_ERROR_NONE for ok
  * @return ACL_ERROR_RT_PARAM_INVALID for error input
  */
-RTS_API rtError_t ProfSetProSwitchWrapper(void *data, uint32_t len)
-{
-    return rtProfSetProSwitch(data, len);
-}
+RTS_API rtError_t ProfSetProSwitchWrapper(void* data, uint32_t len) { return rtProfSetProSwitch(data, len); }
 }

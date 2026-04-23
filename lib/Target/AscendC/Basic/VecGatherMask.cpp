@@ -17,12 +17,11 @@ using namespace mlir::ascendc;
 // GatherMask operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::GatherMaskOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GatherMaskOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     Value rsvdCntVal = op.getRsvdCnt();
     os << "uint64_t " << emitter.getOrCreateName(rsvdCntVal) << ";\n";
-
 
     auto dstType = op.getDst().getType();
     auto src1PatternType = op.getSrc1Pattern().getType();

@@ -17,9 +17,9 @@ using namespace mlir::ascendc;
 // Other math library operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::ExpOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::ExpOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName() << "<";
     auto resultType = op.getDst().getType().getElementType();
     FAIL_OR(emitter.emitType(op.getLoc(), resultType));
@@ -34,9 +34,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::ExpOp
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::AxpyOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::AxpyOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName() << "<";
     auto dstType = op.getDst().getType().getElementType();
     FAIL_OR(emitter.emitType(op.getLoc(), dstType));
@@ -54,9 +54,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::AxpyO
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::CumSumOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::CumSumOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDst()) << ", "
        << emitter.getOrCreateName(op.getLastRow()) << ", " << emitter.getOrCreateName(op.getSrc());
     if (auto sharedTmpBuffer = op.getSharedTmpBuffer()) {

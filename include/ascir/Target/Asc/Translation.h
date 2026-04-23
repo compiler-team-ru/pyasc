@@ -16,7 +16,7 @@
 
 namespace mlir {
 
-LogicalResult translateToAscendC(Operation *op, raw_ostream &os);
+LogicalResult translateToAscendC(Operation* op, raw_ostream& os);
 
 } // namespace mlir
 

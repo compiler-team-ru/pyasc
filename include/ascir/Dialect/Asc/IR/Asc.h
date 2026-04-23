@@ -41,19 +41,19 @@
 namespace mlir {
 namespace ascendc {
 
-ParseResult parsePrettyTPosition(AsmParser &odsParser, TPositionAttr &attr);
-void printPrettyTPosition(AsmPrinter &odsPrinter, const TPositionAttr &attr);
+ParseResult parsePrettyTPosition(AsmParser& odsParser, TPositionAttr& attr);
+void printPrettyTPosition(AsmPrinter& odsPrinter, const TPositionAttr& attr);
 
-ParseResult parsePrettyCubeFormat(AsmParser &odsParser, CubeFormatAttr &attr);
-void printPrettyCubeFormat(AsmPrinter &odsPrinter, const CubeFormatAttr &attr);
+ParseResult parsePrettyCubeFormat(AsmParser& odsParser, CubeFormatAttr& attr);
+void printPrettyCubeFormat(AsmPrinter& odsPrinter, const CubeFormatAttr& attr);
 
-ParseResult parsePrettyLayoutMode(AsmParser &odsParser, LayoutModeAttr &attr);
-void printPrettyLayoutMode(AsmPrinter &odsPrinter, const LayoutModeAttr &attr);
+ParseResult parsePrettyLayoutMode(AsmParser& odsParser, LayoutModeAttr& attr);
+void printPrettyLayoutMode(AsmPrinter& odsPrinter, const LayoutModeAttr& attr);
 
-ParseResult parsePrettyCO2Layout(AsmParser &odsParser, CO2LayoutAttr &attr);
-void printPrettyCO2Layout(AsmPrinter &odsPrinter, const CO2LayoutAttr &attr);
+ParseResult parsePrettyCO2Layout(AsmParser& odsParser, CO2LayoutAttr& attr);
+void printPrettyCO2Layout(AsmPrinter& odsPrinter, const CO2LayoutAttr& attr);
 
-void registerExternalModels(DialectRegistry &registry);
+void registerExternalModels(DialectRegistry& registry);
 
 } // namespace ascendc
 } // namespace mlir

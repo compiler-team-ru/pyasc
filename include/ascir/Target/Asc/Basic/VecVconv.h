@@ -21,9 +21,9 @@ namespace ascendc {
 // ===----------------------------------------------------------------------===//
 
 template <typename OpType>
-LogicalResult printCastL01Template(CodeEmitter &emitter, OpType op)
+LogicalResult printCastL01Template(CodeEmitter& emitter, OpType op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     auto dstType = cast<ascendc::LocalTensorType>(op.getDst().getType()).getElementType();
     auto srcType = cast<ascendc::LocalTensorType>(op.getSrc().getType()).getElementType();
     os << ascNamespace << "::" << op.getAPIName() << "<";
@@ -35,9 +35,9 @@ LogicalResult printCastL01Template(CodeEmitter &emitter, OpType op)
 }
 
 template <typename OpType>
-LogicalResult printCastDeqL01Template(CodeEmitter &emitter, OpType op)
+LogicalResult printCastDeqL01Template(CodeEmitter& emitter, OpType op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     auto dstType = cast<ascendc::LocalTensorType>(op.getDst().getType()).getElementType();
     auto srcType = cast<ascendc::LocalTensorType>(op.getSrc().getType()).getElementType();
     os << ascNamespace << "::" << op.getAPIName() << "<";
@@ -49,9 +49,9 @@ LogicalResult printCastDeqL01Template(CodeEmitter &emitter, OpType op)
 }
 
 template <typename OpType>
-LogicalResult printCastDeqL2Template(CodeEmitter &emitter, OpType op)
+LogicalResult printCastDeqL2Template(CodeEmitter& emitter, OpType op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     auto dstType = cast<ascendc::LocalTensorType>(op.getDst().getType()).getElementType();
     auto srcType = cast<ascendc::LocalTensorType>(op.getSrc().getType()).getElementType();
     os << ascNamespace << "::" << op.getAPIName() << "<";
@@ -62,19 +62,19 @@ LogicalResult printCastDeqL2Template(CodeEmitter &emitter, OpType op)
     return success();
 }
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::CastL0Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::CastL0Op op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::CastL1Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::CastL1Op op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::CastL2Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::CastL2Op op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::CastDeqL0Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::CastDeqL0Op op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::CastDeqL1Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::CastDeqL1Op op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::CastDeqL2Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::CastDeqL2Op op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::SetDeqScaleOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::SetDeqScaleOp op);
 
 LogicalResult printOperation(CodeEmitter& emitter, ascendc::SetDeqScaleL4Op op);
 } // namespace ascendc

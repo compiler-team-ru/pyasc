@@ -20,45 +20,45 @@ namespace ascendc {
 // BlockReduceMax operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::BlockReduceMaxL1Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::BlockReduceMaxL1Op op);
 
 //===----------------------------------------------------------------------===//
 // BlockReduceMin operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::BlockReduceMinL1Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::BlockReduceMinL1Op op);
 
 //===----------------------------------------------------------------------===//
 // BlockReduceSum operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::BlockReduceSumL1Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::BlockReduceSumL1Op op);
 
 //===----------------------------------------------------------------------===//
 // Vector reduce operations
 //===----------------------------------------------------------------------===//
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::PairReduceSumL1Op op);
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::WholeReduceMaxL1Op op);
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::WholeReduceMinL1Op op);
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::WholeReduceSumL1Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::PairReduceSumL1Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::WholeReduceMaxL1Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::WholeReduceMinL1Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::WholeReduceSumL1Op op);
 
 //===----------------------------------------------------------------------===//
 // ReduceMax operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::ReduceMaxL1Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::ReduceMaxL1Op op);
 
 //===----------------------------------------------------------------------===//
 // ReduceMin operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::ReduceMinL1Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::ReduceMinL1Op op);
 
 //===----------------------------------------------------------------------===//
 // ReduceSum operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::ReduceSumL1Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::ReduceSumL1Op op);
 
 } // namespace ascendc
 } // namespace mlir

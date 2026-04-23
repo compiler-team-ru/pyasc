@@ -55,11 +55,11 @@
 using namespace mlir;
 
 namespace {
-LogicalResult printOperation(CodeEmitter &emitter, ModuleOp moduleOp)
+LogicalResult printOperation(CodeEmitter& emitter, ModuleOp moduleOp)
 {
     CodeEmitter::Scope scope(emitter);
 
-    for (Operation &op : moduleOp) {
+    for (Operation& op : moduleOp) {
         if (failed(emitOperation(emitter, op, /*trailingSemicolon=*/false))) {
             return failure();
         }
@@ -67,10 +67,7 @@ LogicalResult printOperation(CodeEmitter &emitter, ModuleOp moduleOp)
     return success();
 }
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::NoOp op)
-{
-    return success();
-}
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::NoOp op) { return success(); }
 
 using PrintableOpTypes = std::tuple<
     // Builtin ops
@@ -133,14 +130,13 @@ using PrintableOpTypes = std::tuple<
     // Dump tensor operations
     ascendc::PrintfOp,
     // TensorDesc operations
-    ascendc::TensorDescOp, ascendc::TensorDescSetShapeAddrOp, 
+    ascendc::TensorDescOp, ascendc::TensorDescSetShapeAddrOp,
     // ListTensorDesc operations
     ascendc::ListTensorDescV2Op, ascendc::ListTensorDescGetDataPtrOp,
     // Other operations
     ascendc::ConstructOp, ascendc::AscendIsAICOp, ascendc::AscendIsAIVOp, LLVM::UndefOp, ascendc::FftsCrossCoreSyncOp,
-    ascendc::SetFftsBaseAddrOp, ascendc::PopStackBufferOp,
-    ascendc::GetMrgSortResultOp, ascendc::MrgSortOp, ascendc::SortOp,
-    ascendc::FixpipeOp, ascendc::FixpipeWithWorkspaceOp, ascendc::GetStoreAtomicConfigOp, 
+    ascendc::SetFftsBaseAddrOp, ascendc::PopStackBufferOp, ascendc::GetMrgSortResultOp, ascendc::MrgSortOp,
+    ascendc::SortOp, ascendc::FixpipeOp, ascendc::FixpipeWithWorkspaceOp, ascendc::GetStoreAtomicConfigOp,
     // Scalar operations
     ascendc::ScalarCastOp,
     // Swap and workspace operations
@@ -190,8 +186,8 @@ using PrintableOpTypes = std::tuple<
     // VectorTernaryScalarL2Op
     ascendc::AxpyL2Op,
     // VecCmpSel (Select) operations
-    ascendc::CompareL1Op, ascendc::CompareRL1Op, ascendc::CompareScalarL1Op, 
-    ascendc::SelectScalarL1Op, ascendc::SelectL1Op,
+    ascendc::CompareL1Op, ascendc::CompareRL1Op, ascendc::CompareScalarL1Op, ascendc::SelectScalarL1Op,
+    ascendc::SelectL1Op,
     // Duplicate operations
     ascendc::DuplicateL0Op, ascendc::DuplicateL1Op, ascendc::DuplicateL2Op,
     // Vector gather operations
@@ -242,16 +238,16 @@ using PrintableOpTypes = std::tuple<
     ascendc::NoOp>;
 
 template <typename TypeSwitchT, size_t I, typename TupleT, typename CallbackT>
-void addCaseByIndex(TypeSwitchT &typeSwitch, CallbackT &&callback)
+void addCaseByIndex(TypeSwitchT& typeSwitch, CallbackT&& callback)
 {
     using ElemType = std::tuple_element_t<I, TupleT>;
     typeSwitch.template Case<ElemType>([&callback](auto op) { return callback(op); });
 }
 
 template <typename TypeSwitchT, typename TupleT, typename CallbackT, size_t... Is>
-void addCasesImpl(TypeSwitchT &typeSwitch, TupleT &&, CallbackT &&callback, std::index_sequence<Is...>)
+void addCasesImpl(TypeSwitchT& typeSwitch, TupleT&&, CallbackT&& callback, std::index_sequence<Is...>)
 {
-    using addCaseFunc = void (*)(TypeSwitchT &, CallbackT &);
+    using addCaseFunc = void (*)(TypeSwitchT&, CallbackT&);
     static addCaseFunc caseFunc[] = {&addCaseByIndex<TypeSwitchT, Is, std::decay_t<TupleT>, CallbackT>...};
     for (size_t i = 0; i < sizeof...(Is); ++i) {
         caseFunc[i](typeSwitch, callback);
@@ -259,10 +255,10 @@ void addCasesImpl(TypeSwitchT &typeSwitch, TupleT &&, CallbackT &&callback, std:
 }
 
 template <typename TypeSwitchT, typename TupleT, typename CallbackT>
-void addCases(TypeSwitchT &typeSwitch, const TupleT &tuple, const CallbackT &callback)
+void addCases(TypeSwitchT& typeSwitch, const TupleT& tuple, const CallbackT& callback)
 {
     constexpr auto size = std::tuple_size_v<std::decay_t<TupleT>>;
-    addCasesImpl(typeSwitch, tuple, callback, std::make_index_sequence<size> {});
+    addCasesImpl(typeSwitch, tuple, callback, std::make_index_sequence<size>{});
 }
 } // namespace
 
@@ -272,7 +268,7 @@ namespace ascendc {
 #include "ascir/Dialect/Asc/IR/AscendCOpEmit.cpp.inc"
 } // namespace ascendc
 } // namespace mlir
-LogicalResult emitOperation(CodeEmitter &emitter, Operation &op, bool trailingSemicolon)
+LogicalResult emitOperation(CodeEmitter& emitter, Operation& op, bool trailingSemicolon)
 {
     if (auto apiOp = dyn_cast<ascendc::APIOp>(op)) {
         auto comment = apiOp.getComment();
@@ -280,15 +276,15 @@ LogicalResult emitOperation(CodeEmitter &emitter, Operation &op, bool trailingSe
             emitter.ostream() << "// " << comment << "\n";
         }
     }
-    llvm::TypeSwitch<Operation *, LogicalResult> typeSwitch(&op);
+    llvm::TypeSwitch<Operation*, LogicalResult> typeSwitch(&op);
     auto callback = [&](auto opNode) -> LogicalResult {
         using OpType = std::decay_t<decltype(opNode)>;
         return printOperation(emitter, opNode);
     };
 
-    addCases(typeSwitch, PrintableOpTypes {}, callback);
+    addCases(typeSwitch, PrintableOpTypes{}, callback);
     LogicalResult status = typeSwitch.Default(
-        [&](Operation *op) -> LogicalResult { return op->emitOpError("unable to find printer for op"); });
+        [&](Operation* op) -> LogicalResult { return op->emitOpError("unable to find printer for op"); });
     if (failed(status)) {
         return failure();
     }
@@ -296,7 +292,7 @@ LogicalResult emitOperation(CodeEmitter &emitter, Operation &op, bool trailingSe
     return success();
 }
 
-LogicalResult mlir::translateToAscendC(Operation *op, raw_ostream &os)
+LogicalResult mlir::translateToAscendC(Operation* op, raw_ostream& os)
 {
     CodeEmitter emitter(os);
     return emitOperation(emitter, *op, /*trailingSemicolon=*/false);

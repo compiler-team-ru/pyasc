@@ -15,19 +15,19 @@
 
 namespace mlir {
 
-LogicalResult emitBlock(CodeEmitter &codeEmitter, Block &block);
+LogicalResult emitBlock(CodeEmitter& codeEmitter, Block& block);
 
-LogicalResult printOperation(CodeEmitter &codeEmitter, scf::ForOp forOp);
+LogicalResult printOperation(CodeEmitter& codeEmitter, scf::ForOp forOp);
 
-LogicalResult printOperation(CodeEmitter &codeEmitter, scf::IfOp ifOp);
+LogicalResult printOperation(CodeEmitter& codeEmitter, scf::IfOp ifOp);
 
-LogicalResult printOperation(CodeEmitter &codeEmitter, scf::IndexSwitchOp op);
+LogicalResult printOperation(CodeEmitter& codeEmitter, scf::IndexSwitchOp op);
 
-LogicalResult printOperation(CodeEmitter &codeEmitter, scf::YieldOp yieldOp);
+LogicalResult printOperation(CodeEmitter& codeEmitter, scf::YieldOp yieldOp);
 
-LogicalResult printOperation(CodeEmitter &codeEmitter, scf::ConditionOp conditionOp);
+LogicalResult printOperation(CodeEmitter& codeEmitter, scf::ConditionOp conditionOp);
 
-LogicalResult printOperation(CodeEmitter &codeEmitter, scf::WhileOp whileOp);
+LogicalResult printOperation(CodeEmitter& codeEmitter, scf::WhileOp whileOp);
 
 } // namespace mlir
 

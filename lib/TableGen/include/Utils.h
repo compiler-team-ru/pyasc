@@ -38,9 +38,9 @@ struct VirtualArg {
 
 llvm::StringRef fetchOpClass(llvm::StringRef defName);
 
-void fetchResults(const llvm::DagInit *resultsDag, std::vector<VirtualArg> &dest);
+void fetchResults(const llvm::DagInit* resultsDag, std::vector<VirtualArg>& dest);
 
-void fetchArguments(const llvm::DagInit *argsDag, std::vector<VirtualArg> &dest);
+void fetchArguments(const llvm::DagInit* argsDag, std::vector<VirtualArg>& dest);
 
 llvm::StringRef removeDialectPrefix(llvm::StringRef fullName, llvm::StringRef dialectName);
 llvm::StringRef removeAscDialectNameSpace(llvm::StringRef fullName, llvm::StringRef ascCppNamespace);

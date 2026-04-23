@@ -20,11 +20,11 @@ namespace ascendc {
 // Duplicate operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::DuplicateL0Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::DuplicateL0Op op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::DuplicateL1Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::DuplicateL1Op op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::DuplicateL2Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::DuplicateL2Op op);
 
 } // namespace ascendc
 } // namespace mlir

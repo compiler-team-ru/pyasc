@@ -35,11 +35,8 @@ namespace {
 using PyStructVector = SmallVector<emitasc::PyStructType>;
 
 struct PyStructTypeHash {
-    std::hash<const void *> h;
-    size_t operator()(emitasc::PyStructType type) const
-    {
-        return h(type.getAsOpaquePointer());
-    }
+    std::hash<const void*> h;
+    size_t operator()(emitasc::PyStructType type) const { return h(type.getAsOpaquePointer()); }
 };
 
 PyStructVector deduplicate(ArrayRef<emitasc::PyStructType> pyStructs)
@@ -56,7 +53,7 @@ PyStructVector deduplicate(ArrayRef<emitasc::PyStructType> pyStructs)
     return result;
 }
 
-void CollectPyStructTypes(PyStructVector &structs, Value &arg)
+void CollectPyStructTypes(PyStructVector& structs, Value& arg)
 {
     arg.getType().walk([&](Type type) {
         if (auto pyStructType = dyn_cast<emitasc::PyStructType>(type)) {
@@ -66,15 +63,15 @@ void CollectPyStructTypes(PyStructVector &structs, Value &arg)
 }
 
 class DeclarePyStructPass : public ascendc::impl::DeclarePyStructBase<DeclarePyStructPass> {
-  public:
+public:
     void runOnOperation() override
     {
         auto mod = getOperation();
         PyStructVector structs;
-        mod.walk([&](Operation *op) {
-            for (auto &region : op->getRegions()) {
-                for (auto &block : region) {
-                    for (auto &arg : block.getArguments()) {
+        mod.walk([&](Operation* op) {
+            for (auto& region : op->getRegions()) {
+                for (auto& block : region) {
+                    for (auto& arg : block.getArguments()) {
                         CollectPyStructTypes(structs, arg);
                     }
                 }
@@ -97,9 +94,6 @@ class DeclarePyStructPass : public ascendc::impl::DeclarePyStructBase<DeclarePyS
 
 namespace mlir {
 namespace ascendc {
-std::unique_ptr<Pass> createDeclarePyStructPass()
-{
-    return std::make_unique<DeclarePyStructPass>();
-}
+std::unique_ptr<Pass> createDeclarePyStructPass() { return std::make_unique<DeclarePyStructPass>(); }
 } // namespace ascendc
 } // namespace mlir

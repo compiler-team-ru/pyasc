@@ -21,29 +21,29 @@ namespace emitasc {
 // EmitAsc operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, emitasc::CallOpaqueOp op);
+LogicalResult printOperation(CodeEmitter& emitter, emitasc::CallOpaqueOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, emitasc::CopyStructOp op);
+LogicalResult printOperation(CodeEmitter& emitter, emitasc::CopyStructOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, emitasc::DeclarePyStructOp op);
+LogicalResult printOperation(CodeEmitter& emitter, emitasc::DeclarePyStructOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, emitasc::DereferenceOp op);
+LogicalResult printOperation(CodeEmitter& emitter, emitasc::DereferenceOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, emitasc::MemberOp op);
+LogicalResult printOperation(CodeEmitter& emitter, emitasc::MemberOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, emitasc::MemberPtrOp op);
+LogicalResult printOperation(CodeEmitter& emitter, emitasc::MemberPtrOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, emitasc::MemberRefOp op);
+LogicalResult printOperation(CodeEmitter& emitter, emitasc::MemberRefOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, emitasc::PtrOffsetOp op);
+LogicalResult printOperation(CodeEmitter& emitter, emitasc::PtrOffsetOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, emitasc::ReinterpretCastOp op);
+LogicalResult printOperation(CodeEmitter& emitter, emitasc::ReinterpretCastOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, emitasc::SetMemberOp op);
+LogicalResult printOperation(CodeEmitter& emitter, emitasc::SetMemberOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, emitasc::VariableOp op);
+LogicalResult printOperation(CodeEmitter& emitter, emitasc::VariableOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, emitasc::VerbatimOp op);
+LogicalResult printOperation(CodeEmitter& emitter, emitasc::VerbatimOp op);
 
 } // namespace emitasc
 } // namespace mlir

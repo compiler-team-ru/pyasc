@@ -20,7 +20,7 @@ namespace ascendc {
 // Debug operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::PrintfOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::PrintfOp op);
 
 } // namespace ascendc
 } // namespace mlir

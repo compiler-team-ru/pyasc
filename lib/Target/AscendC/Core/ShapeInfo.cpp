@@ -17,7 +17,7 @@ using namespace mlir::ascendc;
 // ShapeInfo operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::ShapeInfoShapeOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::ShapeInfoShapeOp op)
 {
     FAIL_OR(emitter.emitAssignPrefix(*op));
     emitter.ostream() << emitter.getOrCreateName(op.getBase()) << ".shape[" << emitter.getOrCreateName(op.getDim())
@@ -25,7 +25,7 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Shape
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::ShapeInfoOriginalShapeOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::ShapeInfoOriginalShapeOp op)
 {
     FAIL_OR(emitter.emitAssignPrefix(*op));
     emitter.ostream() << emitter.getOrCreateName(op.getBase()) << ".originalShape["

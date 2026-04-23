@@ -16,7 +16,7 @@
 namespace mlir {
 namespace ascendc {
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::QuantOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::QuantOp op);
 
 } // namespace ascendc
 } // namespace mlir

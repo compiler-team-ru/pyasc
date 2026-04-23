@@ -20,7 +20,7 @@ namespace ascendc {
 // GatherMask operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::GatherMaskOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::GatherMaskOp op);
 
 } // namespace ascendc
 } // namespace mlir

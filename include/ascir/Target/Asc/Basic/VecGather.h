@@ -20,17 +20,17 @@ namespace ascendc {
 // Gatherb operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::GatherbL0Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::GatherbL0Op op);
 
 //===----------------------------------------------------------------------===//
 // Gather operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::GatherL0Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::GatherL0Op op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::GatherL1Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::GatherL1Op op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::GatherL2Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::GatherL2Op op);
 
 } // namespace ascendc
 } // namespace mlir

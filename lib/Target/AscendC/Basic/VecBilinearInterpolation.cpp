@@ -13,9 +13,9 @@
 using namespace mlir;
 using namespace mlir::ascendc;
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::BilinearInterpolationL0Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::BilinearInterpolationL0Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDst()) << ", "
        << emitter.getOrCreateName(op.getSrc0()) << ", " << emitter.getOrCreateName(op.getSrc0Offset()) << ", "
        << emitter.getOrCreateName(op.getSrc1()) << ", " << emitter.getOrCreateName(op.getMask()) << ", "
@@ -25,9 +25,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Bilin
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::BilinearInterpolationL1Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::BilinearInterpolationL1Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     auto maskName = printMask(emitter, op);
 
     os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDst()) << ", "

@@ -16,9 +16,9 @@
 namespace mlir {
 namespace ascendc {
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::BilinearInterpolationL0Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::BilinearInterpolationL0Op op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::BilinearInterpolationL1Op op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::BilinearInterpolationL1Op op);
 
 } // namespace ascendc
 } // namespace mlir

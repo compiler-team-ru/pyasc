@@ -15,17 +15,17 @@ using namespace mlir::ascendc;
 
 // Resource Management
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::KfcInitOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::KfcInitOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << emitter.getOrCreateName(op.getServer()) << "." << op.getAPIName() << "("
        << emitter.getOrCreateName(op.getWorkspace()) << ")";
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::KfcInitObjOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::KfcInitObjOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << emitter.getOrCreateName(op.getServer()) << "." << op.getAPIName() << "(&"
        << emitter.getOrCreateName(op.getPipe()) << ", ";
     llvm::interleaveComma(op.getOps(), os, [&](Value operand) { os << emitter.getOrCreateName(operand); });
@@ -33,25 +33,25 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::KfcIn
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::KfcIsRunOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::KfcIsRunOp op)
 {
     FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << " = " << emitter.getOrCreateName(op.getServer()) << "." << op.getAPIName() << "()";
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::KfcRunOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::KfcRunOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << emitter.getOrCreateName(op.getServer()) << "." << op.getAPIName() << "("
        << emitter.getOrCreateName(op.getMatmul()) << ")";
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::KfcQuitOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::KfcQuitOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << emitter.getOrCreateName(op.getServer()) << "." << op.getAPIName() << "()";
     return success();
 }

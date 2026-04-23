@@ -17,9 +17,9 @@ using namespace mlir::ascendc;
 // Gatherb operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::GatherbL0Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GatherbL0Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDst()) << ", "
        << emitter.getOrCreateName(op.getSrc0()) << ", " << emitter.getOrCreateName(op.getOffset()) << ", "
        << emitter.getOrCreateName(op.getRepeatTimes()) << ", " << emitter.getOrCreateName(op.getRepeatParams()) << ")";
@@ -30,9 +30,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Gathe
 // Gather operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::GatherL0Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GatherL0Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDst()) << ", "
        << emitter.getOrCreateName(op.getSrc()) << ", " << emitter.getOrCreateName(op.getSrcOffset()) << ", "
        << emitter.getOrCreateName(op.getSrcBaseAddr()) << ", " << emitter.getOrCreateName(op.getMask()) << ", "
@@ -40,9 +40,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Gathe
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::GatherL1Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GatherL1Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     auto maskName = printMask(emitter, op);
 
     os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDst()) << ", "
@@ -52,9 +52,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Gathe
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::GatherL2Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GatherL2Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDst()) << ", "
        << emitter.getOrCreateName(op.getSrc()) << ", " << emitter.getOrCreateName(op.getSrcOffset()) << ", "
        << emitter.getOrCreateName(op.getSrcBaseAddr()) << ", " << emitter.getOrCreateName(op.getCount()) << ")";

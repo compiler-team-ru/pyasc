@@ -18,15 +18,15 @@ namespace ascendc {
 
 // Resource Management
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::KfcInitOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::KfcInitOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::KfcInitObjOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::KfcInitObjOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::KfcIsRunOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::KfcIsRunOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::KfcRunOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::KfcRunOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::KfcQuitOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::KfcQuitOp op);
 
 } // namespace ascendc
 } // namespace mlir

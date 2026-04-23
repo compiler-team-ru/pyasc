@@ -20,7 +20,7 @@ namespace ascendc {
 // Scalar operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::ScalarCastOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::ScalarCastOp op);
 
 } // namespace ascendc
 } // namespace mlir

@@ -11,11 +11,11 @@
 #include <cstddef>
 
 namespace Adx {
-void AdumpPrintWorkSpace(const void *workSpaceAddr, const size_t dumpWorkSpaceSize, void *stream, const char *opType);
+void AdumpPrintWorkSpace(const void* workSpaceAddr, const size_t dumpWorkSpaceSize, void* stream, const char* opType);
 }
 
-extern "C" void PrintWorkSpace(const void *workSpaceAddr, const size_t dumpWorkSpaceSize, void *stream,
-                               const char *opType)
+extern "C" void
+PrintWorkSpace(const void* workSpaceAddr, const size_t dumpWorkSpaceSize, void* stream, const char* opType)
 {
     Adx::AdumpPrintWorkSpace(workSpaceAddr, dumpWorkSpaceSize, stream, opType);
 }

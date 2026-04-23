@@ -17,10 +17,10 @@ using namespace mlir::ascendc;
 // Buffer operations (TBuf)
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TBufGetTensorOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::TBufGetTensorOp op)
 {
     FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << " = " << emitter.getOrCreateName(op.getBuffer()) << "." << op.getAPIName() << "<";
     Type elType = op.getTensor().getType().getElementType();
     FAIL_OR(emitter.emitType(op.getLoc(), elType));
@@ -32,10 +32,10 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TBufG
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::TBufGetWithOffsetOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::TBufGetWithOffsetOp op)
 {
     FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << " = " << emitter.getOrCreateName(op.getBuffer()) << "." << op.getAPIName() << "<";
     Type elType = op.getTensor().getType().getElementType();
     FAIL_OR(emitter.emitType(op.getLoc(), elType));

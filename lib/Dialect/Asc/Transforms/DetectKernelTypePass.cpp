@@ -29,7 +29,7 @@ using namespace mlir::ascendc;
 namespace {
 
 class DetectKernelTypePass : public ascendc::impl::DetectKernelTypeBase<DetectKernelTypePass> {
-  public:
+public:
     void runOnOperation() override
     {
         ModuleOp op = getOperation();
@@ -42,9 +42,6 @@ class DetectKernelTypePass : public ascendc::impl::DetectKernelTypeBase<DetectKe
 
 namespace mlir {
 namespace ascendc {
-std::unique_ptr<Pass> createDetectKernelTypePass()
-{
-    return std::make_unique<DetectKernelTypePass>();
-}
+std::unique_ptr<Pass> createDetectKernelTypePass() { return std::make_unique<DetectKernelTypePass>(); }
 } // namespace ascendc
 } // namespace mlir

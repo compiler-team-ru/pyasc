@@ -30,7 +30,7 @@ std::string snakeToCamel(StringRef str)
     std::string result;
     result.reserve(size);
     result += std::string_view(tokens.front());
-    for (auto *it = tokens.begin() + 1; it != tokens.end(); ++it) {
+    for (auto* it = tokens.begin() + 1; it != tokens.end(); ++it) {
         result += it->take_front(1).upper();
         result += std::string_view(it->drop_front(1));
     }
@@ -38,20 +38,20 @@ std::string snakeToCamel(StringRef str)
 }
 
 class GenAPITypes {
-    const RecordKeeper &records;
+    const RecordKeeper& records;
 
-  public:
-    explicit GenAPITypes(const RecordKeeper &records) : records(records) {}
+public:
+    explicit GenAPITypes(const RecordKeeper& records) : records(records) {}
 
-    void run(raw_ostream &os);
+    void run(raw_ostream& os);
 };
 
-void GenAPITypes::run(raw_ostream &os)
+void GenAPITypes::run(raw_ostream& os)
 {
     raw_indented_ostream ios(os);
     auto typeDefs = records.getAllDerivedDefinitions("APIType");
     ios << "#ifdef GEN_EMITTER\n";
-    for (const auto *def : typeDefs) {
+    for (const auto* def : typeDefs) {
         if (!def->getValueAsBit("genEmitter")) {
             continue;
         }

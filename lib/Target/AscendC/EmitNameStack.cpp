@@ -17,14 +17,11 @@ using namespace mlir;
 
 using llvm::formatv;
 
-EmitNameStack::EmitNameStack()
-{
-    labelInScopeCount.push(0);
-}
+EmitNameStack::EmitNameStack() { labelInScopeCount.push(0); }
 
 void EmitNameStack::pushScope()
 {
-    for (auto &[_, scope] : valueInScopeCount) {
+    for (auto& [_, scope] : valueInScopeCount) {
         scope.push(scope.top());
     }
     labelInScopeCount.push(labelInScopeCount.top());
@@ -32,17 +29,17 @@ void EmitNameStack::pushScope()
 
 void EmitNameStack::popScope()
 {
-    for (auto &[_, scope] : valueInScopeCount) {
+    for (auto& [_, scope] : valueInScopeCount) {
         scope.pop();
     }
     labelInScopeCount.pop();
 }
 
-EmitNameStack::CountStack &EmitNameStack::getCountStack(const std::string &prefix)
+EmitNameStack::CountStack& EmitNameStack::getCountStack(const std::string& prefix)
 {
     auto it = valueInScopeCount.find(prefix);
     if (it == valueInScopeCount.end()) {
-        auto &stack = valueInScopeCount[prefix];
+        auto& stack = valueInScopeCount[prefix];
         for (size_t i = 0; i < labelInScopeCount.size(); i++)
             stack.push(0);
         return stack;
@@ -52,7 +49,7 @@ EmitNameStack::CountStack &EmitNameStack::getCountStack(const std::string &prefi
 
 std::string EmitNameStack::getNameForEmission(Value val)
 {
-    auto getName = [&](const std::string &prefix) -> std::string {
+    auto getName = [&](const std::string& prefix) -> std::string {
         return prefix + std::to_string(++getCountStack(prefix).top());
     };
     auto getDefaultName = [&]() -> std::string { return getName("v"); };

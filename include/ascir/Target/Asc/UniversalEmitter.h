@@ -18,9 +18,9 @@
 namespace mlir {
 namespace ascendc {
 template <typename ConcreteOp>
-LogicalResult emitFunctionParams(CodeEmitter &emitter, ConcreteOp op, size_t startPos = 0)
+LogicalResult emitFunctionParams(CodeEmitter& emitter, ConcreteOp op, size_t startPos = 0)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     bool first = true;
     for (size_t i = startPos; i < op.getOperation()->getNumOperands(); ++i) {
         if (!first) {
@@ -34,16 +34,16 @@ LogicalResult emitFunctionParams(CodeEmitter &emitter, ConcreteOp op, size_t sta
 }
 
 template <typename ConcreteOp>
-LogicalResult autoPrintConstructorOp(CodeEmitter &emitter, ConcreteOp op)
+LogicalResult autoPrintConstructorOp(CodeEmitter& emitter, ConcreteOp op)
 {
     return emitter.emitVariableDeclaration(op->getResult(0), false);
 }
 
 template <typename ConcreteOp>
-LogicalResult autoPrintMemberFuncOp(CodeEmitter &emitter, ConcreteOp op)
+LogicalResult autoPrintMemberFuncOp(CodeEmitter& emitter, ConcreteOp op)
 {
     auto resNum = op.getOperation()->getNumResults();
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     if (resNum == 1) {
         FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
         os << " = ";
@@ -56,10 +56,10 @@ LogicalResult autoPrintMemberFuncOp(CodeEmitter &emitter, ConcreteOp op)
 }
 
 template <typename ConcreteOp>
-LogicalResult autoPrintAscFuncOp(CodeEmitter &emitter, ConcreteOp op)
+LogicalResult autoPrintAscFuncOp(CodeEmitter& emitter, ConcreteOp op)
 {
     auto resNum = op.getOperation()->getNumResults();
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     if (resNum == 1) {
         FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
         os << " = ";
@@ -71,7 +71,7 @@ LogicalResult autoPrintAscFuncOp(CodeEmitter &emitter, ConcreteOp op)
 }
 
 template <typename ConcreteOp>
-LogicalResult autoPrintOp(CodeEmitter &emitter, ConcreteOp op)
+LogicalResult autoPrintOp(CodeEmitter& emitter, ConcreteOp op)
 {
     if constexpr (ConcreteOp::template hasTrait<mlir::OpTrait::AscConstructorTrait>()) {
         return autoPrintConstructorOp<ConcreteOp>(emitter, op);

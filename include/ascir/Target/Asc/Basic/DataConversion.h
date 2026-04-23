@@ -20,11 +20,11 @@ namespace ascendc {
 // Data Conversion operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::TransDataTo5HDTensorListOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::TransDataTo5HDTensorListOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::TransDataTo5HDUintListOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::TransDataTo5HDUintListOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::TransDataTo5HDOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::TransDataTo5HDOp op);
 
 } // namespace ascendc
 } // namespace mlir

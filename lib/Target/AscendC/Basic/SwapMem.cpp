@@ -17,18 +17,18 @@ using namespace mlir::ascendc;
 // Memory swap and workspace operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::GetSysWorkspacePtrOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GetSysWorkspacePtrOp op)
 {
     FAIL_OR(emitter.emitType(op.getLoc(), op.getType(), true));
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << " " << emitter.getOrCreateName(op.getResult());
     os << " = " << op.getAPIName() << "()";
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::SetSysWorkspaceOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::SetSysWorkspaceOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName() << "(";
     os << "reinterpret_cast<";
     FAIL_OR(emitter.emitType(op.getLoc(), op.getWorkspace().getType(), true));

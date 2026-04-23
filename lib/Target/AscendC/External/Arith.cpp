@@ -17,17 +17,17 @@ constexpr uint32_t BIT_WIDTH_32 = 32;
 constexpr uint32_t BIT_WIDTH_16 = 16;
 } // namespace
 
-LogicalResult mlir::printOperation(CodeEmitter &emitter, arith::ConstantOp constantOp)
+LogicalResult mlir::printOperation(CodeEmitter& emitter, arith::ConstantOp constantOp)
 {
-    Operation *operation = constantOp.getOperation();
+    Operation* operation = constantOp.getOperation();
     Attribute value = constantOp.getValue();
 
     return printConstantOp(emitter, operation, value);
 }
 
-LogicalResult mlir::printOperation(CodeEmitter &emitter, arith::MulUIExtendedOp op)
+LogicalResult mlir::printOperation(CodeEmitter& emitter, arith::MulUIExtendedOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     auto resultType = op->getResult(1).getType();
     auto lhs = emitter.getOrCreateName(op.getLhs());
     auto rhs = emitter.getOrCreateName(op.getRhs());
@@ -50,110 +50,110 @@ LogicalResult mlir::printOperation(CodeEmitter &emitter, arith::MulUIExtendedOp 
     return success();
 }
 
-LogicalResult mlir::printOperation(CodeEmitter &emitter, arith::CmpIOp op)
+LogicalResult mlir::printOperation(CodeEmitter& emitter, arith::CmpIOp op)
 {
     if (failed(emitter.emitAssignPrefix(*op.getOperation()))) {
         return failure();
     }
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << emitter.getOrCreateName(op.getLhs()) << " ";
     switch (op.getPredicate()) {
-        case arith::CmpIPredicate::eq:
-            os << "==";
-            break;
-        case arith::CmpIPredicate::ne:
-            os << "!=";
-            break;
-        case arith::CmpIPredicate::sle:
-        case arith::CmpIPredicate::ule:
-            os << "<=";
-            break;
-        case arith::CmpIPredicate::slt:
-        case arith::CmpIPredicate::ult:
-            os << "<";
-            break;
-        case arith::CmpIPredicate::sge:
-        case arith::CmpIPredicate::uge:
-            os << ">=";
-            break;
-        case arith::CmpIPredicate::sgt:
-        case arith::CmpIPredicate::ugt:
-            os << ">";
-            break;
+    case arith::CmpIPredicate::eq:
+        os << "==";
+        break;
+    case arith::CmpIPredicate::ne:
+        os << "!=";
+        break;
+    case arith::CmpIPredicate::sle:
+    case arith::CmpIPredicate::ule:
+        os << "<=";
+        break;
+    case arith::CmpIPredicate::slt:
+    case arith::CmpIPredicate::ult:
+        os << "<";
+        break;
+    case arith::CmpIPredicate::sge:
+    case arith::CmpIPredicate::uge:
+        os << ">=";
+        break;
+    case arith::CmpIPredicate::sgt:
+    case arith::CmpIPredicate::ugt:
+        os << ">";
+        break;
     }
     os << " " << emitter.getOrCreateName(op.getRhs());
     return success();
 }
 
-LogicalResult mlir::printOperation(CodeEmitter &emitter, arith::CmpFOp op)
+LogicalResult mlir::printOperation(CodeEmitter& emitter, arith::CmpFOp op)
 {
     if (failed(emitter.emitAssignPrefix(*op.getOperation()))) {
         return failure();
     }
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << emitter.getOrCreateName(op.getLhs()) << " ";
     switch (op.getPredicate()) {
-        case arith::CmpFPredicate::OEQ:
-        case arith::CmpFPredicate::UEQ:
-            os << "==";
-            break;
-        case arith::CmpFPredicate::ONE:
-        case arith::CmpFPredicate::UNE:
-            os << "!=";
-            break;
-        case arith::CmpFPredicate::OLE:
-        case arith::CmpFPredicate::ULE:
-            os << "<=";
-            break;
-        case arith::CmpFPredicate::OLT:
-        case arith::CmpFPredicate::ULT:
-            os << "<";
-            break;
-        case arith::CmpFPredicate::OGE:
-        case arith::CmpFPredicate::UGE:
-            os << ">=";
-            break;
-        case arith::CmpFPredicate::OGT:
-        case arith::CmpFPredicate::UGT:
-            os << ">";
-            break;
-        case arith::CmpFPredicate::AlwaysFalse:
-        case arith::CmpFPredicate::AlwaysTrue:
-        case arith::CmpFPredicate::ORD:
-        case arith::CmpFPredicate::UNO:
-            llvm_unreachable("unsupported predicate in arith.cmpf operation");
+    case arith::CmpFPredicate::OEQ:
+    case arith::CmpFPredicate::UEQ:
+        os << "==";
+        break;
+    case arith::CmpFPredicate::ONE:
+    case arith::CmpFPredicate::UNE:
+        os << "!=";
+        break;
+    case arith::CmpFPredicate::OLE:
+    case arith::CmpFPredicate::ULE:
+        os << "<=";
+        break;
+    case arith::CmpFPredicate::OLT:
+    case arith::CmpFPredicate::ULT:
+        os << "<";
+        break;
+    case arith::CmpFPredicate::OGE:
+    case arith::CmpFPredicate::UGE:
+        os << ">=";
+        break;
+    case arith::CmpFPredicate::OGT:
+    case arith::CmpFPredicate::UGT:
+        os << ">";
+        break;
+    case arith::CmpFPredicate::AlwaysFalse:
+    case arith::CmpFPredicate::AlwaysTrue:
+    case arith::CmpFPredicate::ORD:
+    case arith::CmpFPredicate::UNO:
+        llvm_unreachable("unsupported predicate in arith.cmpf operation");
     }
     os << " " << emitter.getOrCreateName(op.getRhs());
     return success();
 }
 
-LogicalResult mlir::printOperation(CodeEmitter &emitter, arith::BitcastOp op)
+LogicalResult mlir::printOperation(CodeEmitter& emitter, arith::BitcastOp op)
 {
     FAIL_OR(emitter.emitAssignPrefix(*op.getOperation()));
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << "*reinterpret_cast<";
     FAIL_OR(emitter.emitType(op.getLoc(), op.getType()));
     os << "*>(&" << emitter.getOrCreateName(op.getIn()) << ")";
     return success();
 }
 
-LogicalResult mlir::printOperation(CodeEmitter &emitter, arith::SelectOp op)
+LogicalResult mlir::printOperation(CodeEmitter& emitter, arith::SelectOp op)
 {
     if (failed(emitter.emitAssignPrefix(*op.getOperation()))) {
         return failure();
     }
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << emitter.getOrCreateName(op.getCondition()) << " ? " << emitter.getOrCreateName(op.getTrueValue()) << " : "
        << emitter.getOrCreateName(op.getFalseValue());
     return success();
 }
 
-LogicalResult mlir::printOperation(CodeEmitter &emitter, arith::IndexCastOp op)
+LogicalResult mlir::printOperation(CodeEmitter& emitter, arith::IndexCastOp op)
 {
     if (failed(emitter.emitAssignPrefix(*op.getOperation()))) {
         return failure();
     }
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << "static_cast<";
     if (failed(emitter.emitType(op.getLoc(), op.getOut().getType()))) {
         return failure();

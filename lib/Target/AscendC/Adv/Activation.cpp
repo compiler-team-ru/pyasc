@@ -12,9 +12,9 @@
 using namespace mlir;
 using namespace mlir::ascendc;
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::SimpleSoftMaxOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::SimpleSoftMaxOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName() << "<";
     if (failed(emitter.emitType(op.getLoc(), op.getDst().getType().getElementType()))) {
         return failure();
@@ -26,9 +26,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Simpl
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::SoftMaxOp op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::SoftMaxOp op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName() << "<";
     if (failed(emitter.emitType(op.getLoc(), op.getDst().getType().getElementType()))) {
         return failure();

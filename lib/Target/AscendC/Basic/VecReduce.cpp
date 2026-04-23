@@ -18,9 +18,9 @@ using namespace mlir::ascendc;
 // BlockReduceSum operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::BlockReduceSumL1Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::BlockReduceSumL1Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     auto maskName = printMask(emitter, op);
     os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDst()) << ", "
        << emitter.getOrCreateName(op.getSrc()) << ", " << emitter.getOrCreateName(op.getRepeatTime()) << ", "
@@ -34,9 +34,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Block
 // BlockReduceMax operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::BlockReduceMaxL1Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::BlockReduceMaxL1Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
 
     auto maskName = printMask(emitter, op);
 
@@ -51,9 +51,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Block
 // BlockReduceMin operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::BlockReduceMinL1Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::BlockReduceMinL1Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
 
     auto maskName = printMask(emitter, op);
 
@@ -70,9 +70,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Block
 //===----------------------------------------------------------------------===//
 // PairReduceSum operations
 //===----------------------------------------------------------------------===//
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::PairReduceSumL1Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::PairReduceSumL1Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     auto maskName = printMask(emitter, op);
     os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDst()) << ", "
        << emitter.getOrCreateName(op.getSrc()) << ", " << emitter.getOrCreateName(op.getRepeatTime()) << ", "
@@ -86,9 +86,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::PairR
 // ReduceMax operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::ReduceMaxL1Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::ReduceMaxL1Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
 
     auto maskName = printMask(emitter, op);
 
@@ -103,9 +103,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Reduc
 // ReduceMin operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::ReduceMinL1Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::ReduceMinL1Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
 
     auto maskName = printMask(emitter, op);
 
@@ -120,9 +120,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Reduc
 // ReduceSum operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::ReduceSumL1Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::ReduceSumL1Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
 
     auto maskName = printMask(emitter, op);
 
@@ -139,9 +139,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Reduc
 
 namespace {
 template <typename OpType>
-LogicalResult printWholeReduceMaxMinCommon(CodeEmitter &emitter, OpType op)
+LogicalResult printWholeReduceMaxMinCommon(CodeEmitter& emitter, OpType op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     auto maskName = printMask(emitter, op);
     os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDst()) << ", "
        << emitter.getOrCreateName(op.getSrc()) << ", " << maskName << ", "
@@ -152,12 +152,12 @@ LogicalResult printWholeReduceMaxMinCommon(CodeEmitter &emitter, OpType op)
 }
 } // namespace
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::WholeReduceMaxL1Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::WholeReduceMaxL1Op op)
 {
     return printWholeReduceMaxMinCommon(emitter, op);
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::WholeReduceMinL1Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::WholeReduceMinL1Op op)
 {
     return printWholeReduceMaxMinCommon(emitter, op);
 }
@@ -165,9 +165,9 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::Whole
 //===----------------------------------------------------------------------===//
 // WholeReduceSum operations
 //===----------------------------------------------------------------------===//
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, ascendc::WholeReduceSumL1Op op)
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::WholeReduceSumL1Op op)
 {
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     auto maskName = printMask(emitter, op);
     os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDst()) << ", "
        << emitter.getOrCreateName(op.getSrc()) << ", " << maskName << ", "

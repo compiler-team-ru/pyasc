@@ -20,9 +20,9 @@ namespace ascendc {
 // Buffer operations (TBuf)
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::TBufGetTensorOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::TBufGetTensorOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::TBufGetWithOffsetOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::TBufGetWithOffsetOp op);
 
 } // namespace ascendc
 } // namespace mlir

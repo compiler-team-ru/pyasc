@@ -27,7 +27,7 @@ using namespace mlir::ascendc;
 // TPositionAttr
 //===----------------------------------------------------------------------===//
 
-ParseResult mlir::ascendc::parsePrettyTPosition(AsmParser &odsParser, TPositionAttr &attr)
+ParseResult mlir::ascendc::parsePrettyTPosition(AsmParser& odsParser, TPositionAttr& attr)
 {
     StringRef pos;
     if (odsParser.parseKeyword(&pos))
@@ -39,7 +39,7 @@ ParseResult mlir::ascendc::parsePrettyTPosition(AsmParser &odsParser, TPositionA
     return odsParser.emitError(odsParser.getNameLoc()) << "position is not recognized: " << pos;
 }
 
-void mlir::ascendc::printPrettyTPosition(AsmPrinter &odsPrinter, const TPositionAttr &attr)
+void mlir::ascendc::printPrettyTPosition(AsmPrinter& odsPrinter, const TPositionAttr& attr)
 {
     odsPrinter << stringifyTPosition(attr.getValue());
 }
@@ -48,7 +48,7 @@ void mlir::ascendc::printPrettyTPosition(AsmPrinter &odsPrinter, const TPosition
 // CubeFormatAttr
 //===----------------------------------------------------------------------===//
 
-ParseResult ascendc::parsePrettyCubeFormat(AsmParser &odsParser, CubeFormatAttr &attr)
+ParseResult ascendc::parsePrettyCubeFormat(AsmParser& odsParser, CubeFormatAttr& attr)
 {
     StringRef pos;
     if (odsParser.parseKeyword(&pos))
@@ -60,7 +60,7 @@ ParseResult ascendc::parsePrettyCubeFormat(AsmParser &odsParser, CubeFormatAttr 
     return odsParser.emitError(odsParser.getNameLoc()) << "cube format is not recognized: " << pos;
 }
 
-void ascendc::printPrettyCubeFormat(AsmPrinter &odsPrinter, const CubeFormatAttr &attr)
+void ascendc::printPrettyCubeFormat(AsmPrinter& odsPrinter, const CubeFormatAttr& attr)
 {
     odsPrinter << stringifyCubeFormat(attr.getValue());
 }
@@ -69,7 +69,7 @@ void ascendc::printPrettyCubeFormat(AsmPrinter &odsPrinter, const CubeFormatAttr
 // LayoutModeAttr
 //===----------------------------------------------------------------------===//
 
-ParseResult ascendc::parsePrettyLayoutMode(AsmParser &odsParser, LayoutModeAttr &attr)
+ParseResult ascendc::parsePrettyLayoutMode(AsmParser& odsParser, LayoutModeAttr& attr)
 {
     StringRef pos;
     if (odsParser.parseKeyword(&pos))
@@ -81,7 +81,7 @@ ParseResult ascendc::parsePrettyLayoutMode(AsmParser &odsParser, LayoutModeAttr 
     return odsParser.emitError(odsParser.getNameLoc()) << "layout mode is not recognized: " << pos;
 }
 
-void ascendc::printPrettyLayoutMode(AsmPrinter &odsPrinter, const LayoutModeAttr &attr)
+void ascendc::printPrettyLayoutMode(AsmPrinter& odsPrinter, const LayoutModeAttr& attr)
 {
     odsPrinter << stringifyLayoutMode(attr.getValue());
 }
@@ -90,7 +90,7 @@ void ascendc::printPrettyLayoutMode(AsmPrinter &odsPrinter, const LayoutModeAttr
 // CO2LayoutAttr
 //===----------------------------------------------------------------------===//
 
-ParseResult mlir::ascendc::parsePrettyCO2Layout(AsmParser &odsParser, CO2LayoutAttr &attr)
+ParseResult mlir::ascendc::parsePrettyCO2Layout(AsmParser& odsParser, CO2LayoutAttr& attr)
 {
     StringRef pos;
     if (odsParser.parseKeyword(&pos))
@@ -102,7 +102,7 @@ ParseResult mlir::ascendc::parsePrettyCO2Layout(AsmParser &odsParser, CO2LayoutA
     return odsParser.emitError(odsParser.getNameLoc()) << "CO2Layout is not recognized: " << pos;
 }
 
-void mlir::ascendc::printPrettyCO2Layout(AsmPrinter &odsPrinter, const CO2LayoutAttr &attr)
+void mlir::ascendc::printPrettyCO2Layout(AsmPrinter& odsPrinter, const CO2LayoutAttr& attr)
 {
     odsPrinter << stringifyCO2Layout(attr.getValue());
 }

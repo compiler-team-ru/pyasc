@@ -10,7 +10,7 @@
 
 #ifndef ASCIR_DIALECT_ASC_UTILS_ATTRIBUTES_H
 #define ASCIR_DIALECT_ASC_UTILS_ATTRIBUTES_H
-#define LITERAL constexpr const char *
+#define LITERAL constexpr const char*
 
 namespace mlir {
 namespace ascendc {

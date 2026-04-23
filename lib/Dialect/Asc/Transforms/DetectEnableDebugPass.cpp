@@ -29,7 +29,7 @@ using namespace mlir::ascendc;
 namespace {
 
 class DetectEnableDebugPass : public ascendc::impl::DetectEnableDebugBase<DetectEnableDebugPass> {
-  public:
+public:
     void runOnOperation() override
     {
         ModuleOp op = getOperation();
@@ -44,7 +44,4 @@ class DetectEnableDebugPass : public ascendc::impl::DetectEnableDebugBase<Detect
 
 } // namespace
 
-std::unique_ptr<Pass> mlir::ascendc::createDetectEnableDebugPass()
-{
-    return std::make_unique<DetectEnableDebugPass>();
-}
+std::unique_ptr<Pass> mlir::ascendc::createDetectEnableDebugPass() { return std::make_unique<DetectEnableDebugPass>(); }

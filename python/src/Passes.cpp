@@ -23,54 +23,57 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h> // automatic casts between containers and python types
 
-#define DEFINE_ADD_PASS(NAME, CONSTRUCTOR) m.def(NAME, [](PassManager &pm) { pm.addPass(CONSTRUCTOR()); })
+#define DEFINE_ADD_PASS(NAME, CONSTRUCTOR) m.def(NAME, [](PassManager& pm) { pm.addPass(CONSTRUCTOR()); })
 
-#define DEFINE_ADD_PASS_ON(NEST, NAME, CONSTRUCTOR)                                                                    \
-    m.def(NAME, [](PassManager &pm) { pm.addNestedPass<NEST>(CONSTRUCTOR()); })
+#define DEFINE_ADD_PASS_ON(NEST, NAME, CONSTRUCTOR) \
+    m.def(NAME, [](PassManager& pm) { pm.addNestedPass<NEST>(CONSTRUCTOR()); })
 
 namespace py = pybind11;
 using namespace mlir;
 
 namespace {
 
-void definePassManager(py::module &m)
+void definePassManager(py::module& m)
 {
     using namespace pybind11::literals;
 
     py::class_<PassManager>(m, "PassManager", py::module_local())
-        .def(py::init<MLIRContext *>())
-        .def("get_pipeline_str",
-             [](PassManager &self) -> std::string {
-                 std::string result;
-                 llvm::raw_string_ostream os(result);
-                 self.printAsTextualPipeline(os);
-                 os.flush();
-                 return result;
-             })
-        .def("run",
-             [](PassManager &self, ModuleOp &mod) {
-                 llvm::SourceMgr sourceMgr;
-                 SourceMgrDiagnosticHandler handler(sourceMgr, self.getContext());
-                 if (self.run(mod.getOperation()).failed())
-                     throw std::runtime_error("Failed to run passes");
-             })
+        .def(py::init<MLIRContext*>())
         .def(
-            "enable_verifier", [](PassManager &self, bool enable) { self.enableVerifier(enable); }, "enable"_a = true)
-        .def("enable_printing", [](PassManager &self) {
+            "get_pipeline_str",
+            [](PassManager& self) -> std::string {
+                std::string result;
+                llvm::raw_string_ostream os(result);
+                self.printAsTextualPipeline(os);
+                os.flush();
+                return result;
+            })
+        .def(
+            "run",
+            [](PassManager& self, ModuleOp& mod) {
+                llvm::SourceMgr sourceMgr;
+                SourceMgrDiagnosticHandler handler(sourceMgr, self.getContext());
+                if (self.run(mod.getOperation()).failed())
+                    throw std::runtime_error("Failed to run passes");
+            })
+        .def(
+            "enable_verifier", [](PassManager& self, bool enable) { self.enableVerifier(enable); }, "enable"_a = true)
+        .def("enable_printing", [](PassManager& self) {
             OpPrintingFlags flags;
             flags.enableDebugInfo(true);
-            self.enableIRPrinting([](Pass *, Operation *) { return true; }, /*shouldPrintBeforePass*/
-                                  [](Pass *, Operation *) { return true; }, /*shouldPrintAfterPass*/
-                                  false,                                    /*printModuleScope*/
-                                  false,                                    /*printAfterOnlyOnChange*/
-                                  true,                                     /*printAfterOnlyOnFailure*/
-                                  llvm::errs(),                             /*out*/
-                                  flags                                     /*opPrintingFlags*/
+            self.enableIRPrinting(
+                [](Pass*, Operation*) { return true; }, /*shouldPrintBeforePass*/
+                [](Pass*, Operation*) { return true; }, /*shouldPrintAfterPass*/
+                false,                                  /*printModuleScope*/
+                false,                                  /*printAfterOnlyOnChange*/
+                true,                                   /*printAfterOnlyOnFailure*/
+                llvm::errs(),                           /*out*/
+                flags                                   /*opPrintingFlags*/
             );
         });
 }
 
-void defineCommonPasses(py::module &mod)
+void defineCommonPasses(py::module& mod)
 {
     auto m = mod.def_submodule("common");
     DEFINE_ADD_PASS("add_canonicalizer", createCanonicalizerPass);
@@ -84,7 +87,7 @@ void defineCommonPasses(py::module &mod)
     DEFINE_ADD_PASS("add_symbol_dce", createSymbolDCEPass);
 }
 
-void defineAscendCPasses(py::module &mod)
+void defineAscendCPasses(py::module& mod)
 {
     using namespace ascendc;
     auto m = mod.def_submodule("ascendc");
@@ -110,7 +113,7 @@ void defineAscendCPasses(py::module &mod)
 
 namespace pybind11 {
 namespace asc {
-void pyasc_init_passes(py::module &&m)
+void pyasc_init_passes(py::module&& m)
 {
     definePassManager(m);
     defineCommonPasses(m);

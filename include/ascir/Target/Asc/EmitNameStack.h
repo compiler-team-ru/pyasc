@@ -29,7 +29,7 @@ struct EmitNameStack {
     void pushScope();
     void popScope();
 
-    CountStack &getCountStack(const std::string &prefix);
+    CountStack& getCountStack(const std::string& prefix);
     std::string getNameForEmission(Value val);
 };
 

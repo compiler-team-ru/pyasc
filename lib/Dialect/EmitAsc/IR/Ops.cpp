@@ -24,10 +24,7 @@ using namespace mlir::emitasc;
 // PtrOffsetOp
 //===----------------------------------------------------------------------===//
 
-Value PtrOffsetOp::getViewSource()
-{
-    return getBase();
-}
+Value PtrOffsetOp::getViewSource() { return getBase(); }
 
 OpFoldResult PtrOffsetOp::fold(FoldAdaptor adaptor)
 {
@@ -51,10 +48,7 @@ bool ReinterpretCastOp::areCastCompatible(TypeRange inputs, TypeRange outputs)
 // VariableOp
 //===----------------------------------------------------------------------===//
 
-bool VariableOp::isStatic()
-{
-    return getStaticInit().has_value();
-}
+bool VariableOp::isStatic() { return getStaticInit().has_value(); }
 
 OpFoldResult VariableOp::getInit(bool fold)
 {

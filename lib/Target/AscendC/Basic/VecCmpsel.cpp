@@ -19,44 +19,45 @@ using namespace mlir::ascendc;
 // Compare operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, CompareL1Op op){
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, CompareL1Op op)
+{
     auto& os = emitter.ostream();
     auto maskName = (emitter.getOrCreateName(op.getDst()) + "_mask_list").str();
     os << "uint64_t " << maskName << "[] = {";
     llvm::interleaveComma(op.getMask(), os, [&](Value operand) { os << emitter.getOrCreateName(operand); });
     os << "};\n";
     os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDst()) << ", "
-       << emitter.getOrCreateName(op.getSrc0()) << ", " << emitter.getOrCreateName(op.getSrc1()) << ", " 
-       << ascNamespace << "::CMPMODE::" << ascendc::stringifyEnum(op.getCmpMode()) << ", "
-       << maskName << ", " << emitter.getOrCreateName(op.getRepeatTimes()) << ", "
-       << emitter.getOrCreateName(op.getRepeatParams()) << ")";
+       << emitter.getOrCreateName(op.getSrc0()) << ", " << emitter.getOrCreateName(op.getSrc1()) << ", " << ascNamespace
+       << "::CMPMODE::" << ascendc::stringifyEnum(op.getCmpMode()) << ", " << maskName << ", "
+       << emitter.getOrCreateName(op.getRepeatTimes()) << ", " << emitter.getOrCreateName(op.getRepeatParams()) << ")";
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, CompareRL1Op op){
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, CompareRL1Op op)
+{
     auto& os = emitter.ostream();
     auto maskName = (emitter.getOrCreateName(op.getSrc0()) + "_mask_list").str();
     os << "uint64_t " << maskName << "[] = {";
     llvm::interleaveComma(op.getMask(), os, [&](Value operand) { os << emitter.getOrCreateName(operand); });
     os << "};\n";
-    os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getSrc0()) << ", " 
-       << emitter.getOrCreateName(op.getSrc1()) << ", " 
-       << ascNamespace << "::CMPMODE::" << ascendc::stringifyEnum(op.getCmpMode()) << ", "
-       << maskName << ", " << emitter.getOrCreateName(op.getRepeatParams()) << ")";
+    os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getSrc0()) << ", "
+       << emitter.getOrCreateName(op.getSrc1()) << ", " << ascNamespace
+       << "::CMPMODE::" << ascendc::stringifyEnum(op.getCmpMode()) << ", " << maskName << ", "
+       << emitter.getOrCreateName(op.getRepeatParams()) << ")";
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, CompareScalarL1Op op){
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, CompareScalarL1Op op)
+{
     auto& os = emitter.ostream();
     auto maskName = (emitter.getOrCreateName(op.getDst()) + "_mask_list").str();
     os << "uint64_t " << maskName << "[] = {";
     llvm::interleaveComma(op.getMask(), os, [&](Value operand) { os << emitter.getOrCreateName(operand); });
     os << "};\n";
     os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDst()) << ", "
-       << emitter.getOrCreateName(op.getSrc0()) << ", " << emitter.getOrCreateName(op.getSrc1Scalar()) << ", " 
-       << ascNamespace << "::CMPMODE::" << ascendc::stringifyEnum(op.getCmpMode()) << ", "
-       << maskName << ", " << emitter.getOrCreateName(op.getRepeatTimes()) << ", "
-       << emitter.getOrCreateName(op.getRepeatParams()) << ")";
+       << emitter.getOrCreateName(op.getSrc0()) << ", " << emitter.getOrCreateName(op.getSrc1Scalar()) << ", "
+       << ascNamespace << "::CMPMODE::" << ascendc::stringifyEnum(op.getCmpMode()) << ", " << maskName << ", "
+       << emitter.getOrCreateName(op.getRepeatTimes()) << ", " << emitter.getOrCreateName(op.getRepeatParams()) << ")";
     return success();
 }
 
@@ -64,26 +65,26 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, CompareScalarL
 // Select operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, SelectScalarL1Op op){
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, SelectScalarL1Op op)
+{
     auto& os = emitter.ostream();
     auto maskName = printMask(emitter, op);
     os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDst()) << ", "
-       << emitter.getOrCreateName(op.getSelMask()) << ", " << emitter.getOrCreateName(op.getSrc0()) << ", " 
-       << emitter.getOrCreateName(op.getSrc1()) << ", " 
-       << ascNamespace << "::SELMODE::" << ascendc::stringifyEnum(op.getSelMode()) << ", "
-       << maskName << ", " << emitter.getOrCreateName(op.getRepeatTimes()) << ", "
-       << emitter.getOrCreateName(op.getRepeatParams()) << ")";
+       << emitter.getOrCreateName(op.getSelMask()) << ", " << emitter.getOrCreateName(op.getSrc0()) << ", "
+       << emitter.getOrCreateName(op.getSrc1()) << ", " << ascNamespace
+       << "::SELMODE::" << ascendc::stringifyEnum(op.getSelMode()) << ", " << maskName << ", "
+       << emitter.getOrCreateName(op.getRepeatTimes()) << ", " << emitter.getOrCreateName(op.getRepeatParams()) << ")";
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter &emitter, SelectL1Op op){
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, SelectL1Op op)
+{
     auto& os = emitter.ostream();
     auto maskName = printMask(emitter, op);
     os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDst()) << ", "
-       << emitter.getOrCreateName(op.getSelMask()) << ", " << emitter.getOrCreateName(op.getSrc0()) << ", " 
-       << emitter.getOrCreateName(op.getSrc1()) << ", " 
-       << ascNamespace << "::SELMODE::" << ascendc::stringifyEnum(op.getSelMode()) << ", "
-       << maskName << ", " << emitter.getOrCreateName(op.getRepeatTimes()) << ", "
-       << emitter.getOrCreateName(op.getRepeatParams()) << ")";
+       << emitter.getOrCreateName(op.getSelMask()) << ", " << emitter.getOrCreateName(op.getSrc0()) << ", "
+       << emitter.getOrCreateName(op.getSrc1()) << ", " << ascNamespace
+       << "::SELMODE::" << ascendc::stringifyEnum(op.getSelMode()) << ", " << maskName << ", "
+       << emitter.getOrCreateName(op.getRepeatTimes()) << ", " << emitter.getOrCreateName(op.getRepeatParams()) << ")";
     return success();
 }

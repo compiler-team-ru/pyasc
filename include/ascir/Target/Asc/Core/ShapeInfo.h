@@ -20,9 +20,9 @@ namespace ascendc {
 // ShapeInfo operations
 //===----------------------------------------------------------------------===//
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::ShapeInfoShapeOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::ShapeInfoShapeOp op);
 
-LogicalResult printOperation(CodeEmitter &emitter, ascendc::ShapeInfoOriginalShapeOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::ShapeInfoOriginalShapeOp op);
 
 } // namespace ascendc
 } // namespace mlir

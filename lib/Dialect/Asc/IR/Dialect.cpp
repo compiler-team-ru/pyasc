@@ -35,9 +35,9 @@ void AscendCDialect::initialize()
 // External models
 //===----------------------------------------------------------------------===//
 
-void ascendc::registerExternalModels(DialectRegistry &registry)
+void ascendc::registerExternalModels(DialectRegistry& registry)
 {
     using namespace ascir;
     registry.addExtension(
-        +[](MLIRContext *ctx, AscendCDialect *dialect) { dialect->addInterface<PermissiveInlinerInterface>(); });
+        +[](MLIRContext* ctx, AscendCDialect* dialect) { dialect->addInterface<PermissiveInlinerInterface>(); });
 }

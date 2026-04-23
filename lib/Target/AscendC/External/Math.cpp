@@ -12,11 +12,11 @@
 
 using namespace mlir;
 
-LogicalResult mlir::printOperation(CodeEmitter &emitter, math::FmaOp op)
+LogicalResult mlir::printOperation(CodeEmitter& emitter, math::FmaOp op)
 {
     FAIL_OR(isScalarOperation(op));
     FAIL_OR(emitter.emitAssignPrefix(*op.getOperation()));
-    auto &os = emitter.ostream();
+    auto& os = emitter.ostream();
     auto lhs = emitter.getOrCreateName(op.getOperand(0));
     auto mhs = emitter.getOrCreateName(op.getOperand(1));
     auto rhs = emitter.getOrCreateName(op.getOperand(2));
@@ -24,7 +24,7 @@ LogicalResult mlir::printOperation(CodeEmitter &emitter, math::FmaOp op)
     return success();
 }
 
-LogicalResult mlir::printOperation(CodeEmitter &emitter, math::CopySignOp op)
+LogicalResult mlir::printOperation(CodeEmitter& emitter, math::CopySignOp op)
 {
     FAIL_OR(isScalarOperation(op));
     FAIL_OR(emitter.emitAssignPrefix(*op.getOperation()));
