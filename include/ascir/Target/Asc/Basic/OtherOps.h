@@ -60,7 +60,7 @@ template <typename FixpipeOp>
 auto printFixpipeTemplate(CodeEmitter& emitter, FixpipeOp op)
 {
     auto& os = emitter.ostream();
-    auto dstType = cast<ascendc::GlobalTensorType>(op.getDst().getType()).getElementType();
+    auto dstType = getElementTypeOrSelf(op.getDst());
     auto srcType = cast<ascendc::LocalTensorType>(op.getSrc().getType()).getElementType();
     os << ascNamespace << "::" << op.getAPIName() << "<";
     FAIL_OR(emitter.emitType(op.getLoc(), dstType));

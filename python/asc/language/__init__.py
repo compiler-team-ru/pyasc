@@ -15,7 +15,6 @@ from .basic import __all__ as basic_all
 from .core import __all__ as core_all
 from .fwk import __all__ as fwk_all
 
-
 # basic
 from .basic.block_sync import (
     data_sync_barrier,
@@ -53,11 +52,11 @@ from .basic.common import (
 from .basic.data_copy import copy, data_copy, data_copy_pad, load_image_to_local, set_pad_value
 from .basic.determine_compute_sync import notify_next_block, wait_pre_block
 from .basic.dump_tensor import (
-    dump_acc_chk_point, 
-    dump_tensor, 
-    printf, 
-    print_time_stamp, 
-    metrics_prof_start, 
+    dump_acc_chk_point,
+    dump_tensor,
+    printf,
+    print_time_stamp,
+    metrics_prof_start,
     metrics_prof_stop,
 )
 from .basic.fixpipe import (
@@ -78,7 +77,7 @@ from .basic.mm import (
 )
 from .basic.scalar import (
     count_bits_cnt_same_as_sign_bit,
-    scalar_cast, 
+    scalar_cast,
     scalar_count_leading_zero,
     scalar_get_count_of_value,
     scalar_get_sff_value,
@@ -148,18 +147,18 @@ from .basic.proposal import (
     sort,
 )
 from .basic.vec_reduce import (
-    block_reduce_sum, 
+    block_reduce_sum,
     block_reduce_max,
     block_reduce_min,
     pair_reduce_sum,
-    reduce_max, 
+    reduce_max,
     reduce_min,
     reduce_sum,
     repeat_reduce_sum,
     whole_reduce_max,
     whole_reduce_min,
     whole_reduce_sum,
-)   
+)
 from .basic.vec_scatter import scatter
 from .basic.vec_ternary_scalar import axpy
 from .basic.vec_unary import (
@@ -190,6 +189,7 @@ from .core.dtype import (
     int16,
     int32,
     int64,
+    bfloat16,
     float16,
     float32,
     float64,

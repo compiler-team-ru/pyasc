@@ -77,6 +77,18 @@ void CodeEmitter::emitTPosition(raw_ostream& os, ascendc::TPosition pos)
         llvm_unreachable("unexpected ascendc::TPosition value");
 }
 
+void CodeEmitter::emitCO2Layout(raw_ostream& os, ascendc::CO2Layout layout)
+{
+    if (layout == ascendc::CO2Layout::NZ)
+        os << ascNamespace << "::CO2Layout::NZ";
+    else if (layout == ascendc::CO2Layout::ROW_MAJOR)
+        os << ascNamespace << "::CO2Layout::ROW_MAJOR";
+    else if (layout == ascendc::CO2Layout::COLUMN_MAJOR)
+        os << ascNamespace << "::CO2Layout::COLUMN_MAJOR";
+    else
+        llvm_unreachable("unexpected ascendc::CO2Layout value");
+}
+
 void CodeEmitter::emitCubeFormat(raw_ostream& os, ascendc::CubeFormat format)
 {
     if (format == ascendc::CubeFormat::ND)
@@ -149,6 +161,9 @@ void CodeEmitter::createTypeEmitMapper()
     };
     emitTypeMapper[TypeID::get<ascendc::FixpipeParamsType>()] = [this](Location loc, Type type, bool flag) {
         return this->emitAscFixpipeParamsType(loc, type, flag);
+    };
+    emitTypeMapper[TypeID::get<ascendc::FixpipeParamsC310Type>()] = [this](Location loc, Type type, bool flag) {
+        return this->emitAscFixpipeParamsC310Type(loc, type, flag);
     };
     emitTypeMapper[TypeID::get<ascendc::GlobalTensorType>()] = [this](Location loc, Type type, bool flag) {
         return this->emitAscGlobalTensorType(loc, type, flag);
@@ -548,6 +563,15 @@ LogicalResult CodeEmitter::emitAscFixpipeParamsType(Location loc, Type type, boo
     os << ascNamespace << "::FixpipeParams<";
     if (failed(emitType(loc, instanceType)))
         return failure();
+    os << '>';
+    return success();
+}
+
+LogicalResult CodeEmitter::emitAscFixpipeParamsC310Type(Location loc, Type type, bool emitAsUnsigned)
+{
+    auto fpType = dyn_cast<ascendc::FixpipeParamsC310Type>(type);
+    os << ascNamespace << "::FixpipeParamsC310<";
+    emitCO2Layout(os, fpType.getCO2Layout());
     os << '>';
     return success();
 }

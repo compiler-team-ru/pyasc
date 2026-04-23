@@ -49,6 +49,15 @@ def AscendC_FixpipeParams : AscendC_Type<"FixpipeParams", "fixpipe_params"> {
   let assemblyFormat = "`<`  $type `>`";
 }
 
+def AscendC_FixpipeParamsC310 : AscendC_Type<"FixpipeParamsC310", "fixpipe_params_c310"> {
+  let description = "Represents AscendC::FixpipeParamsC310";
+  let parameters = (ins "CO2LayoutAttr":$cO2LayoutAttr);
+  let assemblyFormat = "`<`  $cO2LayoutAttr `>`";
+  let extraClassDeclaration = [{
+    CO2Layout getCO2Layout() { return getCO2LayoutAttr().getValue(); }
+  }];
+}
+
 def AscendC_GlobalTensor : AscendC_BaseTensorType<"GlobalTensor", "global_tensor"> {
   let summary = "Global tensor from GM (OUT)";
 }
