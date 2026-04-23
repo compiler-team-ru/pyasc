@@ -31,7 +31,7 @@ struct CodeEmitter {
 
     static void emitTPosition(raw_ostream& os, ascendc::TPosition pos);
 
-    static void emitCO2Layout(raw_ostream& os, ascendc::CO2Layout layout);
+    static void emitCO2Layout(raw_ostream& os, ascendc::CO2Layout pos);
 
     static void emitLayoutMode(raw_ostream& os, ascendc::LayoutMode layout);
 
@@ -166,6 +166,8 @@ private:
     LogicalResult emitAscDataCopyPadExtParamsType(Location loc, Type type, bool emitAsUnsigned);
 
     LogicalResult emitAscLocalTensorType(Location loc, Type type, bool emitAsUnsigned);
+
+    LogicalResult emitAscFixpipeParamsC310Type(Location loc, Type type, bool emitAsUnsigned);
 
     LogicalResult emitAscRegTensorType(Location loc, Type type, bool emitAsUnsigned);
 

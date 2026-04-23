@@ -202,6 +202,27 @@ LogicalResult StoreFixpipeOp::verify()
 }
 
 //===----------------------------------------------------------------------===//
+// CopyFixpipeOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult CopyFixpipeOp::canonicalize(CopyFixpipeOp op, PatternRewriter& rewriter)
+{
+    if (op->getUses().empty()) {
+        rewriter.eraseOp(op);
+        return success();
+    }
+    return failure();
+}
+
+LogicalResult CopyFixpipeOp::verify()
+{
+    if (!getQuantize() && getElementTypeOrSelf(getBase()) != getElementTypeOrSelf(getResult())) {
+        return emitOpError("failed to verify that all of {base, result} have same element type");
+    }
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
 // AscTileDialect
 //===----------------------------------------------------------------------===//
 
