@@ -379,4 +379,18 @@ def ConcatOp : AscTile_Op<"concat", [Pure, SameOperandsAndResultElementType]> {
   let hasVerifier = 1;
 }
 
+def CopyFixpipeOp : AscTile_Op<"copy_fixpipe"> {
+  let summary = "Store a tile into a tile";
+  let arguments = (ins NumericTile:$base,
+                   Variadic<I32>:$offsets, UnitAttr:$relu,
+                   UnitAttr:$quantize);
+  let results = (outs NumericTile:$result);
+  let assemblyFormat = [{
+    $base `[` $offsets `]` attr-dict `:`
+    qualified(type($base)) `,` qualified(type($result))
+  }];
+  let hasVerifier = 1;
+  let hasCanonicalizeMethod = 1;
+}
+
 #endif // ASCTILE_OPS_TD

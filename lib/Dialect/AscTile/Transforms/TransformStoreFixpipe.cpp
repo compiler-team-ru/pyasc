@@ -26,6 +26,19 @@ using namespace mlir::asctile;
 
 namespace {
 
+struct TransformCopyOp : OpRewritePattern<asctile::CopyOp> {
+    using OpRewritePattern::OpRewritePattern;
+
+    LogicalResult matchAndRewrite(asctile::CopyOp op, PatternRewriter& rewriter) const override
+    {
+        auto base = op.getBase();
+        if (base.getType().getLoc() != TileLocation::L0C)
+            return failure();
+        rewriter.replaceOpWithNewOp<asctile::CopyFixpipeOp>(op, op.getType(), base, op.getOffsets());
+        return success();
+    }
+};
+
 struct TransformStoreOp : OpRewritePattern<asctile::StoreOp> {
     using OpRewritePattern::OpRewritePattern;
 
@@ -72,13 +85,48 @@ struct TransformFixpipeCastOp : OpRewritePattern<asctile::StoreFixpipeOp> {
     }
 };
 
+struct TransformCopyFixpipeReluOp : OpRewritePattern<asctile::CopyFixpipeOp> {
+    using OpRewritePattern::OpRewritePattern;
+
+    LogicalResult matchAndRewrite(asctile::CopyFixpipeOp op, PatternRewriter& rewriter) const override
+    {
+        auto reluOp = op.getBase().getDefiningOp<asctile::ReluOp>();
+        if (!reluOp || reluOp.getType().getLoc() != TileLocation::L0C)
+            return failure();
+        auto operand = reluOp.getOperand();
+        rewriter.startOpModification(op);
+        op.getBaseMutable().assign(operand);
+        op.setRelu(true);
+        rewriter.finalizeOpModification(op);
+        return success();
+    }
+};
+
+struct TransformCopyFixpipeCastOp : OpRewritePattern<asctile::CopyFixpipeOp> {
+    using OpRewritePattern::OpRewritePattern;
+
+    LogicalResult matchAndRewrite(asctile::CopyFixpipeOp op, PatternRewriter& rewriter) const override
+    {
+        auto castOp = op.getBase().getDefiningOp<asctile::CastOp>();
+        if (!castOp || castOp.getType().getLoc() != TileLocation::L0C)
+            return failure();
+        rewriter.startOpModification(op);
+        op.getBaseMutable().assign(castOp.getIn());
+        op.setQuantize(true);
+        rewriter.finalizeOpModification(op);
+        return success();
+    }
+};
+
 struct TransformStoreFixpipePass : public asctile::impl::TransformStoreFixpipeBase<TransformStoreFixpipePass> {
     void runOnOperation() override
     {
         func::FuncOp funcOp = getOperation();
         MLIRContext* context = &getContext();
         RewritePatternSet patterns(context);
-        patterns.insert<TransformStoreOp, TransformFixpipeReluOp, TransformFixpipeCastOp>(context);
+        patterns.insert<
+            TransformCopyOp, TransformStoreOp, TransformFixpipeReluOp, TransformFixpipeCastOp,
+            TransformCopyFixpipeReluOp, TransformCopyFixpipeCastOp>(context);
         if (applyPatternsAndFoldGreedily(funcOp, std::move(patterns)).failed())
             signalPassFailure();
     }

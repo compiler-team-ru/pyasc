@@ -520,7 +520,7 @@ LogicalResult CodeEmitter::emitAscFixpipeParamsType(Location loc, Type type, boo
     return success();
 }
 
-LogicalResult CodeEmitter::emitAscFixpipeParamsC310Type(Location /*loc*/, Type type, bool /*emitAsUnsigned*/)
+LogicalResult CodeEmitter::emitAscFixpipeParamsC310Type(Location loc, Type type, bool emitAsUnsigned)
 {
     auto fpType = dyn_cast<ascendc::FixpipeParamsC310Type>(type);
     os << ascNamespace << "::FixpipeParamsC310<";
