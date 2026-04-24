@@ -42,7 +42,7 @@ General conventions for C++ files
 
 7. **Short Statements**: Single-line if/loops not allowed. Only empty blocks can be single-line. Inline functions can be single-line.
 
-8. **Spacing**: Pointers/references aligned right. Space before control statement parentheses. Space before C++11 braced lists. No space in empty parentheses, C-style casts, regular parentheses, or square brackets.
+8. **Spacing**: Pointers/references aligned left (e.g., :code:`int* ptr`). Space before control statement parentheses. Space before C++11 braced lists. No space in empty parentheses, C-style casts, regular parentheses, or square brackets.
 
 9. **Templates**: Always break before template declarations.
 
@@ -53,7 +53,7 @@ General conventions for C++ files
    - Defining macros in header files is **discouraged**, unless absolutely necessary.
    - To define a global constant, :code:`constexpr` syntax and **camelCase** naming should be used.
 
-7. **Include Ordering**:
+12. **Include Ordering**:
 
    - The order of :code:`#include` statements should follow this pattern:
 
@@ -79,9 +79,9 @@ General conventions for C++ files
         #include <unordered_map>
 
 
-8. **Anonymous Namespace**: If a class or function is defined and declared in a :code:`.cpp` file but not used elsewhere in the project, it should be placed inside an anonymous namespace. It should **not** be marked as :code:`static`.
+13. **Anonymous Namespace**: If a class or function is defined and declared in a :code:`.cpp` file but not used elsewhere in the project, it should be placed inside an anonymous namespace. It should **not** be marked as :code:`static`.
 
-9. **Template Argument Naming**:
+14. **Template Argument Naming**:
 
    - Template typename arguments should follow **PascalCase**. Example: :code:`typename AttrT`.
    - Non-type template arguments should follow **camelCase**. Example: :code:`size_t size`.

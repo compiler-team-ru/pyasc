@@ -46,9 +46,12 @@ Other options are in `docs/installation/build-from-source.rst`.
 ### C++ Code
 - Header files: `.h` extension, Implementation files: `.cpp` extension
 - Use traditional include guards (`#ifndef`, `#define`, `#endif`) - **Do not use** `#pragma once`
-- Use clang-format with `.clang-format` configuration (LLVM style, 120 char line length)
+- Use clang-format with `.clang-format` configuration (LLVM-based, 120 char line length)
 - Indentation: 4 spaces (no tabs)
-- Function definitions: opening brace on new line
+- Braces: opening brace on new line for functions, same line for classes/structs/enums/namespaces/control statements
+- Pointers/references: aligned left (e.g., `int* ptr`)
+- Short functions: can be single-line (empty bodies)
+- Short if/loops: not allowed on single line
 - Naming: classes/structs/enums `PascalCase`, variables/functions `camelCase`, macros `UPPER_SNAKE_CASE`
 - Test filenames: `kebab-case` (e.g., `my-test-case.mlir`)
 - Include ordering: local project, empty line, MLIR/LLVM/Clang, empty line, std library (all alphabetical)
