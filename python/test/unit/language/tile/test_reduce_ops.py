@@ -81,3 +81,26 @@ def test_reduce(backend, platform, require_c310, op, torch_op, shape, dtype, kee
         kernel[1](input, output, dim, shape, input_offsets, output_shape, output_offsets, op, keep_dims)
         expected = torch_op(input, dim, keepdim=keep_dims)
     torch.testing.assert_close(output, expected)
+
+
+@asc2.jit(always_compile=True)
+def reduce_tile_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, size: int, tile_size: asc.ConstExpr[int]):
+    x_gm = asc2.tensor(x_ptr, [size])
+    out_gm = asc2.tensor(out_ptr, [1])
+    tile = asc2.load(x_gm, [tile_size], offsets=[0])
+    max_val = asc2.reduce_max(tile)
+    result = asc2.full([1], max_val, dtype=tile.dtype)
+    asc2.store(result, out_gm, offsets=[0])
+
+
+@pytest.mark.parametrize("tile_size", [1, 7, 17])
+def test_reduce_partial_tile(backend, platform, tile_size):
+    torch.manual_seed(0)
+    config.set_platform(backend, platform, check=False)
+    tensor_size = 32
+    x = torch.rand(tensor_size, dtype=torch.float32) * -10.0
+    x[tile_size:] = 1000.0
+    out = torch.empty(1, dtype=torch.float32)
+    reduce_tile_kernel[1](x, out, tensor_size, tile_size=tile_size)
+    expected = torch.amax(x[:tile_size]).unsqueeze(0)
+    torch.testing.assert_close(out, expected)

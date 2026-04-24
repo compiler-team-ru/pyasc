@@ -121,7 +121,7 @@ def check_data_alignment(shape: Tuple[int, ...], dtype: DataType) -> None:
         dtype_size = dtype.sizeof()
     except ValueError:  # sizeof might be not supported
         return
-    if shape[-1] % (ir.ub_block_size // dtype_size) != 0:
+    if len(shape) > 1 and shape[-1] % (ir.ub_block_size // dtype_size) != 0:
         raise RuntimeError(f"Last dimension of tile must be aligned by {ir.ub_block_size} bytes, "
                            f"got {shape[-1]} x {dtype_size} bytes")
 
