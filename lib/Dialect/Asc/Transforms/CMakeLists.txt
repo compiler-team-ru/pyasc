@@ -15,6 +15,7 @@ add_mlir_dialect_library(MLIRAscTransforms
   DetectKernelTypePass.cpp
   EraseSync.cpp
   FillAscOperands.cpp
+  FixupMmadAccParams.cpp
   FuseBufIdSync.cpp
   FuseVFBlock.cpp
   GenerateBoilerplatePass.cpp
