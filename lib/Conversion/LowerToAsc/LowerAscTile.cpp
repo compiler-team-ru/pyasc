@@ -594,7 +594,7 @@ struct ConvertMatmulAcc : ConvertOp<asctile::MatmulAccOp> {
                               .addField("m", consts.i32(matrixATensorShape[0]))
                               .addField("n", consts.i32(matrixBTensorShape[1]))
                               .addField("k", consts.i32(matrixBTensorShape[0]))
-                              .addField("isBias", consts.i32(1))
+                              .addField("cmatrixInitVal", consts.i32(1))
                               .create(rewriter, loc);
         rewriter.create<ascendc::MmadOp>(loc, dst, matrixA, matrixB, mmadParams);
         rewriter.eraseOp(op);
