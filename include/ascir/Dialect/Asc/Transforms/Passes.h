@@ -26,6 +26,7 @@ std::unique_ptr<Pass> createDefineCubeOnlyPass();
 std::unique_ptr<Pass> createDetectKernelTypePass();
 std::unique_ptr<Pass> createEraseSyncPass();
 std::unique_ptr<Pass> createFillAscOperandsPass();
+std::unique_ptr<Pass> createFixupMmadAccParamsPass();
 std::unique_ptr<Pass> createFuseBufIdSyncPass();
 std::unique_ptr<Pass> createFuseVFBlockPass();
 std::unique_ptr<Pass> createGenerateBoilerplatePass();

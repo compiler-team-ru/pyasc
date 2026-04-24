@@ -51,6 +51,12 @@ def FillAscOperands : Pass<"ascendc-fill-asc-operands", "func::FuncOp"> {
   let constructor = "mlir::ascendc::createFillAscOperandsPass()";
 }
 
+def FixupMmadAccParams : Pass<"ascendc-fixup-mmad-acc-params", "func::FuncOp"> {
+  let summary = "Fixup mmad parameters for mmad operations with the same accumulator";
+  let constructor = "mlir::ascendc::createFixupMmadAccParamsPass()";
+  let dependentDialects = ["emitasc::EmitAscDialect", "memref::MemRefDialect"];
+}
+
 def FuseBufIdSync : Pass<"ascendc-fuse-bufid-sync", "func::FuncOp"> {
   let summary = "Erase unnecessary get_buf and rls_buf";
   let constructor = "mlir::ascendc::createFuseBufIdSyncPass()";
