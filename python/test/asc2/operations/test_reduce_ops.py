@@ -54,10 +54,10 @@ def kernel_all(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress, inpu
 
 
 @pytest.mark.parametrize("op, torch_op, shape, dtype, keep_dims, dim", tests)
-def test_reduce(backend, platform, require_c310, op, torch_op, shape, dtype, keep_dims, dim):
+def test_reduce(backend, platform, device_id, require_c310, op, torch_op, shape, dtype, keep_dims, dim):
     if dim:
         require_c310(platform)
-    config.set_platform(backend, platform, check=False)
+    config.set_platform(backend, platform, device_id, check=False)
 
     input = torch.randn(shape, dtype=dtype) * 2.0
 
@@ -94,9 +94,9 @@ def reduce_tile_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, siz
 
 
 @pytest.mark.parametrize("tile_size", [1, 7, 17])
-def test_reduce_partial_tile(backend, platform, tile_size):
+def test_reduce_partial_tile(backend, platform, device_id, tile_size):
     torch.manual_seed(0)
-    config.set_platform(backend, platform, check=False)
+    config.set_platform(backend, platform, device_id, check=False)
     tensor_size = 32
     x = torch.rand(tensor_size, dtype=torch.float32) * -10.0
     x[tile_size:] = 1000.0
