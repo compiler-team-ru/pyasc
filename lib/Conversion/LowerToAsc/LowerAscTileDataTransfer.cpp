@@ -184,17 +184,24 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
             auto padValue = rewriter.getRemappedValue(op.getPadValue());
             auto typeSize = ascendc::getElementTypeSize(dstType);
             auto numElements = calculateNumElements(rewriter, loc, srcShape);
-            Value tailElements = rewriter.create<arith::SubIOp>(loc, numElements, linearOffset);
-            Value blockCount = dstShape.size() == 1 ? const1 : consts.i32(dstShape[0]);
             Value dstLastDim = consts.i32(dstShape[dstShape.size() - 1]);
             Value srcLastDim = srcShape[srcShape.size() - 1];
-            Value strideElements = rewriter.create<arith::SubIOp>(loc, srcLastDim, dstLastDim);
-            auto typeSizeValue = consts.i32(typeSize);
-            Value srcStride = rewriter.create<arith::MulIOp>(loc, strideElements, typeSizeValue);
             Value numElementsInBlock = consts.i32(ascendc::ubBlockSize / typeSize);
-            Value totalElementsInBlock = rewriter.create<arith::MulIOp>(loc, blockCount, numElementsInBlock);
+            Value typeSizeValue = consts.i32(typeSize);
+            auto offsets = op.getOffsets();
+            Value lastDimOffset = offsets.back();
+            Value tailElementsLastDim = rewriter.create<arith::SubIOp>(loc, srcLastDim, lastDimOffset);
+            auto tailNegCond =
+                rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::slt, tailElementsLastDim, const0);
+            Value tailElements = rewriter.create<arith::SelectOp>(loc, tailNegCond, const0, tailElementsLastDim);
             Value minTailElements = rewriter.create<arith::MinSIOp>(loc, dstLastDim, tailElements);
             Value blockLen = rewriter.create<arith::MulIOp>(loc, minTailElements, typeSizeValue);
+            Value srcStrideElements = rewriter.create<arith::SubIOp>(loc, srcLastDim, minTailElements);
+            Value srcStride = rewriter.create<arith::MulIOp>(loc, srcStrideElements, typeSizeValue);
+            Value blockCount = dstShape.size() == 1 ? const1 : consts.i32(dstShape[0]);
+            auto dstNumElements = dstType.getNumElements();
+            auto divs = rewriter.create<arith::DivSIOp>(loc, consts.i32(dstNumElements), blockCount);
+            auto rightPad = rewriter.create<arith::SubIOp>(loc, divs, minTailElements);
             auto context = op.getContext();
             auto ui32Type = rewriter.getIntegerType(32, false);
             auto dataCopyExtParams = rewriter.create<ascendc::ConstructOp>(
@@ -202,8 +209,6 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
                 ValueRange{blockCount, blockLen, srcStride, const0, const0},
                 rewriter.getTypeArrayAttr(
                     {rewriter.getIntegerType(16, false), ui32Type, ui32Type, ui32Type, ui32Type}));
-            Value numPaddingElements = rewriter.create<arith::SubIOp>(loc, totalElementsInBlock, tailElements);
-            Value rightPad = rewriter.create<arith::MaxSIOp>(loc, numPaddingElements, const0);
             auto dataCopyPadExtParams = rewriter.create<ascendc::ConstructOp>(
                 loc, ascendc::DataCopyPadExtParamsType::get(context, cast<ShapedType>(dstType).getElementType()),
                 ValueRange{const1, const0, rightPad, padValue},
