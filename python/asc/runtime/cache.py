@@ -9,21 +9,38 @@
 import os
 import uuid
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Callable, Optional, Protocol
 import base64
 import hashlib
 import functools
 import sysconfig
 from dataclasses import dataclass
+import pkgutil
+
+
+class HashDriver(Protocol):
+
+    def hexdigest(self) -> str:
+        ...
+
+    def update(self, data: bytes) -> None:
+        ...
 
 
 @dataclass(frozen=True)
 class CacheOptions:
     home_dir: str = os.getenv("PYASC_HOME", os.path.expanduser("~/"))
     dir: str = os.getenv("PYASC_CACHE_DIR", os.path.join(home_dir, ".pyasc", "cache"))
+    hash_driver: Callable[[], HashDriver] = lambda: hashlib.blake2b(digest_size=16)
 
 
 cache_options = CacheOptions()
+
+
+def hexdigest(data: bytes) -> str:
+    driver = cache_options.hash_driver()
+    driver.update(data)
+    return driver.hexdigest()
 
 
 class CacheManager(ABC):
@@ -107,12 +124,11 @@ def get_cache_manager(key) -> CacheManager:
 
 @functools.lru_cache()
 def pyasc_key():
-    import pkgutil
     pyasc_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     contents = []
     # frontend
     with open(__file__, "rb") as f:
-        contents += [hashlib.sha256(f.read()).hexdigest()]
+        contents += [hexdigest(f.read())]
     # codegen and language
     path_prefixes = [
         (os.path.join(pyasc_path, "codegen"), "asc.codegen."),
@@ -121,10 +137,10 @@ def pyasc_key():
     for path, prefix in path_prefixes:
         for lib in pkgutil.walk_packages([path], prefix=prefix):
             with open(lib.module_finder.find_spec(lib.name).origin, "rb") as f:
-                contents += [hashlib.sha256(f.read()).hexdigest()]
+                contents += [hexdigest(f.read())]
 
     # backend
-    libpyasc_hash = hashlib.sha256()
+    libpyasc_hash = cache_options.hash_driver()
     ext = sysconfig.get_config_var("EXT_SUFFIX")
     with open(os.path.join(pyasc_path, "_C", f"libpyasc{ext}"), "rb") as f:
         while True:
@@ -137,14 +153,11 @@ def pyasc_key():
 
 
 @functools.lru_cache()
-def get_file_cache_key(fn_cache_key: str, cache_factors: str):
+def get_file_cache_key(fn_cache_key: str, cache_factors: str) -> str:
     key_str = f"{pyasc_key()}__{fn_cache_key}__{cache_factors}"
-    key = hashlib.sha256(key_str.encode("utf-8")).hexdigest()
-    return key
+    return hexdigest(key_str.encode("utf-8"))
 
 
 @functools.lru_cache()
-def get_mem_cache_key(cache_factors: str):
-    key_str = cache_factors
-    key = hashlib.sha256(key_str.encode("utf-8")).hexdigest()
-    return key
+def get_mem_cache_key(cache_factors: str) -> str:
+    return hexdigest(cache_factors.encode("utf-8"))
