@@ -47,7 +47,7 @@ class RuntimeInterface:
                 with open(so, "rb") as f:
                     rt_lib = cache_manager.put(f.read(), f"lib{wrapper_name}{suffix}", binary=True)
 
-        self.lib: ctypes.CDLL = ctypes.CDLL(rt_lib, ctypes.RTLD_GLOBAL)
+        self.lib: ctypes.CDLL = ctypes.CDLL(rt_lib, ctypes.RTLD_LOCAL)
         self.model_log_path: Optional[str] = None
         if is_model:
             log_path_str = "CAMODEL_LOG_PATH"

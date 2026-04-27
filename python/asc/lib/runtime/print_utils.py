@@ -67,7 +67,7 @@ class PrintInterface(object):
                 so_file = build_print_utils(PRINT_INTERFACE_NAME, src_path, tmpdir)
                 with open(so_file, "rb") as f:
                     rt_lib = cache_manager.put(f.read(), f"{PRINT_INTERFACE_NAME}.so", binary=True)
-        self.lib: ctypes.CDLL = ctypes.cdll.LoadLibrary(rt_lib)
+        self.lib: ctypes.CDLL = ctypes.CDLL(rt_lib, ctypes.RTLD_LOCAL)
 
     def call(self, *args):
         fn_name = "PrintWorkSpace"
