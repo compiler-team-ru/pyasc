@@ -12,7 +12,7 @@ def create_tensor(dtype: torch.dtype) -> torch.Tensor:
     if dtype.is_floating_point:
         return torch.rand(SIZE, dtype=dtype, device="cpu")
     if dtype.is_signed:
-        return torch.randint(-100, 100, SIZE, dtype=dtype, device="cpu")
+        return torch.randint(-100, 100, (SIZE, ), dtype=dtype, device="cpu")
 
 
 @asc2.jit(always_compile=True)
@@ -26,7 +26,7 @@ def where_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, z_ptr: asc.
     asc2.store(zt, z, offsets=[0])
 
 
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32], ids=str)  # TODO: enable int types
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32, torch.int16, torch.int32], ids=str)
 @pytest.mark.parametrize("asc_op, torch_op", [
     (asc2.equal, torch.eq),
     (asc2.not_equal, torch.ne),
@@ -36,7 +36,7 @@ def where_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, z_ptr: asc.
     (asc2.less_equal, torch.le),
 ])
 def test_where_ops(backend, platform, device_id, require_c310, asc_op, torch_op, dtype):
-    if dtype == torch.bfloat16:
+    if dtype not in (torch.float16, torch.float32):
         require_c310(platform)
     config.set_platform(backend, platform, device_id, check=False)
     x = create_tensor(dtype)
@@ -56,7 +56,7 @@ def where_scalar_kernel(x_ptr: asc.GlobalAddress, scalar, z_ptr: asc.GlobalAddre
     asc2.store(zt, z, offsets=[0])
 
 
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32], ids=str)  # TODO: enable int types
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32, torch.int16, torch.int32], ids=str)
 @pytest.mark.parametrize("asc_op, torch_op", [
     (asc2.equal, torch.eq),
     (asc2.not_equal, torch.ne),
@@ -65,12 +65,12 @@ def where_scalar_kernel(x_ptr: asc.GlobalAddress, scalar, z_ptr: asc.GlobalAddre
     (asc2.less, torch.lt),
     (asc2.less_equal, torch.le),
 ])
-def test_where_and_scalar_ops(backend, platform, device_id, require_c310, asc_op, torch_op, dtype):
-    if dtype == torch.bfloat16:
+def test_where_scalar_ops(backend, platform, device_id, require_c310, asc_op, torch_op, dtype):
+    if dtype not in (torch.float16, torch.float32):
         require_c310(platform)
     config.set_platform(backend, platform, device_id, check=False)
     x = create_tensor(dtype)
-    y = torch.tensor(0.5, dtype=dtype)
+    y = torch.tensor(0 if dtype.is_signed else 0.5, dtype=dtype)
     result = torch.zeros_like(x)
     where_scalar_kernel[1](x, y, result, asc_op)
     expected = torch.where(torch_op(x, y), torch.tensor(0, dtype=dtype), torch.tensor(1, dtype=dtype))
