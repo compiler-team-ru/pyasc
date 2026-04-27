@@ -38,8 +38,8 @@ def matmul_launch(a: torch.Tensor, b: torch.Tensor, k_tiles: int) -> torch.Tenso
 
 
 @pytest.mark.parametrize("k_tiles", [2, 4, 8])
-def test_matmul_tiled(backend: config.Backend, platform: config.Platform, k_tiles):
-    config.set_platform(backend, platform)
+def test_matmul_tiled(backend: config.Backend, platform: config.Platform, device_id: int, k_tiles):
+    config.set_platform(backend, platform, device_id)
     device = "npu" if config.Backend(backend) == config.Backend.NPU else "cpu"
     m, k, n = 64, 128, 256
     dtype = torch.float16

@@ -29,8 +29,8 @@ unary_ops = [
 
 
 @pytest.fixture(autouse=True)
-def set_platform(backend: config.Backend, platform: config.Platform):
-    config.set_platform(backend, platform, check=False)
+def set_platform(backend: config.Backend, platform: config.Platform, device_id: int):
+    config.set_platform(backend, platform, device_id, check=False)
 
 
 @asc2.jit(always_compile=True)

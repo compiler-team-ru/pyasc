@@ -7,9 +7,9 @@ import asc2
 
 
 @pytest.fixture(autouse=True)
-def set_platform(backend: config.Backend, platform: config.Platform, require_c310):
+def set_platform(backend: config.Backend, platform: config.Platform, device_id: int, require_c310):
     require_c310(platform)
-    config.set_platform(backend, platform, check=False)
+    config.set_platform(backend, platform, device_id, check=False)
 
 
 @asc2.jit(always_compile=True)

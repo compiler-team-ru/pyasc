@@ -40,8 +40,9 @@ def matmul_launch(a: torch.Tensor, b: torch.Tensor, dtype) -> torch.Tensor:
     (32, 64, 64, torch.float16, asc.float16),
     (64, 64, 64, torch.bfloat16, asc.bfloat16),
 ])
-def test_matmul_l0c_to_l1(backend: config.Backend, platform: config.Platform, m, k, n, torch_dtype, pyasc_dtype):
-    config.set_platform(backend, platform)
+def test_matmul_l0c_to_l1(backend: config.Backend, platform: config.Platform, device_id: int, m, k, n, torch_dtype,
+                          pyasc_dtype):
+    config.set_platform(backend, platform, device_id)
     torch.manual_seed(0)
     device = "npu" if config.Backend(backend) == config.Backend.NPU else "cpu"
     a = (torch.rand((m, k), dtype=torch_dtype, device=device) - .5) * 10

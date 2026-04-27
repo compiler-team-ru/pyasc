@@ -15,6 +15,7 @@ def pytest_addoption(parser: pytest.Parser):
     parser.addoption("--backend", type=config.Backend, default=config.Backend.Model, help="Runtime backend")
     parser.addoption("--platform", type=config.Platform, default=config.Platform.Ascend950PR_9599,
                      help="Runtime platform")
+    parser.addoption("--device", type=int, default=0, help="Device ID")
 
 
 @pytest.fixture
@@ -25,6 +26,11 @@ def backend(request: pytest.FixtureRequest):
 @pytest.fixture
 def platform(request: pytest.FixtureRequest):
     return request.config.getoption("--platform")
+
+
+@pytest.fixture
+def device_id(request: pytest.FixtureRequest):
+    return request.config.getoption("--device")
 
 
 def require_c310_impl(platform: config.Platform):

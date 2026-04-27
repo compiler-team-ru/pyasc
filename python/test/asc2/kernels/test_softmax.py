@@ -35,8 +35,8 @@ def softmax_launch(x: torch.Tensor) -> torch.Tensor:
     return out
 
 
-def test_softmax(backend: config.Backend, platform: config.Platform):
-    config.set_platform(backend, platform)
+def test_softmax(backend: config.Backend, platform: config.Platform, device_id: int):
+    config.set_platform(backend, platform, device_id)
     device = "npu" if config.Backend(backend) == config.Backend.NPU else "cpu"
     x = torch.rand((64, 1024), dtype=torch.float32, device=device)
     out = softmax_launch(x)
