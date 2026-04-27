@@ -133,9 +133,6 @@ class Launcher:
 
     def __init__(self, options: LaunchOptions):
         self.options = options
-        core_num = self.options.core_num
-        if core_num is not None and core_num <= 0:
-            raise ValueError("'core_num' must be positive")
 
     @staticmethod
     def is_torch_scalar(value: Any) -> bool:
@@ -215,9 +212,8 @@ class Launcher:
         combined_inputs = bytes().join(input_blobs).ljust(aligned_len, b"\0")
         chunks = [combined_inputs[i:i + 8] for i in range(0, len(combined_inputs), 8)]
         inputs = [ctypes.c_uint64(int.from_bytes(x, "little")) for x in chunks]
-        core_num = self.options.core_num or self.get_core_num()
         stream = self.options.stream or rt.current_stream()
-        rt.launch_kernel(function, core_num, inputs, stream_handle=stream)
+        rt.launch_kernel(function, self.options.core_num, inputs, stream_handle=stream)
         rt.synchronize()
         for index, arg in enumerate(memory_args):
             try:
@@ -256,14 +252,9 @@ class Launcher:
         if kernel.meta.enable_debug:
             kernel_args.append(np.zeros(utils.TOTAL_DUMP_SIZE, dtype=np.int8))
         kernel_args = self.expand_kernel_args(tuple(kernel_args))
-        if is_launched:
-            kernel_handle = None
-            function = kernel.handle
-        else:
-            kernel_handle = rt.register_device_binary_kernel(kernel.binary, rt.magic_elf_value(kernel.meta.core_type))
-            function = rt.register_function(kernel_handle, function_name, mode=0)
-            if kernel_callback is not None:
-                kernel_callback(function)
-        self.launch_kernel(function, kernel_args, kernel.meta.enable_debug, function_name)
-        if discard_handles and kernel_handle is not None:
-            rt.unregister_device_binary_kernel(kernel_handle)
+        kernel_handle = rt.register_device_binary_kernel(kernel.binary, rt.magic_elf_value(kernel.core_type))
+        function = rt.register_function(kernel_handle, function_name, mode=0)
+        if self.options.core_num <= 0:
+            raise ValueError("Core number should be large than 0")
+        self.launch_kernel(function, kernel_args, kernel.enable_debug, function_name)
+        rt.unregister_device_binary_kernel(kernel_handle)
