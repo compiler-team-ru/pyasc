@@ -26,6 +26,7 @@ from .interface import (
     destroy_stream,
     register_device_binary_kernel,
     unregister_device_binary_kernel,
+    is_device_binary_registered,
     register_function,
     malloc,
     memcpy,
@@ -82,6 +83,7 @@ __all__ = [
     "destroy_stream",
     "register_device_binary_kernel",
     "unregister_device_binary_kernel",
+    "is_device_binary_registered",
     "register_function",
     "malloc",
     "memcpy",
@@ -100,7 +102,7 @@ __all__ = [
     "npu_utils",
     "msprof_task_type",
     "get_soc_version",
-    "free_mem"
+    "free_mem",
     # from .support
     "Stream",
     "Memory",

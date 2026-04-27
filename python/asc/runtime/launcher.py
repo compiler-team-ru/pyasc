@@ -103,7 +103,6 @@ class Launcher:
 
     def __init__(self, options: LaunchOptions):
         self.options = options
-        self.msprof = MsprofLauncher(rt.is_model())
 
     @staticmethod
     def get_core_num(device_id: Optional[int] = None) -> int:
@@ -152,9 +151,9 @@ class Launcher:
         return kernel_args
 
     def launch_kernel(self, function: rt.Function, kernel_args: List[Union[np.generic, MemoryHandle]],
-                      enable_debug: bool, func_name: str, core_type: rt.CoreType) -> None:
+                      enable_debug: bool, func_name: str) -> None:
 
-        def blobs_size(inputs: List[bytes]) -> int:
+        def blobs_size(input_blobs: List[bytes]) -> int:
             return sum(len(x) for x in input_blobs)
 
         input_blobs: List[bytes] = []
@@ -180,13 +179,8 @@ class Launcher:
         combined_inputs = bytes().join(input_blobs).ljust(aligned_len, b"\0")
         chunks = [combined_inputs[i:i + 8] for i in range(0, len(combined_inputs), 8)]
         inputs = [ctypes.c_uint64(int.from_bytes(x, "little")) for x in chunks]
-
         stream = self.options.stream or rt.current_stream()
-
-        self.msprof.start()
         rt.launch_kernel(function, self.options.core_num, inputs, stream_handle=stream)
-        self.msprof.process(func_name, self.options.core_num, rt.msprof_task_type(core_type))
-
         rt.synchronize()
         for index, arg in enumerate(memory_args):
             try:
@@ -229,5 +223,5 @@ class Launcher:
         function = rt.register_function(kernel_handle, function_name, mode=0)
         if self.options.core_num <= 0:
             raise ValueError("Core number should be large than 0")
-        self.launch_kernel(function, kernel_args, kernel.enable_debug, function_name, kernel.core_type)
-        rt.free_mem()
+        self.launch_kernel(function, kernel_args, kernel.enable_debug, function_name)
+        rt.unregister_device_binary_kernel(kernel_handle)
