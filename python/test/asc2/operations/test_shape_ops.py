@@ -33,10 +33,10 @@ def local_ids(obj) -> str:
 @pytest.mark.parametrize("asc_op, torch_op, args, shape, dtype", [(asc_op, torch_op, args, shape, d)
                                                                   for asc_op, torch_op, args, shape, dtypes in shape_ops
                                                                   for d in dtypes], ids=local_ids)
-def test_shape_op(backend, platform, require_c310, asc_op, torch_op, args, shape, dtype: torch.dtype):
+def test_shape_op(backend, platform, device_id, require_c310, asc_op, torch_op, args, shape, dtype: torch.dtype):
     if asc_op is asc2.broadcast_to:
         require_c310(platform)
-    config.set_platform(backend, platform, check=False)
+    config.set_platform(backend, platform, device_id, check=False)
 
     def create_input(tensor_shape):
         if dtype.is_floating_point:
@@ -60,8 +60,8 @@ def test_shape_op(backend, platform, require_c310, asc_op, torch_op, args, shape
 
 @pytest.mark.parametrize("shape", ([32], [3, 32]), ids=str)
 @pytest.mark.parametrize("dtype", (torch.float16, torch.float32, torch.int16, torch.int32), ids=str)
-def test_broadcast_dup(backend, platform, shape, dtype):
-    config.set_platform(backend, platform, check=False)
+def test_broadcast_dup(backend, platform, device_id, shape, dtype):
+    config.set_platform(backend, platform, device_id, check=False)
 
     @asc2.jit(always_compile=True)
     def kernel(out_ptr, shape: asc.ConstExpr, offsets: asc.ConstExpr):

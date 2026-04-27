@@ -80,9 +80,9 @@ def matmul_launch(a: torch.Tensor, b: torch.Tensor, core_num: int, m_tile: int, 
     (32, 16, 32, 4, 16, 16, 1),
     (480, 224, 1344, 30, 48, 32, 7),
 ])
-def test_matmul_mnblock(backend: config.Backend, platform: config.Platform, m: int, k: int, n: int, core_num: int,
-                        m_tile: int, n_tile: int, n_tiles_per_block: int):
-    config.set_platform(backend, platform)
+def test_matmul_mnblock(backend: config.Backend, platform: config.Platform, device_id: int, m: int, k: int, n: int,
+                        core_num: int, m_tile: int, n_tile: int, n_tiles_per_block: int):
+    config.set_platform(backend, platform, device_id)
     device = "npu" if config.Backend(backend) == config.Backend.NPU else "cpu"
     dtype = torch.float16
     a = torch.rand((m, k), dtype=dtype, device=device)

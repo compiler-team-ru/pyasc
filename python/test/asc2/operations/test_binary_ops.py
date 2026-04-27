@@ -46,10 +46,10 @@ def local_ids(obj) -> str:
                                                           for asc_op, torch_op, fmts, dtypes in binary_ops
                                                           for f in fmts
                                                           for d in dtypes], ids=local_ids)
-def test_binary_operations(backend, platform, require_c310, asc_op, torch_op, fmt, dtype):
+def test_binary_operations(backend, platform, device_id, require_c310, asc_op, torch_op, fmt, dtype):
     if dtype == torch.bfloat16:
         require_c310(platform)
-    config.set_platform(backend, platform, check=False)
+    config.set_platform(backend, platform, device_id, check=False)
 
     def create_input(input_dtype: torch.dtype, is_vector: bool):
         if is_vector:

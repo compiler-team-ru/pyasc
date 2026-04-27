@@ -51,8 +51,8 @@ def gelu_torch(x: torch.Tensor, approximate: bool):
 
 
 @pytest.mark.parametrize("approximate", [True, False])
-def test_gelu(backend: config.Backend, platform: config.Platform, approximate: bool):
-    config.set_platform(backend, platform)
+def test_gelu(backend: config.Backend, platform: config.Platform, device_id: int, approximate: bool):
+    config.set_platform(backend, platform, device_id)
     device = "npu" if config.Backend(backend) == config.Backend.NPU else "cpu"
     x = torch.rand((30, 1024), dtype=torch.float32, device=device)
     out = gelu_launch(x, approximate)
