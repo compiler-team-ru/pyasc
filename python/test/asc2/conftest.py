@@ -8,7 +8,20 @@
 
 import pytest
 
+from asc.lib.profiling import Profiler, task_time_median
 from asc.runtime import config
+
+
+class StubProfiler:
+
+    def profile(self, *args, **kwargs):
+        return self
+
+    def __enter__(self, *args, **kwargs):
+        pass
+
+    def __exit__(self, *args, **kwargs):
+        pass
 
 
 def pytest_addoption(parser: pytest.Parser):
@@ -16,6 +29,19 @@ def pytest_addoption(parser: pytest.Parser):
     parser.addoption("--platform", type=config.Platform, default=config.Platform.Ascend950PR_9599,
                      help="Runtime platform")
     parser.addoption("--device", type=int, default=0, help="Device ID")
+    parser.addoption("--profile", action="store_true", help="Enable NPU profiling (if available)")
+
+
+def pytest_configure(config):
+    config.profiling_results = []
+
+
+def pytest_terminal_summary(terminalreporter, config):
+    if not config.profiling_results:
+        return
+    terminalreporter.write_sep("=", "Profiling results")
+    for entry in config.profiling_results:
+        terminalreporter.write_line(f"{entry['test']}: {entry['duration']} μs")
 
 
 @pytest.fixture
@@ -41,3 +67,16 @@ def require_c310_impl(platform: config.Platform):
 @pytest.fixture
 def require_c310():
     return require_c310_impl
+
+
+@pytest.fixture
+def profiler(request, tmp_path_factory, backend):
+    if backend != config.Backend.NPU or not request.config.getoption("--profile"):
+        yield StubProfiler()
+        return
+    profiler = Profiler(str(tmp_path_factory.mktemp("profiler")))
+    yield profiler
+    request.config.profiling_results.append({
+        "test": request.node.nodeid,
+        "duration": task_time_median(profiler.last_result.tasks, skip=1),
+    })
