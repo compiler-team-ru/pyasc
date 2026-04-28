@@ -56,7 +56,7 @@ class JITFunction(Function[P, T]):
         if unknown_options:
             raise RuntimeError("The following option names are unknown: " + ", ".join(unknown_options))
         self.default_options: Dict[str, Any] = options
-        self.launch_options = self.launcher.options_cls()
+        self.launch_options = LaunchOptions()
         self.kernel_cache: Dict[str, CompiledKernel] = {}
 
     def __getitem__(self, options: Union[int, tuple]) -> Callable[P, T]:
@@ -163,37 +163,34 @@ class JITFunction(Function[P, T]):
         cache_factors = separator.join(cache_factors)
         return cache_factors
 
-    def _compile_and_cache(self, prereqs: CompilePrereqs) -> Tuple[CompiledKernel, Optional[str]]:
-        if prereqs.compile_options.always_compile:
-            kernel = self._compile_kernel(prereqs)
-            return kernel, None
-        return self._cache_kernel(prereqs)
-
-    def _compile_kernel(self, prereqs: CompilePrereqs) -> CompiledKernel:
-        mod = self._run_codegen(Specialization(prereqs.arg_types, prereqs.constexprs), prereqs.codegen_options)
-        return self._run_compiler(mod, prereqs.compile_options)
-
-    def _cache_kernel(self, prereqs: CompilePrereqs) -> Tuple[CompiledKernel, str]:
-        cache_factors = self._gen_cache_factors(prereqs)
+    def _cache_kernel(self, runtime_args, constexprs, codegen_options,
+                      compile_options) -> Tuple[CompiledKernel, Optional[str]]:
+        arg_types = {name: self.get_arg_type(value) for name, value in runtime_args.items()}
+        cache_factors = self._gen_cache_factors(arg_types, constexprs, codegen_options, compile_options)
         mem_cache_key = get_mem_cache_key(cache_factors)
         kernel = self.kernel_cache.get(mem_cache_key, None)
-        if kernel is not None:
+        enable_cache = not compile_options.always_compile
+        if enable_cache and kernel is not None:
             return kernel, mem_cache_key
+
         file_cache_key = get_file_cache_key(self.cache_key, cache_factors)
         file_cache_manager = get_cache_manager(file_cache_key)
         kernel_file_name = self.fn.__name__ + ".o"
         cached_kernel_file = file_cache_manager.get_file(kernel_file_name)
-        if cached_kernel_file is not None:
+
+        if enable_cache and cached_kernel_file is not None:
             dst = Path(cached_kernel_file)
             with open(dst, 'rb') as file:
                 kernel = pickle.load(file)
         else:
             kernel = self._compile_kernel(prereqs)
             kernel_bin = pickle.dumps(kernel)
-        if cached_kernel_file is None:
+
+        if enable_cache and cached_kernel_file is None:
             file_cache_manager.put(kernel_bin, kernel_file_name)
             self.kernel_cache[mem_cache_key] = kernel
-        return kernel, mem_cache_key
+
+        return kernel, mem_cache_key if enable_cache else None
 
     def _run_codegen(self, spec: Specialization, options: CodegenOptions) -> ir.ModuleOp:
         self.context = self.create_context()
@@ -222,6 +219,13 @@ class JITFunction(Function[P, T]):
         launcher = self.launcher(options)
         launcher.run(kernel, self.fn.__name__, runtime_args, not enable_cache, save_launched_kernel)
 
+        def save_launched_kernel(handle: rt.Function) -> None:
+            if enable_cache:
+                self.kernel_cache[mem_cache_key] = LaunchedKernel.from_compiled(kernel, handle)
+
+        launcher = self.launcher(options)
+        launcher.run(kernel, self.fn.__name__, runtime_args, not enable_cache, save_launched_kernel)
+
     def _run(self, *args: P.args, **kwargs: P.kwargs) -> T:
         kwargs = merge_dict(self.default_options, kwargs)
         codegen_options = self.extract_kwargs(self.codegen.options_cls, kwargs)
@@ -229,9 +233,7 @@ class JITFunction(Function[P, T]):
         call_args = inspect.signature(self.fn).bind(*args, **kwargs).arguments
         annotations = get_annotations(self.fn)
         runtime_args, constexprs = self.split_args(call_args, annotations)
-        arg_types = {name: self.get_arg_type(value) for name, value in runtime_args.items()}
-        prereqs = CompilePrereqs(arg_types, constexprs, codegen_options, compile_options)
-        kernel, mem_cache_key = self._compile_and_cache(prereqs)
+        kernel, mem_cache_key = self._cache_kernel(runtime_args, constexprs, codegen_options, compile_options)
         self._run_launcher(kernel, self.launch_options, tuple(runtime_args.values()), mem_cache_key)
 
 
