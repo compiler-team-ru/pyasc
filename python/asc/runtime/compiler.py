@@ -91,16 +91,18 @@ class CompileOptions:
         This is an experimental feature. It might or might not cause functional or performance regressions.
     """
 
-    static_alloc: bool = False
+    static_alloc: Optional[bool] = None
     """
     Perform static allocation for tiles instead of relying on Ascend C TPipe backend.
     The static allocation feature may help to reduce an overhead caused by scalar code.
+
+    **This feature is enabled by default** on supported platforms (such as :code:`Ascend950PR_9599`).
     """
 
     vf_fusion: bool = False
     """
-    Perform the merging of vector blocks.
-    The function can eliminate unnecessary memory accesses and improve data locality.
+    Fuse groups of consecutive vector operations into VF blocks using Ascend C MicroAPI.
+    This feature may help to eliminate unnecessary memory transfers and improve data locality.
     """
 
 
@@ -139,6 +141,8 @@ class Compiler:
             raise RuntimeError("Please check input compile option")
         self.dump_dir: Optional[Path] = None
         self.arch = platform_to_arch(self.soc_version)
+        if self.options.static_alloc is None:
+            self.options.static_alloc = self.arch == CompilationArch.C310
         dump_dir = os.environ.get("PYASC_DUMP_PATH", None)
         if dump_dir is not None:
             try:
