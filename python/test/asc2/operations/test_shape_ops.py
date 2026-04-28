@@ -16,14 +16,6 @@ shape_ops = [
 ]
 
 
-@asc2.jit(always_compile=True)
-def kernel(x_ptr: asc.GlobalAddress, z_ptr: asc.GlobalAddress, input_shape: asc.ConstExpr, output_shape: asc.ConstExpr,
-           in_offsets: asc.ConstExpr, out_offsets: asc.ConstExpr, op: asc.ConstExpr, op_param: asc.ConstExpr) -> None:
-    xt = asc2.load(asc2.tensor(x_ptr, input_shape), input_shape, offsets=in_offsets)
-    zt = op(xt, *op_param)
-    asc2.store(zt, asc2.tensor(z_ptr, output_shape), offsets=out_offsets)
-
-
 def local_ids(obj) -> str:
     if callable(obj):
         return obj.__name__
@@ -54,6 +46,15 @@ def test_shape_op(backend, platform, device_id, require_c310, asc_op, torch_op, 
     z = create_input(ref_z.shape)
     in_offsets = (0, ) * len(x.shape)
     out_offsets = (0, ) * len(ref_z.shape)
+    static_alloc = False if asc_op is asc2.broadcast_to else None
+
+    @asc2.jit(always_compile=True, static_alloc=static_alloc)
+    def kernel(x_ptr, z_ptr, input_shape: asc.ConstExpr, output_shape: asc.ConstExpr, in_offsets: asc.ConstExpr,
+               out_offsets: asc.ConstExpr, op: asc.ConstExpr, op_param: asc.ConstExpr) -> None:
+        xt = asc2.load(asc2.tensor(x_ptr, input_shape), input_shape, offsets=in_offsets)
+        zt = op(xt, *op_param)
+        asc2.store(zt, asc2.tensor(z_ptr, output_shape), offsets=out_offsets)
+
     kernel[1](x, z, x.shape, ref_z.shape, in_offsets, out_offsets, asc_op, args)
     torch.testing.assert_close(z, ref_z, atol=1e-3, rtol=1e-3)
 
