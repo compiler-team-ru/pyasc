@@ -269,6 +269,7 @@ packages = [
     "asc/language/tile",
     "asc/lib",
     "asc/lib/host",
+    "asc/lib/profiling",
     "asc/lib/runtime",
     "asc/runtime",
     "asc2",
