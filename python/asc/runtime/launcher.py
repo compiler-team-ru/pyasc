@@ -9,7 +9,8 @@
 import os
 import ctypes
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing_extensions import TypeAlias
 
 import numpy as np
 
@@ -17,9 +18,11 @@ from . import utils
 from .._C import ir
 from ..language.core.struct import Struct
 from ..lib import runtime as rt
-from .compiler import CompiledKernel
 from .config import Platform
+from .kernel_meta import CompiledKernel, LaunchedKernel
 from .memory_handle import MemoryHandle, resolve_memory_handle
+
+KernelCallback: TypeAlias = Callable[[rt.Function], None]
 
 
 class MsprofLauncher(object):
@@ -198,9 +201,10 @@ class Launcher:
             raise RuntimeError(f"UB overflow: {cls.get_ub_capacity()} is available, {ub_consumed} is used.")
         # TODO: check other memory realms
 
-    def run(self, kernel: CompiledKernel, function_name: str, user_args: Tuple[Any]) -> None:
-        if kernel.memory_consumed is not None:
-            self.check_memory_overflow(kernel.memory_consumed)
+    def run(self, kernel: CompiledKernel, function_name: str, user_args: Tuple[Any], discard_handles: bool = True,
+            kernel_callback: Optional[KernelCallback] = None) -> None:
+        if kernel.meta.memory_consumed is not None:
+            self.check_memory_overflow(kernel.meta.memory_consumed)
         dry_run = os.environ.get('DRY_RUN')
         if dry_run:
             return
@@ -208,7 +212,7 @@ class Launcher:
             raise RuntimeError("Compiled binary is required to launch the kernel")
         explicit_arg = iter(user_args)
         kernel_args = []
-        for kind in kernel.kernel_args:
+        for kind in kernel.meta.kernel_args:
             if kind == ir.KernelArgument.Explicit:
                 kernel_args.append(next(explicit_arg))
             elif kind == ir.KernelArgument.FftsAddr:
@@ -216,12 +220,19 @@ class Launcher:
                 kernel_args.append(ffts_addr)
             else:
                 raise ValueError(f"Unexpected KernelArgument value: {kind}")
-        if kernel.enable_debug:
+        if kernel.meta.enable_debug:
             kernel_args.append(np.zeros(utils.TOTAL_DUMP_SIZE, dtype=np.int8))
         kernel_args = self.expand_kernel_args(tuple(kernel_args))
-        kernel_handle = rt.register_device_binary_kernel(kernel.binary, rt.magic_elf_value(kernel.core_type))
-        function = rt.register_function(kernel_handle, function_name, mode=0)
+        if isinstance(kernel, LaunchedKernel):
+            kernel_handle = None
+            function = kernel.handle
+        else:
+            kernel_handle = rt.register_device_binary_kernel(kernel.binary, rt.magic_elf_value(kernel.meta.core_type))
+            function = rt.register_function(kernel_handle, function_name, mode=0)
+            if kernel_callback is not None:
+                kernel_callback(function)
         if self.options.core_num <= 0:
             raise ValueError("Core number should be large than 0")
-        self.launch_kernel(function, kernel_args, kernel.enable_debug, function_name)
-        rt.unregister_device_binary_kernel(kernel_handle)
+        self.launch_kernel(function, kernel_args, kernel.meta.enable_debug, function_name)
+        if discard_handles and kernel_handle is not None:
+            rt.unregister_device_binary_kernel(kernel_handle)

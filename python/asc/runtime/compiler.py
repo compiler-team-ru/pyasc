@@ -14,12 +14,13 @@ import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, final
+from typing import List, Optional, Tuple, final
 
 from .._C import ir, passes, translation
 from ..lib.runtime import CoreType, get_soc_version
 from ..lib.utils import get_ascend_path
 from .config import CompilationArch, KernelType, platform_to_arch
+from .kernel_meta import CompiledKernel, KernelMeta
 from . import utils
 
 
@@ -127,15 +128,6 @@ class CompilationTarget:
             else:
                 return CompilationTarget(common_arch="dav-%s-cube" % arch, common_options=common_option)
         raise RuntimeError(f"Compilation is not supported for {arch.value} platform")
-
-
-@dataclass(frozen=True)
-class CompiledKernel:
-    binary: Optional[bytes] = None
-    core_type: CoreType = CoreType.VectorCore
-    kernel_args: Optional[Tuple[ir.KernelArgument]] = None
-    enable_debug: bool = False
-    memory_consumed: Optional[Dict[str, int]] = None
 
 
 class Compiler:
@@ -321,7 +313,7 @@ class Compiler:
                 core_type = CoreType.VectorCore
             else:
                 core_type = CoreType.CubeCore
-            return CompiledKernel(dst.read_bytes(), core_type, kernel_args, **compiled_kernel_args)
+            return CompiledKernel(dst.read_bytes(), KernelMeta(core_type, kernel_args, **compiled_kernel_args))
 
     def _check_compile_options(self) -> bool:
         is_soc_version_valid = self.soc_version.value.startswith("Ascend910B") or \
