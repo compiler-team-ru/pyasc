@@ -33,14 +33,15 @@ class ProfilingResult:
 def task_time_median(tasks: Iterable[ProfilingTask], name: Optional[str] = None, skip: int = 0) -> float:
     values = []
     for task in tasks:
+        if task.type not in task_types:
+            continue
         if name is None:
             name = task.name
         elif task.name != name:
             continue
-        if task.type in task_types:
-            values.append(task.duration)
+        values.append(task.duration)
     if len(values) == 0:
-        raise RuntimeError(f"There is no timings for task '{name}'")
+        raise RuntimeError(f"There is no timings for task {name!r}")
     if len(values) > skip:
         values = values[skip:]
     return np.round(np.median(np.array(values, dtype=np.float64)), 3).item()
