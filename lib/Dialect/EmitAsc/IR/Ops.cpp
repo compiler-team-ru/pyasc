@@ -9,6 +9,7 @@
  */
 
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
+#include "ascir/Target/Asc/Common.h"
 
 #include "mlir/Dialect/Utils/StaticValueUtils.h"
 #include "mlir/IR/Builders.h"
@@ -148,6 +149,34 @@ OpFoldResult VariableOp::getInit(bool fold)
     auto staticInit = getStaticInit();
     assert(staticInit.has_value() && "either static or dynamic init must exist");
     return staticInit.value();
+}
+
+LogicalResult VariableOp::canonicalize(VariableOp op, PatternRewriter& rewriter)
+{
+    if (op->getUses().empty()) {
+        rewriter.eraseOp(op);
+        return success();
+    }
+    return failure();
+}
+
+//===----------------------------------------------------------------------===//
+// VFGroupOp
+//===----------------------------------------------------------------------===//
+
+Type VFGroupOp::getGroupType()
+{
+    Value tensor{};
+    if (auto dstList = getDstList(); !dstList.empty()) {
+        tensor = dstList.back();
+    } else if (auto srcList = getSrcList(); !srcList.empty()) {
+        tensor = srcList.back();
+    } else {
+        return Type{};
+    }
+    auto tensorType = dyn_cast<ascendc::LocalTensorType>(tensor.getType());
+    assert(tensorType && "expected local tensor");
+    return tensorType.getElementType();
 }
 
 //===----------------------------------------------------------------------===//

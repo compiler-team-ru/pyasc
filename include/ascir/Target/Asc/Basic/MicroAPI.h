@@ -36,15 +36,15 @@ printOperation(CodeEmitter& emitter, BinaryMicroOp op)
 }
 
 //===----------------------------------------------------------------------===//
-// Unary MicroAPI operations
+// Unary, Reduction and Duplicate MicroAPI operations
 //===----------------------------------------------------------------------===//
 
-template <typename UnaryMicroOp>
+template <typename MicroOp>
 LogicalResultForT<
-    UnaryMicroOp, ascendc::AbsMicroOp, ascendc::ExpMicroOp, ascendc::LnMicroOp, ascendc::LogMicroOp,
-    ascendc::Log10MicroOp, ascendc::MaskNotMicroOp, ascendc::NegMicroOp, ascendc::NotMicroOp, ascendc::ReluMicroOp,
-    ascendc::SqrtMicroOp>
-printOperation(CodeEmitter& emitter, UnaryMicroOp op)
+    MicroOp, ascendc::AbsMicroOp, ascendc::ExpMicroOp, ascendc::LnMicroOp, ascendc::LogMicroOp, ascendc::Log10MicroOp,
+    ascendc::MaskNotMicroOp, ascendc::NegMicroOp, ascendc::NotMicroOp, ascendc::ReluMicroOp, ascendc::SqrtMicroOp,
+    ascendc::ReduceMaxMicroOp, ascendc::ReduceMinMicroOp, ascendc::ReduceSumMicroOp, ascendc::DuplicateMicroOp>
+printOperation(CodeEmitter& emitter, MicroOp op)
 {
     auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDstReg()) << ", "
@@ -64,7 +64,11 @@ LogicalResult printOperation(CodeEmitter& emitter, ascendc::UpdateMaskOp op);
 
 LogicalResult printOperation(CodeEmitter& emitter, ascendc::RegTensorOp op);
 
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::DuplicateScalarMicroOp op);
+
 LogicalResult printOperation(CodeEmitter& emitter, ascendc::GetVecLenOp op);
+
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::CreateMaskOp op);
 
 } // namespace ascendc
 } // namespace mlir

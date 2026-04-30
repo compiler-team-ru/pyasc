@@ -343,6 +343,27 @@ def AscendC_MatmulConfigAttr : AscendC_Attr<"MatmulConfig", "matmul_config">{
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
+def AscendC_MaskPattern : I32EnumAttr<"MaskPattern", "", [
+  I32EnumAttrCase<"ALL", 0>,
+  I32EnumAttrCase<"VL1", 1>,
+  I32EnumAttrCase<"VL2", 2>,
+  I32EnumAttrCase<"VL3", 3>,
+  I32EnumAttrCase<"VL4", 4>,
+  I32EnumAttrCase<"VL8", 5>,
+  I32EnumAttrCase<"VL16", 6>,
+  I32EnumAttrCase<"VL32", 7>,
+  I32EnumAttrCase<"VL64", 8>,
+  I32EnumAttrCase<"VL128", 9>,
+  I32EnumAttrCase<"M3", 10>,
+  I32EnumAttrCase<"M4", 11>,
+  I32EnumAttrCase<"H", 12>,
+  I32EnumAttrCase<"Q", 13>,
+  I32EnumAttrCase<"ALLF", 15>,
+]>{
+  let cppNamespace = "::mlir::ascendc";
+  let description = "Represents AscendC::MicroAPI::MaskPattern";
+  let underlyingType = "uint8_t";
+}
 
 def AscendC_MatmulPolicyAttr : I32EnumAttr<"MatmulPolicy", "", [
   I32EnumAttrCase<"MatmulPolicy", 0>,
