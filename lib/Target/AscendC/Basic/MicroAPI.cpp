@@ -50,10 +50,29 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::RegTe
     return success();
 }
 
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::DuplicateScalarMicroOp op)
+{
+    auto& os = emitter.ostream();
+    os << "Duplicate" << "(" << emitter.getOrCreateName(op.getDstReg()) << ", "
+       << emitter.getOrCreateName(op.getScalar()) << ")";
+    return success();
+}
+
 LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GetVecLenOp op)
 {
     FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
     auto& os = emitter.ostream();
     os << " = " << ascNamespace << "::" << op.getAPIName() << "()";
+    return success();
+}
+
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::CreateMaskOp op)
+{
+    auto& os = emitter.ostream();
+    auto result = op.getResult();
+    FAIL_OR(emitter.emitType(op.getLoc(), result.getType()));
+    os << " " << emitter.getOrCreateName(result) << " = " << ascNamespace << "::" << op.getAPIName() << "<";
+    FAIL_OR(emitter.emitType(op.getLoc(), op.getDtype()));
+    os << ", " << ascNamespace << "::MicroAPI::MaskPattern::" << ascendc::stringifyEnum(op.getMask()) << ">()";
     return success();
 }

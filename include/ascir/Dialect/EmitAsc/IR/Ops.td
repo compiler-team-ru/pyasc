@@ -210,10 +210,12 @@ def EmitAsc_VFGroupOp
     : EmitAsc_Op<"vf_group",
                  [SingleBlockImplicitTerminator<"::mlir::emitasc::YieldOp">, AttrSizedOperandSegments]> {
   let summary = "block with fused operations";
-  let arguments = (ins Variadic<AnyType>:$dstList,
-                       Variadic<AnyType>:$srcList);
+  let arguments = (ins Variadic<AnyType>:$dstList, Variadic<AnyType>:$srcList, AnyType:$calCount);
   let regions = (region SizedRegion<1> : $region);
   let assemblyFormat = "operands `:` qualified(type(operands)) $region attr-dict";
+  let extraClassDeclaration = [{
+    Type getGroupType();
+  }];
 }
 
 def EmitAsc_VecScopeOp
@@ -221,6 +223,18 @@ def EmitAsc_VecScopeOp
                  [SingleBlockImplicitTerminator<"::mlir::emitasc::YieldOp">]> {
   let regions = (region SizedRegion<1> : $region);
   let assemblyFormat = "$region attr-dict";
+}
+
+def EmitAsc_LoadMicroOp : EmitAsc_Op<"load_micro"> {
+  let description = "abstraction for load RegTensor from LocalTensor";
+  let arguments = (ins AnyType:$dstReg, AnyType:$srcTensor);
+  let assemblyFormat = "operands attr-dict `:` type(operands)";
+}
+
+def EmitAsc_StoreMicroOp : EmitAsc_Op<"store_micro"> {
+  let description = "abstraction for store RegTensor to LocalTensor";
+  let arguments = (ins AnyType:$dstTensor, AnyType:$srcReg, AnyType:$mask);
+  let assemblyFormat = "operands attr-dict `:` type(operands)";
 }
 
 def EmitAsc_YieldOp : EmitAsc_Op<"yield", [Terminator]> {

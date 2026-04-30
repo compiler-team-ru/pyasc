@@ -74,8 +74,11 @@ LogicalResult printOperation(CodeEmitter& emitter, ModuleOp moduleOp)
 LogicalResult printOperation(CodeEmitter&, ascendc::NoOp) { return success(); }
 
 using PrintableOpTypes = std::tuple<
+    ascendc::CreateMaskOp, ascendc::ReduceMaxMicroOp, ascendc::ReduceMinMicroOp, ascendc::ReduceSumMicroOp,
+    ascendc::DuplicateMicroOp,
     // MicroAPI operations
     ascendc::DataCopyStoreOp, ascendc::DataCopyLoadOp, ascendc::UpdateMaskOp, ascendc::RegTensorOp,
+    ascendc::DuplicateScalarMicroOp,
     // Binary MicroAPI operations
     ascendc::AddMicroOp, ascendc::AndMicroOp, ascendc::DivMicroOp, ascendc::FusedAbsSubMicroOp,
     ascendc::FusedExpSubMicroOp, ascendc::FusedMulDstAddMicroOp, ascendc::SubMicroOp, ascendc::MaxMicroOp,
