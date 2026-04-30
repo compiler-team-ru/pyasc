@@ -15,6 +15,7 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Dominance.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
 
 namespace mlir {
@@ -45,8 +46,21 @@ void appendImplicitUsers(Operation* op, SmallVectorImpl<Operation*>& allUsers)
     }
 }
 
+DenseSet<scf::ForOp> collectNearestForOps(TensorOp tensorOp)
+{
+    DenseSet<scf::ForOp> forOps;
+    SmallVector<Operation*> users(tensorOp->getUsers());
+    appendImplicitUsers(tensorOp, users);
+    for (Operation* user : users) {
+        auto forOp = user->getParentOfType<scf::ForOp>();
+        if (forOp)
+            forOps.insert(forOp);
+    }
+    return forOps;
+}
+
 template <TargetUser target>
-Operation* findUser(Operation* tensorOp)
+Operation* findUser(Operation* tensorOp, DominanceInfo& di)
 {
     if (tensorOp->getUsers().empty())
         return nullptr;
@@ -56,11 +70,28 @@ Operation* findUser(Operation* tensorOp)
     SmallVector<Operation*> users(tensorOp->getUsers());
     appendImplicitUsers(tensorOp, users);
 
-    Block* block = tensorOp->getBlock();
-    llvm::sort(users, [&](Operation* lhs, Operation* rhs) {
-        auto* leftOp = block->findAncestorOpInBlock(*lhs);
-        auto* rightOp = block->findAncestorOpInBlock(*rhs);
-        return leftOp->isBeforeInBlock(rightOp);
+    llvm::stable_sort(users, [&](Operation* lhs, Operation* rhs) {
+        Block* lhsBlk = lhs->getBlock();
+        Block* rhsBlk = rhs->getBlock();
+        if (lhsBlk == rhsBlk)
+            return lhs->isBeforeInBlock(rhs);
+        Block* dtr = di.findNearestCommonDominator(lhsBlk, rhsBlk);
+        Operation* lhsAnc = dtr->findAncestorOpInBlock(*lhs);
+        Operation* rhsAnc = dtr->findAncestorOpInBlock(*rhs);
+        if (lhsAnc == rhsAnc) {
+            Region* lhsRegion = lhsBlk->getParent();
+            Region* rhsRegion = rhsBlk->getParent();
+            if (lhsRegion != rhsRegion)
+                return lhsRegion->getRegionNumber() < rhsRegion->getRegionNumber();
+            for (Block& block : *lhsRegion) {
+                if (&block == lhsBlk)
+                    return true;
+                if (&block == rhsBlk)
+                    return false;
+            }
+            return false;
+        }
+        return lhsAnc->isBeforeInBlock(rhsAnc);
     });
 
     if constexpr (target == TargetUser::FirstUser)
@@ -81,21 +112,33 @@ struct ReuseUBAllocationPass : public ascendc::impl::ReuseUBAllocationBase<Reuse
 
     bool reusable(TensorOp op) const
     {
-        return (reuseInOut || !op.getInput() && !op.getOutput()) && op.getPosition() == ascendc::TPosition::VECCALC &&
-               op.getType().hasStaticShape();
+        return op.getPosition() == ascendc::TPosition::VECCALC && op.getType().hasStaticShape();
     }
 
-    static bool testOnReuse(TensorOp bottomTensor, TensorOp topTensor, Block* commonBlock)
+    bool testOnReuse(TensorOp bottomTensor, TensorOp topTensor, Block* block, DominanceInfo& di) const
     {
-        auto* last = findUser<TargetUser::LastUser>(topTensor);
-        auto* first = findUser<TargetUser::FirstUser>(bottomTensor);
+        if (!reuseInOut) {
+            bool bottomIsInOut = bottomTensor.getInput() || bottomTensor.getOutput();
+            bool topIsInOut = topTensor.getInput() || topTensor.getOutput();
+            if (bottomIsInOut && topIsInOut) {
+                auto bottomForOps = collectNearestForOps(bottomTensor);
+                auto topForOps = collectNearestForOps(topTensor);
+                for (scf::ForOp forOp : bottomForOps) {
+                    if (topForOps.contains(forOp))
+                        return false;
+                }
+            }
+        }
+
+        auto* last = findUser<TargetUser::LastUser>(topTensor, di);
+        auto* first = findUser<TargetUser::FirstUser>(bottomTensor, di);
         auto memEffectOp = dyn_cast<MemoryEffectOpInterface>(last);
         if (!last || !first || isa<scf::YieldOp>(last) ||
             (isa<CastOpInterface>(last) &&
              ((memEffectOp && !memEffectOp.hasEffect<MemoryEffects::Allocate>()) || !memEffectOp)))
             return false;
-        auto* firstUser = commonBlock->findAncestorOpInBlock(*first);
-        auto* lastUser = commonBlock->findAncestorOpInBlock(*last);
+        auto* firstUser = block->findAncestorOpInBlock(*first);
+        auto* lastUser = block->findAncestorOpInBlock(*last);
         if (lastUser == firstUser && bottomTensor.getType().getElementType() == topTensor.getType().getElementType()) {
             auto isTensorInDiffRegions = [&](Region& r1, Region& r2) {
                 return (r1.isAncestor(bottomTensor->getParentRegion()) &&
@@ -114,12 +157,12 @@ struct ReuseUBAllocationPass : public ascendc::impl::ReuseUBAllocationBase<Reuse
     }
 
     template <typename CastOp>
-    void reuse(SmallVectorImpl<TensorOp>& tensorOpList, Block* block)
+    void reuse(SmallVectorImpl<TensorOp>& tensorOpList, Block* block, DominanceInfo& di)
     {
         while (tensorOpList.size() > 1) {
             TensorOp topTensorOp = tensorOpList.pop_back_val();
             for (auto& tensorOp : llvm::reverse(tensorOpList)) {
-                if (!reusable(tensorOp) || !reusable(topTensorOp) || !testOnReuse(tensorOp, topTensorOp, block))
+                if (!reusable(tensorOp) || !reusable(topTensorOp) || !testOnReuse(tensorOp, topTensorOp, block, di))
                     continue;
                 if (tensorOp->getBlock() != topTensorOp->getBlock()) {
                     constexpr bool reuseGreedily = true;
@@ -156,11 +199,12 @@ struct ReuseUBAllocationPass : public ascendc::impl::ReuseUBAllocationBase<Reuse
     void runOnOperation() override
     {
         func::FuncOp funcOp = getOperation();
+        DominanceInfo& di = getAnalysis<DominanceInfo>();
         funcOp.walk([&](Block* block) {
             SmallVector<TensorOp> tensorOpList;
             DenseMap<TensorOp, Operation*> lastUserMap;
             block->walk<WalkOrder::PreOrder>([&](TensorOp tensor) {
-                auto* lastUser = findUser<TargetUser::LastUser>(tensor);
+                auto* lastUser = findUser<TargetUser::LastUser>(tensor, di);
                 if (!lastUser)
                     return;
                 lastUserMap[tensor] = lastUser;
@@ -185,8 +229,8 @@ struct ReuseUBAllocationPass : public ascendc::impl::ReuseUBAllocationBase<Reuse
                 else if (isa<scf::IfOp>(lastUser))
                     lastUserInIfOpList.push_back(tensorOp);
             }
-            reuse<ascendc::LocalTensorReinterpretCastOp>(lastUserInWhileOpList, block);
-            reuse<ascendc::LocalTensorReinterpretCastOp>(lastUserInIfOpList, block);
+            reuse<ascendc::LocalTensorReinterpretCastOp>(lastUserInWhileOpList, block, di);
+            reuse<ascendc::LocalTensorReinterpretCastOp>(lastUserInIfOpList, block, di);
 
             SmallVector<TensorOp> usedTensorOpList;
             for (auto& tensorOp : tensorOpList) {
@@ -194,7 +238,7 @@ struct ReuseUBAllocationPass : public ascendc::impl::ReuseUBAllocationBase<Reuse
                     usedTensorOpList.push_back(tensorOp);
             }
 
-            reuse<ascendc::LocalTensorReinterpretCastOp>(usedTensorOpList, block);
+            reuse<ascendc::LocalTensorReinterpretCastOp>(usedTensorOpList, block, di);
             block->walk([](TensorOp op) {
                 if (op->hasAttr(eraseMeAttr))
                     op.erase();
