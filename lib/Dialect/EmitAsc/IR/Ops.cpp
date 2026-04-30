@@ -9,7 +9,7 @@
  */
 
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
-#include "ascir/Dialect/Utils/Utils.h"
+#include "ascir/Target/Asc/Common.h"
 
 #include "mlir/Dialect/Utils/StaticValueUtils.h"
 #include "mlir/IR/Builders.h"
@@ -200,6 +200,25 @@ SmallVector<Region*> VFForOp::getLoopRegions()
     SmallVector<Region*> regions;
     regions.push_back(&getRegion());
     return regions;
+}
+
+//===----------------------------------------------------------------------===//
+// VFGroupOp
+//===----------------------------------------------------------------------===//
+
+Type VFGroupOp::getGroupType()
+{
+    Value tensor{};
+    if (auto dstList = getDstList(); !dstList.empty()) {
+        tensor = dstList.back();
+    } else if (auto srcList = getSrcList(); !srcList.empty()) {
+        tensor = srcList.back();
+    } else {
+        return Type{};
+    }
+    auto tensorType = dyn_cast<ascendc::LocalTensorType>(tensor.getType());
+    assert(tensorType && "expected local tensor");
+    return tensorType.getElementType();
 }
 
 //===----------------------------------------------------------------------===//

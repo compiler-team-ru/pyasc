@@ -55,6 +55,31 @@ def ReluMicroOp : UnaryMicroOp<"relu", "Relu">;
 def SqrtMicroOp : UnaryMicroOp<"sqrt", "Sqrt">;
 
 //===----------------------------------------------------------------------===//
+// Reduce MicroAPI operations
+//===----------------------------------------------------------------------===//
+
+def ReduceMaxMicroOp : MicroAPIOp<"reduce_max_micro", "ReduceMax"> {
+  let arguments = (ins AscendC_RegTensor:$dstReg, AscendC_RegTensor:$srcReg, AscendC_MaskReg:$maskReg);
+}
+
+def ReduceSumMicroOp : MicroAPIOp<"reduce_sum_micro", "ReduceSum"> {
+  let arguments = (ins AscendC_RegTensor:$dstReg, AscendC_RegTensor:$srcReg, AscendC_MaskReg:$maskReg);
+}
+
+def ReduceMinMicroOp : MicroAPIOp<"reduce_min_micro", "ReduceMin"> {
+  let arguments = (ins AscendC_RegTensor:$dstReg, AscendC_RegTensor:$srcReg, AscendC_MaskReg:$maskReg);
+}
+
+def DuplicateMicroOp : MicroAPIOp<"duplicate_micro", "Duplicate"> {
+  let arguments = (ins AscendC_RegTensor:$dstReg, AscendC_RegTensor:$srcReg, AscendC_MaskReg:$maskReg);
+}
+
+def AscendC_DuplicateScalarMicroOp : AscendC_Op<"duplicate", []> {
+  let arguments = (ins AscendC_RegTensor:$dstReg, AnyType:$scalar);
+  let assemblyFormat = "$dstReg `,` $scalar attr-dict `:` type($dstReg) `,` type($scalar)";
+}
+
+//===----------------------------------------------------------------------===//
 // Other MicroAPI operations
 //===----------------------------------------------------------------------===//
 
@@ -86,6 +111,23 @@ def MicroAPI_RegTensorOp : MicroAPIOp<"reg_tensor", "RegTensor"> {
   let results = (outs AscendC_RegTensor:$result);
   let assemblyFormat = [{
     attr-dict `:` type($result)
+  }];
+}
+
+def MicroAPI_MaskRegOp : MicroAPIOp<"mask_reg", "MaskReg"> {
+  let summary = "Create RegTensor";
+  let results = (outs AscendC_MaskReg:$result);
+  let assemblyFormat = [{
+    attr-dict `:` type($result)
+  }];
+}
+
+def MicroAPI_CreateMaskOp : MicroAPIOp<"create_mask", "CreateMask", [Pure]> {
+  let summary = "Create RegTensor";
+  let arguments = (ins TypeAttr:$dtype, AscendC_MaskPattern:$mask);
+  let results = (outs AscendC_MaskReg:$result);
+  let assemblyFormat = [{
+    $dtype `,` $mask attr-dict `:` type($result)
   }];
 }
 

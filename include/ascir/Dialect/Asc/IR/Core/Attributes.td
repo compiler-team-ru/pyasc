@@ -350,7 +350,7 @@ def AscendC_MaskPattern : I32EnumAttr<"MaskPattern", "", [
   I32EnumAttrCase<"ALLF", 15>,
 ]>{
   let cppNamespace = "::mlir::ascendc";
-  let description = "Represents AscendC::Reg::MaskPattern";
+  let description = "Represents AscendC::MicroAPI::MaskPattern";
   let underlyingType = "uint8_t";
 }
 
