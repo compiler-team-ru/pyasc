@@ -14,14 +14,29 @@
 include "mlir/Pass/PassBase.td"
 
 def AllocateTensor : Pass<"ascendc-allocate-tensor", "func::FuncOp"> {
-  let summary = "Allocate tensors for LocalTensorAuto";
+  let summary = "Assign memory addresses to LocalTensorAutoOp placeholders for static UB allocation";
   let constructor = "mlir::ascendc::createAllocateTensorPass()";
   let dependentDialects = ["ascendc::AscendCDialect"];
+  let description = [{
+    Converts `LocalTensorAutoOp` placeholders to `LocalTensorV3Op` with concrete memory addresses and tile sizes.
+    This pass performs static memory allocation for on-chip buffers by assigning consecutive aligned addresses
+    to tensors based on their normalized memory position (A1/L1, A2/L0A, B2/L0B, CO1/L0C, VECCALC/UB).
+
+    Position normalization: B1→A1, VECIN/VECOUT→VECCALC. Addresses are aligned to `ubBlockSize` (256 bytes).
+    After allocation, `LocalTensorAutoOp` is replaced with `LocalTensorV3Op` containing position, address, and tile size.
+  }];
 }
 
 def ComputeMemoryConsumption : Pass<"ascendc-compute-memory-consumption", "ModuleOp"> {
-  let summary = "Compute memory consumption for kernel functions";
+  let summary = "Calculate total memory consumption per buffer location and attach to module";
   let constructor = "mlir::ascendc::createComputeMemoryConsumptionPass()";
+  let description = [{
+    Analyzes all `LocalTensorV3Op` operations and computes total memory usage for each hardware buffer location:
+    L1, L0A, L0B, L0C, and UB. The results are stored as a dictionary attribute `memoryConsumed` on the module,
+    with keys like "L1", "L0A", etc. and values in bytes.
+
+    This pass is useful for verifying that kernel memory usage stays within hardware limits.
+  }];
 }
 
 def DeclarePyStruct : Pass<"ascendc-declare-py-struct", "ModuleOp"> {
@@ -41,134 +56,11 @@ def DefineCubeOnly : Pass<"ascendc-define-cube-only", "ModuleOp"> {
   let summary = "Define ASCENDC_CUBE_ONLY macro for cube-only (matrix multiplication) kernels";
   let constructor = "mlir::ascendc::createDefineCubeOnlyPass()";
   let dependentDialects = ["emitc::EmitCDialect"];
-}
-
-def DetectKernelType : Pass<"ascendc-detect-kernel-type", "ModuleOp"> {
-  let summary = "Check whether the kernel is vector-only or mixed";
-  let constructor = "mlir::ascendc::createDetectKernelTypePass()";
-}
-
-def EraseSync : Pass<"ascendc-erase-sync", "func::FuncOp"> {
-  let summary = "Erase intra-core synchronization operations";
-  let constructor = "mlir::ascendc::createEraseSyncPass()";
-}
-
-def FillAscOperands : Pass<"ascendc-fill-asc-operands", "func::FuncOp"> {
-  let summary = "Filling AscendC operands";
-  let constructor = "mlir::ascendc::createFillAscOperandsPass()";
-}
-
-def FixupMmadAccParams : Pass<"ascendc-fixup-mmad-acc-params", "func::FuncOp"> {
-  let summary = "Fixup mmad parameters for mmad operations with the same accumulator";
-  let constructor = "mlir::ascendc::createFixupMmadAccParamsPass()";
-  let dependentDialects = ["emitasc::EmitAscDialect", "memref::MemRefDialect"];
-}
-
-def FuseBufIdSync : Pass<"ascendc-fuse-bufid-sync", "func::FuncOp"> {
-  let summary = "Erase unnecessary get_buf and rls_buf";
-  let constructor = "mlir::ascendc::createFuseBufIdSyncPass()";
-}
-
-def FuseVFBlock : Pass<"ascendc-fuse-vf-block", "func::FuncOp"> {
-  let summary = "Fuse a sequence of vector operations into VF block";
-  let constructor = "mlir::ascendc::createFuseVFBlockPass()";
-  let dependentDialects = [
-    "ascendc::AscendCDialect", "scf::SCFDialect", "emitasc::EmitAscDialect",
-  ];
-}
-
-def GenerateBoilerplate : Pass<"ascendc-generate-boilerplate", "ModuleOp"> {
-  let summary = "Insert emitc.include and additional boilerplate code";
-  let constructor = "mlir::ascendc::createGenerateBoilerplatePass()";
-  let dependentDialects = ["emitc::EmitCDialect"];
-}
-
-def HoistQueBind : Pass<"ascendc-hoist-que-bind", "func::FuncOp"> {
-  let summary = "Hoist TQueBind, TQue, TBuf initialization operations";
-  let constructor = "mlir::ascendc::createHoistQueBindPass()";
-}
-
-def HoistUBAllocation : Pass<"ascendc-hoist-ub-allocation", "func::FuncOp"> {
-  let summary = "Hoist tensor allocations to the function root";
-  let constructor = "mlir::ascendc::createHoistUBAllocationPass()";
-  let options = [
-    Option<"excludeInOut", "exclude-in-out", "bool", "false",
-           "Prevent input/output tensors from hoisting">,
-  ];
-}
-
-def InputOutputTensor : Pass<"ascendc-input-output-tensor", "func::FuncOp"> {
-  let summary = "Set input and output operand for local_tensor_auto";
-  let constructor = "mlir::ascendc::createInputOutputTensorPass()";
-}
-
-def InsertBufIdSync : Pass<"ascendc-insert-bufid-sync", "func::FuncOp"> {
-  let summary = "Insert get_buf and rls_buf synchronization";
-  let constructor = "mlir::ascendc::createInsertBufIdSyncPass()";
-  let dependentDialects = ["ascendc::AscendCDialect"];
-}
-
-def InsertSync : Pass<"ascendc-insert-sync", "func::FuncOp"> {
-  let summary = "Insert intra-core synchronization operations";
-  let constructor = "mlir::ascendc::createInsertSyncPass()";
-  let dependentDialects = ["ascendc::AscendCDialect"];
-}
-
-def MaterializeTensor : Pass<"ascendc-materialize-tensor", "func::FuncOp"> {
-  let summary = "Insert ascendc.tbuf, ascendc.queue and ascendc.alloca for local_tensor_auto";
-  let constructor = "mlir::ascendc::createMaterializeTensorPass()";
-  let dependentDialects = ["arith::ArithDialect", "ascendc::AscendCDialect"];
-  let options = [
-    Option<"alwaysBuf", "always-buf", "bool", "false",
-           "Always use TBuf to materialize tensors">,
-  ];
-}
-
-def LegalizeKernelArgs : Pass<"ascendc-legalize-kernel-args", "ModuleOp"> {
-  let summary = "Attach emitasc.kernel_arg attributes and insert operations";
-  let constructor = "mlir::ascendc::createLegalizeKernelArgsPass()";
-  let dependentDialects = [
-    "arith::ArithDialect", "ascendc::AscendCDialect", "emitasc::EmitAscDialect",
-    "scf::SCFDialect",
-  ];
-  let options = [
-    Option<"setFftsAddr", "set-ffts-addr", "bool", "false",
-           "Append ffts_addr to kernel arguments and call set_ffts_addr">,
-  ];
-}
-
-def LowerToL0 : Pass<"ascendc-lower-to-l0", "func::FuncOp"> {
-  let summary = "Lowering L2 to L0 Ascend C operations";
-  let constructor = "mlir::ascendc::createLowerToL0Pass()";
-}
-
-def Noop : Pass<"ascendc-noop", "func::FuncOp"> {
-  let summary = "This pass does nothing";
-  let constructor = "mlir::ascendc::createNoopPass()";
-}
-
-def PrivatizeFunc : Pass<"ascendc-privatize-func", "ModuleOp"> {
-  let summary = "Mark functions without ascendc.global attribute as private";
-  let constructor = "mlir::ascendc::createPrivatizeFuncPass()";
-}
-
-def ReuseUBAllocation : Pass<"ascendc-reuse-ub-allocation", "func::FuncOp"> {
-  let summary = "Perform analysis and reuse temporary UB allocations";
-  let constructor = "mlir::ascendc::createReuseUBAllocationPass()";
-  let options = [
-    Option<"reuseInOut", "reuse-in-out", "bool", "false",
-           "Allow input/output tensors to be reusable">,
-  ];
-}
-
-def UnifyPipe : Pass<"ascendc-unify-pipe", "func::FuncOp"> {
-  let summary = "Unify pipe opertation";
-  let constructor = "mlir::ascendc::createUnifyPipePass()";
-}
-
-def VerifySync : Pass<"ascendc-verify-sync", "func::FuncOp"> {
-  let summary = "Verify TQue synchronization";
-  let constructor = "mlir::ascendc::createVerifySyncPass()";
+  let description = [{
+    Inserts `#define ASCENDC_CUBE_ONLY` verbatim at module start and sets `matmul_cube_only` attribute.
+    This macro enables cube-only optimizations in the Ascend C runtime for kernels that only perform
+    matrix multiplication without vector operations.
+  }];
 }
 
 def DetectEnableDebug : Pass<"ascendc-detect-enable-debug", "ModuleOp"> {
@@ -205,6 +97,115 @@ def EraseSync : Pass<"ascendc-erase-sync", "func::FuncOp"> {
   }];
 }
 
+def FillAscOperands : Pass<"ascendc-fill-asc-operands", "func::FuncOp"> {
+  let summary = "Fill default mask, repeat_times, and repeat_params operands for L0/L2 Ascend C operations";
+  let constructor = "mlir::ascendc::createFillAscOperandsPass()";
+  let description = [{
+    Populates default operands for vector operations based on tensor shape:
+    - **L0 operations**: Fills `mask`, `repeat_times`, and `repeat_params` (stride values)
+    - **L2 operations**: Fills `cal_count` with number of elements
+
+    Default stride values: block_stride=1, repeat_stride=8. Mask is computed based on element type size
+    (32-bit: high=0, low=0xFFFFFFFF; 16-bit: high=low=0xFFFFFFFF). Repeat times calculated as ceil(numElements / numPerRepeat).
+  }];
+}
+
+def FixupMmadAccParams : Pass<"ascendc-fixup-mmad-acc-params", "func::FuncOp"> {
+  let summary = "Fix accumulator initialization for sequential mmad operations using the same destination tensor";
+  let constructor = "mlir::ascendc::createFixupMmadAccParamsPass()";
+  let dependentDialects = ["emitasc::EmitAscDialect", "memref::MemRefDialect"];
+  let description = [{
+    Handles matrix multiplication accumulation where multiple `mmad` operations write to the same destination tensor.
+    Creates a runtime boolean variable to track whether this is the first mmad to the destination:
+    - First mmad: `cmatrixInitVal=true` (initialize accumulator)
+    - Subsequent mmads: `cmatrixInitVal=false` (accumulate into existing values)
+
+    Only processes mmad operations that have `cmatrixInitVal` parameter in their mmad_params.
+
+    Example transformation:
+    ```mlir
+    // Before: mmad with fixed cmatrixInitVal in loop
+    %acc = ascendc.local_tensor_auto co1() : <16x16xf32>
+    scf.for %i = 0 to %n {
+      %params = emitasc.init_struct !ascendc.mmad_params(
+        "cmatrixInitVal" = %c1  // always true (reinit each iteration)
+      )
+      ascendc.mmad %acc, %a, %b, %params
+    }
+
+    // After: runtime variable controls initialization
+    %acc = ascendc.local_tensor_auto co1() : <16x16xf32>
+    %var = emitasc.variable true, memref<1xi1>  // init flag
+    scf.for %i = 0 to %n {
+      %init_val = memref.load %var[%c0]
+      %params = emitasc.init_struct !ascendc.mmad_params(
+        "cmatrixInitVal" = %init_val  // true first iter, false after
+      )
+      ascendc.mmad %acc, %a, %b, %params
+      %false = arith.constant false
+      memref.store %false, %var[%c0]  // set false for next iter
+    }
+    ```
+  }];
+}
+
+def FuseBufIdSync : Pass<"ascendc-fuse-bufid-sync", "func::FuncOp"> {
+  let summary = "Remove redundant get_buf/rls_buf synchronization between consecutive operations with matching bufId";
+  let constructor = "mlir::ascendc::createFuseBufIdSyncPass()";
+  let description = [{
+    Optimizes BufId-based synchronization by removing redundant `get_buf`/`rls_buf` operations:
+    - For consecutive operations with the same `bufId` attribute and same pipeline type:
+      - Remove `get_buf` before middle operations (only first op needs it)
+      - Remove `rls_buf` after middle operations (only last op needs it)
+    - Pipeline types tracked: PIPE_V (vector), PIPE_MTE2 (GM→UB load), PIPE_MTE3 (UB→GM store)
+
+    After optimization, removes the `bufId` attribute from all operations. Used on Ascend 910_95 hardware.
+  }];
+}
+
+def FuseVFBlock : Pass<"ascendc-fuse-vf-block", "func::FuncOp"> {
+  let summary = "Fuse consecutive L2 vector operations into VF blocks with micro-operations and register tensors";
+  let constructor = "mlir::ascendc::createFuseVFBlockPass()";
+  let dependentDialects = ["ascendc::AscendCDialect", "scf::SCFDialect", "emitasc::EmitAscDialect"];
+  let description = [{
+    Transforms sequences of L2 vector operations into optimized VF (Vector Fusion) blocks:
+    1. Groups operations with matching `calCount` and element type, separated by non-vector ops or different types
+    2. Wraps groups in `emitasc.vf_group` with input/output tensor lists
+    3. Inside `vec_scope`, creates `reg_tensor` for each used local tensor
+    4. Generates loop over repeat times with: `data_copy_vld_micro` (load inputs), micro-ops (compute), `data_copy_vst_micro` (store outputs)
+
+    Supported ops: add/mul/sub/div/max/min/relu/abs/exp/ln/neg/not/sqrt L2 operations and `pipe_barrier pipe_v/pipe_all`.
+    Groups must have at least 2 operations; single ops are not fused.
+
+    Example transformation:
+    ```mlir
+    // Before: separate L2 operations
+    %dst = ascendc.que_bind.alloc_tensor %queue
+    %src0 = ascendc.que_bind.deque_tensor %queue
+    %src1 = ascendc.que_bind.deque_tensor %queue
+    ascendc.add_l2 %dst, %src0, %src1, %c256
+    ascendc.pipe_barrier pipe_v
+    ascendc.mul_l2 %dst, %dst, %src1, %c256
+
+    // After: fused VF block with micro-ops
+    emitasc.vf_group %dst, %src0, %src1 {
+      emitasc.vec_scope {
+        %reg = ascendc.reg_tensor : <f32>
+        %reg0 = ascendc.reg_tensor : <f32>
+        %reg1 = ascendc.reg_tensor : <f32>
+        scf.for %i = 0 to %repeat_count {
+          ascendc.data_copy_vld_micro %reg0, %src0_ptr[%offset]
+          ascendc.data_copy_vld_micro %reg1, %src1_ptr[%offset]
+          ascendc.add_micro %reg, %reg0, %reg1, %mask
+          ascendc.mul_micro %reg, %reg, %reg1, %mask
+          ascendc.data_copy_vst_micro %dst_ptr[%offset], %reg, %mask
+        } {asc.vec_scope_loop}
+      }
+    }
+    ```
+  }];
+}
+
 def GenerateBoilerplate : Pass<"ascendc-generate-boilerplate", "ModuleOp"> {
   let summary = "Insert required C++ include headers based on operations used in the kernel";
   let constructor = "mlir::ascendc::createGenerateBoilerplatePass()";
@@ -231,9 +232,9 @@ def HoistQueBind : Pass<"ascendc-hoist-que-bind", "func::FuncOp"> {
   }];
 }
 
-def HoistTensorAllocation : Pass<"ascendc-hoist-tensor-allocation", "func::FuncOp"> {
+def HoistUBAllocation : Pass<"ascendc-hoist-ub-allocation", "func::FuncOp"> {
   let summary = "Move LocalTensorAutoOp allocations from loops to the function entry block";
-  let constructor = "mlir::ascendc::createHoistTensorAllocationPass()";
+  let constructor = "mlir::ascendc::createHoistUBAllocationPass()";
   let options = [
     Option<"excludeInOut", "exclude-in-out", "bool", "false",
            "Keep input/output tensors inside loops, only hoist temporary tensors">,
@@ -243,7 +244,7 @@ def HoistTensorAllocation : Pass<"ascendc-hoist-tensor-allocation", "func::FuncO
     When `exclude-in-out=true`: only hoists tensors without `input` or `output` flags (pure temporary tensors).
     When `exclude-in-out=false`: hoists all tensors regardless of input/output status.
 
-    Input/output tensors are those connected to GM via `DataCopyOp` with `GlobalToLocal`/`LocalToGlobal` direction.
+    Input/output tensors are those connected to GM via `DataCopyOp` with `gm_ubuf` or `ubuf_gm` direction.
   }];
 }
 
@@ -273,9 +274,25 @@ def InputOutputTensor : Pass<"ascendc-input-output-tensor", "func::FuncOp"> {
   }];
 }
 
-def InsertQueSync : Pass<"ascendc-insert-que-sync", "func::FuncOp"> {
+def InsertBufIdSync : Pass<"ascendc-insert-bufid-sync", "func::FuncOp"> {
+  let summary = "Insert get_buf/rls_buf synchronization around operations for BufId-based tracking on Ascend 910_95";
+  let constructor = "mlir::ascendc::createInsertBufIdSyncPass()";
+  let dependentDialects = ["ascendc::AscendCDialect"];
+  let description = [{
+    Inserts BufId synchronization for Ascend 910_95 hardware using buffer ID tracking:
+    1. Assigns unique `bufId` to each tensor allocation (`LocalTensorV3Op`, `TBufGetTensorOp`)
+    2. For each operation using a tensor, inserts `get_buf` before and `rls_buf` after
+    3. Tracks pipeline type per operation: PIPE_MTE1 (L1 load), PIPE_MTE2 (GM load), PIPE_MTE3 (GM store),
+       PIPE_FIX (fixpipe), PIPE_S (scalar), PIPE_M (matmul), PIPE_V (vector)
+    4. For `scf.for` loops (except `vec_scope_loop` or parallel), inserts MTE3-MTE2/MTE3-MTE1 sync at loop end
+
+    Sets `bufId` array attribute on operations for downstream `FuseBufIdSync` optimization.
+  }];
+}
+
+def InsertSync : Pass<"ascendc-insert-sync", "func::FuncOp"> {
   let summary = "Insert TQueBind enqueue/dequeue synchronization and scalar get/set_value barriers";
-  let constructor = "mlir::ascendc::createInsertQueSyncPass()";
+  let constructor = "mlir::ascendc::createInsertSyncPass()";
   let dependentDialects = ["ascendc::AscendCDialect"];
   let description = [{
     Inserts intra-core synchronization for TQueBind-managed tensors and scalar operations:
@@ -381,6 +398,21 @@ def LegalizeKernelArgs : Pass<"ascendc-legalize-kernel-args", "ModuleOp"> {
   }];
 }
 
+def LowerToL0 : Pass<"ascendc-lower-to-l0", "func::FuncOp"> {
+  let summary = "Lower L2 vector operations to L0 intrinsics with default repeat parameters";
+  let constructor = "mlir::ascendc::createLowerToL0Pass()";
+  let description = [{
+    Converts L2-level vector operations to L0-level hardware intrinsics:
+    - Unary L2→L0: `abs_l2`→`abs_l0`, `exp_l2`→`exp_l0`, etc. with mask, repeat_times=0, empty repeat_params
+    - Binary L2→L0: `add_l2`→`add_l0`, `mul_l2`→`mul_l0`, etc. with similar parameters
+    - Special ops: `duplicate_l2`→`duplicate_l0`, `cast_l2`→`cast_l0`, `compare_l2`→`compare_l0`
+    - Scalar ops: `adds_l2`→`adds_l0`, `muls_l2`→`muls_l0`
+
+    L0 operations provide direct hardware control but require explicit parameters; this pass provides defaults.
+    L2 operations are simpler API with automatic parameter calculation (done by `FillAscOperands`).
+  }];
+}
+
 def Noop : Pass<"ascendc-noop", "func::FuncOp"> {
   let summary = "Placeholder pass that performs no transformations";
   let constructor = "mlir::ascendc::createNoopPass()";
@@ -400,6 +432,53 @@ def PrivatizeFunc : Pass<"ascendc-privatize-func", "ModuleOp"> {
     - Functions with `ascendc.global` but no body (declarations) → remain as-is
 
     This ensures only kernel entry points are exported while helper functions remain internal.
+  }];
+}
+
+def ReuseUBAllocation : Pass<"ascendc-reuse-ub-allocation", "func::FuncOp"> {
+  let summary = "Reuse freed UB allocations via reinterpret_cast to reduce memory consumption";
+  let constructor = "mlir::ascendc::createReuseUBAllocationPass()";
+  let options = [
+    Option<"reuseInOut", "reuse-in-out", "bool", "false",
+           "Allow reuse between input/output tensors even in same loop">,
+  ];
+  let description = [{
+    Analyzes tensor lifetimes and reuses freed UB allocations by inserting `LocalTensorReinterpretCastOp`:
+    1. For each block, collects `LocalTensorAutoOp` tensors and their last users
+    2. Sorts tensors by last user position (earlier-freed tensors can be reused first)
+    3. Checks reusability: same block, non-overlapping lifetimes, static shape, VECCALC position
+    4. When reusing: larger tensor wraps smaller via reinterpret_cast, or smaller moved before larger and cast
+
+    Special handling for control flow: tensors used across different regions (if/else, while before/after) can be reused.
+    Input/output tensors in same loop are not reused unless `reuse-in-out=true`.
+
+    Example: two tensors with non-overlapping lifetimes reused:
+    ```mlir
+    // Before: separate allocations for sequential tensors
+    %0 = ascendc.local_tensor_auto veccalc() : <333xi32>
+    ascendc.data_copy_l2 %0, %gm, %c1
+    %1 = ascendc.local_tensor_auto veccalc() : <333xi32>
+    ascendc.data_copy_l2 %1, %gm, %c1
+
+    // After: single allocation with reinterpret_cast
+    %0 = ascendc.local_tensor_auto veccalc() : <333xi32>
+    %1 = ascendc.reinterpret_cast %0 : !ascendc.local_tensor<333xi32> to !ascendc.local_tensor<333xi32>
+    ascendc.data_copy_l2 %0, %gm, %c1
+    ascendc.data_copy_l2 %1, %gm, %c1
+    ```
+
+    Example: tensors in different loops can be reused:
+    ```mlir
+    // Before: output tensor in loop 1, input tensor in loop 2
+    scf.for { %output = ascendc.local_tensor_auto veccalc() output }
+    scf.for { %input = ascendc.local_tensor_auto veccalc() input }
+
+    // After: output reused as input across different loops
+    %output = ascendc.local_tensor_auto veccalc() output
+    %input = ascendc.reinterpret_cast %output
+    scf.for { use %output }
+    scf.for { use %input }
+    ```
   }];
 }
 
