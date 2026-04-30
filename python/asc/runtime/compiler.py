@@ -212,13 +212,13 @@ class Compiler:
             passes.ascendc.add_fill_asc_operands(pm)
             passes.ascendc.add_fixup_mmad_acc_params_pass(pm)
         passes.ascendc.add_input_output_tensor(pm)
-        if self.options.reuse_ub:
-            if reuse_ub_in_out:
-                passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=True)
-                self.add_unroll_loop(pm)
-            passes.ascendc.add_reuse_ub_allocation(pm)
-            passes.common.add_canonicalizer(pm)
+        if self.options.reuse_ub and reuse_ub_in_out:
+            passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=True)
+            self.add_unroll_loop(pm)
         passes.ascendc.add_hoist_ub_allocation(pm, exclude_in_out=not arch_c310)
+        if self.options.reuse_ub:
+            passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=False)
+        passes.common.add_canonicalizer(pm)
         if self.options.vf_fusion:
             passes.ascendc.add_fuse_vf_block(pm)
         if self.options.static_alloc:
