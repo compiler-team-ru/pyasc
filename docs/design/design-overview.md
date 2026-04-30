@@ -93,8 +93,8 @@ A5 adds the following hardware capabilities relative to A2: <sup>[[58]](#ref-58)
   │   AtomicRMWOp  MatmulOp  SoftmaxOp  SelectOp            │
   │   CountMaskOp  BitwiseMaskOp                             │
   └──────────────────────┬───────────────────────────────────┘
-                         │  AscTile passes (lib/Dialect/AscTile/)
-                         │  + AscLower passes (lib/Dialect/AscLower/)
+                         │  AscTile passes (lib/Dialect/AscTile/Transforms/)
+                         │  + AscLower passes (lib/Conversion/LowerToAsc/)
   ┌──────────────────────▼───────────────────────────────────┐
   │           ascendc MLIR Dialect  (existing backend)       │
   │   LocalTensor / GlobalTensor   TPipe / TQue              │
@@ -163,11 +163,18 @@ A5 adds the following hardware capabilities relative to A2: <sup>[[58]](#ref-58)
 
 ```python
 # Load a tile from a 2-D tensor — two addressing modes:
-tile = asc2.load(tensor, shape=[128], offsets=[base])       # explicit byte offsets
+tile = asc2.load(tensor, shape=[128], offsets=[base])       # explicit element offsets
 tile = asc2.load(tensor, shape=[128], tile_id=[block_idx])  # tile_id * shape = offset
 
 # Load a scalar (no shape → scalar load)
 scalar = asc2.load(tensor, offsets=[i])
+
+# Optional padding for partial tiles
+tile = asc2.load(tensor, shape=[128], offsets=[base], pad_value=0.0)
+
+# Copy a tile (or sub-region) into a fresh tile, optionally on another location
+clone = asc2.copy(tile)
+sub   = asc2.copy(tile, shape=[64], offsets=[0])
 
 # Store tile or scalar back
 asc2.store(tile, tensor, offsets=[base])
@@ -189,7 +196,7 @@ Operator overloads on `Tile` (`+`, `-`, `*`, `/`, `>`, `==`, …) call the same 
 **Unary**:
 `abs`, `ceil`, `floor`, `negative`, `relu`,
 `sqrt`, `rsqrt`, `exp`, `exp2`, `log`, `log2`,
-`sin`, `cos`, `tan`, `sinh`, `cosh`, `tanh`, `erf`, `softmax`
+`sin`, `cos`, `tan`, `sinh`, `cosh`, `tanh`, `erf`, `softmax`, `rms_norm`
 
 **Reductions** (one or more axes, optional `keep_dims`):
 `reduce_sum`, `reduce_max`, `reduce_min`, `reduce_prod`
@@ -197,13 +204,16 @@ Operator overloads on `Tile` (`+`, `-`, `*`, `/`, `>`, `==`, …) call the same 
 — also bound as methods: `tile.sum()`, `tile.max()`, etc.
 
 **Shape manipulation**:
-`reshape`, `broadcast_to`, `expand_dims`, `squeeze`
+`reshape`, `ravel`, `broadcast_to`, `expand_dims`, `squeeze`
 
 **Creation**:
-`full(shape, value)`, `zeros(shape)`, `full_like`, `zeros_like`
+`full(shape, value)`, `zeros(shape)`, `full_like`, `zeros_like`,
+`zeros_acc(shape, dtype)` — zeros tile in L0C (matmul accumulator),
+`concat(*tiles)` — concatenate along the first dimension.
 
 **Matrix multiply**:
-`matmul(a, b)` — 2-D float tiles; result is always `float32`.
+- `matmul(a, b)` — 2-D float tiles; result is always `float32`.
+- `matmul_acc(a, b, acc)` — fused matmul that accumulates into an existing `acc` tile (typically created with `zeros_acc`).
 
 **Conditional / masking**:
 - `where(mask, src0, src1)` — element-wise select.
@@ -251,26 +261,37 @@ Defined in `include/ascir/Dialect/AscTile/IR/` using TableGen.
 
 **Key operations (from `Ops.td`):**
 
-| Op | Description |
-|----|-------------|
-| `TensorOp` | Create a `Tensor` from a pointer and shape list |
-| `DimOp` | Read a dynamic dimension from a `Tensor` at runtime |
-| `SplatOp` | Fill a tile with a scalar constant |
-| `LoadOp` | Load tile from `Tensor` with offsets → `Tile` |
-| `StoreOp` | Store `Tile` to `Tensor` with offsets |
-| `GetValueOp` | Scalar load from `Tensor` |
-| `SetValueOp` | Scalar store to `Tensor` |
-| `CastOp` | Type conversion between tile dtypes |
-| `ReshapeOp` | Reshape a tile |
-| `BroadcastOp` | Broadcast tile to a wider shape |
-| `SelectOp` | Element-wise conditional select (`where`) |
-| `ReluOp` | Fused ReLU (single op, not composed) |
-| `SoftmaxOp` | Full softmax on a tile |
-| `MatmulOp` | 2-D matrix multiply |
-| `AtomicRMWOp` | Atomic read-modify-write (add / max / min) |
-| `CountMaskOp` | Region: conditional on element count |
-| `BitwiseMaskOp` | Region: conditional on bitmask |
-| `YieldOp` | Region terminator |
+| Category | Op | Description |
+|----------|----|-------------|
+| Tensor / tile creation | `TensorOp` | Create a `Tensor` from a pointer and shape list |
+| | `DimOp` | Read a dynamic dimension from a `Tensor` at runtime |
+| | `SplatOp` | Fill a tile with a scalar constant |
+| | `AccumulatorOp` | Create a zeros tile in L0C (matmul accumulator) |
+| Memory transfer | `LoadOp` | Load tile from `Tensor` with offsets → `Tile` |
+| | `StoreOp` | Store `Tile` to `Tensor` with offsets |
+| | `StoreFixpipeOp` | Store an L0C tile to a `Tensor` via the fixpipe path |
+| | `CopyOp` | Copy a tile (or sub-region) into a new tile |
+| | `CopyFixpipeOp` | Copy an L0C tile into another tile via fixpipe |
+| | `GetValueOp` | Scalar load from `Tensor` |
+| | `SetValueOp` | Scalar store to `Tensor` |
+| Element-wise compute | `CastOp` | Type conversion between tile dtypes |
+| | `ReluOp` | Fused ReLU |
+| | `SelectOp` | Element-wise conditional select (`where`) |
+| | `CmpOp` / `CmpSOp` | Element-wise compare (tile/tile and tile/scalar) |
+| | `AddSOp` / `SubSOp` / `MulSOp` / `DivSOp` / `MinSOp` / `MaxSOp` / `ShLSOp` / `ShRSOp` | Vector-scalar binary ops |
+| Reduction / norm | `ReduceOp` | Reduce tile along one or more axes |
+| | `ReduceAs1dOp` | Reduce a tile to a 1-element tile or a scalar |
+| | `SoftmaxOp` | Row-wise softmax on a 1D / 2D tile |
+| | `RmsNormOp` | RMS normalisation |
+| Matmul | `MatmulOp` | 2-D matrix multiply |
+| | `MatmulAccOp` | 2-D matrix multiply accumulating into an L0C tile |
+| Shape | `ReshapeOp` | Reshape a tile |
+| | `BroadcastOp` | Broadcast tile to a wider shape |
+| | `ConcatOp` | Concatenate tiles along the first dimension |
+| Atomic | `AtomicRMWOp` | Atomic read-modify-write (add / max / min) |
+| Region / control | `CountMaskOp` | Region: conditional on element count |
+| | `BitwiseMaskOp` | Region: conditional on bitmask |
+| | `YieldOp` | Region terminator |
 
 **Standard dialect ops** (`arith`, `scf`, `math`) are emitted directly by the AST walker for scalar arithmetic and control flow; the AscLower passes later handle them.
 
@@ -304,11 +325,15 @@ These operate on the `asctile` dialect before lowering begins.
 | `TagUnrollGroups` | Scan `asc2.range` loops annotated with `unroll_factor > 1` and tag contiguous groups of ops that should be unrolled together |
 | `PromotePureOps` | Hoist pure (side-effect-free) ops — e.g., shape computations — out of loop bodies |
 | `DensifyUnrollGroups` *(densify_load_store)* | Cluster load/store ops within an unroll group so they appear adjacent, enabling more efficient pipeline scheduling |
+| `SplitCubeLoad` | Split loads destined for L0A/L0B into the legal Cube data path |
+| `LegalizeMatmul` | Rewrite `MatmulOp`/`MatmulAccOp` into the form expected by the AscLower passes |
 | `TransformMathOps` | Specialise generic `math.*` ops into tile-aware equivalents that the AscLower pass knows how to handle |
+| `TransformStoreFixpipe` | Convert eligible `StoreOp`s of L0C tiles into `StoreFixpipeOp` |
+| `UnscalarizeReduction` (910_95 only) | Replace scalar-tail reductions with vector forms |
 | `UnrollLoop` | Physically unroll loops tagged by `TagUnrollGroups` by `unroll_factor` |
 | `Canonicalizer`, `CSE` | Standard MLIR cleanup between stages |
 
-### 6.2 AscLower passes  (`lib/Dialect/AscLower/`)
+### 6.2 AscLower passes  (`lib/Conversion/LowerToAsc/`)
 
 These lower `asctile.*` operations into `ascendc.*` + standard MLIR ops.
 
@@ -318,14 +343,15 @@ These lower `asctile.*` operations into `ascendc.*` + standard MLIR ops.
 | `RedressI1Tile` | Widen boolean (i1) tiles to `i8`/`ui8` as required by Ascend C |
 | `LowerArith` | Lower `arith.*` scalar ops to `ascendc` equivalents |
 | `LowerArithBinary` | Lower tile-scalar and scalar-tile arithmetic |
-| `LowerArithI1` | Handle boolean arithmetic special cases |
 | `LowerAtomic` | Lower `AtomicRMWOp` → `ascendc.atomic_*` |
-| `LowerAscTile` | Main lowering: `LoadOp`/`StoreOp`/`CastOp`/`ReshapeOp`/`ReductionOps`/… → `ascendc` data-copy + vector ops |
+| `LowerAscTileDataTransfer` | Lower `LoadOp`/`StoreOp`/`CopyOp`/fixpipe variants to `ascendc` data-copy ops |
+| `LowerAscTile` | Main lowering: `CastOp`/`ReshapeOp`/reduction ops/… → `ascendc` vector ops |
+| `LowerAscTileI1` | Handle boolean tile lowering special cases |
 | `LowerMath` | Lower remaining `math.*` ops |
-| `LowerScf` | Lower `scf.for` loops to `ascendc`-compatible form |
+| `LowerSCF` | Lower `scf.for` loops to `ascendc`-compatible form |
+| `DisplaceConcat` | Replace `ConcatOp` with adjacent allocations / copies |
 | `RealizeConversionCast` | Materialise any pending unrealized casts from the lowering |
 | `ExpandMask` | Lower `CountMaskOp`/`BitwiseMaskOp` regions → `ascendc.set_mask`/`wait_mask` sequences |
-| `FillAscOperands` | Fill in default optional operands required by `ascendc` ops |
 
 ### 6.3 ascendc passes  (after lowering, `lib/Dialect/Asc/Transforms/`)
 
@@ -333,10 +359,11 @@ Once all `asctile` ops are gone, the existing ascendc pipeline takes over:
 
 | Phase | Key passes |
 |-------|-----------|
-| **Memory allocation** | `InputOutputTensor`, `ReuseUBAllocation`, `HoistUBAllocation`, `MaterializeTensor` / `AllocateTensor`, `UnifyPipe` |
-| **Synchronization** | `EraseSync`, `HoistQueBind`, `InsertSync` (910B/93) or `InsertBufIdSync(V2)` + `FuseBufIdSync` + `ParallelLoadStore` (910_95) |
+| **Lowering glue** | `PrivatizeFunc`, `FillAscOperands`, `FixupMmadAccParams`, `LowerToL0` |
+| **Memory allocation** | `InputOutputTensor`, `ReuseUBAllocation`, `HoistUBAllocation`, `FuseVFBlock` (when `vf_fusion=True`), `AllocateTensor` (when `static_alloc=True`) / `MaterializeTensor` (otherwise), `UnifyPipe` |
+| **Synchronization** | `EraseSync`, `HoistQueBind`, then either `InsertSync` (910B / 910_93) or `InsertBufIdSync` + `FuseBufIdSync` (910_95); finally `UnifyPipe`. `VerifySync` runs when `verify_sync=True` |
 | **Optimization** | `LICM`, `SCCP`, `Canonicalizer` |
-| **Postprocessing** | `DeclarePyStruct`, `GenerateBoilerplate`, `LegalizeKernelArgs`, `DetectKernelType`, `ComputeMemoryConsumption` |
+| **Postprocessing** | `DeclarePyStruct`, `GenerateBoilerplate`, `DefineCubeOnly` (when `matmul_cube_only=True`), `LegalizeKernelArgs`, `DetectKernelType`, `DetectEnableDebug`, `ComputeMemoryConsumption` |
 
 `ComputeMemoryConsumption` is **only active in asc2 mode** and records per-`TPosition` UB usage as a module attribute; it raises a compile-time error on overflow.
 
@@ -360,8 +387,10 @@ Two strategies, selected per compilation:
 
 | Strategy | Option | How it works |
 |----------|--------|-------------|
-| **TPipe-managed** (default) | `static_alloc=False` | `MaterializeTensor` emits `TPipe` + `AllocTensor`/`FreeTensor` in the generated Ascend C. Flexible; incurs scalar overhead per tile. |
-| **Static allocation** | `static_alloc=True` | `AllocateTensor` computes a fixed layout at compile time and emits direct UB address arithmetic. Zero scalar overhead; requires all tile sizes to be statically known. |
+| **TPipe-managed** | `static_alloc=False` | `MaterializeTensor` emits `TPipe` + `AllocTensor`/`FreeTensor` in the generated Ascend C. Flexible; incurs scalar overhead per tile. Default on 910B / 910_93. |
+| **Static allocation** | `static_alloc=True` | `AllocateTensor` computes a fixed layout at compile time and emits direct UB address arithmetic. Zero scalar overhead; requires all tile sizes to be statically known. Default on 910_95. |
+
+`static_alloc` is `Optional[bool]`; when left at `None`, `Compiler.__init__` resolves it to `True` on 910_95 and `False` otherwise.
 
 **UB pressure reduction (both modes):**
 - `HoistUBAllocation` — move allocations above loops so one allocation covers all iterations.
@@ -375,6 +404,9 @@ Because asc2 users don't write `set_flag`/`wait_flag`, all synchronization is in
 - `insert_sync=True` is set automatically by `asc2.jit`.
 - On **910B / 910_93**: `InsertSync` uses the classic queue-position–based algorithm.
 - On **910_95**: `InsertBufIdSync` uses a newer algorithm that reduces sync overhead by tracking buffer IDs rather than queue positions; `FuseBufIdSync` merges adjacent sync ops.
+- `verify_sync=True` runs an additional `VerifySync` pass after sync insertion as a sanity check.
+
+`asc2.range(parallel=True)` annotates a loop with an MLIR attribute that is intended to relax sync insertion for parallel-safe load/store groups. Today the attribute is only set; the consuming pass is not yet wired up.
 
 ---
 
@@ -450,9 +482,13 @@ _TODO: to be filled in._
 |--------|-----------------------|--------|
 | `run_asc2_passes` | `True` | Enable AscTile + AscLower pipeline |
 | `insert_sync` | `True` | Auto-insert sync barriers |
-| `static_alloc` | `False` | Static vs TPipe-managed UB allocation |
+| `static_alloc` | `None` → arch-dependent (`True` on 910_95, `False` on 910B / 910_93) | Static vs TPipe-managed UB allocation |
 | `reuse_ub` | `False` | Reuse freed UB regions |
 | `reuse_ub_in_out` | `False` | Extend reuse to I/O tiles (experimental) |
 | `densify_load_store` | `False` | Densify load/store groups (experimental) |
+| `vf_fusion` | `False` | Fuse consecutive vector ops into Ascend C MicroAPI VF blocks |
+| `verify_sync` | `False` | Run `VerifySync` pass after sync insertion |
+| `matmul_cube_only` | `False` | Emit cube-only kernels (drives `DefineCubeOnly`) |
+| `auto_sync` | `True` | Pass `--cce-auto-sync` to Bisheng (separate from MLIR `insert_sync`) |
 | `opt_level` | `3` | Bisheng `-O` level (1–3) |
 | `always_compile` | `False` | Bypass cache, recompile every call |
