@@ -157,6 +157,24 @@ LogicalResult LoadOp::canonicalize(LoadOp op, PatternRewriter& rewriter)
     return failure();
 }
 
+LogicalResult LoadOp::verify()
+{
+    auto realShapeAttr = getRealShapeAttr();
+    if (!realShapeAttr)
+        return success();
+    auto tileShape = getType().getShape();
+    auto realShape = llvm::to_vector(realShapeAttr.getAsValueRange<IntegerAttr>());
+    if (realShape.size() != tileShape.size()) {
+        return emitOpError() << "real_shape must have same rank as tile shape";
+    }
+    for (auto [realDim, tileDim] : llvm::zip_equal(realShape, tileShape)) {
+        if (realDim.getSExtValue() > tileDim) {
+            return emitOpError() << "real_shape exceeds tile shape\n";
+        }
+    }
+    return success();
+}
+
 //===----------------------------------------------------------------------===//
 // CastOp
 //===----------------------------------------------------------------------===//

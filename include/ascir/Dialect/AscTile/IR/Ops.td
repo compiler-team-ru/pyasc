@@ -82,13 +82,15 @@ def LoadOp : AscTile_Op<"load", [
 ]> {
   let summary = "Load from the tensor into a new tile";
   let arguments = (ins Arg<Tensor, "tensor to load from", [MemRead]>:$base,
-                   Variadic<I32>:$offsets, Optional<AscTile_Numeric>:$padValue);
+                   Variadic<I32>:$offsets, Optional<AscTile_Numeric>:$padValue,
+                   OptionalAttr<I32ArrayAttr>:$realShape);
   let results = (outs NumericTile:$result);
   let assemblyFormat = [{
     $base `[` $offsets `]` (`,` $padValue^)? attr-dict `:`
     qualified(type($base)) `,` qualified(type($result))
   }];
   let hasCanonicalizeMethod = 1;
+  let hasVerifier = 1;
 }
 
 def StoreOp : AscTile_Op<"store", [

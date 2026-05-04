@@ -46,14 +46,16 @@ def copy(tile: Tile, shape: Optional[Iterable[int]] = None, *, offsets: Optional
 
 
 @overload
-def load(tensor: Tensor, shape: Iterable[int], *, offsets: Iterable[RuntimeInt],
-         location: TileLocation = TileLocation.UB, pad_value: RuntimeNumeric = 0) -> Tile:
+def load(tensor: Tensor, shape: Iterable[int], *, real_shape: Optional[Iterable[int]] = None,
+         offsets: Iterable[RuntimeInt], location: TileLocation = TileLocation.UB,
+         pad_value: RuntimeNumeric = 0) -> Tile:
     ...
 
 
 @overload
-def load(tensor: Tensor, shape: Iterable[int], *, tile_id: Iterable[RuntimeInt],
-         location: TileLocation = TileLocation.UB, pad_value: RuntimeNumeric = 0) -> Tile:
+def load(tensor: Tensor, shape: Iterable[int], *, real_shape: Optional[Iterable[int]] = None,
+         tile_id: Iterable[RuntimeInt], location: TileLocation = TileLocation.UB,
+         pad_value: RuntimeNumeric = 0) -> Tile:
     ...
 
 
@@ -62,21 +64,25 @@ def load(tensor: Tensor, *, offsets: Iterable[RuntimeInt]) -> PlainValue:
     ...
 
 
-def load(tensor: Tensor, shape: Optional[Iterable[int]] = None, *, tile_id: Optional[Iterable[RuntimeInt]] = None,
-         offsets: Optional[Iterable[RuntimeInt]] = None, location: TileLocation = TileLocation.UB,
-         pad_value: RuntimeNumeric = 0) -> Union[Tile, PlainValue]:
+def load(tensor: Tensor, shape: Optional[Iterable[int]] = None, *, real_shape: Optional[Iterable[int]] = None,
+         tile_id: Optional[Iterable[RuntimeInt]] = None, offsets: Optional[Iterable[RuntimeInt]] = None,
+         location: TileLocation = TileLocation.UB, pad_value: RuntimeNumeric = 0) -> Union[Tile, PlainValue]:
     if (tile_id is None) == (offsets is None):
         raise ValueError("Exactly one of 'tile_id' or 'offsets' must be provided")
+    builder = global_builder.get_ir_builder()
     if shape is None:
-        handle = global_builder.get_ir_builder().create_asctile_GetValueOp(tensor.dtype.to_ir(), tensor.to_ir(),
-                                                                           to_ir_list(offsets))
+        handle = builder.create_asctile_GetValueOp(tensor.dtype.to_ir(), tensor.to_ir(), to_ir_list(offsets))
         return PlainValue(handle)
     shape = verify_shape(shape)
     check_data_alignment(shape, tensor.dtype)
     offsets = infer_offsets(tensor.shape, shape, tile_id, offsets)
     ir_type = ir.get_asctile_TileType(list(shape), tensor.dtype.to_ir(), location)
     pad_value = _mat(pad_value, tensor.dtype).to_ir() if pad_value is not None else None
-    handle = global_builder.get_ir_builder().create_asctile_LoadOp(ir_type, tensor.to_ir(), offsets, pad_value)
+    real_shape_attr = None
+    if real_shape is not None:
+        real_shape = verify_shape(real_shape)
+        real_shape_attr = builder.get_i32_array_attr(real_shape)
+    handle = builder.create_asctile_LoadOp(ir_type, tensor.to_ir(), offsets, pad_value, real_shape_attr)
     return Tile(handle)
 
 
