@@ -73,6 +73,8 @@ The agent's role is to:
 
 ## Agent Pipeline
 
+### Phase 0: Setup Environment and Build Project
+
 ### Phase 1: Analyze Pass Implementation
 
 **Goal**: Understand the pass transformation logic and requirements.
@@ -187,16 +189,17 @@ func.func @test_<test_case_name>(...) {
 **Generation Steps**:
 
 1. **Create input IR**
-   - Use proper MLIR syntax for the dialect
-   - Include necessary function signatures
-   - Add attributes required by the pass
-   - Create realistic operation sequences
+    - Use proper MLIR syntax for the dialect
+    - Include necessary function signatures
+    - Add attributes required by the pass
+    - Create realistic operation sequences
 
 2. **Create expected output IR**
-   - Apply pass transformation mentally
-   - Use `CHECK` directives for verification
-   - Check operation order and structure
-   - Verify attributes are added/removed correctly
+    - Apply pass transformation mentally
+    - Use `CHECK` directives for verification
+    - Check operation order and structure
+    - Verify attributes are added/removed correctly
+    - **DO NOT** add verbose test case description comments before test functions - keep CHECK directives concise (only `// CHECK-LABEL:` and necessary `// CHECK:/CHECK-NEXT:/CHECK-NOT:` lines)
 
 3. **Add RUN directives**
    - Primary test: `--pass-name`
@@ -211,14 +214,30 @@ func.func @test_<test_case_name>(...) {
 
 ### Phase 5: Test Structure Guidelines
 
-In most cases, all **CHECK** should be before the function itself. It is also important to add **// CHECK-LABEL**: func.func name/header to distinct checks for different functions.
+In most cases, all **CHECK** directives should be placed before the function definition. Use `// CHECK-LABEL: func.func <name>` to distinguish checks for different functions.
 
-**For Pattern-Based Passes**:
+**CRITICAL Rules for CHECK vs CHECK-NEXT**:
+
+1. **After CHECK-LABEL, use CHECK: not CHECK-NEXT:** when there are intervening lines between the function header and the first operation being checked. Intervening lines include:
+   - Constant declarations: `%c = arith.constant`
+   - Tensor/buffer operations that the pass doesn't transform: `ascendc.tbuf.get_tensor`
+   - Any operation that appears in the output but isn't part of the transformation being verified
+
+2. **Use CHECK-NEXT: only for truly consecutive operations** - operations that immediately follow one another with no intervening lines
+
+3. **Every test function must end with**:
+```mlir
+// CHECK-NEXT: return
+// CHECK-NEXT:}
+```
+
+**For Pattern-Based Passes with no intervening lines**:
 
 ```mlir
-// Test pattern match and replacement
-// CHECK-LABEL @test_pattern_match
-// CHECK: asctile.adds %arg0, %cst : !asctile.tile<16xf32, UB>
+// CHECK-LABEL: func.func @test_pattern_match
+// CHECK-NEXT: asctile.adds %arg0, %cst : !asctile.tile<16xf32, UB>  // OK if no constants between
+// CHECK-NEXT: return
+// CHECK-NEXT:}
 func.func @test_pattern_match(%arg0: !asctile.tile<16xf32, UB>) -> !asctile.tile<16xf32, UB> {
   %cst = arith.constant 0.0 : f32
   %tile = asctile.splat %cst : !asctile.tile<16xf32, UB>
@@ -230,10 +249,11 @@ func.func @test_pattern_match(%arg0: !asctile.tile<16xf32, UB>) -> !asctile.tile
 **For Walk-Based Passes**:
 
 ```mlir
-// Test operation walking and transformation
-// CHECK-LABEL: @test_walk_transform
-// CHECK-NEXT: asctile.load
-// CHECK-NEXT: asctile.store
+// CHECK-LABEL: func.func @test_walk_transform
+// CHECK: asctile.load  // Use CHECK if constant precedes
+// CHECK-NEXT: asctile.store  // CHECK-NEXT follows load
+// CHECK-NEXT: return
+// CHECK-NEXT:}
 func.func @test_walk_transform(%arg0: memref<1024xf32>, %arg1: memref<1024xf32>) {
   %tile = asctile.load %arg0[0] : !asctile.tile<128xf32>
   asctile.store %tile, %arg1[0] : !asctile.tile<128xf32>
@@ -244,12 +264,40 @@ func.func @test_walk_transform(%arg0: memref<1024xf32>, %arg1: memref<1024xf32>)
 **For Attribute-Based Passes**:
 
 ```mlir
-// Test attribute handling
-// CHECK-LABEL: test_attribute_handling
+// CHECK-LABEL: func.func @test_attribute_handling
 // CHECK: asctile.load
 // CHECK-NOT: unroll_factor
+// CHECK-NEXT: return
+// CHECK-NEXT:}
 func.func @test_attribute_handling(%arg0: memref<1024xf32>) {
   %tile = asctile.load %arg0[0] {unroll_factor = 4 : i64} : !asctile.tile<128xf32>
+  return
+}
+```
+
+**For Nested Regions (scf.for, scf.if) with constants inside**:
+
+When operations appear inside nested regions, use `// CHECK:` before the region opener. Inside the region, use `// CHECK:` if constants are introduced before operations:
+
+```mlir
+// CHECK-LABEL: func.func @test_nested_for
+// CHECK: scf.for
+// CHECK: ascendc.set_flag mte3_mte2  // Use CHECK, constant may precede
+// CHECK-NEXT: ascendc.set_flag mte3_mte1  // CHECK-NEXT follows previous flag
+// CHECK-NEXT: ascendc.wait_flag mte3_mte2
+// CHECK-NEXT: ascendc.wait_flag mte3_mte1
+// CHECK-NEXT: }
+// CHECK-NEXT: return
+// CHECK-NEXT:}
+func.func @test_nested_for(%arg0: !ascendc.local_tensor<*xf32>) {
+  %c256 = arith.constant 256 : i32
+  %c0 = arith.constant 0 : i32
+  %c1 = arith.constant 1 : i32
+  %c10 = arith.constant 10 : i32
+  scf.for %i = %c0 to %c10 step %c1 : i32 {
+    ascendc.add_l2 %arg0, %arg0, %arg0, %c256 : ...
+    // Pass may insert constant before set_flag
+  }
   return
 }
 ```
@@ -270,12 +318,21 @@ func.func @test_attribute_handling(%arg0: memref<1024xf32>) {
    - Expected output should match pass behavior
    - CHECK directives should be precise
 
-3. **Run Tests**
-   - Execute: `python3 -m lit -v /path/to/test.mlir`
-   - Fix any failures
+3. **Run the pass to get actual output** (CRITICAL)
+   - Before finalizing CHECK directives, run the pass on test input to see actual output
+   - Command: `ascir-opt --pass-name /path/to/test.mlir`
+   - Use actual output to determine:
+     - Whether constants or other operations intervene between transformed operations
+     - Exact format of operations (e.g., `pipe_v, 0` vs just `pipe_v`) including operands and necessary attributes (e.g., `%arg1`, `{ascendc.buf_id = [0, 1 : i32]}`)
+     - Correct buffer ID numbers assigned by the pass
+   - This prevents CHECK-NEXT failures due to intervening lines
+
+4. **Run Tests**
+   - Execute: `lit -v /path/to/test.mlir`
+   - Fix any failures by comparing with actual pass output
    - Ensure all tests pass
 
-4. **Coverage Check**
+5. **Coverage Check**
    - Verify all transformation paths are tested
    - Check edge cases are covered
    - Ensure error cases are tested (if applicable)
@@ -319,6 +376,19 @@ Before generating any MLIR operation, the agent MUST:
 2. **Apply fixes to all similar cases** - don't fix one-by-one
 3. **Document learned rules** for future sessions
 
+**Common Error Patterns and Fixes**:
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `CHECK-NEXT: is not on the line after the previous match` | Intervening line (constant, tbuf.get_tensor, etc.) between operations | Change `CHECK-NEXT:` to `CHECK:` before the first affected operation |
+| `expected CHECK not found` | Operation format doesn't match actual output | Run pass to see actual format, update CHECK directive |
+| Missing buffer number | Pass assigns buffer IDs dynamically | Run pass, extract actual buffer numbers from output |
+| Wrong pipe type | Different operations use different pipes | Verify pipe type from actual output (pipe_v, pipe_mte2, etc.) |
+
+**After fixing test failures**:
+- Update this SKILL.md with new learned patterns if the patterns has complex cases.
+- Apply the same fix pattern to all similar test functions in the file
+
 ## Troubleshooting
 
 **Test fails with "expected CHECK not found"**:
@@ -335,3 +405,51 @@ Before generating any MLIR operation, the agent MUST:
 - Check if required attributes are present
 - Verify operation types match pass expectations
 - Ensure pass conditions are met (e.g., dominance, purity)
+
+**CHECK directive best practices**:
+- **Use `// CHECK-NEXT:` only for truly consecutive operations** - operations that immediately follow one another with no intervening lines
+- **Use `// CHECK:` after `CHECK-LABEL:` when there are intervening lines** - such as constant declarations (`arith.constant`), tensor operations (`ascendc.tbuf.get_tensor`), or other operations that the pass doesn't transform
+- Avoid verbose test case description comments - keep CHECK directives concise
+- Use `// CHECK-LABEL:` to separate checks for different functions
+- Use `// CHECK:` when the match may have intervening lines (e.g., inside nested regions like `scf.for` or `scf.if` where constants are introduced)
+- Use `// CHECK-NOT:` to verify operations are NOT present in output
+
+**Special patterns for AscendC buffer operations**:
+- For `ascendc.get_buf` and `ascendc.rls_buf`, always include the full format with pipe type and buffer number: `pipe_<type>, <number>`
+- Example: `ascendc.get_buf pipe_v, 0`, `ascendc.rls_buf pipe_mte2, 1`, `ascendc.get_buf pipe_m, 2`
+- Common pipe types: `pipe_v`, `pipe_m`, `pipe_mte2`, `pipe_mte3`, `pipe_mte1`, `pipe_fix`, `pipe_s`
+- Buffer numbers are assigned by the pass and should be verified from actual output
+
+**Handling intervening constant declarations**:
+- After `CHECK-LABEL:`, if the pass introduces operations but there are constant declarations in between, use `// CHECK:` for the first transformed operation
+- Example pattern:
+```mlir
+// CHECK-LABEL: func.func @test_example
+// CHECK: arith.constant
+// CHECK: ascendc.tbuf.get_tensor
+// CHECK-NEXT: ascendc.get_buf pipe_v, 0  // This follows immediately after tbuf.get_tensor
+// CHECK-NEXT: ascendc.add_l2 %arg1, %arg2, %c256 : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+// CHECK-NEXT: ascendc.rls_buf pipe_v, 0
+// CHECK-NEXT: return
+// CHECK-NEXT:}
+func.func @test_example(%arg0: !ascendc.tbuf<vecin>) {
+  %c256 = arith.constant 256 : i32
+  %tensor = ascendc.tbuf.get_tensor %arg0 : !ascendc.tbuf<vecin>, !ascendc.local_tensor<*xf32>
+  ascendc.add_l2 %tensor, %tensor, %tensor, %c256 : !ascendc.local_tensor<*xf32>, ...
+  return
+}
+```
+
+**Inside nested regions with constants**:
+- When constants are introduced inside `scf.for` or `scf.if` before the operations to check, use `// CHECK:` for those operations
+- Example:
+```mlir
+// CHECK-LABEL: func.func @test_nested_for
+// CHECK: scf.for
+// CHECK: ascendc.set_flag mte3_mte2  // Use CHECK because constant may precede
+// CHECK-NEXT: ascendc.set_flag mte3_mte1
+// CHECK-NEXT: ascendc.wait_flag mte3_mte2
+// CHECK-NEXT: ascendc.wait_flag mte3_mte1
+// CHECK-NEXT: return
+// CHECK-NEXT:}
+```
