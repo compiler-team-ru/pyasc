@@ -195,13 +195,23 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
                 rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::slt, tailElementsLastDim, const0);
             Value tailElements = rewriter.create<arith::SelectOp>(loc, tailNegCond, const0, tailElementsLastDim);
             Value minTailElements = rewriter.create<arith::MinSIOp>(loc, dstLastDim, tailElements);
-            Value blockLen = rewriter.create<arith::MulIOp>(loc, minTailElements, typeSizeValue);
-            Value srcStrideElements = rewriter.create<arith::SubIOp>(loc, srcLastDim, minTailElements);
+            Value blockLen;
+            Value srcStrideElements;
+            Value rightPad;
+            if (auto realShapeAttr = op.getRealShapeAttr()) {
+                auto lastDim = cast<IntegerAttr>(realShapeAttr.getValue().back()).getValue().getSExtValue();
+                Value realLastDim = consts.i32(lastDim);
+                Value realTailElements = rewriter.create<arith::MinSIOp>(loc, realLastDim, tailElements);
+                blockLen = rewriter.create<arith::MulIOp>(loc, realTailElements, typeSizeValue);
+                srcStrideElements = rewriter.create<arith::SubIOp>(loc, srcLastDim, realTailElements);
+                rightPad = rewriter.create<arith::SubIOp>(loc, dstLastDim, realLastDim);
+            } else {
+                blockLen = rewriter.create<arith::MulIOp>(loc, minTailElements, typeSizeValue);
+                srcStrideElements = rewriter.create<arith::SubIOp>(loc, srcLastDim, minTailElements);
+                rightPad = rewriter.create<arith::SubIOp>(loc, dstLastDim, minTailElements);
+            }
             Value srcStride = rewriter.create<arith::MulIOp>(loc, srcStrideElements, typeSizeValue);
             Value blockCount = dstShape.size() == 1 ? const1 : consts.i32(dstShape[0]);
-            auto dstNumElements = dstType.getNumElements();
-            auto divs = rewriter.create<arith::DivSIOp>(loc, consts.i32(dstNumElements), blockCount);
-            auto rightPad = rewriter.create<arith::SubIOp>(loc, divs, minTailElements);
             auto context = op.getContext();
             auto ui32Type = rewriter.getIntegerType(32, false);
             auto dataCopyExtParams = rewriter.create<ascendc::ConstructOp>(
