@@ -49,6 +49,8 @@ LogicalResult printOperation(CodeEmitter& emitter, emitasc::VerbatimOp op);
 
 LogicalResult printOperation(CodeEmitter& emitter, emitasc::VFGroupOp op);
 
+LogicalResult printOperation(CodeEmitter& emitter, emitasc::VFForOp op);
+
 } // namespace emitasc
 } // namespace mlir
 

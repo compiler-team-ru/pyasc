@@ -64,7 +64,9 @@ using LogicalResultForT = LogicalResultIf<llvm::is_one_of<T, AllowedTypes...>::v
 template <typename OpType>
 bool needsSemicolon(const OpType& op)
 {
-    return !isa<scf::IfOp, scf::ForOp, scf::IndexSwitchOp, scf::YieldOp>(op);
+    return !isa<
+        scf::IfOp, scf::ForOp, emitasc::VFForOp, emitasc::VecScopeOp, emitasc::VFGroupOp, scf::IndexSwitchOp,
+        scf::YieldOp>(op);
 }
 
 template <typename OpType>

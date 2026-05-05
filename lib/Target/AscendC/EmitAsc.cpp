@@ -270,3 +270,33 @@ LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::VFGro
     os.unindent() << "}";
     return success();
 }
+
+LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::VFForOp forOp)
+{
+    auto& os = emitter.ostream();
+
+    os << "for (";
+    FAIL_OR(emitter.emitType(forOp.getLoc(), forOp.getUnderlyingType()));
+    os << " " << emitter.getOrCreateName(forOp.getInductionVar());
+    os << " = " << forOp.getLowerBoundAsInt();
+    os << "; " << emitter.getOrCreateName(forOp.getInductionVar());
+    os << " < static_cast<";
+    FAIL_OR(emitter.emitType(forOp.getLoc(), forOp.getUnderlyingType()));
+    os << ">(" << emitter.getOrCreateName(forOp.getUpperBound()) << ")";
+    os << "; " << emitter.getOrCreateName(forOp.getInductionVar());
+    os << " += " << forOp.getStepAsInt() << ") {\n";
+    os.indent();
+
+    Region& forRegion = forOp.getRegion();
+    auto regionOps = forRegion.getOps();
+
+    for (auto it = regionOps.begin(); std::next(it) != regionOps.end(); ++it) {
+        Operation& op = *it;
+        if (failed(emitOperation(emitter, op, needsSemicolon(op)))) {
+            return failure();
+        }
+    }
+
+    os.unindent() << "}";
+    return success();
+}

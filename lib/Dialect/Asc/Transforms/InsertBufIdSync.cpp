@@ -244,8 +244,6 @@ class InsertBufIdSyncPass : public ascendc::impl::InsertBufIdSyncBase<InsertBufI
                 forOp->removeAttr(asctile::attr::parallel);
                 return;
             }
-            if (forOp->hasAttr(ascendc::attr::vecScopeLoop))
-                return;
             auto terminator = forOp.getBody()->getTerminator();
             OpBuilder builder(terminator);
             ascir::ConstantOpBuilder consts(builder);

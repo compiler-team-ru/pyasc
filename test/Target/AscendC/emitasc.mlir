@@ -100,58 +100,17 @@ module {
     }
 }
 
-// CHECK-LABEL:void emit_mask(int64_t v1, int64_t v2) {
-// CHECK-NEXT:  uint64_t v3[2] = {static_cast<uint64_t>(v2), static_cast<uint64_t>(v1)};
-// CHECK-NEXT:  return;
-// CHECK-NEXT:}
-func.func @emit_mask(%h: i64, %l: i64) {
-    %mask = emitasc.mask %h, %l
-    return
-}
-
-// CHECK-LABEL:void emit_member(int32_t v1) {
-// CHECK-NEXT:  int32_t v2 = v1.myField;
-// CHECK-NEXT:  return;
-// CHECK-NEXT:}
-func.func @emit_member(%base: i32) {
-    %val = emitasc.member %base "myField" : i32, i32
-    return
-}
-
-// CHECK-LABEL:void emit_member_ptr(S* v1) {
-// CHECK-NEXT:  int32_t* v2 = reinterpret_cast<int32_t*>(&v1->x);
-// CHECK-NEXT:  return;
-// CHECK-NEXT:}
-func.func @emit_member_ptr(%base: memref<?x!emitasc.py_struct<"S", [i32], ["x"]>>) {
-    %ptr = emitasc.member_ptr %base[0] "x" : memref<?x!emitasc.py_struct<"S", [i32], ["x"]>>, memref<?xi32>
-    return
-}
-
-// CHECK-LABEL:void emit_init_struct(int32_t v1, float v2) {
-// CHECK-NEXT:  MyStruct v3;
-// CHECK-NEXT:  v3.a = v1;
-// CHECK-NEXT:  v3.b = v2;
-// CHECK-NEXT:  return;
-// CHECK-NEXT:}
-func.func @emit_init_struct(%a: i32, %b: f32) {
-    %s = emitasc.init_struct !emitasc.py_struct<"MyStruct", [i32, f32], ["a", "b"]>("a" = %a : i32, "b" = %b : f32)
-    return
-}
-
-// CHECK-LABEL:void emit_member_ref(S* v1) {
-// CHECK-NEXT:  int32_t& v2 = reinterpret_cast<int32_t&>(v1->x);
-// CHECK-NEXT:  return;
-// CHECK-NEXT:}
-func.func @emit_member_ref(%base: memref<?x!emitasc.py_struct<"S", [i32], ["x"]>>) {
-    %ref = emitasc.member_ref %base[0] "x" : memref<?x!emitasc.py_struct<"S", [i32], ["x"]>>, i32
-    return
-}
-
-// CHECK-LABEL:void emit_verbatim(int32_t v1, float v2) {
-// CHECK-NEXT:  some_code(v1, v2);
-// CHECK-NEXT:  return;
-// CHECK-NEXT:}
-func.func @emit_verbatim(%a: i32, %b: f32) {
-    emitasc.verbatim "some_code($0, $1)" %a, %b : i32, f32
+// CHECK-LABEL: void fuse(uint32_t v1)
+// CHECK-NEXT: __VEC_SCOPE__
+// CHECK-NEXT: {
+// CHECK-NEXT:   for (uint16_t v2 = 0; v2 < static_cast<uint16_t>(v1); v2 += 1) {
+// CHECK-NEXT:   }
+// CHECK-NEXT: }
+func.func @fuse(%calCount : index) {
+    emitasc.vec_scope {
+        emitasc.vf_for %calCount : index {
+        ^bb0(%arg0: index):
+        }
+    }
     return
 }
