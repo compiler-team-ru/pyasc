@@ -25,6 +25,17 @@ def real_shape_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, rows
     asc2.store(result, out_gm, offsets=[0])
 
 
+@asc2.jit(always_compile=True)
+def real_shape_dynamic_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, rows: int, cols: int,
+                              real_rows: int, real_cols: int, tile_shape: asc.ConstExpr, offsets: asc.ConstExpr):
+    x_gm = asc2.tensor(x_ptr, [rows, cols])
+    out_gm = asc2.tensor(out_ptr, [1])
+    tile = asc2.load(x_gm, tile_shape, real_shape=[real_rows, real_cols], offsets=offsets, pad_value=float('-inf'))
+    max_val = asc2.reduce_max(tile)
+    result = asc2.full([1], max_val, dtype=tile.dtype)
+    asc2.store(result, out_gm, offsets=[0])
+
+
 test_cases = [
     ([2, 42], [2, 8], [2, 8], [0, 0]),
     ([2, 42], [2, 8], [2, 5], [0, 0]),
@@ -37,8 +48,9 @@ test_cases = [
 ]
 
 
+@pytest.mark.parametrize("kernel_type", ["static", "dynamic"])
 @pytest.mark.parametrize("shape, tile_shape, real_shape, offsets", test_cases)
-def test_real_shape(backend, platform, device_id, shape, tile_shape, real_shape, offsets):
+def test_real_shape(backend, platform, device_id, kernel_type, shape, tile_shape, real_shape, offsets):
     torch.manual_seed(42)
     config.set_platform(backend, platform, device_id, check=False)
 
@@ -54,7 +66,13 @@ def test_real_shape(backend, platform, device_id, shape, tile_shape, real_shape,
         x[:, valid_end_col:tile_end_col] = 1000.0
 
     out = torch.empty(1, dtype=torch.float32)
-    real_shape_kernel[1](x, out, rows=rows, cols=cols, tile_shape=tile_shape, real_shape=real_shape, offsets=offsets)
+
+    if kernel_type == "static":
+        real_shape_kernel[1](x, out, rows=rows, cols=cols, tile_shape=tile_shape, real_shape=real_shape,
+                             offsets=offsets)
+    else:
+        real_shape_dynamic_kernel[1](x, out, rows=rows, cols=cols, real_rows=real_rows, real_cols=real_cols,
+                                     tile_shape=tile_shape, offsets=offsets)
 
     expected_region = x[offset_row:offset_row + real_rows, offset_col:offset_col + real_cols]
     expected = torch.amax(expected_region).unsqueeze(0)

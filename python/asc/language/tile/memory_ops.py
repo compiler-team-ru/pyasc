@@ -21,6 +21,16 @@ def to_ir_list(values):
     return [_mat(v, KT.int32).to_ir() for v in values]
 
 
+def check_real_shape(shape: Tuple[int, ...], real_shape: Iterable[RuntimeInt]) -> None:
+    if len(shape) != len(real_shape):
+        raise RuntimeError(f"real_shape must have same rank as shape: {len(real_shape)} != {len(shape)}")
+    for tile_dim, real_dim in zip(shape, real_shape):
+        if not isinstance(real_dim, RuntimeInt):
+            raise RuntimeError(f"real_shape dimension must be int or RuntimeInt, got {type(real_dim)}")
+        if isinstance(real_dim, int) and real_dim > tile_dim:
+            raise RuntimeError(f"real_shape dimension {real_dim} exceeds tile dimension {tile_dim}")
+
+
 def infer_offsets(tensor_shape: Tuple[RuntimeInt], shape: Iterable[int], tile_id: Optional[Iterable[RuntimeInt]],
                   offsets: Optional[Iterable[RuntimeInt]]) -> List[RuntimeInt]:
     shape = tuple(shape)
@@ -46,14 +56,14 @@ def copy(tile: Tile, shape: Optional[Iterable[int]] = None, *, offsets: Optional
 
 
 @overload
-def load(tensor: Tensor, shape: Iterable[int], *, real_shape: Optional[Iterable[int]] = None,
+def load(tensor: Tensor, shape: Iterable[int], *, real_shape: Optional[Iterable[RuntimeInt]] = None,
          offsets: Iterable[RuntimeInt], location: TileLocation = TileLocation.UB,
          pad_value: RuntimeNumeric = 0) -> Tile:
     ...
 
 
 @overload
-def load(tensor: Tensor, shape: Iterable[int], *, real_shape: Optional[Iterable[int]] = None,
+def load(tensor: Tensor, shape: Iterable[int], *, real_shape: Optional[Iterable[RuntimeInt]] = None,
          tile_id: Iterable[RuntimeInt], location: TileLocation = TileLocation.UB,
          pad_value: RuntimeNumeric = 0) -> Tile:
     ...
@@ -64,7 +74,7 @@ def load(tensor: Tensor, *, offsets: Iterable[RuntimeInt]) -> PlainValue:
     ...
 
 
-def load(tensor: Tensor, shape: Optional[Iterable[int]] = None, *, real_shape: Optional[Iterable[int]] = None,
+def load(tensor: Tensor, shape: Optional[Iterable[int]] = None, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
          tile_id: Optional[Iterable[RuntimeInt]] = None, offsets: Optional[Iterable[RuntimeInt]] = None,
          location: TileLocation = TileLocation.UB, pad_value: RuntimeNumeric = 0) -> Union[Tile, PlainValue]:
     if (tile_id is None) == (offsets is None):
@@ -78,11 +88,11 @@ def load(tensor: Tensor, shape: Optional[Iterable[int]] = None, *, real_shape: O
     offsets = infer_offsets(tensor.shape, shape, tile_id, offsets)
     ir_type = ir.get_asctile_TileType(list(shape), tensor.dtype.to_ir(), location)
     pad_value = _mat(pad_value, tensor.dtype).to_ir() if pad_value is not None else None
-    real_shape_attr = None
+    real_shape_ir = []
     if real_shape is not None:
-        real_shape = verify_shape(real_shape)
-        real_shape_attr = builder.get_i32_array_attr(real_shape)
-    handle = builder.create_asctile_LoadOp(ir_type, tensor.to_ir(), offsets, pad_value, real_shape_attr)
+        check_real_shape(shape, real_shape)
+        real_shape_ir = to_ir_list(real_shape)
+    handle = builder.create_asctile_LoadOp(ir_type, tensor.to_ir(), offsets, pad_value, real_shape_ir)
     return Tile(handle)
 
 
