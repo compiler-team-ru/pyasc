@@ -10,7 +10,9 @@
 
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/Matchers.h"
 #include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/TypeUtilities.h"
@@ -159,18 +161,20 @@ LogicalResult LoadOp::canonicalize(LoadOp op, PatternRewriter& rewriter)
 
 LogicalResult LoadOp::verify()
 {
-    auto realShapeAttr = getRealShapeAttr();
-    if (!realShapeAttr)
+    auto realShape = getRealShape();
+    if (realShape.empty())
         return success();
     auto tileShape = getType().getShape();
-    auto realShape = llvm::to_vector(realShapeAttr.getAsValueRange<IntegerAttr>());
-    if (realShape.size() != tileShape.size()) {
+    if (tileShape.size() != realShape.size())
         return emitOpError() << "real_shape must have same rank as tile shape";
-    }
-    for (auto [realDim, tileDim] : llvm::zip_equal(realShape, tileShape)) {
-        if (realDim.getSExtValue() > tileDim) {
-            return emitOpError() << "real_shape exceeds tile shape\n";
-        }
+
+    for (auto [realDimValue, tileDim] : llvm::zip_equal(realShape, tileShape)) {
+        APInt realDimInt;
+        if (!matchPattern(realDimValue, m_ConstantInt(&realDimInt)))
+            continue;
+        int64_t realDim = realDimInt.getSExtValue();
+        if (realDim > tileDim)
+            return emitOpError() << "real_shape exceeds tile shape";
     }
     return success();
 }

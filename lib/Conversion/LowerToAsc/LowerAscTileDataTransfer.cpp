@@ -198,9 +198,8 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
             Value blockLen;
             Value srcStrideElements;
             Value rightPad;
-            if (auto realShapeAttr = op.getRealShapeAttr()) {
-                auto lastDim = cast<IntegerAttr>(realShapeAttr.getValue().back()).getValue().getSExtValue();
-                Value realLastDim = consts.i32(lastDim);
+            if (auto realShape = op.getRealShape(); !realShape.empty()) {
+                auto realLastDim = realShape.back();
                 Value realTailElements = rewriter.create<arith::MinSIOp>(loc, realLastDim, tailElements);
                 blockLen = rewriter.create<arith::MulIOp>(loc, realTailElements, typeSizeValue);
                 srcStrideElements = rewriter.create<arith::SubIOp>(loc, srcLastDim, realTailElements);
