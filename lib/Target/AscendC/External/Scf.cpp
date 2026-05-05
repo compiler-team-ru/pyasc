@@ -47,11 +47,7 @@ LogicalResult mlir::printOperation(CodeEmitter& codeEmitter, scf::ForOp forOp)
     }
 
     os << "for (";
-    if (forOp->hasAttr(ascendc::attr::vecScopeLoop)) {
-        os << "uint16_t";
-    } else if (failed(codeEmitter.emitType(forOp.getLoc(), forOp.getInductionVar().getType()))) {
-        return failure();
-    }
+    FAIL_OR(codeEmitter.emitType(forOp.getLoc(), forOp.getInductionVar().getType()));
     os << " " << codeEmitter.getOrCreateName(forOp.getInductionVar());
     os << " = " << codeEmitter.getOrCreateName(forOp.getLowerBound());
     os << "; " << codeEmitter.getOrCreateName(forOp.getInductionVar());

@@ -229,7 +229,7 @@ std::optional<int64_t> getOrder(Operation* op)
     return std::nullopt;
 }
 
-ascendc::UpdateMaskOp createUpdateMask(scf::ForOp loop, Value calCount, Type type)
+ascendc::UpdateMaskOp createUpdateMask(emitasc::VFForOp loop, Value calCount, Type type)
 {
     OpBuilder builder(loop);
     auto calCountVar = builder.create<emitasc::VariableOp>(
@@ -420,15 +420,10 @@ public:
     }
 
 private:
-    scf::ForOp createLoop(OpBuilder builder)
+    emitasc::VFForOp createLoop(OpBuilder builder)
     {
         ascir::ConstantOpBuilder consts(builder);
-        auto zero = consts.index(0);
-        setOrder(zero.getDefiningOp(), Order::ConstantOp);
-        auto one = consts.index(1);
-        setOrder(one.getDefiningOp(), Order::ConstantOp);
-        auto loop = builder.create<scf::ForOp>(builder.getUnknownLoc(), zero, zero, one);
-        loop->setAttr(ascendc::attr::vecScopeLoop, builder.getUnitAttr());
+        auto loop = builder.create<emitasc::VFForOp>(builder.getUnknownLoc(), calCount);
         return loop;
     }
 };
@@ -543,7 +538,7 @@ void hoistOperations(emitasc::VecScopeOp vecScopeOp)
     });
 }
 
-void merge(scf::ForOp firstLoop, scf::ForOp secondLoop)
+void merge(emitasc::VFForOp firstLoop, emitasc::VFForOp secondLoop)
 {
     OpBuilder builder(firstLoop.getContext());
     SmallVector<Operation*> opList;
@@ -564,9 +559,9 @@ void fuseLoops(emitasc::VecScopeOp vecScopeOp)
     auto it = ops.begin();
     while (std::next(it) != ops.end()) {
         bool flag = false;
-        if (auto curLoop = dyn_cast<scf::ForOp>(*it)) {
+        if (auto curLoop = dyn_cast<emitasc::VFForOp>(*it)) {
             auto nextIt = std::next(it);
-            if (auto nextLoop = dyn_cast<scf::ForOp>(*nextIt)) {
+            if (auto nextLoop = dyn_cast<emitasc::VFForOp>(*nextIt)) {
                 merge(curLoop, nextLoop);
                 flag = true;
             }
@@ -794,7 +789,7 @@ void materialize(emitasc::VecScopeOp vecScopeOp, Value calCount, Type groupType)
     std::tie(oneRepeatSizeIndex, repeatTimes) = createRepeatTimes(builder, calCount, groupType);
 
     // materialize DataCopyLoad, DataCopyStore
-    vecScopeOp->walk([&](scf::ForOp loop) {
+    vecScopeOp->walk([&](emitasc::VFForOp loop) {
         OpBuilder builder(loop.getContext());
 
         loop.setUpperBound(repeatTimes);
