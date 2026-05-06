@@ -61,7 +61,6 @@ Value linearizeOffset(OpBuilder& builder, Location loc, ArrayRef<Value> tensorSh
 {
     ascir::ConstantOpBuilder consts(builder);
     assert(offsets.size() == tensorShape.size() && "must be one offset for each dimension");
-    assert(tensorShape.size() <= 2 && "supported only tensorShape with dims <= 2");
     Value linearOffset = consts.i32(0);
     Value stride = consts.i32(1);
     for (size_t i = tensorShape.size(); i-- > 0;) {
@@ -210,8 +209,9 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
                 rightPad = rewriter.create<arith::SubIOp>(loc, dstLastDim, minTailElements);
             }
             Value srcStride = rewriter.create<arith::MulIOp>(loc, srcStrideElements, typeSizeValue);
-            Value blockCount = dstShape.size() == 1 ? const1 : consts.i32(dstShape[0]);
-            auto context = op.getContext();
+            Value blockCount = const1;
+            for (size_t i = 0; i + 1 < dstShape.size(); i++)
+                blockCount = rewriter.create<arith::MulIOp>(loc, blockCount, consts.i32(dstShape[i]));
             auto ui32Type = rewriter.getIntegerType(32, false);
             auto dataCopyExtParams = rewriter.create<ascendc::ConstructOp>(
                 loc, rewriter.getType<ascendc::DataCopyExtParamsType>(),
@@ -219,7 +219,7 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
                 rewriter.getTypeArrayAttr(
                     {rewriter.getIntegerType(16, false), ui32Type, ui32Type, ui32Type, ui32Type}));
             auto dataCopyPadExtParams = rewriter.create<ascendc::ConstructOp>(
-                loc, ascendc::DataCopyPadExtParamsType::get(context, cast<ShapedType>(dstType).getElementType()),
+                loc, rewriter.getType<ascendc::DataCopyPadExtParamsType>(getElementTypeOrSelf(dstType)),
                 ValueRange{const1, const0, rightPad, padValue},
                 rewriter.getTypeArrayAttr(
                     {rewriter.getI32Type(), rewriter.getI32Type(), rewriter.getIntegerType(8, false),
@@ -254,21 +254,23 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
         }
         SmallVector<Value> dstShape = getTensorShape(rewriter, tensorOp);
         auto const0 = consts.i32(0);
-        Value linearOffset = linearizeOffset(rewriter, loc, dstShape, op.getOffsets());
+        auto offsets = op.getOffsets();
+        Value linearOffset = linearizeOffset(rewriter, loc, dstShape, offsets);
         dst = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, dstType, dst, linearOffset);
-        auto numElements = calculateNumElements(rewriter, loc, dstShape);
-        auto typeSize = ascendc::getElementTypeSize(srcType);
-        auto typeSizeValue = consts.i32(typeSize);
-        Value srcNumElements = consts.i32(calCount(src));
-        Value tailElements = rewriter.create<arith::SubIOp>(loc, numElements, linearOffset);
-        Value blockCount = srcShape.size() == 1 ? consts.i32(1) : srcShape[0];
+        Value typeSize = consts.i32(ascendc::getElementTypeSize(srcType));
         Value srcLastDim = srcShape[srcShape.size() - 1];
         Value dstLastDim = dstShape[dstShape.size() - 1];
-        Value strideElements = rewriter.create<arith::SubIOp>(loc, dstLastDim, srcLastDim);
-        Value dstStride = rewriter.create<arith::MulIOp>(loc, strideElements, typeSizeValue);
+        Value lastDimOffset = offsets.back();
+        Value tailElementsLastDim = rewriter.create<arith::SubIOp>(loc, dstLastDim, lastDimOffset);
+        auto tailNegCond = rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::slt, tailElementsLastDim, const0);
+        Value tailElements = rewriter.create<arith::SelectOp>(loc, tailNegCond, const0, tailElementsLastDim);
         Value minTailElements = rewriter.create<arith::MinSIOp>(loc, srcLastDim, tailElements);
-        Value blockLen = rewriter.create<arith::MulIOp>(loc, minTailElements, typeSizeValue);
-        auto context = op.getContext();
+        Value blockLen = rewriter.create<arith::MulIOp>(loc, minTailElements, typeSize);
+        Value blockCount = consts.i32(1);
+        for (size_t i = 0; i + 1 < srcShape.size(); i++)
+            blockCount = rewriter.create<arith::MulIOp>(loc, blockCount, srcShape[i]);
+        Value lastDimSize = rewriter.create<arith::MulIOp>(loc, dstLastDim, typeSize);
+        Value dstStride = rewriter.create<arith::SubIOp>(loc, lastDimSize, blockLen);
         auto ui32Type = rewriter.getIntegerType(32, false);
         auto dataCopyExtParams = rewriter.create<ascendc::ConstructOp>(
             loc, rewriter.getType<ascendc::DataCopyExtParamsType>(),
