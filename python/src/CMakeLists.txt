@@ -31,6 +31,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE
   MLIRAscUtils
   MLIRAscTile
   MLIRAscTileTransforms
+  MLIRAscVF
+  MLIRAscVFTransforms
   MLIREmitAsc
   MLIRIR
   MLIRLowerToAsc

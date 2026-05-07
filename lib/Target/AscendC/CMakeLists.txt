@@ -15,6 +15,7 @@ LINK_LIBS PUBLIC
   MLIRArithDialect
   MLIRAsc
   MLIRAscUtils
+  MLIRAscVF
   MLIREmitAsc
   MLIREmitCDialect
   MLIRFuncDialect

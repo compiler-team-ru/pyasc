@@ -226,7 +226,7 @@ class Compiler:
             passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=False)
         passes.common.add_canonicalizer(pm)
         if self.options.vf_fusion:
-            passes.ascendc.add_fuse_vf_block(pm)
+            passes.ascvf.add_fuse_vf_block(pm)
         if self.options.static_alloc:
             passes.ascendc.add_allocate_tensor(pm)
         else:

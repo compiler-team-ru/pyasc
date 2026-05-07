@@ -13,6 +13,7 @@
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
+#include "ascir/Dialect/AscVF/IR/AscVF.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Target/Asc/CodeEmitter.h"
 #include "ascir/Target/Asc/Utils.h"
@@ -65,8 +66,8 @@ template <typename OpType>
 bool needsSemicolon(const OpType& op)
 {
     return !isa<
-        scf::IfOp, scf::ForOp, emitasc::VFForOp, emitasc::VecScopeOp, emitasc::VFGroupOp, scf::IndexSwitchOp,
-        scf::YieldOp>(op);
+        scf::IfOp, scf::ForOp, ascvf::VFForOp, ascvf::VecScopeOp, ascvf::VFGroupOp, scf::IndexSwitchOp, scf::YieldOp>(
+        op);
 }
 
 template <typename OpType>

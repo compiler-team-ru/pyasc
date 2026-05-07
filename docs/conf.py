@@ -67,6 +67,7 @@ def setup_generated_mlir_docs():
     dialects_docs = [
         ("Dialects/AscendC.md", "ascendc.md"),
         ("Dialects/AscTile.md", "asctile.md"),
+        ("Dialects/AscVF.md", "ascvf.md"),
         ("Dialects/EmitAsc.md", "emitasc.md"),
     ]
     mlir_docs_dir = Path("mlir")
@@ -76,6 +77,7 @@ def setup_generated_mlir_docs():
     passes_docs = [
         ("AscendCPasses.md", "ascendc.md", "AscendC"),
         ("AscTilePasses.md", "asctile.md", "AscTile"),
+        ("AscVFPasses.md", "ascvf.md", "AscVF"),
         ("LowerToAsc.md", "lowertoasc.md", "LowerToAsc"),
     ]
     for src_md, dst_md, title in passes_docs:

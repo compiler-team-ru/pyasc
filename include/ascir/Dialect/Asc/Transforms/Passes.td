@@ -163,49 +163,6 @@ def FuseBufIdSync : Pass<"ascendc-fuse-bufid-sync", "func::FuncOp"> {
   }];
 }
 
-def FuseVFBlock : Pass<"ascendc-fuse-vf-block", "func::FuncOp"> {
-  let summary = "Fuse consecutive L2 vector operations into VF blocks with micro-operations and register tensors";
-  let constructor = "mlir::ascendc::createFuseVFBlockPass()";
-  let dependentDialects = ["ascendc::AscendCDialect", "scf::SCFDialect", "emitasc::EmitAscDialect"];
-  let description = [{
-    Transforms sequences of L2 vector operations into optimized VF (Vector Fusion) blocks:
-    1. Groups operations with matching `calCount` and element type, separated by non-vector ops or different types
-    2. Wraps groups in `emitasc.vf_group` with input/output tensor lists
-    3. Inside `vec_scope`, creates `reg_tensor` for each used local tensor
-    4. Generates loop over repeat times with: `data_copy_vld_micro` (load inputs), micro-ops (compute), `data_copy_vst_micro` (store outputs)
-
-    Supported ops: add/mul/sub/div/max/min/relu/abs/exp/ln/neg/not/sqrt L2 operations and `pipe_barrier pipe_v/pipe_all`.
-    Groups must have at least 2 operations; single ops are not fused.
-
-    Example transformation:
-    ```mlir
-    // Before: separate L2 operations
-    %dst = ascendc.que_bind.alloc_tensor %queue
-    %src0 = ascendc.que_bind.deque_tensor %queue
-    %src1 = ascendc.que_bind.deque_tensor %queue
-    ascendc.add_l2 %dst, %src0, %src1, %c256
-    ascendc.pipe_barrier pipe_v
-    ascendc.mul_l2 %dst, %dst, %src1, %c256
-
-    // After: fused VF block with micro-ops
-    emitasc.vf_group %dst, %src0, %src1 {
-      emitasc.vec_scope {
-        %reg = ascendc.reg_tensor : <f32>
-        %reg0 = ascendc.reg_tensor : <f32>
-        %reg1 = ascendc.reg_tensor : <f32>
-        scf.for %i = 0 to %repeat_count {
-          ascendc.data_copy_vld_micro %reg0, %src0_ptr[%offset]
-          ascendc.data_copy_vld_micro %reg1, %src1_ptr[%offset]
-          ascendc.add_micro %reg, %reg0, %reg1, %mask
-          ascendc.mul_micro %reg, %reg, %reg1, %mask
-          ascendc.data_copy_vst_micro %dst_ptr[%offset], %reg, %mask
-        } {asc.vec_scope_loop}
-      }
-    }
-    ```
-  }];
-}
-
 def GenerateBoilerplate : Pass<"ascendc-generate-boilerplate", "ModuleOp"> {
   let summary = "Insert required C++ include headers based on operations used in the kernel";
   let constructor = "mlir::ascendc::createGenerateBoilerplatePass()";

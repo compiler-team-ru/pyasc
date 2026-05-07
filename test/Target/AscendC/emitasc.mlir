@@ -99,18 +99,3 @@ module {
         return
     }
 }
-
-// CHECK-LABEL: void fuse(uint32_t v1)
-// CHECK-NEXT: __VEC_SCOPE__
-// CHECK-NEXT: {
-// CHECK-NEXT:   for (uint16_t v2 = 0; v2 < static_cast<uint16_t>(v1); v2 += 1) {
-// CHECK-NEXT:   }
-// CHECK-NEXT: }
-func.func @fuse(%calCount : index) {
-    emitasc.vec_scope {
-        emitasc.vf_for %calCount : index {
-        ^bb0(%arg0: index):
-        }
-    }
-    return
-}

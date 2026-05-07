@@ -13,6 +13,7 @@
 #include "ascir/Conversion/LowerToAsc/Passes.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/AscTile/Transforms/Passes.h"
+#include "ascir/Dialect/AscVF/Transforms/Passes.h"
 
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -106,7 +107,6 @@ void defineAscendCPasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_fill_asc_operands", createFillAscOperandsPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_fixup_mmad_acc_params_pass", createFixupMmadAccParamsPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_fuse_bufid_sync", createFuseBufIdSyncPass);
-    DEFINE_ADD_PASS_ON(func::FuncOp, "add_fuse_vf_block", createFuseVFBlockPass);
     DEFINE_ADD_PASS("add_generate_boilerplate", createGenerateBoilerplatePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_hoist_que_bind", createHoistQueBindPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_input_output_tensor", createInputOutputTensorPass);
@@ -162,6 +162,14 @@ void defineAscTilePasses(py::module& mod)
         "pm"_a, "small_groups"_a = false);
 }
 
+void defineAscVFPasses(py::module& mod)
+{
+    using namespace ascvf;
+    using namespace pybind11::literals;
+    auto m = mod.def_submodule("ascvf");
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_fuse_vf_block", createFuseVFBlockPass);
+}
+
 void defineLowerToAscPasses(py::module& mod)
 {
     using namespace asclower;
@@ -191,6 +199,7 @@ void initPassesModule(py::module&& m)
     defineCommonPasses(m);
     defineAscendCPasses(m);
     defineAscTilePasses(m);
+    defineAscVFPasses(m);
     defineLowerToAscPasses(m);
 }
 } // namespace asc

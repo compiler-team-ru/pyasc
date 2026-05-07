@@ -8,4 +8,5 @@
 
 add_subdirectory(Asc)
 add_subdirectory(AscTile)
+add_subdirectory(AscVF)
 add_subdirectory(EmitAsc)

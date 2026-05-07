@@ -9,6 +9,7 @@
  */
 
 #include "ascir/Target/Asc/Translation.h"
+#include "ascir/Dialect/AscVF/IR/AscVF.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Target/Asc/Adv/Activation.h"
 #include "ascir/Target/Asc/Adv/Broadcast.h"
@@ -18,6 +19,7 @@
 #include "ascir/Target/Asc/Adv/Normalization.h"
 #include "ascir/Target/Asc/Adv/Quantization.h"
 #include "ascir/Target/Asc/Adv/Reduction.h"
+#include "ascir/Target/Asc/AscVF.h"
 #include "ascir/Target/Asc/Basic/Aipp.h"
 #include "ascir/Target/Asc/Basic/BlockSync.h"
 #include "ascir/Target/Asc/Basic/DataConversion.h"
@@ -111,8 +113,9 @@ using PrintableOpTypes = std::tuple<
     // EmitAsc operations
     emitasc::CallOpaqueOp, emitasc::DeclarePyStructOp, emitasc::DereferenceOp, emitasc::MaskOp, emitasc::MemberOp,
     emitasc::MemberPtrOp, emitasc::MemberRefOp, emitasc::PtrOffsetOp, emitasc::ReinterpretCastOp, emitasc::SetMemberOp,
-    emitasc::VariableOp, emitasc::VecScopeOp, emitasc::VerbatimOp, emitasc::VFGroupOp, emitasc::VFForOp,
-    emitasc::CopyStructOp, emitasc::InitStructOp,
+    emitasc::VariableOp, emitasc::VerbatimOp, emitasc::CopyStructOp, emitasc::InitStructOp,
+    // AscVF operations
+    ascvf::VFForOp, ascvf::VecScopeOp, ascvf::VFGroupOp,
     // Adv
     // Activation operations
     ascendc::SimpleSoftMaxOp, ascendc::SoftMaxOp, ascendc::SwiGLUOp,

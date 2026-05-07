@@ -161,57 +161,6 @@ LogicalResult VariableOp::canonicalize(VariableOp op, PatternRewriter& rewriter)
 }
 
 //===----------------------------------------------------------------------===//
-// VFGroupOp
-//===----------------------------------------------------------------------===//
-
-Type VFGroupOp::getGroupType()
-{
-    Value tensor{};
-    if (auto dstList = getDstList(); !dstList.empty()) {
-        tensor = dstList.back();
-    } else if (auto srcList = getSrcList(); !srcList.empty()) {
-        tensor = srcList.back();
-    } else {
-        return Type{};
-    }
-    auto tensorType = dyn_cast<ascendc::LocalTensorType>(tensor.getType());
-    assert(tensorType && "expected local tensor");
-    return tensorType.getElementType();
-}
-
-//===----------------------------------------------------------------------===//
-// VFForOp
-//===----------------------------------------------------------------------===//
-
-void VFForOp::build(OpBuilder& builder, OperationState& state, Value ub)
-{
-    OpBuilder::InsertionGuard guard(builder);
-    state.addOperands(ub);
-    Type type = builder.getIndexType();
-    Region* bodyRegion = state.addRegion();
-    Block* bodyBlock = builder.createBlock(bodyRegion);
-    bodyBlock->addArgument(type, state.location);
-    ensureTerminator(*bodyRegion, builder, state.location);
-}
-
-LogicalResult VFForOp::canonicalize(VFForOp op, PatternRewriter& rewriter)
-{
-    Block& block = op.getRegion().front();
-    if (block.without_terminator().empty()) {
-        rewriter.eraseOp(op);
-        return success();
-    }
-    return failure();
-}
-
-LogicalResult VFForOp::verify()
-{
-    if (getBody()->getArguments().size() != 1)
-        return emitOpError("block must have one argument");
-    return success();
-}
-
-//===----------------------------------------------------------------------===//
 // EmitAscDialect
 //===----------------------------------------------------------------------===//
 

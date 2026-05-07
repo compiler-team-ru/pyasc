@@ -9,10 +9,10 @@
  */
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
-#include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
 #include "ascir/Dialect/AscTile/Utils/Attributes.h"
+#include "ascir/Dialect/AscVF/IR/AscVF.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -208,7 +208,7 @@ public:
                 insertSync(op, src);
             }
         }
-        if (auto fusedOp = dyn_cast<emitasc::VFGroupOp>(op)) {
+        if (auto fusedOp = dyn_cast<ascvf::VFGroupOp>(op)) {
             for (auto dstTensor : fusedOp.getDstList()) {
                 insertSync(op, dstTensor);
             }

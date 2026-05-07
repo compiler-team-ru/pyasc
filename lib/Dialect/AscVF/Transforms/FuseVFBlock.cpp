@@ -9,9 +9,10 @@
  */
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
-#include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
+#include "ascir/Dialect/AscVF/IR/AscVF.h"
+#include "ascir/Dialect/AscVF/Transforms/Passes.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 #include "ascir/Dialect/Utils/Utils.h"
@@ -23,10 +24,10 @@
 #include "llvm/ADT/TypeSwitch.h"
 
 namespace mlir {
-namespace ascendc {
+namespace ascvf {
 #define GEN_PASS_DEF_FUSEVFBLOCK
-#include "ascir/Dialect/Asc/Transforms/Passes.h.inc"
-} // namespace ascendc
+#include "ascir/Dialect/AscVF/Transforms/Passes.h.inc"
+} // namespace ascvf
 } // namespace mlir
 
 using namespace mlir;
@@ -198,13 +199,13 @@ ValueVector getOutputLocalTensors(ArrayRef<Operation*> group)
 }
 
 // Find local tensors that are used as dst or src
-ValueVector getUsedLocalTensors(emitasc::VecScopeOp vecScope)
+ValueVector getUsedLocalTensors(ascvf::VecScopeOp vecScope)
 {
     ValueVector usedLocalTensors;
     vecScope.walk([&](Operation* op) {
-        if (auto load = dyn_cast<emitasc::LoadMicroOp>(op)) {
+        if (auto load = dyn_cast<ascvf::LoadMicroOp>(op)) {
             usedLocalTensors.emplace_back(load.getSrcTensor());
-        } else if (auto store = dyn_cast<emitasc::StoreMicroOp>(op)) {
+        } else if (auto store = dyn_cast<ascvf::StoreMicroOp>(op)) {
             usedLocalTensors.emplace_back(store.getDstTensor());
         }
     });
@@ -229,7 +230,7 @@ std::optional<int64_t> getOrder(Operation* op)
     return std::nullopt;
 }
 
-ascendc::UpdateMaskOp createUpdateMask(emitasc::VFForOp loop, Value calCount, Type type)
+ascendc::UpdateMaskOp createUpdateMask(ascvf::VFForOp loop, Value calCount, Type type)
 {
     OpBuilder builder(loop);
     auto calCountVar = builder.create<emitasc::VariableOp>(
@@ -277,14 +278,14 @@ ascendc::RegTensorOp createRegTensor(OpBuilder builder, Type elemType)
     return regTensorOp;
 }
 
-emitasc::LoadMicroOp createLoad(OpBuilder builder, Value dstReg, Value srcTensor)
+ascvf::LoadMicroOp createLoad(OpBuilder builder, Value dstReg, Value srcTensor)
 {
-    return builder.create<emitasc::LoadMicroOp>(builder.getUnknownLoc(), dstReg, srcTensor);
+    return builder.create<ascvf::LoadMicroOp>(builder.getUnknownLoc(), dstReg, srcTensor);
 }
 
-emitasc::StoreMicroOp createStore(OpBuilder builder, Value dstTensor, Value srcReg, Value mask)
+ascvf::StoreMicroOp createStore(OpBuilder builder, Value dstTensor, Value srcReg, Value mask)
 {
-    return builder.create<emitasc::StoreMicroOp>(builder.getUnknownLoc(), dstTensor, srcReg, mask);
+    return builder.create<ascvf::StoreMicroOp>(builder.getUnknownLoc(), dstTensor, srcReg, mask);
 }
 
 template <typename ReduceOpType>
@@ -420,10 +421,10 @@ public:
     }
 
 private:
-    emitasc::VFForOp createLoop(OpBuilder builder)
+    ascvf::VFForOp createLoop(OpBuilder builder)
     {
         ascir::ConstantOpBuilder consts(builder);
-        auto loop = builder.create<emitasc::VFForOp>(builder.getUnknownLoc(), calCount);
+        auto loop = builder.create<ascvf::VFForOp>(builder.getUnknownLoc(), calCount);
         return loop;
     }
 };
@@ -435,7 +436,7 @@ bool belong(Block* block, Block* parentBlock, DominanceInfo& di)
     return commonBlock == parentBlock;
 }
 
-void eraseUnusedOutputs(emitasc::VFGroupOp groupOp, MutableOperandRange outputs)
+void eraseUnusedOutputs(ascvf::VFGroupOp groupOp, MutableOperandRange outputs)
 {
     SmallVector<unsigned int> deleted;
     DominanceInfo di;
@@ -465,7 +466,7 @@ void wrapInVFGroupOp(OpBuilder& builder, OpGroup& group)
     ValueVector inputs = getInputLocalTensors(ops);
     ValueVector outputs = getOutputLocalTensors(ops);
 
-    auto fusedOp = builder.create<emitasc::VFGroupOp>(builder.getUnknownLoc(), outputs, inputs, group.calCount);
+    auto fusedOp = builder.create<ascvf::VFGroupOp>(builder.getUnknownLoc(), outputs, inputs, group.calCount);
     auto& block = fusedOp.getRegion().emplaceBlock();
 
     builder.setInsertionPointToEnd(&block);
@@ -473,10 +474,10 @@ void wrapInVFGroupOp(OpBuilder& builder, OpGroup& group)
         builder.clone(*op);
         op->erase();
     }
-    builder.create<emitasc::YieldOp>(builder.getUnknownLoc());
+    builder.create<ascvf::YieldOp>(builder.getUnknownLoc());
 }
 
-void lowerToMicro(emitasc::VecScopeOp vecScopeOp, Value calCount, Type elemType)
+void lowerToMicro(ascvf::VecScopeOp vecScopeOp, Value calCount, Type elemType)
 {
     OpBuilder builder(vecScopeOp.getContext());
     builder.setInsertionPointToStart(vecScopeOp.getBody());
@@ -511,7 +512,7 @@ void lowerToMicro(emitasc::VecScopeOp vecScopeOp, Value calCount, Type elemType)
             .Case<ascendc::ReluL2Op>(factory.unary<ascendc::ReluMicroOp>())
             .Case<ascendc::SqrtL2Op>(factory.unary<ascendc::SqrtMicroOp>())
             .Default([](Operation* op) {
-                if (isa<emitasc::YieldOp, emitasc::VecScopeOp>(op)) {
+                if (isa<ascvf::YieldOp, ascvf::VecScopeOp>(op)) {
                     return;
                 }
                 op->dump();
@@ -520,7 +521,7 @@ void lowerToMicro(emitasc::VecScopeOp vecScopeOp, Value calCount, Type elemType)
     });
 }
 
-void hoistOperations(emitasc::VecScopeOp vecScopeOp)
+void hoistOperations(ascvf::VecScopeOp vecScopeOp)
 {
     vecScopeOp.walk([](Block* block) {
         SmallVector<std::pair<int, Operation*>> ops;
@@ -538,7 +539,7 @@ void hoistOperations(emitasc::VecScopeOp vecScopeOp)
     });
 }
 
-void merge(emitasc::VFForOp firstLoop, emitasc::VFForOp secondLoop)
+void merge(ascvf::VFForOp firstLoop, ascvf::VFForOp secondLoop)
 {
     OpBuilder builder(firstLoop.getContext());
     SmallVector<Operation*> opList;
@@ -551,7 +552,7 @@ void merge(emitasc::VFForOp firstLoop, emitasc::VFForOp secondLoop)
     secondLoop.erase();
 }
 
-void fuseLoops(emitasc::VecScopeOp vecScopeOp)
+void fuseLoops(ascvf::VecScopeOp vecScopeOp)
 {
     auto& ops = vecScopeOp.getBody()->getOperations();
     if (ops.size() < 2)
@@ -559,9 +560,9 @@ void fuseLoops(emitasc::VecScopeOp vecScopeOp)
     auto it = ops.begin();
     while (std::next(it) != ops.end()) {
         bool flag = false;
-        if (auto curLoop = dyn_cast<emitasc::VFForOp>(*it)) {
+        if (auto curLoop = dyn_cast<ascvf::VFForOp>(*it)) {
             auto nextIt = std::next(it);
-            if (auto nextLoop = dyn_cast<emitasc::VFForOp>(*nextIt)) {
+            if (auto nextLoop = dyn_cast<ascvf::VFForOp>(*nextIt)) {
                 merge(curLoop, nextLoop);
                 flag = true;
             }
@@ -571,7 +572,7 @@ void fuseLoops(emitasc::VecScopeOp vecScopeOp)
     }
 }
 
-void loadStoreElimination(emitasc::VFGroupOp groupOp)
+void loadStoreElimination(ascvf::VFGroupOp groupOp)
 {
     ValueSet inputTensors;
     for (auto tensor : groupOp.getSrcList()) {
@@ -594,7 +595,7 @@ void loadStoreElimination(emitasc::VFGroupOp groupOp)
     groupOp.walk([&](Block* block) {
         SmallVector<Operation*> group;
         for (auto& op : block->getOperations()) {
-            if (isa<emitasc::LoadMicroOp, emitasc::StoreMicroOp>(op)) {
+            if (isa<ascvf::LoadMicroOp, ascvf::StoreMicroOp>(op)) {
                 group.emplace_back(&op);
             }
         }
@@ -615,9 +616,9 @@ void loadStoreElimination(emitasc::VFGroupOp groupOp)
         //   ...
         //   op(%reg0)
         for (auto* op : group) {
-            if (auto load = dyn_cast<emitasc::LoadMicroOp>(op)) {
+            if (auto load = dyn_cast<ascvf::LoadMicroOp>(op)) {
                 tensorToMemOp[load.getSrcTensor()].emplace_back(load);
-            } else if (auto store = dyn_cast<emitasc::StoreMicroOp>(op)) {
+            } else if (auto store = dyn_cast<ascvf::StoreMicroOp>(op)) {
                 tensorToMemOp[store.getDstTensor()].emplace_back(store);
             }
         }
@@ -625,9 +626,9 @@ void loadStoreElimination(emitasc::VFGroupOp groupOp)
         for (auto [tensor, group] : tensorToMemOp) {
             Value srcReg{};
             for (auto It = group.begin(); It != group.end(); ++It) {
-                if (auto storeOp = dyn_cast<emitasc::StoreMicroOp>(*It)) {
+                if (auto storeOp = dyn_cast<ascvf::StoreMicroOp>(*It)) {
                     srcReg = storeOp.getSrcReg();
-                } else if (auto loadOp = dyn_cast<emitasc::LoadMicroOp>(*It)) {
+                } else if (auto loadOp = dyn_cast<ascvf::LoadMicroOp>(*It)) {
                     Value dstReg = loadOp.getDstReg();
                     if (srcReg) {
                         dstReg.replaceAllUsesWith(srcReg);
@@ -647,17 +648,17 @@ void loadStoreElimination(emitasc::VFGroupOp groupOp)
     ValueMap<SmallVector<Operation*>> tensorToGlobalMemOp;
 
     groupOp.walk([&](Operation* op) {
-        if (auto load = dyn_cast<emitasc::LoadMicroOp>(op)) {
+        if (auto load = dyn_cast<ascvf::LoadMicroOp>(op)) {
             tensorToGlobalMemOp[load.getSrcTensor()].emplace_back(load);
         }
-        if (auto store = dyn_cast<emitasc::StoreMicroOp>(op)) {
+        if (auto store = dyn_cast<ascvf::StoreMicroOp>(op)) {
             tensorToGlobalMemOp[store.getDstTensor()].emplace_back(store);
         }
     });
 
     for (auto [tensor, group] : tensorToGlobalMemOp) {
         bool rewrite = false;
-        if (auto store = dyn_cast<emitasc::StoreMicroOp>(group.back())) {
+        if (auto store = dyn_cast<ascvf::StoreMicroOp>(group.back())) {
             // we can delete last storeOp if tensor is not output
             if (!outputTensors.count(store.getDstTensor())) {
                 needDelete.insert(store);
@@ -667,7 +668,7 @@ void loadStoreElimination(emitasc::VFGroupOp groupOp)
 
         // don't rewrite the same memory
         for (auto It = group.begin(); It != group.end(); ++It) {
-            if (auto store = dyn_cast<emitasc::StoreMicroOp>(*It)) {
+            if (auto store = dyn_cast<ascvf::StoreMicroOp>(*It)) {
                 if (rewrite) {
                     needDelete.insert(store);
                 }
@@ -683,7 +684,7 @@ void loadStoreElimination(emitasc::VFGroupOp groupOp)
     }
 }
 
-void mergeSameOperations(emitasc::VFGroupOp groupOp)
+void mergeSameOperations(ascvf::VFGroupOp groupOp)
 {
     std::unordered_set<Operation*> needDelete;
 
@@ -691,7 +692,7 @@ void mergeSameOperations(emitasc::VFGroupOp groupOp)
     groupOp.walk([&](Block* block) {
         ValueMap<Value> loadedTensors;
         for (auto& op : block->getOperations()) {
-            if (auto load = dyn_cast<emitasc::LoadMicroOp>(op)) {
+            if (auto load = dyn_cast<ascvf::LoadMicroOp>(op)) {
                 if (loadedTensors.count(load.getSrcTensor())) {
                     load.getDstReg().replaceAllUsesWith(
                         loadedTensors[load.getSrcTensor()]); // TODO: replace only in block
@@ -708,7 +709,7 @@ void mergeSameOperations(emitasc::VFGroupOp groupOp)
     }
 }
 
-void eliminateCommonMask(emitasc::VFGroupOp groupOp)
+void eliminateCommonMask(ascvf::VFGroupOp groupOp)
 {
     std::unordered_set<Operation*> needDelete;
 
@@ -746,7 +747,7 @@ void eliminateCommonMask(emitasc::VFGroupOp groupOp)
     }
 }
 
-ValueMap<Value> setAddress(emitasc::VecScopeOp vecScopeOp, ArrayRef<Value> usedTensors, Type groupType)
+ValueMap<Value> setAddress(ascvf::VecScopeOp vecScopeOp, ArrayRef<Value> usedTensors, Type groupType)
 {
     ValueMap<Value> addrTensors;
     OpBuilder builder(vecScopeOp);
@@ -775,7 +776,7 @@ std::pair<Value, Value> createRepeatTimes(OpBuilder builder, Value calCount, Typ
     return {oneRepeatSizeIndex, repeatTimes};
 }
 
-void materialize(emitasc::VecScopeOp vecScopeOp, Value calCount, Type groupType)
+void materialize(ascvf::VecScopeOp vecScopeOp, Value calCount, Type groupType)
 {
     ValueMap<Value> addrTensors;
     // materialize getPhyAddr
@@ -789,7 +790,7 @@ void materialize(emitasc::VecScopeOp vecScopeOp, Value calCount, Type groupType)
     std::tie(oneRepeatSizeIndex, repeatTimes) = createRepeatTimes(builder, calCount, groupType);
 
     // materialize DataCopyLoad, DataCopyStore
-    vecScopeOp->walk([&](emitasc::VFForOp loop) {
+    vecScopeOp->walk([&](ascvf::VFForOp loop) {
         OpBuilder builder(loop.getContext());
 
         loop.setUpperBound(repeatTimes);
@@ -803,7 +804,7 @@ void materialize(emitasc::VecScopeOp vecScopeOp, Value calCount, Type groupType)
         }
         for (auto* op : ops) {
             builder.setInsertionPoint(op);
-            if (auto load = dyn_cast<emitasc::LoadMicroOp>(op)) {
+            if (auto load = dyn_cast<ascvf::LoadMicroOp>(op)) {
                 Value tensor = load.getSrcTensor();
                 auto resultType =
                     MemRefType::get(getShape(tensor), groupType, {}, static_cast<int>(ascendc::AddressSpace::ubuf));
@@ -811,7 +812,7 @@ void materialize(emitasc::VecScopeOp vecScopeOp, Value calCount, Type groupType)
                     builder.getUnknownLoc(), resultType, addrTensors[tensor], IntegerAttr{}, mulOp.getResult());
                 builder.create<ascendc::DataCopyLoadOp>(builder.getUnknownLoc(), load.getDstReg(), srcAddr);
                 load.erase();
-            } else if (auto store = dyn_cast<emitasc::StoreMicroOp>(op)) {
+            } else if (auto store = dyn_cast<ascvf::StoreMicroOp>(op)) {
                 Value tensor = store.getDstTensor();
                 auto resultType =
                     MemRefType::get(getShape(tensor), groupType, {}, static_cast<int>(ascendc::AddressSpace::ubuf));
@@ -826,13 +827,13 @@ void materialize(emitasc::VecScopeOp vecScopeOp, Value calCount, Type groupType)
     vecScopeOp->walk([&](Operation* op) {
         OpBuilder builder(op);
         ascir::ConstantOpBuilder consts(builder);
-        if (auto load = dyn_cast<emitasc::LoadMicroOp>(op)) {
+        if (auto load = dyn_cast<ascvf::LoadMicroOp>(op)) {
             Value tensor = load.getSrcTensor();
             auto resultType =
                 MemRefType::get(getShape(tensor), groupType, {}, static_cast<int>(ascendc::AddressSpace::ubuf));
             builder.create<ascendc::DataCopyLoadOp>(builder.getUnknownLoc(), load.getDstReg(), addrTensors[tensor]);
             load.erase();
-        } else if (auto store = dyn_cast<emitasc::StoreMicroOp>(op)) {
+        } else if (auto store = dyn_cast<ascvf::StoreMicroOp>(op)) {
             Value tensor = store.getDstTensor();
             auto resultType =
                 MemRefType::get(getShape(tensor), groupType, {}, static_cast<int>(ascendc::AddressSpace::ubuf));
@@ -843,9 +844,9 @@ void materialize(emitasc::VecScopeOp vecScopeOp, Value calCount, Type groupType)
     });
 }
 
-emitasc::VecScopeOp wrapInVecScope(OpBuilder& builder, SmallVector<Operation*> ops)
+ascvf::VecScopeOp wrapInVecScope(OpBuilder& builder, SmallVector<Operation*> ops)
 {
-    auto vecScope = builder.create<emitasc::VecScopeOp>(builder.getUnknownLoc());
+    auto vecScope = builder.create<ascvf::VecScopeOp>(builder.getUnknownLoc());
     auto* blockVecScope = &vecScope.getRegion().emplaceBlock();
 
     builder.setInsertionPointToStart(blockVecScope);
@@ -853,14 +854,14 @@ emitasc::VecScopeOp wrapInVecScope(OpBuilder& builder, SmallVector<Operation*> o
     for (auto* op : ops) {
         builder.clone(*op);
     }
-    builder.create<emitasc::YieldOp>(builder.getUnknownLoc());
+    builder.create<ascvf::YieldOp>(builder.getUnknownLoc());
     for (auto* op : ops) {
         op->erase();
     }
     return vecScope;
 }
 
-struct FuseVFBlockPass : public ascendc::impl::FuseVFBlockBase<FuseVFBlockPass> {
+struct FuseVFBlockPass : public ascvf::impl::FuseVFBlockBase<FuseVFBlockPass> {
     void runOnOperation() override
     {
         func::FuncOp funcOp = getOperation();
@@ -875,7 +876,7 @@ struct FuseVFBlockPass : public ascendc::impl::FuseVFBlockBase<FuseVFBlockPass> 
         // TODO: split on 2 passes
 
         DominanceInfo di;
-        funcOp.walk([&](emitasc::VFGroupOp fusedOp) {
+        funcOp.walk([&](ascvf::VFGroupOp fusedOp) {
             eraseUnusedOutputs(fusedOp, fusedOp.getDstListMutable());
 
             Block* block = fusedOp.getBody();
@@ -906,7 +907,7 @@ struct FuseVFBlockPass : public ascendc::impl::FuseVFBlockBase<FuseVFBlockPass> 
 
 namespace mlir {
 
-namespace ascendc {
+namespace ascvf {
 std::unique_ptr<Pass> createFuseVFBlockPass() { return std::make_unique<FuseVFBlockPass>(); }
-} // namespace ascendc
+} // namespace ascvf
 } // namespace mlir
