@@ -16,33 +16,39 @@ import asc2
 
 @asc2.jit(always_compile=True)
 def matmul_kernel(a_ptr: asc.GlobalAddress, b_ptr: asc.GlobalAddress, c_ptr: asc.GlobalAddress, a_shape: asc.ConstExpr,
-                  b_shape: asc.ConstExpr, c_shape: asc.ConstExpr):
+                  b_shape: asc.ConstExpr, c_shape: asc.ConstExpr, tile_a: asc.ConstExpr, tile_b: asc.ConstExpr):
     a_gm = asc2.tensor(a_ptr, a_shape)
     b_gm = asc2.tensor(b_ptr, b_shape)
     c_gm = asc2.tensor(c_ptr, c_shape)
-    a = asc2.load(a_gm, a_shape, offsets=[0, 0], location=asc2.TileLocation.L0A)
-    b = asc2.load(b_gm, b_shape, offsets=[0, 0], location=asc2.TileLocation.L0B)
+    a = asc2.load(a_gm, tile_a, offsets=[0, 0], location=asc2.TileLocation.L0A)
+    b = asc2.load(b_gm, tile_b, offsets=[0, 0], location=asc2.TileLocation.L0B)
     c = a @ b
     c = asc2.relu(c).to(asc.float16)
     asc2.store(c, c_gm, offsets=[0, 0])
 
 
-def matmul_launch(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+def matmul_launch(a: torch.Tensor, b: torch.Tensor, tile_a, tile_b) -> torch.Tensor:
     c = torch.zeros((a.shape[0], b.shape[1]), dtype=torch.float16)
-    matmul_kernel[1](a, b, c, a.shape, b.shape, c.shape)
+    matmul_kernel[1](a, b, c, a.shape, b.shape, c.shape, tile_a, tile_b)
     return c
 
 
-@pytest.mark.parametrize("m, k, n, dtype", [
-    (64, 128, 128, torch.float32),
-    (64, 128, 256, torch.float16),
-    (64, 128, 256, torch.bfloat16),
+@pytest.mark.parametrize("m, k, n, dtype, tile_a, tile_b", [
+    (64, 128, 128, torch.float32, [64, 128], [128, 128]),
+    (64, 128, 256, torch.float16, [64, 128], [128, 256]),
+    (64, 128, 256, torch.bfloat16, [64, 128], [128, 256]),
+    (47, 21, 35, torch.float16, [47, 32], [32, 48]),
+    (1, 32, 11, torch.float16, [1, 32], [32, 32]),
+    # TODO: add support for float32
+    #(1, 19, 41, torch.float32, [1, 24], [24, 48]),
+    (15, 67, 27, torch.bfloat16, [15, 80], [80, 32]),
 ])
-def test_matmul_fixpipe(backend: config.Backend, platform: config.Platform, device_id: int, m, k, n, dtype):
+def test_matmul_fixpipe(backend: config.Backend, platform: config.Platform, device_id: int, m, k, n, dtype, tile_a,
+                        tile_b):
     config.set_platform(backend, platform, device_id)
     device = "npu" if config.Backend(backend) == config.Backend.NPU else "cpu"
     a = (torch.rand((m, k), dtype=dtype, device=device) - .5) * 10
     b = (torch.rand((k, n), dtype=dtype, device=device) - .5) * 10
-    c = matmul_launch(a, b)
+    c = matmul_launch(a, b, tile_a, tile_b)
     c_ref = (a.to(torch.float32) @ b.to(torch.float32)).relu().to(torch.float16)
     torch.testing.assert_close(c, c_ref, atol=1e-3, rtol=1e-3)
