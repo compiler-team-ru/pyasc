@@ -9,6 +9,7 @@
  */
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
+#include "ascir/Dialect/AscVF/IR/AscVF.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Target/Asc/Translation.h"
 
@@ -39,11 +40,12 @@ int main(int argc, char** argv)
             registry.insert<
                 //
                 arith::ArithDialect, ascendc::AscendCDialect, cf::ControlFlowDialect, DLTIDialect,
-                emitasc::EmitAscDialect, emitc::EmitCDialect, func::FuncDialect, LLVM::LLVMDialect, math::MathDialect,
-                memref::MemRefDialect, scf::SCFDialect
+                emitasc::EmitAscDialect, ascvf::AscVFDialect, emitc::EmitCDialect, func::FuncDialect, LLVM::LLVMDialect,
+                math::MathDialect, memref::MemRefDialect, scf::SCFDialect
                 //
                 >();
             ascendc::registerExternalModels(registry);
+            ascvf::registerExternalModels(registry);
             emitasc::registerExternalModels(registry);
         });
 

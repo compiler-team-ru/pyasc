@@ -43,13 +43,7 @@ LogicalResult printOperation(CodeEmitter& emitter, emitasc::SetMemberOp op);
 
 LogicalResult printOperation(CodeEmitter& emitter, emitasc::VariableOp op);
 
-LogicalResult printOperation(CodeEmitter& emitter, emitasc::VecScopeOp vecScopeOp);
-
 LogicalResult printOperation(CodeEmitter& emitter, emitasc::VerbatimOp op);
-
-LogicalResult printOperation(CodeEmitter& emitter, emitasc::VFGroupOp op);
-
-LogicalResult printOperation(CodeEmitter& emitter, emitasc::VFForOp op);
 
 } // namespace emitasc
 } // namespace mlir

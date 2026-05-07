@@ -23,6 +23,7 @@ target_link_libraries(${ASCIR_LSP_NAME} PRIVATE
   MLIRLspServerLib
   MLIRAsc
   MLIRAscTile
+  MLIRAscVF
   MLIREmitAsc
 )
 
@@ -61,6 +62,8 @@ set(LIBS
   MLIRAscUtils
   MLIRAscTile
   MLIRAscTileTransforms
+  MLIRAscVF
+  MLIRAscVFTransforms
   MLIREmitAsc
   MLIRLowerToAsc
 )

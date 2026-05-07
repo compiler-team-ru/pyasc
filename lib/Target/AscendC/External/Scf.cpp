@@ -15,7 +15,7 @@ using namespace mlir;
 LogicalResult mlir::emitBlock(CodeEmitter& codeEmitter, Block& block)
 {
     for (auto& op : block) {
-        if (isa<emitasc::YieldOp, scf::YieldOp>(op) && op.getNumOperands() == 0) {
+        if (isa<ascvf::YieldOp, scf::YieldOp>(op) && op.getNumOperands() == 0) {
             continue;
         }
         FAIL_OR(emitOperation(codeEmitter, op, needsSemicolon(op)));
