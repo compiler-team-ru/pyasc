@@ -169,8 +169,8 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
                 rewriter.create<ascendc::DataCopyL2Op>(loc, dst, src, nd2NzParams);
             } else {
                 int64_t ndNum = llvm::divideCeilSigned(dstShape[0], CUBE_MN_BLOCK_SIZE);
-                auto nValue = consts.i32(CUBE_MN_BLOCK_SIZE);
-                auto srcNdMatrixStride = rewriter.create<arith::MulIOp>(loc, nValue, dValue);
+                auto nValue = consts.i32(ascendc::cubeBlockSize);
+                auto srcNdMatrixStride = rewriter.create<arith::MulIOp>(loc, nValue, srcShape[1]);
                 int64_t fractal = cubeKBlockSize * FRACTAL_NUM;
                 int64_t ceilAlignFractal = llvm::divideCeilSigned(dstShape[1], fractal) * fractal;
                 auto dstNzMatrixStride = rewriter.create<arith::MulIOp>(loc, nValue, consts.i32(ceilAlignFractal));
