@@ -115,6 +115,35 @@ struct ReuseUBAllocationPass : public ascendc::impl::ReuseUBAllocationBase<Reuse
         return op.getPosition() == ascendc::TPosition::VECCALC && op.getType().hasStaticShape();
     }
 
+    bool isTensorInDiffRegions(TensorOp bottomTensor, TensorOp topTensor, Region& r1, Region& r2) const
+    {
+        return (r1.isAncestor(bottomTensor->getParentRegion()) && r2.isAncestor(topTensor->getParentRegion())) ||
+               (r1.isAncestor(topTensor->getParentRegion()) && r2.isAncestor(bottomTensor->getParentRegion()));
+    }
+
+    bool testOnReuseImpl(
+        TensorOp bottomTensor, TensorOp topTensor, Operation* firstUser, Operation* lastUser, Operation* lastUserAnc,
+        bool allowVecOpReuse = true) const
+    {
+        if (auto op = dyn_cast<scf::WhileOp>(lastUserAnc))
+            return isTensorInDiffRegions(bottomTensor, topTensor, op.getBefore(), op.getAfter());
+        if (auto op = dyn_cast<scf::IfOp>(lastUserAnc))
+            return isTensorInDiffRegions(bottomTensor, topTensor, op.getThenRegion(), op.getElseRegion());
+        if (auto forOp = dyn_cast<scf::ForOp>(lastUserAnc)) {
+            Block* loopBody = forOp.getBody();
+            auto* lastInLoop = loopBody->findAncestorOpInBlock(*lastUser);
+            auto* firstInLoop = loopBody->findAncestorOpInBlock(*firstUser);
+            if (!lastInLoop || !firstInLoop)
+                return false;
+            if (lastInLoop == firstInLoop)
+                return testOnReuseImpl(bottomTensor, topTensor, firstUser, lastUser, lastInLoop, false);
+            return lastInLoop->isBeforeInBlock(firstInLoop);
+        }
+        if (isa<ascendc::UnaryOp, ascendc::BinaryOp, ascendc::VecScalarOp>(lastUserAnc))
+            return allowVecOpReuse;
+        return false;
+    }
+
     bool testOnReuse(TensorOp bottomTensor, TensorOp topTensor, Block* block, DominanceInfo& di) const
     {
         if (!reuseInOut) {
@@ -129,7 +158,6 @@ struct ReuseUBAllocationPass : public ascendc::impl::ReuseUBAllocationBase<Reuse
                 }
             }
         }
-
         auto* last = findUser<TargetUser::LastUser>(topTensor, di);
         auto* first = findUser<TargetUser::FirstUser>(bottomTensor, di);
         auto memEffectOp = dyn_cast<MemoryEffectOpInterface>(last);
@@ -140,18 +168,7 @@ struct ReuseUBAllocationPass : public ascendc::impl::ReuseUBAllocationBase<Reuse
         auto* firstUser = block->findAncestorOpInBlock(*first);
         auto* lastUser = block->findAncestorOpInBlock(*last);
         if (lastUser == firstUser && bottomTensor.getType().getElementType() == topTensor.getType().getElementType()) {
-            auto isTensorInDiffRegions = [&](Region& r1, Region& r2) {
-                return (r1.isAncestor(bottomTensor->getParentRegion()) &&
-                        r2.isAncestor(topTensor->getParentRegion())) ||
-                       (r1.isAncestor(topTensor->getParentRegion()) && r2.isAncestor(bottomTensor->getParentRegion()));
-            };
-            if (auto op = dyn_cast<scf::WhileOp>(lastUser))
-                return isTensorInDiffRegions(op.getBefore(), op.getAfter());
-            if (auto op = dyn_cast<scf::IfOp>(lastUser))
-                return isTensorInDiffRegions(op.getThenRegion(), op.getElseRegion());
-            if (isa<ascendc::UnaryOp, ascendc::BinaryOp, ascendc::VecScalarOp>(lastUser))
-                return true;
-            return false;
+            return testOnReuseImpl(bottomTensor, topTensor, first, last, lastUser);
         }
         return lastUser->isBeforeInBlock(firstUser);
     }

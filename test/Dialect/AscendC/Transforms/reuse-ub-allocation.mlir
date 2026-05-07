@@ -774,3 +774,39 @@ func.func @reuse_multiple_tensors_nested_blocks() {
   ascendc.add_l3 %5, %0, %4 : !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>
   return
 }
+
+// CHECK-LABEL: func.func @reuse_tensors_allocated_outside_loop(
+// CHECK:       %0 = ascendc.local_tensor_auto veccalc() : <8xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <8xf32>
+// CHECK-NEXT:  %2 = ascendc.local_tensor_auto veccalc() : <8xf32>
+// CHECK-NEXT:  %3 = ascendc.reinterpret_cast %2 : !ascendc.local_tensor<8xf32> to !ascendc.local_tensor<8xf32>
+// CHECK-NEXT:  %4 = ascendc.local_tensor_auto veccalc() : <8xf32>
+// CHECK-NEXT:  %5 = ascendc.reinterpret_cast %4 : !ascendc.local_tensor<8xf32> to !ascendc.local_tensor<8xf32>
+// CHECK-NEXT:  scf.for %arg1 = %c0 to %c32 step %c1 {
+// CHECK-NEXT:    ascendc.add_l2 %0, %2, %4, %c8_i64
+// CHECK-NEXT:    ascendc.mul_l2 %1, %0, %0, %c8_i64
+// CHECK-NEXT:    ascendc.add_l2 %3, %1, %4, %c8_i64
+// CHECK-NEXT:    ascendc.mul_l2 %5, %3, %3, %c8_i64
+// CHECK-NEXT:    ascendc.data_copy_l2 %arg0, %5, %c8_i64
+// CHECK-NEXT:  }
+// CHECK-NEXT:  return
+func.func @reuse_tensors_allocated_outside_loop(%arg0: !ascendc.global_tensor<?xf32>) {
+  %c0 = arith.constant 0 : index
+  %c32 = arith.constant 32 : index
+  %c1 = arith.constant 1 : index
+  %c8_i64 = arith.constant 8 : i64
+  %0 = ascendc.local_tensor_auto veccalc() : <8xf32>
+  %1 = ascendc.local_tensor_auto veccalc() : <8xf32>
+  %2 = ascendc.local_tensor_auto veccalc() : <8xf32>
+  %3 = ascendc.local_tensor_auto veccalc() : <8xf32>
+  %4 = ascendc.local_tensor_auto veccalc() : <8xf32>
+  %5 = ascendc.local_tensor_auto veccalc() : <8xf32>
+  scf.for %arg1 = %c0 to %c32 step %c1 {
+    ascendc.add_l2 %0, %4, %5, %c8_i64 : !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, i64
+    ascendc.mul_l2 %1, %0, %0, %c8_i64 : !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, i64
+    ascendc.add_l2 %2, %1, %5, %c8_i64 : !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, i64
+    ascendc.mul_l2 %3, %2, %2, %c8_i64 : !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, i64
+    ascendc.data_copy_l2 %arg0, %3, %c8_i64 : !ascendc.global_tensor<?xf32>, !ascendc.local_tensor<8xf32>, i64
+  }
+  return
+}
