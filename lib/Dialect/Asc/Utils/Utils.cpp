@@ -34,6 +34,15 @@ int64_t getTypeSize(Type type)
     return type.getIntOrFloatBitWidth() / CHAR_BIT;
 }
 
+int64_t getTypeSizeCubeBlockAlign(ShapedType type)
+{
+    int64_t size = 1;
+    for (auto dim : type.getShape()) {
+        size *= llvm::alignTo<cubeBlockSize>(dim);
+    }
+    return size * getElementTypeSize(type);
+}
+
 int64_t getElementTypeSize(ShapedType type) { return getTypeSize(type.getElementType()); }
 
 bool opPrecedes(Operation* lhs, Operation* rhs) { return lhs != rhs && lhs->isBeforeInBlock(rhs); }

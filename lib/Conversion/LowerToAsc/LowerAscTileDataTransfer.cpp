@@ -146,6 +146,7 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
         auto srcType = cast<ascendc::BaseTensorType>(src.getType());
         Value linearOffset = linearizeOffset(rewriter, loc, srcShape, op.getOffsets());
         src = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, srcType, src, linearOffset);
+        bool isMatrixA = op->hasAttr(asctile::attr::isMatrixA);
         auto dstTensorOp = createTensorOp(rewriter, loc, opType, locationToPosition(dstLoc));
         auto dst = dstTensorOp.getResult();
         auto dstType = dst.getType();
@@ -155,14 +156,15 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
         auto const1 = consts.i32(1);
         if (dstLoc == asctile::TileLocation::L1) {
             const int64_t cubeKBlockSize = CUBE_K_BLOCK_BYTES / ascendc::getElementTypeSize(opType);
-            const int64_t cubeRowBlock = (op->hasAttr(asctile::attr::isMatrixA)) ? CUBE_MN_BLOCK_SIZE : cubeKBlockSize;
+            const int64_t cubeRowBlock = isMatrixA ? CUBE_MN_BLOCK_SIZE : cubeKBlockSize;
             auto dValue = consts.i32(dstShape[1]);
-            if (op->hasAttr(asctile::attr::isMatrixA) || isa<Float16Type, BFloat16Type>(opType.getElementType())) {
-                int64_t dstNzC0Stride = llvm::divideCeilSigned(dstShape[0], cubeRowBlock) * cubeRowBlock;
+            if (isMatrixA || isa<Float16Type, BFloat16Type>(opType.getElementType())) {
+                Value dstNzC0Stride =
+                    dstShape[0] == 1 ? const1 : consts.i32(llvm::alignTo<ascendc::cubeBlockSize>(dstShape[0]));
                 auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
                     loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
                     ValueRange{
-                        const1, consts.i32(dstShape[0]), dValue, const0, srcShape[1], consts.i32(dstNzC0Stride), const1,
+                        const1, consts.i32(dstShape[0]), srcShape[1], const0, srcShape[1], dstNzC0Stride, const1,
                         const0});
                 rewriter.create<ascendc::DataCopyL2Op>(loc, dst, src, nd2NzParams);
             } else {
@@ -175,7 +177,7 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
                 auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
                     loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
                     ValueRange{
-                        consts.i32(ndNum), nValue, dValue, srcNdMatrixStride, dValue, nValue, const1,
+                        consts.i32(ndNum), nValue, srcShape[1], srcNdMatrixStride, srcShape[1], nValue, const1,
                         dstNzMatrixStride});
                 rewriter.create<ascendc::DataCopyL2Op>(loc, dst, src, nd2NzParams);
             }
@@ -306,10 +308,11 @@ struct ConvertStoreFixpipe : ConvertOp<asctile::StoreFixpipeOp> {
         auto const1 = consts.i32(1);
         Value linearOffset = linearizeOffset(rewriter, loc, dstShape, op.getOffsets());
         dst = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, dstType, dst, linearOffset);
+        auto srcStride = llvm::alignTo<ascendc::cubeBlockSize>(srcType.getShape()[0]);
         auto paramsBuilder = emitasc::InitStructBuilder(rewriter.getType<ascendc::FixpipeParamsV220Type>())
                                  .addField("nSize", srcShape[1])
                                  .addField("mSize", srcShape[0])
-                                 .addField("srcStride", srcShape[0])
+                                 .addField("srcStride", consts.i32(srcStride))
                                  .addField("dstStride", dstShape[1]);
         if (op.getRelu())
             paramsBuilder.addField("reluEn", const1);
@@ -413,15 +416,17 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
         auto base = op.getBase();
         Value src = rewriter.getRemappedValue(base);
         auto srcType = src.getType();
+        auto srcShape = base.getType().getShape();
         ascir::ConstantOpBuilder consts(rewriter);
-        SmallVector<Value> srcShape;
-        for (auto dim : base.getType().getShape()) {
-            srcShape.push_back(consts.i32(dim));
+        SmallVector<Value> srcShapeValues;
+        for (auto dim : srcShape) {
+            srcShapeValues.push_back(consts.i32(dim));
         }
         const auto cubeKBlockSize = CUBE_K_BLOCK_BYTES / ascendc::getElementTypeSize(opType);
         const auto cubeBlock = CUBE_MN_BLOCK_SIZE * cubeKBlockSize;
         const auto cubeRowBlock = (dstPos == asctile::TileLocation::L0A) ? CUBE_MN_BLOCK_SIZE : cubeKBlockSize;
-        Value linearOffset = linearizeNzOffset(rewriter, loc, srcShape, op.getOffsets(), consts.i32(cubeRowBlock));
+        Value linearOffset =
+            linearizeNzOffset(rewriter, loc, srcShapeValues, op.getOffsets(), consts.i32(cubeRowBlock));
         src = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcType, src, linearOffset);
         auto dstTensorOp = createTensorOp(rewriter, loc, opType);
         auto dst = dstTensorOp.getResult();
@@ -431,8 +436,10 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
         auto const1 = consts.i32(1);
         auto paramsType = rewriter.getType<ascendc::LoadData2DParamsType>();
         if (dstPos == asctile::TileLocation::L0A) {
-            auto dstNumElements = calCount(dst);
-            Value repeatTimes = consts.i32(llvm::divideCeilSigned(dstNumElements, cubeBlock));
+            auto mStep = llvm::divideCeilSigned(srcShape[0], ascendc::cubeBlockSize);
+            auto kStep = llvm::divideCeilSigned(
+                srcShape[1], ascendc::ubBlockSize / static_cast<uint32_t>(getElementTypeSize(dstType)));
+            auto repeatTimes = consts.i32(mStep * kStep);
             Value params = emitasc::InitStructBuilder(paramsType)
                                .addField("repeatTimes", repeatTimes)
                                .addField("srcStride", const1)
@@ -467,7 +474,8 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
                 forOp->setAttr(asctile::attr::parallel, UnitAttr::get(forOp->getContext()));
             } else {
                 Value repeatTimes = consts.i32(dstFracGap);
-                Value srcStride = rewriter.create<arith::CeilDivSIOp>(loc, srcShape[0], consts.i32(cubeKBlockSize));
+                Value srcStride =
+                    rewriter.create<arith::CeilDivSIOp>(loc, srcShapeValues[0], consts.i32(cubeKBlockSize));
                 Value params = emitasc::InitStructBuilder(paramsType)
                                    .addField("repeatTimes", repeatTimes)
                                    .addField("srcStride", srcStride)

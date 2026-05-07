@@ -64,7 +64,11 @@ struct AllocateTensorPass : public ascendc::impl::AllocateTensorBase<AllocateTen
             OpBuilder builder(op);
             auto position = normalizePosition(op.getPosition());
             uint32_t& addr = offsets[position];
-            uint32_t byteSize = llvm::alignTo<ubBlockSize>(getTypeSize(type));
+            uint32_t byteSize;
+            if (position == TPosition::A1 || position == ascendc::TPosition::A2 || position == ascendc::TPosition::B2)
+                byteSize = getTypeSizeCubeBlockAlign(type);
+            else
+                byteSize = llvm::alignTo<ubBlockSize>(getTypeSize(type));
             uint32_t tileSize = byteSize / static_cast<uint32_t>(getElementTypeSize(type));
             auto tensor = builder.create<LocalTensorV3Op>(op.getLoc(), type, position, addr, tileSize);
             op->replaceAllUsesWith(tensor);

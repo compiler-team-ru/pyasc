@@ -53,10 +53,16 @@ struct MaterializeLocalTensor : OpRewritePattern<ascendc::LocalTensorAutoOp> {
         Value length;
         auto position = op.getPosition();
         if (type.hasStaticShape()) {
-            length = consts.i64(ascendc::getTypeSize(type));
+            if (position == ascendc::TPosition::A1 || position == ascendc::TPosition::A2 ||
+                position == ascendc::TPosition::B2)
+                length = consts.i64(ascendc::getTypeSizeCubeBlockAlign(type));
+            else
+                length = consts.i64(ascendc::getTypeSize(type));
         } else {
             assert(op->getNumOperands() != 0 && "must have operands for dynamic shape");
-            length = consts.i64(ascendc::getElementTypeSize(type));
+            auto elementTypeSize = ascendc::getElementTypeSize(type);
+            length = consts.i64(elementTypeSize);
+            auto align = consts.i64(ascendc::ubBlockSize / elementTypeSize);
             for (auto dim : op.getDynamicShape()) {
                 if (position == ascendc::TPosition::A1) {
                     auto ceilDim = rewriter.create<arith::CeilDivSIOp>(loc, dim, align);
