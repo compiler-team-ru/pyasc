@@ -1,41 +1,34 @@
-// RUN: ascir-opt -ascvf-fuse-vf-block %s | FileCheck %s
+// RUN: ascir-opt -ascvf-find-vf-group -ascvf-lower-to-micro -ascvf-reorder-ops-in-vec-scope -ascvf-fuse-vf-for -ascvf-eliminate-data-transfer -ascvf-eliminate-common-mask -ascvf-materialize-load-store %s | FileCheck %s
 
 // CHECK-LABEL: func.func @general_test(%arg0: !ascendc.que_bind<gm, vecin, 1>) {
-// CHECK-NEXT:   %c256_i32 = arith.constant 256 : i32
-// CHECK-NEXT:   %0 = ascendc.que_bind.alloc_tensor %arg0 : !ascendc.que_bind<gm, vecin, 1>, !ascendc.local_tensor<*xf32>
-// CHECK-NEXT:   %1 = ascendc.que_bind.deque_tensor %arg0 : !ascendc.que_bind<gm, vecin, 1>, !ascendc.local_tensor<*xf32>
-// CHECK-NEXT:   %2 = ascendc.que_bind.deque_tensor %arg0 : !ascendc.que_bind<gm, vecin, 1>, !ascendc.local_tensor<*xf32>
-// CHECK-NEXT:   ascvf.vf_group %0, %2, %1, %c256_i32 : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32 {
-// CHECK-NEXT:     %3 = ascendc.local_tensor.get_phy_addr_v2 %1 : !ascendc.local_tensor<*xf32>, memref<f32, 26>
-// CHECK-NEXT:     %4 = ascendc.local_tensor.get_phy_addr_v2 %2 : !ascendc.local_tensor<*xf32>, memref<f32, 26>
-// CHECK-NEXT:     %5 = ascendc.local_tensor.get_phy_addr_v2 %0 : !ascendc.local_tensor<*xf32>, memref<f32, 26>
-// CHECK-NEXT:     ascvf.vec_scope {
-// CHECK-NEXT:       %6 = ascendc.get_vec_len : index
-// CHECK-NEXT:       %c4 = arith.constant 4 : index
-// CHECK-NEXT:       %7 = arith.divsi %6, %c4 : index
-// CHECK-NEXT:       %8 = arith.index_cast %c256_i32 : i32 to index
-// CHECK-NEXT:       %9 = arith.ceildivsi %8, %7 : index
-// CHECK:            %10 = emitasc.variable %c256_i32 : i32, memref<1xui32>
-// CHECK:            ascvf.vf_for %9 : index {
-// CHECK:            ^bb0(%arg1: index):
-// CHECK-NEXT:         %18 = arith.muli %arg1, %7 : index
-// CHECK-NEXT:         %19 = ascendc.update_mask f32, %10 : memref<1xui32>
-// CHECK-NEXT:         %20 = emitasc.ptr_offset %3[%18] : memref<f32, 26>, memref<f32, 26>
-// CHECK-NEXT:         ascendc.data_copy_vld_micro %12, %20 : !ascendc.reg_tensor<f32>, memref<f32, 26>
-// CHECK-NEXT:         %21 = emitasc.ptr_offset %4[%18] : memref<f32, 26>, memref<f32, 26>
-// CHECK-NEXT:         ascendc.data_copy_vld_micro %13, %21 : !ascendc.reg_tensor<f32>, memref<f32, 26>
-// CHECK-NEXT:         ascendc.add_micro %14, %12, %13, %19 : !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT:         ascendc.mul_micro %17, %14, %13, %19 : !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT:         %22 = emitasc.ptr_offset %5[%18] : memref<f32, 26>, memref<f32, 26>
-// CHECK-NEXT:         ascendc.data_copy_vst_micro %22, %17, %19 : memref<f32, 26>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT:       }
-// CHECK-NEXT:     }
-// CHECK-NEXT:   } {operandSegmentSizes = array<i32: 1, 2, 1>}
-// CHECK-NEXT:   ascendc.que_bind.enque_tensor %arg0, %0 : !ascendc.que_bind<gm, vecin, 1>, !ascendc.local_tensor<*xf32>
-// CHECK-NEXT:   ascendc.que_bind.free_tensor %arg0, %1 : !ascendc.que_bind<gm, vecin, 1>, !ascendc.local_tensor<*xf32>
-// CHECK-NEXT:   ascendc.que_bind.free_tensor %arg0, %2 : !ascendc.que_bind<gm, vecin, 1>, !ascendc.local_tensor<*xf32>
-// CHECK-NEXT:   return
-// CHECK-NEXT: }
+// CHECK:   ascvf.vf_group %0, %2, %1, %c256_i32 : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32 {
+// CHECK:     %3 = ascendc.local_tensor.get_phy_addr_v2 %1 : !ascendc.local_tensor<*xf32>, memref<f32, 26>
+// CHECK:     %4 = ascendc.local_tensor.get_phy_addr_v2 %2 : !ascendc.local_tensor<*xf32>, memref<f32, 26>
+// CHECK:     %5 = ascendc.local_tensor.get_phy_addr_v2 %0 : !ascendc.local_tensor<*xf32>, memref<f32, 26>
+// CHECK:     ascvf.vec_scope {
+// CHECK:       %12 = emitasc.variable %c256_i32 : i32, memref<1xui32>
+// CHECK:       %13 = emitasc.variable %c256_i32 : i32, memref<1xui32>
+// CHECK:       %14 = ascendc.get_vec_len : index
+// CHECK:       %15 = arith.divsi %14, %c4 : index
+// CHECK:       %16 = arith.index_cast %c256_i32 : i32 to index
+// CHECK:       %17 = arith.ceildivsi %16, %15 : index
+// CHECK:       ascvf.vf_for %17 : index {
+// CHECK:       ^bb0(%arg1: index):
+// CHECK:         %18 = ascendc.update_mask f32, %12 : memref<1xui32>
+// CHECK:         %19 = arith.muli %arg1, %15 : index
+// CHECK:         %20 = emitasc.ptr_offset %3[%19] : memref<f32, 26>, memref<f32, 26>
+// CHECK:         ascendc.data_copy_vld_micro %6, %20 : !ascendc.reg_tensor<f32>, memref<f32, 26>
+// CHECK:         %21 = emitasc.ptr_offset %4[%19] : memref<f32, 26>, memref<f32, 26>
+// CHECK:         ascendc.data_copy_vld_micro %7, %21 : !ascendc.reg_tensor<f32>, memref<f32, 26>
+// CHECK:         ascendc.add_micro %8, %6, %7, %18 : !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK:         %22 = arith.muli %arg1, %15 : index
+// CHECK:         ascendc.mul_micro %11, %8, %7, %18 : !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK:         %23 = emitasc.ptr_offset %5[%22] : memref<f32, 26>, memref<f32, 26>
+// CHECK:         ascendc.data_copy_vst_micro %23, %11, %18 : memref<f32, 26>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK:       }
+// CHECK:     }
+// CHECK:   } {operandSegmentSizes = array<i32: 1, 2, 1>}
+// CHECK: }
 func.func @general_test(%que_bind: !ascendc.que_bind<gm, vecin, 1>) {
   %c256_i32 = arith.constant 256 : i32
   %dst = ascendc.que_bind.alloc_tensor %que_bind : !ascendc.que_bind<gm, vecin, 1>, !ascendc.local_tensor<*xf32>
@@ -137,11 +130,11 @@ func.func @create_nested_vec_scope(%c0_i32 : i32, %dst0 : !ascendc.local_tensor<
 
 // CHECK-LABEL: func.func @translate_unary_l2
 // CHECK: ascendc.abs_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT: ascendc.exp_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT: ascendc.ln_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT: ascendc.neg_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT: ascendc.not_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT: ascendc.relu_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.exp_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.ln_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.neg_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.not_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.relu_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
 func.func @translate_unary_l2(%calCount : i32, %vec : !ascendc.local_tensor<*xf32>) {
   ascendc.abs_l2 %vec, %vec, %calCount : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.exp_l2 %vec, %vec, %calCount : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
@@ -154,15 +147,15 @@ func.func @translate_unary_l2(%calCount : i32, %vec : !ascendc.local_tensor<*xf3
 
 // CHECK-LABEL: func.func @translate_binary_l2
 // CHECK: ascendc.add_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT: ascendc.and_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT: ascendc.div_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT: ascendc.sub_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT: ascendc.max_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT: ascendc.min_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT: ascendc.mul_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT: ascendc.mul_add_dst_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT: ascendc.or_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT: ascendc.prelu_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.and_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.div_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.sub_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.max_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.min_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.mul_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.mul_add_dst_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.or_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.prelu_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
 func.func @translate_binary_l2(%calCount : i32, %vec : !ascendc.local_tensor<*xf32>) {
   ascendc.add_l2 %vec, %vec, %vec, %calCount : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.and_l2 %vec, %vec, %vec, %calCount : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
@@ -211,8 +204,8 @@ func.func @tensor_is_not_output_if_it_has_no_users(%arg0: memref<*xf32, 22>) {
 // CHECK: ascvf.vf_for
 // CHECK: ascendc.data_copy_vld_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, memref<1x1024xf32, 26>
 // CHECK: ascendc.data_copy_vld_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, memref<1x1024xf32, 26>
-// CHECK-NEXT: ascendc.add_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT: ascendc.add_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.add_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.add_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
 // CHECK: ascendc.data_copy_vst_micro {{[^:]*}}: memref<1x1024xf32, 26>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
 func.func @dont_create_load_for_loaded_reg_tensor(%gm: !ascendc.global_tensor<?x?xf32>, %ext_params: !ascendc.data_copy_ext_params, %x: !ascendc.local_tensor<1x1024xf32>, %y: !ascendc.local_tensor<1x1024xf32>, %z: !ascendc.local_tensor<1x1024xf32>, %f: !ascendc.local_tensor<1x1024xf32>, %cal: i64) {
   ascendc.add_l2 %z, %x, %y, %cal : !ascendc.local_tensor<1x1024xf32>, !ascendc.local_tensor<1x1024xf32>, !ascendc.local_tensor<1x1024xf32>, i64
@@ -225,9 +218,11 @@ func.func @dont_create_load_for_loaded_reg_tensor(%gm: !ascendc.global_tensor<?x
 // func.func @dont_rewrite_memory
 // CHECK: ascvf.vf_for
 // CHECK: ascendc.data_copy_vld_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, memref<1x1024xf32, 26>
-// CHECK-NEXT: ascendc.exp_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT: ascendc.exp_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK-NEXT: ascendc.exp_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.exp_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK-NOT: ascendc.data_copy_vst_micro {{[^:]*}}: memref<1x1024xf32, 26>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.exp_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK-NOT: ascendc.data_copy_vst_micro {{[^:]*}}: memref<1x1024xf32, 26>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.exp_micro {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
 // CHECK: ascendc.data_copy_vst_micro {{[^:]*}}: memref<1x1024xf32, 26>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
 func.func @dont_rewrite_memory(%gm: !ascendc.global_tensor<?x?xf32>, %ext_params: !ascendc.data_copy_ext_params, %x: !ascendc.local_tensor<1x1024xf32>, %y: !ascendc.local_tensor<1x1024xf32>, %z: !ascendc.local_tensor<1x1024xf32>, %f: !ascendc.local_tensor<1x1024xf32>, %cal: i64) {
   ascendc.exp_l2 %f, %f, %cal : !ascendc.local_tensor<1x1024xf32>, !ascendc.local_tensor<1x1024xf32>, i64

@@ -22,6 +22,30 @@ using namespace mlir;
 using namespace mlir::ascvf;
 
 //===----------------------------------------------------------------------===//
+// LoadMicroOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult LoadMicroOp::verify()
+{
+    if (!getOperation()->getParentOfType<ascvf::VecScopeOp>()) {
+        return emitOpError("The operation must belong to vec_scope");
+    }
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
+// StoreMicroOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult StoreMicroOp::verify()
+{
+    if (!getOperation()->getParentOfType<ascvf::VecScopeOp>()) {
+        return emitOpError("The operation must belong to vec_scope");
+    }
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
 // VFGroupOp
 //===----------------------------------------------------------------------===//
 

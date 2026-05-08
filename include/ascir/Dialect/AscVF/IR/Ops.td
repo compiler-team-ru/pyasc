@@ -28,14 +28,16 @@ class AscVF_Op<string mnemonic, list<Trait> traits = []>
 
 def LoadMicroOp : AscVF_Op<"load_micro"> {
   let description = "abstraction for load RegTensor from LocalTensor";
-  let arguments = (ins AnyType:$dstReg, AnyType:$srcTensor);
-  let assemblyFormat = "operands attr-dict `:` type(operands)";
+  let arguments = (ins AnyType:$dstReg, AnyType:$srcTensor, AnyType:$offset);
+  let assemblyFormat = "$dstReg `,` $srcTensor `[` $offset `]` attr-dict `:` type($dstReg) `,` type($srcTensor) `,` type($offset)";
+  let hasVerifier = 1;
 }
 
 def StoreMicroOp : AscVF_Op<"store_micro"> {
   let description = "abstraction for store RegTensor to LocalTensor";
-  let arguments = (ins AnyType:$dstTensor, AnyType:$srcReg, AnyType:$mask);
-  let assemblyFormat = "operands attr-dict `:` type(operands)";
+  let arguments = (ins AnyType:$dstTensor, AnyType:$offset, AnyType:$srcReg, AnyType:$mask);
+  let assemblyFormat = "$dstTensor `[` $offset `]` `,` $srcReg `,` $mask attr-dict `:` type($dstTensor) `,` type($offset) `,` type($srcReg) `,` type($mask)";
+  let hasVerifier = 1;
 }
 
 def VFGroupOp
