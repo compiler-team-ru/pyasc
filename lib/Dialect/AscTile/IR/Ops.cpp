@@ -169,11 +169,33 @@ LogicalResult LoadOp::verify()
         return emitOpError() << "real_shape must have same rank as tile shape";
 
     for (auto [realDimValue, tileDim] : llvm::zip_equal(realShape, tileShape)) {
-        APInt realDimInt;
-        if (!matchPattern(realDimValue, m_ConstantInt(&realDimInt)))
+        APInt realDim;
+        if (!matchPattern(realDimValue, m_ConstantInt(&realDim)))
             continue;
-        int64_t realDim = realDimInt.getSExtValue();
-        if (realDim > tileDim)
+        if (realDim.getSExtValue() > tileDim)
+            return emitOpError() << "real_shape exceeds tile shape";
+    }
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
+// StoreOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult StoreOp::verify()
+{
+    auto realShape = getRealShape();
+    if (realShape.empty())
+        return success();
+    auto tileShape = getValue().getType().getShape();
+    if (tileShape.size() != realShape.size())
+        return emitOpError() << "real_shape must have same rank as tile shape";
+
+    for (auto [realDimValue, tileDim] : llvm::zip_equal(realShape, tileShape)) {
+        APInt realDim;
+        if (!matchPattern(realDimValue, m_ConstantInt(&realDim)))
+            continue;
+        if (realDim.getSExtValue() > tileDim)
             return emitOpError() << "real_shape exceeds tile shape";
     }
     return success();

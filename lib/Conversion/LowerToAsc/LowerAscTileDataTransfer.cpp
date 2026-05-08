@@ -268,17 +268,33 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
         Value tailElementsLastDim = rewriter.create<arith::SubIOp>(loc, dstLastDim, lastDimOffset);
         auto tailNegCond = rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::slt, tailElementsLastDim, const0);
         Value tailElements = rewriter.create<arith::SelectOp>(loc, tailNegCond, const0, tailElementsLastDim);
-        Value minTailElements = rewriter.create<arith::MinSIOp>(loc, srcLastDim, tailElements);
+        Value minTailElements;
+        auto realShape = op.getRealShape();
+        if (realShape.empty()) {
+            minTailElements = rewriter.create<arith::MinSIOp>(loc, srcLastDim, tailElements);
+        } else {
+            Value realLastDim = realShape.back();
+            minTailElements = rewriter.create<arith::MinSIOp>(loc, realLastDim, tailElements);
+        }
         Value blockLen = rewriter.create<arith::MulIOp>(loc, minTailElements, typeSize);
+        Value srcStrideElements = rewriter.create<arith::SubIOp>(loc, srcLastDim, minTailElements);
+        Value dstStrideElements = rewriter.create<arith::SubIOp>(loc, dstLastDim, minTailElements);
         Value blockCount = consts.i32(1);
-        for (size_t i = 0; i + 1 < srcShape.size(); i++)
-            blockCount = rewriter.create<arith::MulIOp>(loc, blockCount, srcShape[i]);
-        Value lastDimSize = rewriter.create<arith::MulIOp>(loc, dstLastDim, typeSize);
-        Value dstStride = rewriter.create<arith::SubIOp>(loc, lastDimSize, blockLen);
+        if (realShape.size() > 1) {
+            for (size_t i = 0; i + 1 < realShape.size(); ++i)
+                blockCount = rewriter.create<arith::MulIOp>(loc, blockCount, realShape[i]);
+        } else {
+            for (size_t i = 0; i + 1 < srcShape.size(); ++i)
+                blockCount = rewriter.create<arith::MulIOp>(loc, blockCount, srcShape[i]);
+        }
+        Value dataBlockSize = consts.i32(ascendc::ubBlockSize);
+        Value srcStrideBytes = rewriter.create<arith::MulIOp>(loc, srcStrideElements, typeSize);
+        Value srcStride = rewriter.create<arith::DivSIOp>(loc, srcStrideBytes, dataBlockSize);
+        Value dstStride = rewriter.create<arith::MulIOp>(loc, dstStrideElements, typeSize);
         auto ui32Type = rewriter.getIntegerType(32, false);
         auto dataCopyExtParams = rewriter.create<ascendc::ConstructOp>(
             loc, rewriter.getType<ascendc::DataCopyExtParamsType>(),
-            ValueRange{blockCount, blockLen, const0, dstStride, const0},
+            ValueRange{blockCount, blockLen, srcStride, dstStride, const0},
             rewriter.getTypeArrayAttr({rewriter.getIntegerType(16, false), ui32Type, ui32Type, ui32Type, ui32Type}));
         rewriter.replaceOpWithNewOp<ascendc::DataCopyPadExtL2Op>(op, dst, src, dataCopyExtParams);
         return success();

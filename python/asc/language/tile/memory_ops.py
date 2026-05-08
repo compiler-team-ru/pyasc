@@ -98,12 +98,14 @@ def load(tensor: Tensor, shape: Optional[Iterable[int]] = None, *, real_shape: O
 
 
 @overload
-def store(value: Tile, tensor: Tensor, *, offsets: Iterable[RuntimeInt]) -> None:
+def store(value: Tile, tensor: Tensor, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
+          offsets: Iterable[RuntimeInt]) -> None:
     ...
 
 
 @overload
-def store(value: Tile, tensor: Tensor, *, tile_id: Iterable[RuntimeInt]) -> None:
+def store(value: Tile, tensor: Tensor, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
+          tile_id: Iterable[RuntimeInt]) -> None:
     ...
 
 
@@ -112,8 +114,8 @@ def store(value: RuntimeNumeric, tensor: Tensor, *, offsets: Iterable[RuntimeInt
     ...
 
 
-def store(value: Union[Tile, RuntimeNumeric], tensor: Tensor, *, tile_id: Optional[Iterable[RuntimeInt]] = None,
-          offsets: Optional[Iterable[RuntimeInt]] = None) -> None:
+def store(value: Union[Tile, RuntimeNumeric], tensor: Tensor, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
+          tile_id: Optional[Iterable[RuntimeInt]] = None, offsets: Optional[Iterable[RuntimeInt]] = None) -> None:
     builder = global_builder.get_ir_builder()
     scalar_store = not isinstance(value, Tile) or value.size == 1
     if scalar_store:
@@ -121,6 +123,8 @@ def store(value: Union[Tile, RuntimeNumeric], tensor: Tensor, *, tile_id: Option
             raise ValueError("'tile_id' argument cannot be used when storing a scalar value or a tile with 1 element")
         if offsets is None:
             raise ValueError("'offsets' argument must be provided")
+        if real_shape is not None:
+            raise ValueError("'real_shape' argument cannot be used when storing a scalar value")
         value = value.to(tensor.dtype) if isinstance(value, Tile) else _mat(value, tensor.dtype)
         builder.create_asctile_SetValueOp(value.to_ir(), tensor.to_ir(), to_ir_list(offsets))
         return
@@ -129,4 +133,8 @@ def store(value: Union[Tile, RuntimeNumeric], tensor: Tensor, *, tile_id: Option
     if ir.get_tile_location(value.to_ir().get_type()) == TileLocation.UB:
         check_data_alignment(value.shape, value.dtype)
     offsets = infer_offsets(tensor.shape, value.shape, tile_id, offsets)
-    builder.create_asctile_StoreOp(value.to_ir(), tensor.to_ir(), offsets)
+    real_shape_ir = []
+    if real_shape is not None:
+        check_real_shape(value.shape, real_shape)
+        real_shape_ir = to_ir_list(real_shape)
+    builder.create_asctile_StoreOp(value.to_ir(), tensor.to_ir(), offsets, real_shape_ir)
