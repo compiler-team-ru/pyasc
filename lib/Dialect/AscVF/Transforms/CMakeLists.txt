@@ -7,8 +7,13 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 add_mlir_dialect_library(MLIRAscVFTransforms
-  FuseVFBlock.cpp
-
+  EliminateCommonMask.cpp
+  EliminateDataTransfer.cpp
+  FindVFGroup.cpp
+  FuseVFFor.cpp
+  LowerToMicro.cpp
+  MaterializeLoadStore.cpp
+  ReorderOpsInVecScope.cpp
   ADDITIONAL_HEADER_DIRS
   ${ASCIR_INCLUDE_DIR}/ascir/Dialect/AscVF
 

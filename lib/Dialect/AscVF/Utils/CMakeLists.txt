@@ -6,6 +6,14 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-add_subdirectory(IR)
-add_subdirectory(Transforms)
-add_subdirectory(Utils)
+add_mlir_dialect_library(MLIRAscVFUtils
+  Utils.cpp
+
+  ADDITIONAL_HEADER_DIRS
+  ${ASCIR_INCLUDE_DIR}/ascir/Dialect/AscVF
+
+  LINK_LIBS PUBLIC
+  MLIRIR
+  MLIRAscVF
+  MLIREmitCDialect
+)
