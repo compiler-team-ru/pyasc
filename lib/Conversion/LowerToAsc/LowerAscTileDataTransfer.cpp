@@ -159,8 +159,10 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
             const int64_t cubeRowBlock = isMatrixA ? CUBE_MN_BLOCK_SIZE : cubeKBlockSize;
             auto dValue = consts.i32(dstShape[1]);
             if (isMatrixA || isa<Float16Type, BFloat16Type>(opType.getElementType())) {
-                Value dstNzC0Stride =
-                    dstShape[0] == 1 ? const1 : consts.i32(llvm::alignTo<ascendc::cubeBlockSize>(dstShape[0]));
+                auto dst0Align = consts.i32(llvm::alignTo<ascendc::cubeBlockSize>(dstShape[0]));
+                Value dstNzC0Stride = dst0Align;
+                if (isMatrixA && dstShape[0] == 1)
+                    dstNzC0Stride = const1;
                 auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
                     loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
                     ValueRange{
