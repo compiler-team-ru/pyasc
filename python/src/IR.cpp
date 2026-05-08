@@ -409,6 +409,15 @@ void bindAscTileType(py::module& m)
             return asctile::TileType::get(shape, elementType, loc);
         },
         "shape"_a, "element_type"_a, "loc"_a = asctile::TileLocation::UB);
+    m.def(
+        "get_tile_location",
+        [](const Type& type) -> asctile::TileLocation {
+            auto tileType = llvm::dyn_cast_if_present<asctile::TileType>(type);
+            if (!tileType)
+                throw std::runtime_error("get_tile_location(): must be TileType");
+            return tileType.getLoc();
+        },
+        "type"_a);
 }
 
 void bindLocation(py::module& m)

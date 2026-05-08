@@ -37,10 +37,11 @@ def matmul_launch(a: torch.Tensor, b: torch.Tensor, tile_a, tile_b) -> torch.Ten
     (64, 128, 128, torch.float32, [64, 128], [128, 128]),
     (64, 128, 256, torch.float16, [64, 128], [128, 256]),
     (64, 128, 256, torch.bfloat16, [64, 128], [128, 256]),
-    (47, 21, 35, torch.float16, [47, 32], [32, 48]),
-    (1, 32, 11, torch.float16, [1, 32], [32, 32]),
-    (11, 19, 41, torch.float32, [11, 24], [24, 48]),
-    (15, 67, 27, torch.bfloat16, [15, 80], [80, 32]),
+    (47, 21, 35, torch.float16, [47, 21], [21, 35]),
+    (1, 32, 11, torch.float16, [1, 32], [32, 11]),
+    (11, 19, 41, torch.float32, [11, 19], [19, 41]),
+    (15, 67, 27, torch.bfloat16, [15, 67], [67, 27]),
+    (19, 1, 19, torch.bfloat16, [19, 1], [1, 19]),
 ])
 def test_matmul_fixpipe(backend: config.Backend, platform: config.Platform, device_id: int, m, k, n, dtype, tile_a,
                         tile_b):

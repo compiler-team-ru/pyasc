@@ -84,7 +84,8 @@ def load(tensor: Tensor, shape: Optional[Iterable[int]] = None, *, real_shape: O
         handle = builder.create_asctile_GetValueOp(tensor.dtype.to_ir(), tensor.to_ir(), to_ir_list(offsets))
         return PlainValue(handle)
     shape = verify_shape(shape)
-    check_data_alignment(shape, tensor.dtype)
+    if location == TileLocation.UB:
+        check_data_alignment(shape, tensor.dtype)
     offsets = infer_offsets(tensor.shape, shape, tile_id, offsets)
     ir_type = ir.get_asctile_TileType(list(shape), tensor.dtype.to_ir(), location)
     pad_value = _mat(pad_value, tensor.dtype).to_ir() if pad_value is not None else None
@@ -125,6 +126,7 @@ def store(value: Union[Tile, RuntimeNumeric], tensor: Tensor, *, tile_id: Option
         return
     if (tile_id is None) == (offsets is None):
         raise ValueError("Exactly one of 'tile_id' or 'offsets' must be provided")
-    check_data_alignment(value.shape, value.dtype)
+    if ir.get_tile_location(value.to_ir().get_type()) == TileLocation.UB:
+        check_data_alignment(value.shape, value.dtype)
     offsets = infer_offsets(tensor.shape, value.shape, tile_id, offsets)
     builder.create_asctile_StoreOp(value.to_ir(), tensor.to_ir(), offsets)
