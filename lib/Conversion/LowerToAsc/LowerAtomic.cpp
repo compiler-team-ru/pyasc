@@ -67,7 +67,7 @@ struct ConvertAtomicRMW : ConvertOp<asctile::AtomicRMWOp> {
                 llvm_unreachable("unexpected asctile::AtomicKind value");
         }
 
-        rewriter.replaceOpWithNewOp<asctile::StoreOp>(op, value, base, offsets);
+        rewriter.replaceOpWithNewOp<asctile::StoreOp>(op, value, base, offsets, ValueRange{});
         rewriter.create<ascendc::SetAtomicNoneOp>(loc);
         return success();
     }

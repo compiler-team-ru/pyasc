@@ -94,16 +94,18 @@ def LoadOp : AscTile_Op<"load", [
 }
 
 def StoreOp : AscTile_Op<"store", [
+  AttrSizedOperandSegments,
   AllElementTypesMatch<["base", "value"]>, MemoryEffectsOpInterface
 ]> {
   let summary = "Store a tile into a tensor";
   let arguments = (ins NumericTile:$value,
                    Arg<Tensor, "tensor to store to", [MemWrite]>:$base,
-                   Variadic<I32>:$offsets);
+                   Variadic<I32>:$offsets, Variadic<I32>:$realShape);
   let assemblyFormat = [{
-    $value `,` $base `[` $offsets `]` attr-dict `:` qualified(type($value)) `,`
-    qualified(type($base))
+    $value `,` $base `[` $offsets `]` (`,` `(` $realShape^ `)`)? attr-dict `:`
+    qualified(type($value)) `,` qualified(type($base))
   }];
+  let hasVerifier = 1;
 }
 
 def GetValueOp : AscTile_Op<"get_value", [
