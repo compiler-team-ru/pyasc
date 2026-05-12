@@ -78,18 +78,12 @@ def handle_mask(gold, mask_type, count, other, hibits, lowbits) -> torch.Tensor:
     return torch.where(total_mask, gold, others)
 
 
-def local_ids(obj) -> str:
-    if callable(obj):
-        return obj.__name__
-    return str(obj)
-
-
 @pytest.mark.parametrize("asc_op, torch_op, fmt, dtype, mask_type",
                          [(asc_op, torch_op, f, d, m)
                           for asc_op, torch_op, fmts, dtypes, mask_types in binary_ops
                           for f in fmts
                           for d in dtypes
-                          for m in mask_types], ids=local_ids)
+                          for m in mask_types])
 def test_binary_operations(backend, platform, device_id, require_c310, asc_op, torch_op, fmt, dtype, mask_type):
     if dtype == torch.bfloat16:
         require_c310(platform)

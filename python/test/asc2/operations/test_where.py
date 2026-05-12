@@ -26,7 +26,7 @@ def where_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, z_ptr: asc.
     asc2.store(zt, z, offsets=[0])
 
 
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32, torch.int16, torch.int32], ids=str)
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32, torch.int16, torch.int32])
 @pytest.mark.parametrize("asc_op, torch_op", [
     (asc2.equal, torch.eq),
     (asc2.not_equal, torch.ne),
@@ -56,7 +56,7 @@ def where_scalar_kernel(x_ptr: asc.GlobalAddress, scalar, z_ptr: asc.GlobalAddre
     asc2.store(zt, z, offsets=[0])
 
 
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32, torch.int16, torch.int32], ids=str)
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32, torch.int16, torch.int32])
 @pytest.mark.parametrize("asc_op, torch_op", [
     (asc2.equal, torch.eq),
     (asc2.not_equal, torch.ne),

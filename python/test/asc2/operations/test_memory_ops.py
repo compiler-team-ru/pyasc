@@ -100,7 +100,7 @@ def kernel_scalar_load_store(x_ptr, y_ptr, z_ptr, tensor_shape: asc.ConstExpr, o
     asc2.store(zt, asc2.tensor(z_ptr, tensor_shape), offsets=offsets)
 
 
-@pytest.mark.parametrize("dim, tensor_shape, tile_shape, tile_id, offsets, is_static", tests, ids=str)
+@pytest.mark.parametrize("dim, tensor_shape, tile_shape, tile_id, offsets, is_static", tests)
 def test_load_store(dim, tensor_shape, tile_shape, tile_id, offsets, is_static):
     x, y = [torch.randn(tensor_shape) for _ in range(2)]
     device = "cpu"
@@ -133,7 +133,7 @@ def test_load_store(dim, tensor_shape, tile_shape, tile_id, offsets, is_static):
     ((16, ), (7, )),
     ((16, 16), (0, 0)),
     ((16, 16), (7, 7)),
-), ids=str)
+))
 def test_store_1elem_tile(tensor_shape, offsets):
     x = torch.randn(tensor_shape, dtype=torch.float32, device="cpu")
     y = torch.zeros_like(x)
