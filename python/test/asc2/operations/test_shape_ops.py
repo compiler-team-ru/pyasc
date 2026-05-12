@@ -16,15 +16,9 @@ shape_ops = [
 ]
 
 
-def local_ids(obj) -> str:
-    if callable(obj):
-        return obj.__name__
-    return str(obj)
-
-
 @pytest.mark.parametrize("asc_op, torch_op, args, shape, dtype", [(asc_op, torch_op, args, shape, d)
                                                                   for asc_op, torch_op, args, shape, dtypes in shape_ops
-                                                                  for d in dtypes], ids=local_ids)
+                                                                  for d in dtypes])
 def test_shape_op(backend, platform, device_id, require_c310, asc_op, torch_op, args, shape, dtype: torch.dtype):
     if asc_op is asc2.broadcast_to:
         require_c310(platform)
@@ -59,8 +53,8 @@ def test_shape_op(backend, platform, device_id, require_c310, asc_op, torch_op, 
     torch.testing.assert_close(z, ref_z, atol=1e-3, rtol=1e-3)
 
 
-@pytest.mark.parametrize("shape", ([32], [3, 32]), ids=str)
-@pytest.mark.parametrize("dtype", (torch.float16, torch.float32, torch.int16, torch.int32), ids=str)
+@pytest.mark.parametrize("shape", ([32], [3, 32]))
+@pytest.mark.parametrize("dtype", (torch.float16, torch.float32, torch.int16, torch.int32))
 def test_broadcast_dup(backend, platform, device_id, shape, dtype):
     config.set_platform(backend, platform, device_id, check=False)
 

@@ -37,6 +37,12 @@ def pytest_configure(config):
     config.profiling_results = []
 
 
+def pytest_make_parametrize_id(val):
+    if callable(val):
+        return val.__name__
+    return str(val)
+
+
 def pytest_terminal_summary(terminalreporter, config):
     if not config.profiling_results:
         return
