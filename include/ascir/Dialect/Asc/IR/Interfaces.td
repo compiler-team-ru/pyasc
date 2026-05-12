@@ -182,8 +182,14 @@ def UnaryOpInterface : AscendC_OpInterface<"UnaryOp", [
 def UnaryL0OpInterface : AscendC_OpInterface<"UnaryL0Op", [UnaryOpInterface]> {
   let description = "Vector unary operation (L0 API)";
   let methods = [
-    getMask, getRepeatTimes, getRepeatParams,
-    getMaskMutable, getRepeatTimesMutable, getRepeatParamsMutable,
+      getMask,
+      getRepeatTimes,
+      getRepeatParams,
+      getMaskMutable,
+      getRepeatTimesMutable,
+      getRepeatParamsMutable,
+      getIsSetMask,
+      setIsSetMask,
   ];
 }
 
@@ -206,8 +212,14 @@ def BinaryOpInterface : AscendC_OpInterface<"BinaryOp", [
 def BinaryL0OpInterface : AscendC_OpInterface<"BinaryL0Op", [BinaryOpInterface]> {
   let description = "Vector binary operation (L0 API)";
   let methods = [
-    getMask, getRepeatTimes, getRepeatParams,
-    getMaskMutable, getRepeatTimesMutable, getRepeatParamsMutable,
+      getMask,
+      getRepeatTimes,
+      getRepeatParams,
+      getMaskMutable,
+      getRepeatTimesMutable,
+      getRepeatParamsMutable,
+      getIsSetMask,
+      setIsSetMask,
   ];
 }
 
@@ -233,8 +245,16 @@ def VecScalarOpInterface : AscendC_OpInterface<"VecScalarOp", [
 
 def VecScalarL0OpInterface : AscendC_OpInterface<"VecScalarL0Op", [VecScalarOpInterface]> {
   let description = "Vector-scalar operation (L0 API)";
-  let methods = [getMask, getRepeatTimes, getRepeatParams,
-                 getMaskMutable, getRepeatTimesMutable, getRepeatParamsMutable];
+  let methods = [
+      getMask,
+      getRepeatTimes,
+      getRepeatParams,
+      getMaskMutable,
+      getRepeatTimesMutable,
+      getRepeatParamsMutable,
+      getIsSetMask,
+      setIsSetMask,
+  ];
 }
 
 def VecScalarL2OpInterface : AscendC_OpInterface<"VecScalarL2Op", [VecScalarOpInterface]> {

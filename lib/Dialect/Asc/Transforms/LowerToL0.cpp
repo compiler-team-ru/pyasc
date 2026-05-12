@@ -139,11 +139,19 @@ void populateLowerToL0Patterns(RewritePatternSet& patterns)
     patterns.add(lowerBinaryOp<OrL2Op, OrL0Op>);
     patterns.add(lowerBinaryOp<SubL2Op, SubL0Op>);
     patterns.add(lowerBinaryOp<SubReluL2Op, SubReluL0Op>);
-    patterns.add(lowerDuplicateOp<DuplicateL2Op, DuplicateL0Op>);
+    // TODO: Add correct calculation for bitmasks in FillAscOperandsPass
+    // patterns.add(lowerDuplicateOp<DuplicateL2Op, DuplicateL0Op>);
     patterns.add(lowerCompareOp<CompareL2Op, CompareL0Op>);
     patterns.add(lowerCastOp<CastL2Op, CastL0Op>);
     patterns.add(lowerVectorScalarOp<AddsL2Op, AddsL0Op>);
+    patterns.add(lowerVectorScalarOp<DivsL2Op, DivsL0Op>);
+    patterns.add(lowerVectorScalarOp<LeakyReluL2Op, LeakyReluL0Op>);
+    patterns.add(lowerVectorScalarOp<MaxsL2Op, MaxsL0Op>);
+    patterns.add(lowerVectorScalarOp<MinsL2Op, MinsL0Op>);
     patterns.add(lowerVectorScalarOp<MulsL2Op, MulsL0Op>);
+    patterns.add(lowerVectorScalarOp<ShiftLeftL2Op, ShiftLeftL0Op>);
+    patterns.add(lowerVectorScalarOp<ShiftRightL2Op, ShiftRightL0Op>);
+    patterns.add(lowerVectorScalarOp<SubsL2Op, SubsL0Op>);
 }
 
 std::unique_ptr<Pass> createLowerToL0Pass() { return std::make_unique<LowerToL0Pass>(); }
