@@ -78,8 +78,6 @@ def test_gelu(backend: config.Backend, platform: config.Platform, device_id, pro
     block_tail = dim0 - (block_num - 1) * block_former
     former_block_loop = asc.ceildiv(block_former, ub_former)
     tail_block_loop = asc.ceildiv(block_tail, ub_former)
-    former_block_tail = block_former - (former_block_loop - 1) * ub_former
-    tail_block_tail = block_tail - (tail_block_loop - 1) * ub_former
     block_loop_num = former_block_loop
     if core_num == 1:
         block_loop_num_tail = 1
