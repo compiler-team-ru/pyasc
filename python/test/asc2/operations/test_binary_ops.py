@@ -68,9 +68,9 @@ def handle_mask(gold, mask_type, count, other, hibits, lowbits) -> torch.Tensor:
     elif mask_type == COUNT_MASK:
         mask = torch.arange(max_elem_count) < count
     elif mask_type == BIT_MASK:
-        h = uint64_to_binary_tensor(hibits)
-        l = uint64_to_binary_tensor(lowbits)
-        mask = torch.cat((h, l), dim=0)
+        hi = uint64_to_binary_tensor(hibits)
+        lo = uint64_to_binary_tensor(lowbits)
+        mask = torch.cat((hi, lo), dim=0)
 
     repeats = (size + max_elem_count - 1) // max_elem_count
     total_mask = torch.tile(mask, (repeats, ))[0:size]
