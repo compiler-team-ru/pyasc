@@ -177,10 +177,14 @@ func.func @lower_store_dynamic(%arg0: memref<*xf32, 22>, %arg1: !asctile.tile<16
 // CHECK-NEXT:  %3 = arith.muli %arg2, %c32_i32 : i32
 // CHECK-NEXT:  %4 = arith.addi %arg3, %3 : i32
 // CHECK-NEXT:  %5 = ascendc.global_tensor.subindex %2[%4] : !ascendc.global_tensor<32x32xf32>, i32, !ascendc.global_tensor<32x32xf32>
-// CHECK-NEXT:  %6 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %c16_i32 : i32, "mSize" = %c16_i32 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c32_i32 : i32)
-// CHECK-NEXT:  %7 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
-// CHECK-NEXT:  %8 = ascendc.construct !ascendc.fixpipe_config(%7) constexpr static : !ascendc.co2_layout
-// CHECK-NEXT:  ascendc.fixpipe %5, %0, %6, %8 : !ascendc.global_tensor<32x32xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
+// CHECK-NEXT:  %6 = arith.subi %c32_i32, %arg3 : i32
+// CHECK-NEXT:  %7 = arith.cmpi slt, %6, %c0_i32 : i32
+// CHECK-NEXT:  %8 = arith.select %7, %c0_i32, %6 : i32
+// CHECK-NEXT:  %9 = arith.minsi %8, %c16_i32 : i32
+// CHECK-NEXT:  %10 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %9 : i32, "mSize" = %c16_i32 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c32_i32 : i32)
+// CHECK-NEXT:  %11 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
+// CHECK-NEXT:  %12 = ascendc.construct !ascendc.fixpipe_config(%11) constexpr static : !ascendc.co2_layout
+// CHECK-NEXT:  ascendc.fixpipe %5, %0, %10, %12 : !ascendc.global_tensor<32x32xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
 // CHECK-NEXT:  return
 // CHECK-NEXT:}
 func.func @lower_store_fixpipe_static(%arg0: memref<*xf32, 22>, %arg1: !asctile.tile<16x16xf32, L0C>, %arg2: i32, %arg3: i32) {
@@ -196,10 +200,14 @@ func.func @lower_store_fixpipe_static(%arg0: memref<*xf32, 22>, %arg1: !asctile.
 // CHECK-NEXT:  %3 = arith.muli %arg2, %c32_i32 : i32
 // CHECK-NEXT:  %4 = arith.addi %arg3, %3 : i32
 // CHECK-NEXT:  %5 = ascendc.global_tensor.subindex %2[%4] : !ascendc.global_tensor<32x32xf32>, i32, !ascendc.global_tensor<32x32xf32>
-// CHECK-NEXT:  %6 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %c16_i32 : i32, "mSize" = %c16_i32 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c32_i32 : i32, "reluEn" = %c1_i32 : i32)
-// CHECK-NEXT:  %7 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
-// CHECK-NEXT:  %8 = ascendc.construct !ascendc.fixpipe_config(%7) constexpr static : !ascendc.co2_layout
-// CHECK-NEXT:  ascendc.fixpipe %5, %0, %6, %8 : !ascendc.global_tensor<32x32xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
+// CHECK-NEXT:  %6 = arith.subi %c32_i32, %arg3 : i32
+// CHECK-NEXT:  %7 = arith.cmpi slt, %6, %c0_i32 : i32
+// CHECK-NEXT:  %8 = arith.select %7, %c0_i32, %6 : i32
+// CHECK-NEXT:  %9 = arith.minsi %8, %c16_i32 : i32
+// CHECK-NEXT:  %10 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %9 : i32, "mSize" = %c16_i32 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c32_i32 : i32, "reluEn" = %c1_i32 : i32)
+// CHECK-NEXT:  %11 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
+// CHECK-NEXT:  %12 = ascendc.construct !ascendc.fixpipe_config(%11) constexpr static : !ascendc.co2_layout
+// CHECK-NEXT:  ascendc.fixpipe %5, %0, %10, %12 : !ascendc.global_tensor<32x32xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
 // CHECK-NEXT:  return
 // CHECK-NEXT:}
 func.func @lower_store_fixpipe_static_relu(%arg0: memref<*xf32, 22>, %arg1: !asctile.tile<16x16xf32, L0C>, %arg2: i32, %arg3: i32) {
@@ -215,11 +223,15 @@ func.func @lower_store_fixpipe_static_relu(%arg0: memref<*xf32, 22>, %arg1: !asc
 // CHECK-NEXT:  %3 = arith.muli %arg2, %c32_i32 : i32
 // CHECK-NEXT:  %4 = arith.addi %arg3, %3 : i32
 // CHECK-NEXT:  %5 = ascendc.global_tensor.subindex %2[%4] : !ascendc.global_tensor<32x32xf16>, i32, !ascendc.global_tensor<32x32xf16>
-// CHECK-NEXT:  %6 = ascendc.construct !ascendc.quant_mode_t(%c1_i32) [!ascendc.quant_mode_t] constexpr static : i32
-// CHECK-NEXT:  %7 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %c16_i32 : i32, "mSize" = %c16_i32 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c32_i32 : i32, "reluEn" = %c1_i32 : i32, "quantPre" = %6 : !ascendc.quant_mode_t)
-// CHECK-NEXT:  %8 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
-// CHECK-NEXT:  %9 = ascendc.construct !ascendc.fixpipe_config(%8) constexpr static : !ascendc.co2_layout
-// CHECK-NEXT:  ascendc.fixpipe %5, %0, %7, %9 : !ascendc.global_tensor<32x32xf16>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
+// CHECK-NEXT:  %6 = arith.subi %c32_i32, %arg3 : i32
+// CHECK-NEXT:  %7 = arith.cmpi slt, %6, %c0_i32 : i32
+// CHECK-NEXT:  %8 = arith.select %7, %c0_i32, %6 : i32
+// CHECK-NEXT:  %9 = arith.minsi %8, %c16_i32 : i32
+// CHECK-NEXT:  %10 = ascendc.construct !ascendc.quant_mode_t(%c1_i32) [!ascendc.quant_mode_t] constexpr static : i32
+// CHECK-NEXT:  %11 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %9 : i32, "mSize" = %c16_i32 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c32_i32 : i32, "reluEn" = %c1_i32 : i32, "quantPre" = %10 : !ascendc.quant_mode_t)
+// CHECK-NEXT:  %12 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
+// CHECK-NEXT:  %13 = ascendc.construct !ascendc.fixpipe_config(%12) constexpr static : !ascendc.co2_layout
+// CHECK-NEXT:  ascendc.fixpipe %5, %0, %11, %13 : !ascendc.global_tensor<32x32xf16>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
 // CHECK-NEXT:  return
 // CHECK-NEXT:}
 func.func @lower_store_fixpipe_static_quantize(%arg0: memref<*xf32, 22>, %arg1: !asctile.tile<16x16xf32, L0C>, %arg2: i32, %arg3: i32) {
@@ -235,11 +247,15 @@ func.func @lower_store_fixpipe_static_quantize(%arg0: memref<*xf32, 22>, %arg1: 
 // CHECK-NEXT:  %3 = arith.muli %arg2, %arg5 : i32
 // CHECK-NEXT:  %4 = arith.addi %arg3, %3 : i32
 // CHECK-NEXT:  %5 = ascendc.global_tensor.subindex %2[%4] : !ascendc.global_tensor<?x?xf16>, i32, !ascendc.global_tensor<?x?xf16>
-// CHECK-NEXT:  %6 = ascendc.construct !ascendc.quant_mode_t(%c1_i32) [!ascendc.quant_mode_t] constexpr static : i32
-// CHECK-NEXT:  %7 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %c16_i32 : i32, "mSize" = %c16_i32 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %arg5 : i32, "reluEn" = %c1_i32 : i32, "quantPre" = %6 : !ascendc.quant_mode_t)
-// CHECK-NEXT:  %8 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
-// CHECK-NEXT:  %9 = ascendc.construct !ascendc.fixpipe_config(%8) constexpr static : !ascendc.co2_layout
-// CHECK-NEXT:  ascendc.fixpipe %5, %0, %7, %9 : !ascendc.global_tensor<?x?xf16>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
+// CHECK-NEXT:  %6 = arith.subi %arg5, %arg3 : i32
+// CHECK-NEXT:  %7 = arith.cmpi slt, %6, %c0_i32 : i32
+// CHECK-NEXT:  %8 = arith.select %7, %c0_i32, %6 : i32
+// CHECK-NEXT:  %9 = arith.minsi %8, %c16_i32 : i32
+// CHECK-NEXT:  %10 = ascendc.construct !ascendc.quant_mode_t(%c1_i32) [!ascendc.quant_mode_t] constexpr static : i32
+// CHECK-NEXT:  %11 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %9 : i32, "mSize" = %c16_i32 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %arg5 : i32, "reluEn" = %c1_i32 : i32, "quantPre" = %10 : !ascendc.quant_mode_t)
+// CHECK-NEXT:  %12 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
+// CHECK-NEXT:  %13 = ascendc.construct !ascendc.fixpipe_config(%12) constexpr static : !ascendc.co2_layout
+// CHECK-NEXT:  ascendc.fixpipe %5, %0, %11, %13 : !ascendc.global_tensor<?x?xf16>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
 // CHECK-NEXT:  return
 // CHECK-NEXT:}
 func.func @lower_store_fixpipe_dynamic_relu_quantize(%arg0: memref<*xf32, 22>, %arg1: !asctile.tile<16x16xf32, L0C>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32) {
