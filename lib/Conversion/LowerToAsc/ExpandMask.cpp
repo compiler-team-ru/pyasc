@@ -61,6 +61,7 @@ void processMask(func::FuncOp funcOp)
         };
         maskOp.walk([&](ascendc::UnaryL0Op uOp) { updateMask(uOp); });
         maskOp.walk([&](ascendc::BinaryL0Op bOp) { updateMask(bOp); });
+        maskOp.walk([&](ascendc::VecScalarL0Op bOp) { updateMask(bOp); });
         for (auto& innerOp : llvm::make_early_inc_range(maskOp.getRegion().front().without_terminator())) {
             innerOp.moveBefore(maskOp);
         }
