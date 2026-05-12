@@ -48,7 +48,8 @@ def copy(tile: Tile, shape: Optional[Iterable[int]] = None, *, offsets: Optional
     if offsets is None:
         offsets = (0, ) * len(tile.shape)
     shape = verify_shape(shape)
-    check_data_alignment(shape, tile.dtype)
+    if location == TileLocation.UB:
+        check_data_alignment(shape, tile.dtype)
     offsets = infer_offsets(tile.shape, shape, None, offsets)
     ir_type = ir.get_asctile_TileType(list(shape), tile.dtype.to_ir(), location)
     handle = global_builder.get_ir_builder().create_asctile_CopyOp(ir_type, tile.to_ir(), offsets)

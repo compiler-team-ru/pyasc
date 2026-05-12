@@ -138,9 +138,9 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
         auto const0 = consts.i32(0);
         auto const1 = consts.i32(1);
         if (dstLoc == asctile::TileLocation::L1) {
+            auto dstShapeCols = consts.i32(dstShape[1]);
             if (isMatrixA || isa<Float16Type, BFloat16Type>(opType.getElementType())) {
                 auto dstShapeRows = consts.i32(dstShape[0]);
-                auto dstShapeCols = consts.i32(dstShape[1]);
                 auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
                     loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
                     ValueRange{const1, dstShapeRows, dstShapeCols, const0, srcShape[1], dstShapeRows, const1, const0});
@@ -155,7 +155,8 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
                 auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
                     loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
                     ValueRange{
-                        ndNum, nValue, srcShape[1], srcNdMatrixStride, srcShape[1], nValue, const1, dstNzMatrixStride});
+                        ndNum, nValue, dstShapeCols, srcNdMatrixStride, srcShape[1], nValue, const1,
+                        dstNzMatrixStride});
                 rewriter.create<ascendc::DataCopyL2Op>(loc, dst, src, nd2NzParams);
             }
         } else {
@@ -298,12 +299,21 @@ struct ConvertStoreFixpipe : ConvertOp<asctile::StoreFixpipeOp> {
             srcShape.push_back(consts.i32(dim));
         }
         SmallVector<Value> dstShape = getTensorShape(rewriter, tensorOp);
+        auto const0 = consts.i32(0);
         auto const1 = consts.i32(1);
-        Value linearOffset = linearizeOffset(rewriter, loc, dstShape, op.getOffsets());
+        auto offsets = op.getOffsets();
+        Value linearOffset = linearizeOffset(rewriter, loc, dstShape, offsets);
         dst = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, dstType, dst, linearOffset);
+        Value srcLastDim = srcShape[srcShape.size() - 1];
+        Value dstLastDim = dstShape[dstShape.size() - 1];
+        Value lastDimOffset = offsets.back();
+        Value tailElementsLastDim = rewriter.create<arith::SubIOp>(loc, dstLastDim, lastDimOffset);
+        auto tailNegCond = rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::slt, tailElementsLastDim, const0);
+        Value tailElements = rewriter.create<arith::SelectOp>(loc, tailNegCond, const0, tailElementsLastDim);
+        Value nSize = rewriter.create<arith::MinSIOp>(loc, srcLastDim, tailElements);
         auto srcStride = llvm::alignTo<ascendc::cubeBlockSize>(srcType.getShape()[0]);
         auto paramsBuilder = emitasc::InitStructBuilder(rewriter.getType<ascendc::FixpipeParamsV220Type>())
-                                 .addField("nSize", srcShape[1])
+                                 .addField("nSize", nSize)
                                  .addField("mSize", srcShape[0])
                                  .addField("srcStride", consts.i32(srcStride))
                                  .addField("dstStride", dstShape[1]);
