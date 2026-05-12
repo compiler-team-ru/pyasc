@@ -30,6 +30,7 @@ def pytest_addoption(parser: pytest.Parser):
                      help="Runtime platform")
     parser.addoption("--device", type=int, default=0, help="Device ID")
     parser.addoption("--profile", action="store_true", help="Enable NPU profiling (if available)")
+    parser.addoption("--runs", type=int, default=1, help="Number of kernel launches")
 
 
 def pytest_configure(config):
@@ -80,3 +81,8 @@ def profiler(request, tmp_path_factory, backend):
         "test": request.node.nodeid,
         "duration": task_time_median(profiler.last_result.tasks, skip=1),
     })
+
+
+@pytest.fixture
+def runs(request: pytest.FixtureRequest):
+    return request.config.getoption("--runs")
