@@ -14,6 +14,7 @@ add_mlir_dialect_library(MLIRAscVFTransforms
   LowerToMicro.cpp
   MaterializeLoadStore.cpp
   ReorderOpsInVecScope.cpp
+
   ADDITIONAL_HEADER_DIRS
   ${ASCIR_INCLUDE_DIR}/ascir/Dialect/AscVF
 
@@ -24,5 +25,6 @@ add_mlir_dialect_library(MLIRAscVFTransforms
   MLIRFuncDialect
   MLIRIR
   MLIRPass
+  MLIRAsc
   MLIRAscVF
 )

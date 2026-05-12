@@ -9,7 +9,7 @@
  */
 
 #include "ascir/Dialect/AscVF/IR/AscVF.h"
-#include "ascir/Target/Asc/Common.h"
+#include "ascir/Dialect/Asc/IR/Asc.h"
 
 #include "mlir/Dialect/Utils/StaticValueUtils.h"
 #include "mlir/IR/Builders.h"

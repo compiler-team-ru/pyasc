@@ -9,7 +9,6 @@
  */
 
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
-#include "ascir/Target/Asc/Common.h"
 
 #include "mlir/Dialect/Utils/StaticValueUtils.h"
 #include "mlir/IR/Builders.h"
