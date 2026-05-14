@@ -1,0 +1,69 @@
+# Copyright (c) 2026 Huawei Technologies Co., Ltd.
+# This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+# CANN Open Software License Agreement Version 2.0 (the "License").
+# Please refer to the License for details. You may not use this file except in compliance with the License.
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+# See LICENSE in the root of the software repository for the full text of the License.
+
+import pytest
+import torch
+
+import asc
+import asc.runtime.config as config
+import asc2
+
+
+@asc2.jit
+def matmul_kernel(a_ptr: asc.GlobalAddress, b_ptr: asc.GlobalAddress, c_ptr: asc.GlobalAddress, a_shape: asc.ConstExpr,
+                  b_shape: asc.ConstExpr, single_core_m: asc.ConstExpr, single_core_n: asc.ConstExpr,
+                  step_ka: asc.ConstExpr, step_kb: asc.ConstExpr, base_k: asc.ConstExpr, quant_type: asc.ConstExpr,
+                  unroll_factor: asc.ConstExpr):
+    m, k = a_shape
+    _, n = b_shape
+    a_gm = asc2.tensor(a_ptr, a_shape)
+    b_gm = asc2.tensor(b_ptr, b_shape)
+    c_gm = asc2.tensor(c_ptr, [m, n])
+    acc = asc2.zeros_acc([single_core_m, single_core_n], dtype=asc.float32)
+    block_idx = asc2.block_idx()
+    n_blocks = asc.ceildiv(n, single_core_n)
+    m_off = single_core_m * (block_idx / n_blocks)
+    n_off = single_core_n * (block_idx % n_blocks)
+    for k_outer in range(asc.ceildiv(k, step_kb), unroll_factor=unroll_factor, parallel=True):
+        b_l1 = asc2.load(b_gm, [step_kb, single_core_n], offsets=[k_outer * step_kb, n_off],
+                         location=asc2.TileLocation.L1)
+        for k_mid in range(asc.ceildiv(step_kb, step_ka), unroll_factor=unroll_factor, parallel=True):
+            k_off = k_outer * step_kb + k_mid * step_ka
+            a_l1 = asc2.load(a_gm, [single_core_m, step_ka], offsets=[m_off, k_off], location=asc2.TileLocation.L1)
+            for k_l0 in range(asc.ceildiv(step_ka, base_k), unroll_factor=unroll_factor, parallel=True):
+                a_l0 = asc2.copy(a_l1, [single_core_m, base_k], offsets=[0, k_l0 * base_k],
+                                 location=asc2.TileLocation.L0A)
+                b_l0 = asc2.copy(b_l1, [base_k, single_core_n], offsets=[k_mid * step_ka + k_l0 * base_k, 0],
+                                 location=asc2.TileLocation.L0B)
+                asc2.matmul_acc(a_l0, b_l0, acc)
+    acc = acc.to(quant_type)
+    asc2.store(acc, c_gm, offsets=[m_off, n_off])
+
+
+@pytest.mark.parametrize("core_num, unroll_factor, input_type, output_type, tiling_data", [
+    (16, 2, torch.float16, torch.float16, (128, 784, 832, 32, 208, 16, 784, 16)),
+    (16, 2, torch.float32, torch.float32, (1024, 64, 16, 64, 16, 16, 64, 16)),
+])
+def test_matmul_k_tiled(backend: config.Backend, platform: config.Platform, device_id: int, profiler, runs, core_num,
+                        unroll_factor, input_type, output_type, tiling_data):
+    config.set_platform(backend, platform, device_id)
+    quant_type = asc.float32
+    if output_type == torch.float16:
+        quant_type = asc.float16
+    elif output_type == torch.bfloat16:
+        quant_type = asc.bfloat16
+    m, k, n, single_core_m, single_core_n, step_ka, step_kb, base_k = tiling_data
+    a = (torch.rand((m, k), dtype=input_type))
+    b = (torch.rand((k, n), dtype=input_type))
+    c = torch.zeros((m, n), dtype=output_type)
+    with profiler.profile():
+        for _ in range(runs):
+            matmul_kernel[core_num](a, b, c, a.shape, b.shape, single_core_m, single_core_n, step_ka, step_kb, base_k,
+                                    quant_type, unroll_factor)
+    c_ref = (a.to(torch.float32) @ b.to(torch.float32)).to(output_type)
+    torch.testing.assert_close(c, c_ref, atol=1e-3, rtol=1e-3)

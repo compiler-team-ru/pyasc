@@ -89,6 +89,9 @@ std::optional<ascendc::QuantMode> getQuantizeMode(
     auto int32Type = rewriter.getIntegerType(32);
     auto int8Type = rewriter.getIntegerType(8);
     auto uint8Type = rewriter.getIntegerType(8, false);
+    if (srcElType == floatType && dstElType == floatType) {
+        return ascendc::QuantMode::NoQuant;
+    }
     if (srcElType == floatType && dstElType == halfType) {
         return ascendc::QuantMode::F322F16;
     }
