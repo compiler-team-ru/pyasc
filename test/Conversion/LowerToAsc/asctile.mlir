@@ -27,7 +27,7 @@ func.func @lower_relu(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xf32,
 // CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<32xf32, UB> to !ascendc.local_tensor<32xf32>
 // CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <32xi32>
 // CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<32xi32> to !asctile.tile<32xi32, UB>
-// CHECK-NEXT:  ascendc.cast_l2 %1, %0, %c32_i64 {roundMode = 5 : i32} : !ascendc.local_tensor<32xi32>, !ascendc.local_tensor<32xf32>, i64
+// CHECK-NEXT:  ascendc.cast_l2 %1, %0, %c32_i64 {roundMode = 1 : i32} : !ascendc.local_tensor<32xi32>, !ascendc.local_tensor<32xf32>, i64
 // CHECK-NEXT:  return %2 : !asctile.tile<32xi32, UB>
 // CHECK-NEXT:}
 func.func @lower_cast(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xi32, UB> {
