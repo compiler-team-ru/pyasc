@@ -67,7 +67,7 @@ def broadcast_to(input: Tile, *shape: int) -> Tile:
     shape = verify_shape(shape)
     if not shapes_match(input.shape, shape):
         raise RuntimeError(f"Cannot broadcast tile with shape {input.shape} to {shape}")
-    result_type = ir.clone_shaped_type(input.to_ir().get_type(), input.dtype.to_ir(), shape)
+    result_type = ir.clone_shaped_type(input.to_ir().get_type(), shape)
     handle = global_builder.get_ir_builder().create_asctile_BroadcastOp(result_type, input.to_ir())
     return Tile(handle)
 
@@ -78,7 +78,7 @@ def reshape(input: Tile, *shape: int) -> Tile:
     if math.prod(input.shape) != math.prod(shape):
         raise RuntimeError("Result tile must have the same number of elements as input tile")
     builder = global_builder.get_ir_builder()
-    ir_type = ir.clone_shaped_type(input.to_ir().get_type(), input.dtype.to_ir(), shape)
+    ir_type = ir.clone_shaped_type(input.to_ir().get_type(), shape)
     handle = builder.create_asctile_ReshapeOp(ir_type, input.to_ir())
     return Tile(handle)
 

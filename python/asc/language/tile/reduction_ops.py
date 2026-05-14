@@ -42,8 +42,7 @@ def op_reduce_impl(input: Tile, keep_dims: bool, dims: Tuple[int], kind: ir.Redu
         raise RuntimeError("All reduction dimensions must be integers")
     dims_ir = global_builder.get_ir_builder().get_i32_array_attr(dims)
     target_shape = get_reduction_shape(input.shape, keep_dims, dims)
-    dtype = ir.get_element_type(input.to_ir().get_type())
-    ir_type = ir.clone_shaped_type(input.to_ir().get_type(), dtype, target_shape)
+    ir_type = ir.clone_shaped_type(input.to_ir().get_type(), target_shape)
     handle = builder.create_asctile_ReduceOp(ir_type, input.to_ir(), dims_ir, kind)
     return Tile(handle)
 
