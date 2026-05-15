@@ -45,7 +45,7 @@ class InsertBufIdSync {
 
     ascendc::Pipe getPipe(Operation* op)
     {
-        if (isa<ascendc::LoadDataG2LOp, ascendc::LoadDataWithTransposeOp>(op)) {
+        if (isa<ascendc::LoadDataG2LOp, ascendc::LoadDataL0V2Op, ascendc::LoadDataWithTransposeOp>(op)) {
             return ascendc::Pipe::PIPE_MTE1;
         }
         if (auto copyOp = dyn_cast<ascendc::DataCopyOp>(op)) {

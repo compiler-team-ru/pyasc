@@ -108,3 +108,9 @@ def squeeze(input: Tile, *axis: int) -> Tile:
         if dim != 1:
             raise RuntimeError(f"Unable to squeeze the axis {i} since its length must be 1, got {dim}")
     return reshape(input, *shape)
+
+
+def transpose(input: Tile) -> Tile:
+    ir_type = ir.clone_shaped_type(input.to_ir().get_type(), [input.shape[1], input.shape[0]])
+    handle = global_builder.get_ir_builder().create_asctile_TransposeOp(ir_type, input.to_ir())
+    return Tile(handle)

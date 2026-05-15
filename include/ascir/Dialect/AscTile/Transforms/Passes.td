@@ -13,6 +13,38 @@
 
 include "mlir/Pass/PassBase.td"
 
+def CubeTransposeToLoad : Pass<"asctile-cube-transpose-to-load", "func::FuncOp"> {
+  let summary = "Remove transpose operations on cube operands and add transpose attributes to load/copy operations";
+  let constructor = "mlir::asctile::createCubeTransposeToLoadPass()";
+  let description = [{
+    This pass eliminates `asctile.transpose` operations on cube (matrix multiplication) operands in L0A/L0B 
+    buffers by adding `transposeA` or `transposeB` attributes to the underlying load and copy operations.
+    
+    The transformation applies when:
+    1. The transpose result is in L0A or L0B buffer (cube operands)
+    2. The transpose input is a `copy` operation with exactly one use
+    3. The copy's source is a `load` operation with exactly one use
+    
+    The pass:
+    - Removes the transpose operation
+    - Adds `transposeA` attribute to load and copy if result is in L0A
+    - Adds `transposeB` attribute to load and copy if result is in L0B
+    - Swaps the dimensions in the copy result type (transposed shape)
+    
+    Example transformation:
+    ```mlir
+    // Before: separate load, copy, and transpose
+    %0 = load %tensor[%i, %j], %pad : tensor, tile<32x128xf16, L1>
+    %1 = copy %0[%x, %y] : tile<32x128xf16, L1>, tile<32x128xf16, L0A>
+    %2 = transpose %1 : tile<32x128xf16, L0A> to tile<128x32xf16, L0A>
+    
+    // After: transpose attribute propagated, transpose op removed
+    %0 = load %tensor[%i, %j], %pad {transposeA} : tensor, tile<32x128xf16, L1>
+    %1 = copy %0[%x, %y] {transposeA} : tile<128x32xf16, L1>, tile<128x32xf16, L0A>
+    ```
+  }];
+}
+
 def DensifyUnrollGroups : Pass<"asctile-densify-unroll-groups", "func::FuncOp"> {
   let summary = "Group operations tagged with the same unroll_group attribute together after loop unrolling";
   let constructor = "mlir::asctile::createDensifyUnrollGroupsPass()";

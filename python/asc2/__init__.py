@@ -58,6 +58,7 @@ from asc.language.tile.shape_ops import (
     ravel,
     reshape,
     squeeze,
+    transpose,
 )
 from asc.language.tile.unary_ops import (
     abs,
@@ -143,6 +144,7 @@ __all__ = [
     "ravel",
     "reshape",
     "squeeze",
+    "transpose",
     # unary_ops
     "abs",
     "ceil",

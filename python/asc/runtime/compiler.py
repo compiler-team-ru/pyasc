@@ -193,6 +193,7 @@ class Compiler:
                 passes.common.add_canonicalizer(pm)
                 passes.asctile.add_densify_unroll_groups(pm)
             passes.asctile.add_split_cube_load(pm)
+            passes.asctile.add_cube_transpose_to_load(pm)
             passes.asctile.add_legalize_matmul(pm)
             passes.common.add_canonicalizer(pm)
             passes.asctile.add_transform_math_ops(pm)
