@@ -7,6 +7,9 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 from dataclasses import dataclass
+import os
+from pathlib import Path
+
 from distutils.command.clean import clean
 import functools
 import os
@@ -22,6 +25,12 @@ import pybind11
 import setuptools
 import setuptools_scm
 from setuptools.command import bdist_wheel, build_ext, build_py, egg_info, install
+import shlex
+import shutil
+import subprocess
+import sys
+import sysconfig
+from typing import Optional, Tuple
 
 DEFAULT_VERSION = "1.1.1"
 
@@ -221,14 +230,19 @@ class LocalBuildExt(build_ext.build_ext):
         ]
         if check_env_bool("PYASC_SETUP_CCACHE"):
             configure_args.append("-DASCIR_CCACHE=ON")
+        compiler = os.environ.get("PYASC_SETUP_COMPILER", None)
+        linker = os.environ.get("PYASC_SETUP_LINKER", None)
         if check_env_bool("PYASC_SETUP_CLANG_LLD"):
+            compiler = compiler or "clang++"
+            linker = linker or "lld"
+        if compiler is not None:
+            configure_args.append(f"-DCMAKE_CXX_COMPILER={compiler}")
+        if linker is not None:
             configure_args += [
-                "-DCMAKE_C_COMPILER=clang",
-                "-DCMAKE_CXX_COMPILER=clang++",
-                "-DCMAKE_LINKER=lld",
-                "-DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=lld",
-                "-DCMAKE_MODULE_LINKER_FLAGS=-fuse-ld=lld",
-                "-DCMAKE_SHARED_LINKER_FLAGS=-fuse-ld=lld",
+                f"-DCMAKE_LINKER={linker}",
+                f"-DCMAKE_EXE_LINKER_FLAGS=-fuse-ld={linker}",
+                f"-DCMAKE_MODULE_LINKER_FLAGS=-fuse-ld={linker}",
+                f"-DCMAKE_SHARED_LINKER_FLAGS=-fuse-ld={linker}",
             ]
         if check_env_bool("PYASC_SETUP_COVERAGE"):
             configure_args.append("-DASCIR_COVERAGE=ON")
@@ -237,6 +251,9 @@ class LocalBuildExt(build_ext.build_ext):
         llvm_dir = get_llvm_install_prefix()
         if llvm_dir is not None:
             configure_args.append("-DLLVM_PREFIX_PATH=" + str(llvm_dir))
+        cmake_append = os.environ.get("PYASC_SETUP_CMAKE_APPEND", "").strip()
+        if cmake_append:
+            configure_args += shlex.split(cmake_append)
         subprocess.check_call(configure_args)
         targets = ["libpyasc", *get_requested_devtools()]
         if check_env_bool("PYASC_SETUP_DOCS"):
