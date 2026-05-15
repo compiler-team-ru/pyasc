@@ -192,6 +192,15 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
                 srcStrideElements = rewriter.create<arith::SubIOp>(loc, srcLastDim, minTailElements);
                 rightPad = rewriter.create<arith::SubIOp>(loc, dstLastDim, minTailElements);
             }
+            auto padMoreBlock =
+                rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::sgt, rightPad, numElementsInBlock);
+            rightPad = rewriter.create<arith::SelectOp>(loc, padMoreBlock, numElementsInBlock, rightPad);
+            auto ifPadMoreBlock = rewriter.create<scf::IfOp>(loc, padMoreBlock, false);
+            {
+                ConvertRewriter::InsertionGuard guard(rewriter);
+                rewriter.setInsertionPointToStart(ifPadMoreBlock.thenBlock());
+                rewriter.create<ascendc::DuplicateL2Op>(loc, dst, padValue, numElements);
+            }
             Value srcStride = rewriter.create<arith::MulIOp>(loc, srcStrideElements, typeSizeValue);
             Value blockCount = const1;
             for (size_t i = 0; i + 1 < dstShape.size(); i++)
