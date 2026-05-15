@@ -15,6 +15,64 @@ from asc.runtime import config
 
 
 @asc2.jit(always_compile=True)
+def load_real_shape_1d_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, size: int,
+                              tile_shape: asc.ConstExpr, real_shape: asc.ConstExpr, offset: asc.ConstExpr):
+    x_gm = asc2.tensor(x_ptr, [size])
+    out_gm = asc2.tensor(out_ptr, [1])
+    tile = asc2.load(x_gm, tile_shape, real_shape=real_shape, offsets=offset, pad_value=float('-inf'))
+    max_val = asc2.reduce_max(tile)
+    result = asc2.full([1], max_val, dtype=tile.dtype)
+    asc2.store(result, out_gm, offsets=[0])
+
+
+@asc2.jit(always_compile=True)
+def load_real_shape_1d_dynamic_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, size: int, real_size: int,
+                                      tile_shape: asc.ConstExpr, offset: asc.ConstExpr):
+    x_gm = asc2.tensor(x_ptr, [size])
+    out_gm = asc2.tensor(out_ptr, [1])
+    tile = asc2.load(x_gm, tile_shape, real_shape=[real_size], offsets=offset, pad_value=float('-inf'))
+    max_val = asc2.reduce_max(tile)
+    result = asc2.full([1], max_val, dtype=tile.dtype)
+    asc2.store(result, out_gm, offsets=[0])
+
+
+load_1d_test_cases = [
+    (16, 128, 15, 14),
+    (16, 16, 8, 0),
+    (16, 16, 5, 3),
+    (32, 16, 10, 5),
+    (42, 8, 5, 17),
+]
+
+
+@pytest.mark.parametrize("kernel_type", ["static", "dynamic"])
+@pytest.mark.parametrize("shape, tile_shape, real_shape, offset", load_1d_test_cases)
+def test_load_real_shape_1d(backend, platform, device_id, kernel_type, shape, tile_shape, real_shape, offset):
+    torch.manual_seed(42)
+    config.set_platform(backend, platform, device_id, check=False)
+
+    x = torch.arange(1, shape + 1, dtype=torch.float32)
+
+    valid_end = offset + real_shape
+    tile_end = offset + tile_shape
+    if tile_end <= shape:
+        x[valid_end:tile_end] = 1000.0
+
+    out = torch.empty(1, dtype=torch.float32)
+
+    if kernel_type == "static":
+        load_real_shape_1d_kernel[1](x, out, size=shape, tile_shape=[tile_shape], real_shape=[real_shape],
+                                     offset=[offset])
+    else:
+        load_real_shape_1d_dynamic_kernel[1](x, out, size=shape, real_size=real_shape, tile_shape=[tile_shape],
+                                             offset=[offset])
+
+    expected_region = x[offset:offset + real_shape]
+    expected = torch.amax(expected_region).unsqueeze(0)
+    torch.testing.assert_close(out, expected)
+
+
+@asc2.jit(always_compile=True)
 def load_real_shape_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, rows: int, cols: int,
                            tile_shape: asc.ConstExpr, real_shape: asc.ConstExpr, offsets: asc.ConstExpr):
     x_gm = asc2.tensor(x_ptr, [rows, cols])
@@ -37,6 +95,8 @@ def load_real_shape_dynamic_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.Global
 
 
 load_test_cases = [
+    ([2, 16], [2, 128], [2, 15], [0, 14]),
+    ([2, 16], [2, 16], [2, 3], [0, 0]),
     ([2, 42], [2, 8], [2, 8], [0, 0]),
     ([2, 42], [2, 8], [2, 5], [0, 0]),
     ([2, 42], [2, 8], [2, 7], [0, 17]),
