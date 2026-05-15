@@ -397,4 +397,14 @@ def CopyFixpipeOp : AscTile_Op<"copy_fixpipe"> {
   let hasCanonicalizeMethod = 1;
 }
 
+def TransposeOp : AscTile_Op<"transpose", [Pure]> {
+  let summary = "Transpose tile";
+  Type tileType = TileOfRankAndType<[2], [AscTile_Float]>;
+  let arguments = (ins tileType:$in);
+  let results = (outs tileType:$out);
+  let assemblyFormat = [{
+    $in attr-dict `:` qualified(type($in)) `to` qualified(type($out))
+  }];
+}
+
 #endif // ASCTILE_OPS_TD

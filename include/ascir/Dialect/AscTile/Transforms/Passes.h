@@ -20,6 +20,7 @@ namespace asctile {
 #include "ascir/Dialect/AscTile/Transforms/Passes.h.inc"
 
 std::unique_ptr<Pass> createComputeMemoryConsumptionPass();
+std::unique_ptr<Pass> createCubeTransposeToLoadPass();
 std::unique_ptr<Pass> createDensifyUnrollGroupsPass();
 std::unique_ptr<Pass> createLegalizeMatmulPass();
 std::unique_ptr<Pass> createPromotePureOpsPass();

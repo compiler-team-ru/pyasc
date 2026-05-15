@@ -65,6 +65,11 @@ class Tile(IRValue):
         handle = global_builder.get_ir_builder().create_asctile_CastOp(ir_type, self.to_ir())
         return Tile(handle)
 
+    @property
+    def T(self) -> Self:
+        from .shape_ops import transpose
+        return transpose(self)
+
     # Binary operations
 
     def __add__(self, other: Union[Self, RuntimeNumeric]) -> Self:

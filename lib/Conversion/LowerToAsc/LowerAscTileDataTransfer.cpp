@@ -140,9 +140,10 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
         ascir::ConstantOpBuilder consts(rewriter);
         auto const0 = consts.i32(0);
         auto const1 = consts.i32(1);
+        bool isTransposeB = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeB);
         if (dstLoc == asctile::TileLocation::L1) {
             auto dstShapeCols = consts.i32(dstShape[1]);
-            if (isMatrixA || isa<Float16Type, BFloat16Type>(opType.getElementType())) {
+            if (isMatrixA || isa<Float16Type, BFloat16Type>(opType.getElementType()) || isTransposeB) {
                 auto dstShapeRows = consts.i32(dstShape[0]);
                 auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
                     loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
@@ -443,30 +444,52 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
         auto dstShape = dstType.getShape();
         auto const0 = consts.i32(0);
         auto const1 = consts.i32(1);
-        auto dstFracStride = llvm::divideCeilSigned(dstShape[1], cubeBlockCols);
-        // TODO: Split load data operations by transpose option
-        if (isTensorA || !isa<Float32Type>(opType.getElementType())) {
-            auto paramsType = rewriter.getType<ascendc::LoadData2DParamsType>();
-            int64_t repeatTimes = llvm::divideCeilSigned(dstShape[0], cubeBlockRows);
-            Value dstGap = isTensorA ? const0 : consts.i32(dstFracStride - 1);
-            Value params = emitasc::InitStructBuilder(paramsType)
-                               .addField("repeatTimes", consts.i32(repeatTimes))
-                               .addField("srcStride", const1)
-                               .addField("dstGap", dstGap)
-                               .addField("ifTranspose", consts.i1(!isTensorA))
-                               .create(rewriter, loc);
-            auto forOp = rewriter.create<scf::ForOp>(loc, const0, consts.i32(dstFracStride), const1);
-            rewriter.setInsertionPointToStart(forOp.getBody());
-            auto indVar = forOp.getInductionVar();
-            int64_t srcStride = srcShape[0] * cubeBlockCols;
-            auto iterSrcOffset = rewriter.create<arith::MulIOp>(loc, indVar, consts.i32(srcStride));
-            auto subLocalL1 = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcType, src, iterSrcOffset);
-            int64_t dstStride = isTensorA ? repeatTimes * fractalSize : fractalSize;
-            auto iterDstOffset = rewriter.create<arith::MulIOp>(loc, indVar, consts.i32(dstStride));
-            auto subLocalL0 = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dstType, dst, iterDstOffset);
-            rewriter.create<ascendc::LoadDataG2LOp>(loc, subLocalL0, subLocalL1, params);
-            rewriter.setInsertionPointAfter(forOp);
-            forOp->setAttr(asctile::attr::parallel, UnitAttr::get(forOp->getContext()));
+        bool isTransposeA = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeA);
+        bool isTransposeB = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeB);
+        auto dstFracStride = llvm::divideCeilSigned(isTransposeB ? dstShape[0] : dstShape[1], cubeBlockCols);
+        if (isTensorA || !isa<Float32Type>(opType.getElementType()) || isTransposeB) {
+            // LoadData2DParams doesn't support ifTranspose for float32, LoadDataWithTranpose doesn't support TPosition
+            // A2 on Ascend910_95. Used LoadData2DParamsV2
+            if (isTransposeA && isa<Float32Type>(opType.getElementType())) {
+                auto paramsType = rewriter.getType<ascendc::LoadData2DParamsV2Type>();
+                auto mStep = consts.i32(llvm::divideCeilSigned(dstShape[1], ascendc::cubeBlockSize));
+                auto kStep = consts.i32(
+                    llvm::divideCeilSigned(llvm::divideCeilSigned(dstShape[0], cubeKBlockSize), FRACTAL_NUM) *
+                    FRACTAL_NUM);
+                auto dstStride = consts.i32(llvm::divideCeilSigned(dstShape[0], cubeKBlockSize * FRACTAL_NUM));
+                Value params = emitasc::InitStructBuilder(paramsType)
+                                   .addField("mStep", mStep)
+                                   .addField("kStep", kStep)
+                                   .addField("srcStride", mStep)
+                                   .addField("dstStride", dstStride)
+                                   .addField("ifTranspose", consts.i1(true))
+                                   .create(rewriter, loc);
+                rewriter.create<ascendc::LoadDataL0V2Op>(loc, dst, src, params);
+            } else {
+                auto paramsType = rewriter.getType<ascendc::LoadData2DParamsType>();
+                int64_t repeatTimes = llvm::divideCeilSigned(isTransposeB ? dstShape[1] : dstShape[0], cubeBlockRows);
+                Value srcStrideParam = isTransposeA ? consts.i32(dstFracStride) : const1;
+                Value dstGap = ((isTensorA && !isTransposeA) || isTransposeB) ? const0 : consts.i32(dstFracStride - 1);
+                Value params = emitasc::InitStructBuilder(paramsType)
+                                   .addField("repeatTimes", consts.i32(repeatTimes))
+                                   .addField("srcStride", srcStrideParam)
+                                   .addField("dstGap", dstGap)
+                                   .addField("ifTranspose", consts.i1(isTransposeA || (!isTensorA && !isTransposeB)))
+                                   .create(rewriter, loc);
+                auto forOp = rewriter.create<scf::ForOp>(loc, const0, consts.i32(dstFracStride), const1);
+                rewriter.setInsertionPointToStart(forOp.getBody());
+                auto indVar = forOp.getInductionVar();
+                int64_t srcStride =
+                    (isTensorA && isTransposeA) ? (cubeBlockRows * cubeBlockCols) : (srcShape[0] * cubeBlockCols);
+                auto iterSrcOffset = rewriter.create<arith::MulIOp>(loc, indVar, consts.i32(srcStride));
+                auto subLocalL1 = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcType, src, iterSrcOffset);
+                int64_t dstStride = (isTensorA || isTransposeB) ? repeatTimes * fractalSize : fractalSize;
+                auto iterDstOffset = rewriter.create<arith::MulIOp>(loc, indVar, consts.i32(dstStride));
+                auto subLocalL0 = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dstType, dst, iterDstOffset);
+                rewriter.create<ascendc::LoadDataG2LOp>(loc, subLocalL0, subLocalL1, params);
+                rewriter.setInsertionPointAfter(forOp);
+                forOp->setAttr(asctile::attr::parallel, rewriter.getUnitAttr());
+            }
         } else {
             auto paramsTransposeType = rewriter.getType<ascendc::LoadData2dTransposeParamsType>();
             int64_t repeatTimes = llvm::divideCeilSigned(dstShape[1], cubeBlockRows * FRACTAL_NUM);
@@ -488,7 +511,7 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
             auto subLocalL0 = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dstType, dst, iterDstOffset);
             rewriter.create<ascendc::LoadDataWithTransposeOp>(loc, subLocalL0, subLocalL1, params);
             rewriter.setInsertionPointAfter(forOp);
-            forOp->setAttr(asctile::attr::parallel, UnitAttr::get(forOp->getContext()));
+            forOp->setAttr(asctile::attr::parallel, rewriter.getUnitAttr());
         }
         rewriter.replaceOp(op, dst);
         return success();
