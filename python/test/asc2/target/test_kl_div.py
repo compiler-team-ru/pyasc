@@ -31,7 +31,7 @@ def kl_div(input_x_ptr: asc.GlobalAddress, input_target_ptr: asc.GlobalAddress, 
     for i in asc2.range(loop_count, parallel=True, unroll_factor=unroll_factor):
         current_offset = i * tile_length
         tail_length = input_size - tile_length
-        real_offset = current_offset if current_offset > tail_length else tail_length
+        real_offset = max(current_offset, tail_length)
         target_block = asc2.load(target_gm, [tile_length], real_shape=[input_size - real_offset],
                                  offsets=[current_offset], pad_value=0)
         positive_target = asc2.maximum(target_block, 0)
