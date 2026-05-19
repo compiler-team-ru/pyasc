@@ -1,0 +1,162 @@
+# Quick start
+
+```{contents} Table of Contents
+:local:
+```
+
+## Install required packages
+
+1. [Build PyAsc2 from sources](../installation/build-from-source.rst).
+2. [Install CANN packages](../installation/setup-runtime-env.rst) if not installed.
+
+## Verify the installation
+
+Run tutorials in `python/tutorials/asc2` directory, for example:
+
+```bash
+python3 python/tutorials/asc2/01-vector-add.py
+```
+
+## Operator file structure
+
+### Kernel function
+
+The functions which are executed on Ascend NPU must be marked with `@asc2.jit` decorator. In this case
+- Pointers to input and output tensors should have `asc.GlobalAddress` type.
+- Scalar parameters are passed as Python types (e.g. `int`, `float`).
+- For optimization purposes it is recommended to pass scalar parameter as constants (e.g. `asc.ConstExpr[int]`).
+
+```python
+@asc2.jit
+def vadd_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, size: int,
+                tile_size: asc.ConstExpr[int], tile_per_block: asc.ConstExpr[int]):
+```
+
+Tensor descriptor is created from `asc.GlobalAddress` to reprsent entire tensor.
+
+```python
+x_gm = asc2.tensor(x_ptr, [size])
+y_gm = asc2.tensor(y_ptr, [size])
+out_gm = asc2.tensor(out_ptr, [size])
+```
+
+Python expressions are used to calculate offset and define the loop iterating over tiles:
+- `asc2.block_idx()` function is used to get current AICORE index.
+- `asc2.block_num()` function provides number of AICOREs launched.
+- `unroll_factor` parameter of `asc2.range` in `for` loop can be used to manage software pipelining. Set it to `2` to enable double buffering.
+- `parallel` parameter of `asc2.range` in `for` loop enable overlapping of store operation of `i`-th iteration and load of `i+1`-th iteration. It is user responsibility to ensure that there are no data dependencies between iterations.
+
+```python
+base_offset = asc2.block_idx() * tile_size * tile_per_block
+for i in asc2.range(tile_per_block, unroll_factor=2, parallel=True):
+    tile_offset = base_offset + i * tile_size
+```
+
+`asc2.load` is used to create tile object which is used for further calculations. Data movement from GM to UB/L1/L0A/L0B happens in this operation.
+
+```python
+x = asc2.load(x_gm, [tile_size], offsets=[tile_offset])
+y = asc2.load(y_gm, [tile_size], offsets=[tile_offset], location=asc2.TileLocation.L1)
+```
+
+One or more operations can be applied for tiles. It is compiler responsibility to allocate required number of memeory blocks in UB.
+
+```python
+out = x + y
+```
+
+`asc2.store` is used to move data from L0C/UB back to GM.
+
+```
+asc2.store(out, out_gm, offsets=[tile_offset])
+```
+
+### Host code
+
+Regular Python function may be used to invoke the kernel function:
+
+```python
+def vadd_launch(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+```
+
+It is usually used to allocate tensors and calculate invocation parameters:
+
+```python
+out = np.empty_like(x)
+size = out.size
+core_num = 16
+tile_size = 128
+num_tiles = asc.ceildiv(size, tile_size)
+```
+
+For the kernel invocation, number of AICOREs should be provided in brackets:
+
+```python
+vadd_kernel[core_num](x, y, out, size, tile_size, asc.ceildiv(num_tiles, core_num))
+return out
+```
+
+Example:
+
+```python
+backend = "Model" # can be "Model" for simulator or "NPU" for device
+platform = config.Platform.Ascend950PR_9599 # Device version
+device_id = 0 # might be necessary to provide if more than one NPU device is present in the system
+config.set_platform(backend, platform, device_id)
+rng = np.random.default_rng(seed=2026)
+size = 8192
+x = rng.random(size, dtype=np.float32) * 10
+y = rng.random(size, dtype=np.float32) * 10
+out = vadd_launch(x, y)
+np.testing.assert_allclose(out, x + y)
+```
+
+## Debug capabilities
+
+### Capture build artifacts
+
+`PYASC_DUMP_PATH` environment variable can be defined to make PyAsc2 compiler keep generated files in the directory, for example:
+
+``` bash
+PYASC_DUMP_PATH=dumps python3 python/tutorials/asc2/01-vector-add.py
+```
+
+As a result, the following directory structure is created:
+
+``` bash
+dumps/
+  ascendc.cpp  # generated Ascend C file
+  ascir.mlir   # final IR which is used to emit Ascend C
+  binary.o     # object file produced by bisheng compiler
+  codegen.mlir # input IR captured from JIT function
+
+```
+
+Note: it is necessary to set `always_compile=True` JIT option to avoid caching and trigger the compilation each time.
+
+### Tune generated Ascend C code
+
+The Ascend C code generated from PyAsc2 can be injected back in PyAsc2 python code:
+- pass content of generated kernel as parameter to `asc.inline()` method
+- comment out `TPipe` definition in the code (see an example below)
+
+```python
+@asc2.jit(kernel_type=config.KernelType.AIV_ONLY)
+def vadd_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, size: int,
+                tile_size: asc.ConstExpr[int], tile_per_block: asc.ConstExpr[int]):
+    asc.inline('''
+constexpr int32_t c32_i32 = 32;
+constexpr int64_t c128_i64 = 128;
+.       .       .
+constexpr int32_t c128_i32 = 128;
+// AscendC::TPipe v5;
+AscendC::GlobalTensor<float> v6;
+v6.SetGlobalBuffer(v1_x_ptr);
+.       .       .
+  get_buf(PIPE_MTE3, 5, 0);
+  AscendC::DataCopyPad(v55, v11, v58);
+  rls_buf(PIPE_MTE3, 5, 0);
+}
+return;
+    ''')
+```
