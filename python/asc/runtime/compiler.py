@@ -105,6 +105,12 @@ class CompileOptions:
     This feature may help to eliminate unnecessary memory transfers and improve data locality.
     """
 
+    vf_vec_len: Optional[int] = None
+    """
+    Vector register length for the C310 architecture.
+    This option is only available on supported platforms (such as :code:`Ascend950PR_9599`). The default value is 256.
+    """
+
 
 @dataclass(frozen=True)
 class CompilationTarget:
@@ -147,6 +153,12 @@ class Compiler:
             self.options.vf_vec_len = 256
         self.dump_dir: Optional[Path] = None
         self.arch = platform_to_arch(self.soc_version)
+        if self.options.vf_fusion and self.arch != CompilationArch.C310:
+            raise RuntimeError(f"The vector register length option is not supported for the {self.arch} architecture")
+        if self.options.vf_fusion and self.arch != CompilationArch.C310:
+            raise RuntimeError(f"The vf fusion option is not supported for the {self.arch} architecture")
+        if self.options.vf_vec_len is None and self.arch == CompilationArch.C310:
+            self.options.vf_vec_len = 256
         if self.options.static_alloc is None:
             self.options.static_alloc = self.arch == CompilationArch.C310
         dump_dir = os.environ.get("PYASC_DUMP_PATH", None)
@@ -299,8 +311,11 @@ class Compiler:
 
     def run(self, mod: ir.ModuleOp, func_name: str) -> CompiledKernel:
         utils.FileUtils.dump_file(self.dump_dir, "codegen.mlir", str(mod))
-        mod.set_attr(ir.attr.compilation_arch, ir.Builder(mod.op).get_str_attr(self.arch.value))
-        mod.set_attr(ir.attr.soc_version, ir.Builder(mod.op).get_str_attr(self.soc_version.value))
+        builder = ir.Builder(mod.op)
+        mod.set_attr(ir.attr.compilation_arch, builder.get_str_attr(self.arch.value))
+        mod.set_attr(ir.attr.soc_version, builder.get_str_attr(self.soc_version.value))
+        if self.options.vf_vec_len is not None:
+            mod.set_attr(ir.attr.vf_vec_len, builder.get_i32_attr(self.options.vf_vec_len))
         if self.options.run_passes:
             self.run_passes(mod)
         self.postprocess_module(mod)
