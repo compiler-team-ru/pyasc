@@ -214,13 +214,23 @@ private:
     }
 };
 
-std::pair<Value, Value> createRepeatTimes(OpBuilder builder, Value calCount, Type groupType)
+Value createGetVecLen(OpBuilder builder, Operation* op)
+{
+    if (auto vecLen = ascendc::getVecLen(op)) {
+        ascir::ConstantOpBuilder consts(builder);
+        return consts.index(vecLen.value());
+    } else {
+        auto getVecLenIndex = builder.create<ascendc::GetVecLenOp>(builder.getUnknownLoc(), builder.getIndexType());
+        return getVecLenIndex.getResult();
+    }
+}
+
+std::pair<Value, Value> createRepeatTimes(OpBuilder builder, Value calCount, Value getVecLenIndex, Type groupType)
 {
     ascir::ConstantOpBuilder consts(builder);
-    auto getVecLenIndex = builder.create<ascendc::GetVecLenOp>(builder.getUnknownLoc(), builder.getIndexType());
     auto sizeIndex = consts.index(ascendc::getTypeSize(groupType));
-    auto div = builder.create<arith::DivSIOp>(
-        builder.getUnknownLoc(), builder.getIndexType(), getVecLenIndex.getResult(), sizeIndex);
+    auto div =
+        builder.create<arith::DivSIOp>(builder.getUnknownLoc(), builder.getIndexType(), getVecLenIndex, sizeIndex);
     auto oneRepeatSizeIndex = div.getResult();
     if (!calCount.getType().isIndex()) {
         auto castOp = builder.create<arith::IndexCastOp>(builder.getUnknownLoc(), builder.getIndexType(), calCount);
@@ -235,7 +245,8 @@ void lowerToMicro(ascvf::VecScopeOp vecScopeOp, Value calCount, Type groupType)
 {
     auto builder = OpBuilder::atBlockBegin(vecScopeOp.getBody());
     Value oneRepeatSizeIndex, repeatTimes;
-    std::tie(oneRepeatSizeIndex, repeatTimes) = createRepeatTimes(builder, calCount, groupType);
+    auto getVecLenIndex = createGetVecLen(builder, vecScopeOp);
+    std::tie(oneRepeatSizeIndex, repeatTimes) = createRepeatTimes(builder, calCount, getVecLenIndex, groupType);
     TranslatorFactory factory(calCount, repeatTimes, oneRepeatSizeIndex, groupType);
 
     vecScopeOp.walk([&](Operation* op) {

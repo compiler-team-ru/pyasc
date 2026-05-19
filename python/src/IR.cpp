@@ -111,6 +111,7 @@ void bindAttrs(py::module& m)
     modAttr.attr("parallel") = py::str(asctile::attr::parallel);
     modAttr.attr("soc_version") = py::str(ascendc::attr::socVersion);
     modAttr.attr("unroll_factor") = py::str(asctile::attr::unrollFactor);
+    modAttr.attr("vf_vec_len") = py::str(ascendc::attr::vfVecLen);
 }
 
 void bindEnums(py::module& m)

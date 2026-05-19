@@ -106,6 +106,13 @@ StringRef getSocVersion(Operation* op)
     return {};
 }
 
+std::optional<int64_t> getVecLen(Operation* op)
+{
+    if (auto attr = getModule(op)->getAttrOfType<IntegerAttr>(ascendc::attr::vfVecLen))
+        return attr.getValue().getSExtValue();
+    return std::nullopt;
+}
+
 bool isTargetArchC310(Operation* op) { return getCompilationArch(op) == "c310"; }
 
 } // namespace ascendc

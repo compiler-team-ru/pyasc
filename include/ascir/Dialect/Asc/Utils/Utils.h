@@ -68,6 +68,8 @@ StringRef getCompilationArch(Operation* op);
 
 StringRef getSocVersion(Operation* op);
 
+std::optional<int64_t> getVecLen(Operation* op);
+
 bool isTargetArchC310(Operation* op);
 
 } // namespace ascendc

@@ -289,3 +289,14 @@ func.func @softmax_kernel(%arg0: memref<*xf32, 22>) {
   ascendc.data_copy_pad_l2_ext %0, %4, %ext_params : !ascendc.global_tensor<?x?xf32>, !ascendc.local_tensor<1x1024xf32>, !ascendc.data_copy_ext_params
   return
 }
+
+// CHECK-LABEL: func.func @known_vec_len
+// CHECK-NOT: ascendc.get_vec_len
+module attributes {asc.vf_vec_len = 256 : i32} {
+  func.func @known_vec_len(%gm: !ascendc.global_tensor<?x?xf32>, %ext_params: !ascendc.data_copy_ext_params, %x: !ascendc.local_tensor<1x1024xf32>, %y: !ascendc.local_tensor<1x1024xf32>, %z: !ascendc.local_tensor<1x1024xf32>, %f: !ascendc.local_tensor<1x1024xf32>, %cal: i64) {
+    ascendc.exp_l2 %f, %f, %cal : !ascendc.local_tensor<1x1024xf32>, !ascendc.local_tensor<1x1024xf32>, i64
+    ascendc.exp_l2 %f, %f, %cal : !ascendc.local_tensor<1x1024xf32>, !ascendc.local_tensor<1x1024xf32>, i64
+    ascendc.data_copy_pad_l2_ext %gm, %f, %ext_params : !ascendc.global_tensor<?x?xf32>, !ascendc.local_tensor<1x1024xf32>, !ascendc.data_copy_ext_params
+    return
+  }
+}

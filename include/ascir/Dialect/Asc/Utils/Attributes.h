@@ -28,6 +28,7 @@ LITERAL maskSet = "asc.mask_set";
 LITERAL matmulCubeOnly = "asc.matmul_cube_only";
 LITERAL memoryConsumed = "asc.memory_consumed";
 LITERAL socVersion = "asc.soc_version";
+LITERAL vfVecLen = "asc.vf_vec_len";
 } // namespace attr
 
 } // namespace ascendc
