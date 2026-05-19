@@ -7,8 +7,9 @@
  * INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
  * See LICENSE in the root of the software repository for the full text of the License.
  */
-#include "ascir/Dialect/Asc/Transforms/Passes.h"
+
 #include "ascir/Dialect/AscVF/IR/AscVF.h"
+#include "ascir/Dialect/AscVF/Transforms/Passes.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/Utils/Utils.h"
 
@@ -149,8 +150,7 @@ struct EliminateDataTransferPass : public ascvf::impl::EliminateDataTransferBase
 
 } // namespace
 
-namespace mlir {
-namespace ascvf {
-std::unique_ptr<Pass> createEliminateDataTransferPass() { return std::make_unique<EliminateDataTransferPass>(); }
-} // namespace ascvf
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascvf::createEliminateDataTransferPass()
+{
+    return std::make_unique<EliminateDataTransferPass>();
+}

@@ -31,7 +31,7 @@ struct CodeEmitter {
 
     static void emitTPosition(raw_ostream& os, ascendc::TPosition pos);
 
-    static void emitCO2Layout(raw_ostream& os, ascendc::CO2Layout pos);
+    static void emitCO2Layout(raw_ostream& os, ascendc::CO2Layout layout);
 
     static void emitLayoutMode(raw_ostream& os, ascendc::LayoutMode layout);
 

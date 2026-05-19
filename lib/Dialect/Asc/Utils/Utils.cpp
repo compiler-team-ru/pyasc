@@ -38,7 +38,7 @@ int64_t getTypeSizeCubeBlockAlign(ShapedType type)
 {
     int64_t size = 1;
     for (auto dim : type.getShape()) {
-        size *= llvm::alignTo<cubeBlockSize>(dim);
+        size *= static_cast<int64_t>(llvm::alignTo<cubeBlockSize>(dim));
     }
     return size * getElementTypeSize(type);
 }

@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Conversion/LowerToAsc/Passes.h"
+#include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
@@ -74,7 +74,7 @@ struct ConvertDenseConstant : ConvertOp<arith::ConstantOp> {
         for (auto [i, value] : llvm::enumerate(dense.getValues<TypedAttr>())) {
             Location uloc = rewriter.getUnknownLoc();
             Value cst = rewriter.create<arith::ConstantOp>(uloc, value);
-            rewriter.create<ascendc::LocalTensorSetValueOp>(uloc, dst, consts.i32(i), cst);
+            rewriter.create<ascendc::LocalTensorSetValueOp>(uloc, dst, consts.i32(static_cast<int32_t>(i)), cst);
         }
         rewriter.replaceOp(op, dst);
         return success();

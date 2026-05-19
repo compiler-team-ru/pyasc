@@ -20,18 +20,11 @@
 using namespace mlir;
 using namespace mlir::asctile;
 
-ParseResult parseShapeXType(AsmParser& odsParser, SmallVectorImpl<int64_t>& shape, Type& elementType);
-void printShapeXType(AsmPrinter& odsPrinter, ArrayRef<int64_t> shape, Type elementType);
-
-ParseResult parseTileLocation(AsmParser& odsParser, TileLocationAttr& loc);
-void printTileLocation(AsmPrinter& odsPrinter, TileLocationAttr loc);
-
-#define GET_TYPEDEF_CLASSES
-#include "ascir/Dialect/AscTile/IR/AscTileTypes.cpp.inc"
-
 //===----------------------------------------------------------------------===//
 // Custom assembly format
 //===----------------------------------------------------------------------===//
+
+namespace {
 
 ParseResult parseShapeXType(AsmParser& odsParser, SmallVectorImpl<int64_t>& shape, Type& elementType)
 {
@@ -84,6 +77,11 @@ void printTileLocation(AsmPrinter& odsPrinter, TileLocationAttr loc)
 {
     odsPrinter << stringifyTileLocation(loc.getValue());
 }
+
+} // namespace
+
+#define GET_TYPEDEF_CLASSES
+#include "ascir/Dialect/AscTile/IR/AscTileTypes.cpp.inc"
 
 //===----------------------------------------------------------------------===//
 // TensorType

@@ -21,8 +21,8 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::Reduc
     llvm::interleaveComma(op.getSrcShape(), os, [&](Value operand) { os << emitter.getOrCreateName(operand); });
     os << "};\n";
     os << ascNamespace << "::" << op.getAPIName() << "<";
-    auto tensor_type = cast<LocalTensorType>(op.getSrc().getType());
-    FAIL_OR(emitter.emitType(op.getLoc(), tensor_type.getElementType()));
+    auto tensorType = cast<LocalTensorType>(op.getSrc().getType());
+    FAIL_OR(emitter.emitType(op.getLoc(), tensorType.getElementType()));
     os << ","
        << "AscendC::Pattern::Reduce::" << op.getPattern() << ">";
     os << "(" << emitter.getOrCreateName(op.getDst()) << "," << emitter.getOrCreateName(op.getSrc());

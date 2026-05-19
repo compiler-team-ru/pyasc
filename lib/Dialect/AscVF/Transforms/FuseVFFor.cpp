@@ -8,11 +8,11 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/AscVF/IR/AscVF.h"
+#include "ascir/Dialect/AscVF/Transforms/Passes.h"
 
-#include "mlir/IR/IRMapping.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/IR/IRMapping.h"
 
 namespace mlir {
 namespace ascvf {
@@ -67,8 +67,4 @@ struct FuseVFForPass : public ascvf::impl::FuseVFForBase<FuseVFForPass> {
 
 } // namespace
 
-namespace mlir {
-namespace ascvf {
-std::unique_ptr<Pass> createFuseVFForPass() { return std::make_unique<FuseVFForPass>(); }
-} // namespace ascvf
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascvf::createFuseVFForPass() { return std::make_unique<FuseVFForPass>(); }

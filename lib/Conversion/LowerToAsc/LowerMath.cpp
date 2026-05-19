@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Conversion/LowerToAsc/Passes.h"
+#include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"

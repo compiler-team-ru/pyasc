@@ -520,7 +520,7 @@ LogicalResult CodeEmitter::emitAscFixpipeParamsType(Location loc, Type type, boo
     return success();
 }
 
-LogicalResult CodeEmitter::emitAscFixpipeParamsC310Type(Location loc, Type type, bool emitAsUnsigned)
+LogicalResult CodeEmitter::emitAscFixpipeParamsC310Type(Location /*loc*/, Type type, bool /*emitAsUnsigned*/)
 {
     auto fpType = dyn_cast<ascendc::FixpipeParamsC310Type>(type);
     os << ascNamespace << "::FixpipeParamsC310<";
@@ -580,7 +580,7 @@ LogicalResult CodeEmitter::emitAscLocalTensorType(Location loc, Type type, bool 
     return success();
 }
 
-LogicalResult CodeEmitter::emitAscRegTensorType(Location loc, Type type, bool emitAsUnsigned)
+LogicalResult CodeEmitter::emitAscRegTensorType(Location loc, Type type, bool /*emitAsUnsigned*/)
 {
     auto rType = dyn_cast<ascendc::RegTensorType>(type);
     auto elemTy = rType.getElementType();
@@ -591,7 +591,7 @@ LogicalResult CodeEmitter::emitAscRegTensorType(Location loc, Type type, bool em
     return success();
 }
 
-LogicalResult CodeEmitter::emitAscMaskRegType(Location loc, Type type, bool emitAsUnsigned)
+LogicalResult CodeEmitter::emitAscMaskRegType(Location /*loc*/, Type /*type*/, bool /*emitAsUnsigned*/)
 {
     os << ascNamespace << "::MicroAPI::MaskReg";
     return success();
@@ -861,19 +861,19 @@ LogicalResult CodeEmitter::emitIntegerType(IntegerType& iType, Location loc, Typ
 LogicalResult CodeEmitter::emitFloatType(FloatType& fType, Location loc, Type /*type*/, bool /*emitAsUnsigned*/)
 {
     return llvm::TypeSwitch<FloatType, LogicalResult>(fType)
-        .Case([this](Float16Type type) {
+        .Case([this](Float16Type) {
             os << "half";
             return success();
         })
-        .Case([this](BFloat16Type type) {
+        .Case([this](BFloat16Type) {
             os << "bfloat16_t";
             return success();
         })
-        .Case([this](Float32Type type) {
+        .Case([this](Float32Type) {
             os << "float";
             return success();
         })
-        .Case([this](Float64Type type) {
+        .Case([this](Float64Type) {
             os << "double";
             return success();
         })

@@ -36,5 +36,5 @@ void AscVFDialect::initialize()
 void ascvf::registerExternalModels(DialectRegistry& registry)
 {
     registry.addExtension(
-        +[](MLIRContext* ctx, AscVFDialect* dialect) { dialect->addInterface<ascir::PermissiveInlinerInterface>(); });
+        +[](MLIRContext*, AscVFDialect* dialect) { dialect->addInterface<ascir::PermissiveInlinerInterface>(); });
 }

@@ -35,7 +35,7 @@ class InsertBufIdSync {
 
     VisitedBufIdMap visitedOps;
     VisitedBufIdMap bufIdMap;
-    int32_t bufId;
+    int32_t bufId = 0;
 
     void updateBufId()
     {
@@ -82,17 +82,17 @@ class InsertBufIdSync {
     {
         if (auto blockArg = dyn_cast<BlockArgument>(value)) {
             auto argNumber = blockArg.getArgNumber();
-            auto block = blockArg.getOwner();
-            auto parentOp = block->getParentOp();
+            auto* block = blockArg.getOwner();
+            auto* parentOp = block->getParentOp();
             if (auto forOp = dyn_cast<scf::ForOp>(parentOp)) {
                 if (argNumber == 0)
                     return;
-                auto init = forOp.getTiedLoopInit(blockArg);
+                auto* init = forOp.getTiedLoopInit(blockArg);
                 collectBufIds(init->get(), bufIds);
                 return;
             }
             if (auto whileOp = dyn_cast<scf::WhileOp>(parentOp)) {
-                auto region = block->getParent();
+                auto* region = block->getParent();
                 if (region == &whileOp.getBefore()) {
                     collectBufIds(whileOp.getOperands()[argNumber], bufIds);
                 } else if (region == &whileOp.getAfter()) {
@@ -104,7 +104,7 @@ class InsertBufIdSync {
             }
             return;
         }
-        auto defOp = value.getDefiningOp();
+        auto* defOp = value.getDefiningOp();
         if (isa<ascendc::LocalTensorV3Op, ascendc::TBufGetTensorOp>(defOp)) {
             bufIds.insert(visitedOps[defOp].begin(), visitedOps[defOp].end());
             if (bufIds.empty()) {
@@ -135,7 +135,7 @@ class InsertBufIdSync {
             auto thenYield = ifOp.thenYield();
             auto thenOperand = thenYield.getOperands()[resultNumber];
             collectBufIds(thenOperand, bufIds);
-            auto elseBlock = ifOp.elseBlock();
+            auto* elseBlock = ifOp.elseBlock();
             if (elseBlock == nullptr)
                 return;
             auto elseYield = ifOp.elseYield();
@@ -168,7 +168,6 @@ class InsertBufIdSync {
                 return;
             collectBufIds(yieldOp.getOperands()[resultNumber], bufIds);
         }
-        return;
     }
 
     std::set<int32_t> getBufIds(Value value)
@@ -190,7 +189,7 @@ class InsertBufIdSync {
     }
 
 public:
-    InsertBufIdSync() : bufId(0) {}
+    InsertBufIdSync() = default;
     ~InsertBufIdSync() = default;
 
     void process(Operation* op)
@@ -244,7 +243,7 @@ class InsertBufIdSyncPass : public ascendc::impl::InsertBufIdSyncBase<InsertBufI
                 forOp->removeAttr(asctile::attr::parallel);
                 return;
             }
-            auto terminator = forOp.getBody()->getTerminator();
+            auto* terminator = forOp.getBody()->getTerminator();
             OpBuilder builder(terminator);
             ascir::ConstantOpBuilder consts(builder);
             auto const0 = consts.i32(0);

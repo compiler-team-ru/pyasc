@@ -10,7 +10,7 @@
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/AscVF/IR/AscVF.h"
-#include "ascir/Dialect/Asc/Transforms/Passes.h"
+#include "ascir/Dialect/AscVF/Transforms/Passes.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 #include "ascir/Dialect/Utils/Utils.h"
@@ -57,7 +57,7 @@ ValueMap<Value> setAddress(ascvf::VecScopeOp vecScopeOp, ArrayRef<Value> usedTen
     return addrTensors;
 }
 
-void materialize(ascvf::VecScopeOp vecScopeOp, Value calCount, Type groupType)
+void materialize(ascvf::VecScopeOp vecScopeOp, Type groupType)
 {
     ValueMap<Value> addrTensors;
     // materialize getPhyAddr
@@ -95,17 +95,14 @@ struct MaterializeLoadStorePass : public ascvf::impl::MaterializeLoadStoreBase<M
     {
         func::FuncOp funcOp = getOperation();
         funcOp.walk([](ascvf::VFGroupOp fusedOp) {
-            fusedOp.walk([&](ascvf::VecScopeOp vecScope) {
-                materialize(vecScope, fusedOp.getCalCount(), fusedOp.getGroupType());
-            });
+            fusedOp.walk([&](ascvf::VecScopeOp vecScope) { materialize(vecScope, fusedOp.getGroupType()); });
         });
     }
 };
 
 } // namespace
 
-namespace mlir {
-namespace ascvf {
-std::unique_ptr<Pass> createMaterializeLoadStorePass() { return std::make_unique<MaterializeLoadStorePass>(); }
-} // namespace ascvf
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascvf::createMaterializeLoadStorePass()
+{
+    return std::make_unique<MaterializeLoadStorePass>();
+}

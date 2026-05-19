@@ -9,14 +9,14 @@
  */
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
-#include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/AscVF/IR/AscVF.h"
+#include "ascir/Dialect/AscVF/Transforms/Passes.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/Utils/Utils.h"
 
-#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 namespace mlir {
@@ -72,8 +72,7 @@ struct ReorderOpsInVecScopePass : public ascvf::impl::ReorderOpsInVecScopeBase<R
 
 } // namespace
 
-namespace mlir {
-namespace ascvf {
-std::unique_ptr<Pass> createReorderOpsInVecScopePass() { return std::make_unique<ReorderOpsInVecScopePass>(); }
-} // namespace ascvf
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascvf::createReorderOpsInVecScopePass()
+{
+    return std::make_unique<ReorderOpsInVecScopePass>();
+}

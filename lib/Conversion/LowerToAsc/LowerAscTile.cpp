@@ -8,18 +8,20 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#include "ascir/Conversion/LowerToAsc/Passes.h"
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
-#include "ascir/Conversion/LowerToAsc/Passes.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/AscTile/Utils/Attributes.h"
+#include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/EmitAsc/Utils/InitStructBuilder.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
-#include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Pass/Pass.h"
+
+#include <algorithm>
 
 #include "Common.h"
 
@@ -35,12 +37,12 @@ using namespace mlir::asclower;
 
 namespace {
 
-constexpr int ONE_BLK_FLOAT_NUM = 8;
-constexpr int ONE_BLK_SIZE = 32;
-constexpr int TOTAL_UB_SIZE = 256 * 1024;
-constexpr int MAX_REPEAT = 255;
-constexpr int BASIC_BLK_BSLENGTH = 8;
-constexpr int HALF_SIZE_IN_BYTE = 2;
+constexpr int oneBlkFloatNum = 8;
+constexpr int oneBlkSize = 32;
+constexpr int totalUbSize = 256 * 1024;
+constexpr int maxRepeat = 255;
+constexpr int basicBlkBslength = 8;
+constexpr int halfSizeInByte = 2;
 
 unsigned int calculateFinalTensorSize(const unsigned int& typeSize, int64_t calCount)
 {
@@ -66,7 +68,7 @@ bool check1D2DShape(Operation* op, ArrayRef<int64_t> shape)
 }
 
 struct LoweringConversionTarget : public ConversionTarget {
-    LoweringConversionTarget(TensorTypeConverter& converter, MLIRContext* context) : ConversionTarget(*context)
+    LoweringConversionTarget(MLIRContext* context) : ConversionTarget(*context)
     {
         addIllegalOp<
             //
@@ -144,10 +146,8 @@ struct ConvertCast : ConvertOp<asctile::CastOp> {
         if (srcIntWidth && dstIntWidth) {
             unsigned sw = *srcIntWidth;
             unsigned dw = *dstIntWidth;
-            if ((sw == 8 && dw == 16) || (sw == 8 && dw == 32) || (sw == 16 && dw == 32) || (sw == 32 && dw == 16) ||
-                (sw == 32 && dw == 64) || (sw == 64 && dw == 32))
-                return true;
-            return false;
+            return (sw == 8 && dw == 16) || (sw == 8 && dw == 32) || (sw == 16 && dw == 32) || (sw == 32 && dw == 16) ||
+                   (sw == 32 && dw == 64) || (sw == 64 && dw == 32);
         }
         if (srcIntWidth && isa<FloatType>(dstType)) {
             unsigned sw = *srcIntWidth;
@@ -188,8 +188,8 @@ struct ConvertCast : ConvertOp<asctile::CastOp> {
         bool srcIsFloat = isa<FloatType>(srcType);
         bool dstIsInt = isa<IntegerType>(dstType);
         if (srcIsInt && dstIsFloat) {
-            int srcWidth = cast<IntegerType>(srcType).getWidth();
-            int dstWidth = cast<FloatType>(dstType).getWidth();
+            unsigned srcWidth = cast<IntegerType>(srcType).getWidth();
+            unsigned dstWidth = cast<FloatType>(dstType).getWidth();
             if ((srcWidth == 8 && dstWidth == 16) || (srcWidth == 32 && dstWidth == 16) ||
                 (srcWidth == 16 && dstWidth == 32)) {
                 return ascendc::RoundMode::CAST_NONE;
@@ -199,8 +199,8 @@ struct ConvertCast : ConvertOp<asctile::CastOp> {
         if (srcIsFloat && dstIsInt)
             return ascendc::RoundMode::CAST_RINT;
         if (srcIsFloat && dstIsFloat) {
-            int srcWidth = cast<FloatType>(srcType).getWidth();
-            int dstWidth = cast<FloatType>(dstType).getWidth();
+            unsigned srcWidth = cast<FloatType>(srcType).getWidth();
+            unsigned dstWidth = cast<FloatType>(dstType).getWidth();
             if (srcWidth > dstWidth)
                 return ascendc::RoundMode::CAST_RINT;
             if (srcWidth == 16 && dstWidth == 16 && srcType != dstType)
@@ -283,7 +283,7 @@ struct ConvertRmsNorm : ConvertOp<asctile::RmsNormOp> {
 
     static int alignToBlock(const int inputValue, const int typeSize)
     {
-        int alignUnit = ONE_BLK_SIZE / typeSize;
+        int alignUnit = oneBlkSize / typeSize;
         return (inputValue + alignUnit - 1) / alignUnit * alignUnit;
     }
 
@@ -295,25 +295,23 @@ struct ConvertRmsNorm : ConvertOp<asctile::RmsNormOp> {
         auto hLength = alignToBlock(inHLength, typeSize);
         auto bshLength = bLength * sLength * hLength;
         auto originalHLength = inHLength;
-        auto reciprocalOfHLength = 1.0f / originalHLength;
-        auto oneTmpSize = TOTAL_UB_SIZE / typeSize;
-        auto alignBsLength = ONE_BLK_FLOAT_NUM;
-        auto halfCoeff = (typeSize == sizeof(float) ? 1u : 2u);
+        auto reciprocalOfHLength = 1.0F / static_cast<float>(originalHLength);
+        auto oneTmpSize = totalUbSize / typeSize;
+        auto alignBsLength = oneBlkFloatNum;
+        auto halfCoeff = (typeSize == sizeof(float) ? 1 : 2);
         while (oneTmpSize > alignBsLength * hLength * halfCoeff + alignBsLength) {
-            alignBsLength += ONE_BLK_FLOAT_NUM;
+            alignBsLength += oneBlkFloatNum;
         }
-        alignBsLength = alignBsLength == ONE_BLK_FLOAT_NUM ? ONE_BLK_FLOAT_NUM : alignBsLength - ONE_BLK_FLOAT_NUM;
+        alignBsLength = alignBsLength == oneBlkFloatNum ? oneBlkFloatNum : alignBsLength - oneBlkFloatNum;
         oneTmpSize =
-            (typeSize == HALF_SIZE_IN_BYTE) ? (oneTmpSize - alignBsLength) / halfCoeff : (oneTmpSize - alignBsLength);
+            (typeSize == halfSizeInByte) ? (oneTmpSize - alignBsLength) / halfCoeff : (oneTmpSize - alignBsLength);
         auto inputXSize = bLength * sLength * hLength;
-        if (oneTmpSize > inputXSize) {
-            oneTmpSize = inputXSize;
-        }
+        oneTmpSize = std::min(oneTmpSize, inputXSize);
         auto bsLength = oneTmpSize / hLength;
         if (isBasicBlock) {
-            bsLength = bsLength < BASIC_BLK_BSLENGTH ? 1 : bsLength / BASIC_BLK_BSLENGTH * BASIC_BLK_BSLENGTH;
-        } else if (bsLength > MAX_REPEAT) {
-            bsLength = MAX_REPEAT;
+            bsLength = bsLength < basicBlkBslength ? 1 : bsLength / basicBlkBslength * basicBlkBslength;
+        } else if (bsLength > maxRepeat) {
+            bsLength = maxRepeat;
         }
         oneTmpSize = bsLength * hLength;
         auto mainBshLength = oneTmpSize;
@@ -341,8 +339,9 @@ struct ConvertRmsNorm : ConvertOp<asctile::RmsNormOp> {
         auto epsilon = rewriter.getRemappedValue(op.getEpsilon());
         auto dst = createTensorOp(rewriter, loc, tensorType);
         constexpr bool isBasicBlock = false;
-        RmsNormTiling tilingStruct = getRmsNormTiling(shape, isBasicBlock, ascendc::getElementTypeSize(tensorType));
-        auto sharedBufTensor = createTensorOp(rewriter, loc, TOTAL_UB_SIZE, rewriter.getIntegerType(8, false));
+        auto typeSize = static_cast<int>(ascendc::getElementTypeSize(tensorType));
+        RmsNormTiling tilingStruct = getRmsNormTiling(shape, isBasicBlock, typeSize);
+        auto sharedBufTensor = createTensorOp(rewriter, loc, totalUbSize, rewriter.getIntegerType(8, false));
         Value tiling = emitasc::InitStructBuilder(rewriter.getType<ascendc::RmsNormTilingType>())
                            .addField("bLength", consts.i32(tilingStruct.bLength))
                            .addField("sLength", consts.i32(tilingStruct.sLength))
@@ -425,7 +424,7 @@ struct ConvertBroadcast : ConvertOp<asctile::BroadcastOp> {
         }
         auto srcShapeVec = srcType.getShape();
         auto dstShapeVec = dstType.getShape();
-        if (srcShapeVec.size() > dstShapeVec.size() || srcShapeVec.size() == 0 || dstShapeVec.size() == 0)
+        if (srcShapeVec.size() > dstShapeVec.size() || srcShapeVec.empty() || dstShapeVec.empty())
             return op.emitError("Incompatible tensor shapes for Broadcast: [")
                 .append(srcShapeVec)
                 .append("] and [")
@@ -440,11 +439,11 @@ struct ConvertBroadcast : ConvertOp<asctile::BroadcastOp> {
         for (size_t i = srcShapeVec.size(); i < dstShapeVec.size() + dstShape.size(); ++i) {
             srcShape.push_back(consts.i32(1));
         }
-        for (size_t i = 0; i < srcShapeVec.size(); ++i) {
-            srcShape.push_back(consts.i32(srcShapeVec[i]));
+        for (int64_t i : srcShapeVec) {
+            srcShape.push_back(consts.i32(i));
         }
-        for (size_t i = 0; i < dstShapeVec.size(); ++i) {
-            dstShape.push_back(consts.i32(dstShapeVec[i]));
+        for (int64_t i : dstShapeVec) {
+            dstShape.push_back(consts.i32(i));
         }
         assert(srcShape.size() == dstShape.size());
         rewriter.create<ascendc::BroadcastOp>(loc, dst, src, dstShape, srcShape);
@@ -683,7 +682,7 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         func::FuncOp funcOp = getOperation();
         TensorTypeConverter converter;
         MLIRContext* context = &getContext();
-        LoweringConversionTarget target(converter, context);
+        LoweringConversionTarget target(context);
         RewritePatternSet patterns(context);
         patterns.insert<
             //

@@ -36,5 +36,5 @@ void AscTileDialect::initialize()
 void asctile::registerExternalModels(DialectRegistry& registry)
 {
     registry.addExtension(
-        +[](MLIRContext* ctx, AscTileDialect* dialect) { dialect->addInterface<ascir::PermissiveInlinerInterface>(); });
+        +[](MLIRContext*, AscTileDialect* dialect) { dialect->addInterface<ascir::PermissiveInlinerInterface>(); });
 }
