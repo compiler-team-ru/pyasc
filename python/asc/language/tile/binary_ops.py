@@ -56,11 +56,14 @@ def set_docstring(name: str) -> Callable[[T], T]:
     Computes the element-wise {name} of :code:`input` and :code:`other`.
 
     Args:
-        input: the left operand (tile or scalar)
-        other: the right operand (tile or scalar)
+        input: The left operand (tile or scalar)
+        other: The right operand (tile or scalar)
 
     Returns:
-        Tile: the result of {name}
+        Tile: The result of {name}
+
+    Raises:
+        RuntimeError: If neither operand is a :code:`Tile`
 
     Note:
         At least one of input operands must be :code:`Tile`.
@@ -183,11 +186,14 @@ def matmul(input: Tile, other: Tile) -> Tile:
     Computes the matrix multiplication of :code:`input` and :code:`other`.
 
     Args:
-        input: the left operand (2D tile)
-        other: the right operand (2D tile)
+        input: The left operand (2D tile)
+        other: The right operand (2D tile)
 
     Returns:
-        Tile: the result of the matrix multiplication
+        Tile: The result of the matrix multiplication
+
+    Raises:
+        RuntimeError: If input tiles are not 2D, have incompatible shapes, or unsupported dtype
 
     Note:
         Input tiles must have either :code:`float16` or :code:`float32` data type and compatible shapes.
@@ -205,9 +211,13 @@ def matmul_acc(input: Tile, other: Tile, acc: Tile) -> None:
     Computes the matrix multiplication of :code:`input` and :code:`other` with accumulator :code:`acc`.
 
     Args:
-        input: the left operand (2D tile)
-        other: the right operand (2D tile)
-        acc: accumulator of matmul result (2D tile)
+        input: The left operand (2D tile).
+        other: The right operand (2D tile).
+        acc: Accumulator of matmul result (2D tile). Must be created with :py:func:`asc2.zeros_acc`.
+
+    Raises:
+        RuntimeError: If input tiles are not 2D, have incompatible shapes, unsupported dtype,
+                      or accumulator has wrong shape/dtype
 
     Note:
         Input tiles must have either :code:`float16` or :code:`float32` data type and compatible shapes.

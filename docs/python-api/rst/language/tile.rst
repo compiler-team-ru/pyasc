@@ -11,6 +11,14 @@ Tile API
 
 .. currentmodule:: asc.language.tile
 
+.. autosummary::
+    :toctree: generated
+    :nosignatures:
+
+    ~tile.Tile
+    ~tensor.Tensor
+
+
 Programming model
 -----------------
 
@@ -18,12 +26,23 @@ Programming model
     :toctree: generated
     :nosignatures:
 
-    ~tile.Tile
-    ~tensor.Tensor
     ~tensor.tensor
     ~prog_model_ops.block_idx
     ~prog_model_ops.block_num
     ~prog_model_ops.num_tiles
+
+
+Iterators
+---------
+
+.. currentmodule:: asc.language
+
+.. autosummary::
+    :toctree: generated
+    :nosignatures:
+
+    ~tile.range.range
+    ~core.range.static_range
 
 
 Creation operations
@@ -35,6 +54,7 @@ Creation operations
     :toctree: generated
     :nosignatures:
 
+    concat
     full
     full_like
     zeros
@@ -56,8 +76,8 @@ Memory operations
     store
 
 
-Binary operations
------------------
+Arithmetic operations
+---------------------
 
 .. currentmodule:: asc.language.tile.binary_ops
 
@@ -73,8 +93,6 @@ Binary operations
     left_shift
     less
     less_equal
-    matmul
-    matmul_acc
     maximum
     minimum
     mul
@@ -82,9 +100,17 @@ Binary operations
     right_shift
     sub
 
+.. currentmodule:: asc.language.tile.unary_ops
 
-Unary operations
-----------------
+.. autosummary::
+    :toctree: generated
+    :nosignatures:
+
+    negative
+
+
+Math operations
+---------------
 
 .. currentmodule:: asc.language.tile.unary_ops
 
@@ -102,15 +128,28 @@ Unary operations
     floor
     log
     log2
-    negative
     relu
+    rms_norm
     rsqrt
     sin
     sinh
-    sqrt
     softmax
+    sqrt
     tan
     tanh
+
+
+Matrix multiplication operations
+--------------------------------
+
+.. currentmodule:: asc.language.tile.binary_ops
+
+.. autosummary::
+    :toctree: generated
+    :nosignatures:
+
+    matmul
+    matmul_acc
 
 
 Indexing operations
@@ -152,8 +191,10 @@ Shape manipulation operations
 
     broadcast_to
     expand_dims
+    ravel
     reshape
     squeeze
+    transpose
 
 
 Atomic operations

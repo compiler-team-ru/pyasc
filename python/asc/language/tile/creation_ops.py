@@ -19,6 +19,21 @@ from .utils import constant_tile, splat_tile, verify_shape
 
 def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] = None,
          location: Optional[ir.TileLocation] = ir.TileLocation.UB) -> Tile:
+    """
+    Create a tile filled with a scalar value.
+
+    Args:
+        shape: The shape of the tile to create.
+        value: The scalar value to fill the tile with.
+        dtype: The data type of the tile. If None, inferred from the value type.
+        location: The memory location for the tile. Default is :code:`TileLocation.UB`.
+
+    Returns:
+        Tile: A new tile filled with the specified value
+
+    Raises:
+        RuntimeError: If shape contains non-integer values
+    """
     if not all(isinstance(dim, int) for dim in shape):
         raise RuntimeError("shape must be integers")
     shape = tuple(shape)
@@ -32,21 +47,69 @@ def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] 
 
 
 def full_like(input: Tile, value: RuntimeNumeric, location: Optional[ir.TileLocation] = ir.TileLocation.UB) -> Tile:
+    """
+    Create a tile filled with a scalar value, with the same shape and dtype as the input tile.
+
+    Args:
+        input: The input tile to match shape and dtype.
+        value: The scalar value to fill the tile with.
+        location: The memory location for the tile. Default is :code:`TileLocation.UB`.
+
+    Returns:
+        Tile: A new tile filled with the specified value
+    """
     check_type("input", input, Tile)
     return full(input.shape, value, input.dtype, location)
 
 
 def zeros(shape: Iterable[int], dtype: DataType = KT.int32,
           location: Optional[ir.TileLocation] = ir.TileLocation.UB) -> Tile:
+    """
+    Create a tile filled with zeros.
+
+    Args:
+        shape: The shape of the tile to create.
+        dtype: The data type of the tile. Default is :code:`int32`.
+        location: The memory location for the tile. Default is :code:`TileLocation.UB`.
+
+    Returns:
+        Tile: A new tile filled with zeros
+    """
     return full(shape, 0, dtype, location)
 
 
 def zeros_like(input: Tile, location: Optional[ir.TileLocation] = ir.TileLocation.UB) -> Tile:
+    """
+    Create a tile filled with zeros, with the same shape and dtype as the input tile.
+
+    Args:
+        input: The input tile to match shape and dtype.
+        location: The memory location for the tile. Default is :code:`TileLocation.UB`.
+
+    Returns:
+        Tile: A new tile filled with zeros
+    """
     check_type("input", input, Tile)
     return zeros(input.shape, input.dtype, location)
 
 
 def zeros_acc(shape: Iterable[int], dtype: DataType) -> Tile:
+    """
+    Create a zero-initialized accumulator tile in L0C memory for matrix multiplication.
+
+    This tile is specifically designed for use with :py:func:`matmul_acc` operations and is always located in
+    :code:`TileLocation.L0C`.
+
+    Args:
+        shape: The shape of the accumulator tile
+        dtype: The data type of the accumulator (typically :code:`float32`)
+
+    Returns:
+        Tile: A new zero-initialized accumulator tile in L0C memory
+
+    Raises:
+        RuntimeError: If shape is invalid
+    """
     shape = verify_shape(shape)
     ir_type = ir.get_asctile_TileType(shape, dtype.to_ir(), ir.TileLocation.L0C)
     handle = global_builder.get_ir_builder().create_asctile_AccumulatorOp(ir_type)
@@ -54,6 +117,20 @@ def zeros_acc(shape: Iterable[int], dtype: DataType) -> Tile:
 
 
 def concat(*inputs: Tile) -> Tile:
+    """
+    Concatenate tiles along the first dimension.
+
+    All input tiles must have the same shape except for the first dimension, and must have the same data type.
+
+    Args:
+        inputs: Two or more tiles to concatenate
+
+    Returns:
+        Tile: A new tile that is the concatenation of all input tiles along the first dimension
+
+    Raises:
+        RuntimeError: If no inputs are provided, inputs are not tiles, shapes are incompatible, or dtypes don't match
+    """
     if not inputs or not all(isinstance(inp, Tile) for inp in inputs):
         raise RuntimeError("All input arguments must be tiles")
     same_shape = inputs[0].shape[1:]

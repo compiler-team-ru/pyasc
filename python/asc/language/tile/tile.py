@@ -59,6 +59,7 @@ class Tile(IRValue):
         return self.handle
 
     def to(self: Tile, dtype: DataType) -> Tile:
+        """Cast tile elements to the provided dtype."""
         if self.dtype == dtype:
             return self
         ir_type = ir.clone_shaped_type(self.to_ir().get_type(), dtype.to_ir())
@@ -67,6 +68,7 @@ class Tile(IRValue):
 
     @property
     def T(self) -> Self:
+        """Transpose a 2D tile by swapping its dimensions (see :py:func:`asc2.transpose`)."""
         from .shape_ops import transpose
         return transpose(self)
 

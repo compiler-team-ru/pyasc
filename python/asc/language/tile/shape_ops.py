@@ -33,8 +33,14 @@ def broadcast_to(input: Tile, *shape: int) -> Tile:
     This function works similar to :code:`torch.broadcast_to`.
 
     Args:
-        input: the input tensor
-        shape: the target shape
+        input: The input tensor
+        shape: The target shape
+
+    Returns:
+        Tile: A new tile with the broadcasted shape
+
+    Raises:
+        RuntimeError: If the input tile shape cannot be broadcasted to the target shape
 
     Examples:
         Broadcast tile to the provided shape: ::
@@ -74,6 +80,21 @@ def broadcast_to(input: Tile, *shape: int) -> Tile:
 
 @bind_tile_method
 def reshape(input: Tile, *shape: int) -> Tile:
+    """
+    Reshape a tile to a new shape without changing its data.
+
+    The total number of elements in the new shape must match the total number of elements in the input tile.
+
+    Args:
+        input: The input tile
+        shape: The target shape
+
+    Returns:
+        Tile: A tile with the new shape
+
+    Raises:
+        RuntimeError: If the total number of elements doesn't match
+    """
     shape = verify_shape(shape)
     if math.prod(input.shape) != math.prod(shape):
         raise RuntimeError("Result tile must have the same number of elements as input tile")
@@ -85,11 +106,35 @@ def reshape(input: Tile, *shape: int) -> Tile:
 
 @bind_tile_method
 def ravel(input: Tile) -> Tile:
+    """
+    Flatten a tile into a 1D tile.
+
+    This is equivalent to :code:`reshape(input, input.size)`.
+
+    Args:
+        input: The input tile
+
+    Returns:
+        Tile: A 1D tile with all elements from the input
+    """
     return reshape(input, math.prod(input.shape))
 
 
 @bind_tile_method
 def expand_dims(input: Tile, *axis: int) -> Tile:
+    """
+    Insert new dimensions of size 1 at the specified positions.
+
+    Args:
+        input: The input tile
+        axis: The positions where new dimensions should be inserted (0-based)
+
+    Returns:
+        Tile: A tile with the new dimensions inserted
+
+    Note:
+        Multiple axes can be specified. Axes are processed in sorted order.
+    """
     shape = list(input.shape)
     axis = sorted(set(axis))
     for ax in axis:
@@ -99,6 +144,19 @@ def expand_dims(input: Tile, *axis: int) -> Tile:
 
 @bind_tile_method
 def squeeze(input: Tile, *axis: int) -> Tile:
+    """
+    Remove dimensions of size 1 from the tile.
+
+    Args:
+        input: The input tile.
+        axis: The positions of dimensions to remove (0-based). If not provided, all dimensions of size 1 are removed.
+
+    Returns:
+        Tile: A tile with the specified dimensions removed
+
+    Raises:
+        RuntimeError: If attempting to squeeze a dimension that is not of size 1
+    """
     shape = []
     axis = set(axis if axis else (i for i, dim in enumerate(input.shape) if dim == 1))
     for i, dim in enumerate(input.shape):
@@ -111,6 +169,15 @@ def squeeze(input: Tile, *axis: int) -> Tile:
 
 
 def transpose(input: Tile) -> Tile:
+    """
+    Transpose a 2D tile by swapping its dimensions.
+
+    Args:
+        input: The input tile (must be 2D)
+
+    Returns:
+        Tile: The transposed tile with swapped dimensions
+    """
     ir_type = ir.clone_shaped_type(input.to_ir().get_type(), [input.shape[1], input.shape[0]])
     handle = global_builder.get_ir_builder().create_asctile_TransposeOp(ir_type, input.to_ir())
     return Tile(handle)

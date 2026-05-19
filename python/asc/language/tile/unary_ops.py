@@ -40,8 +40,14 @@ def set_docstring(name: str, support_scalar: bool = False) -> Callable[[T], T]:
     Computes the element-wise {name} of :code:`input`.
 
     Args:
-        input: the input value ({tile_info})
-    """
+        input: The input value ({tile_info})
+
+    Returns:
+        Tile: The result tile
+
+    Raises:
+        RuntimeError: If the input dtype is not supported for this operation
+        """
         fn.__doc__ = doc.format(name=name, tile_info="tile or scalar" if support_scalar else "tile")
         return fn
 
