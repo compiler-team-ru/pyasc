@@ -445,6 +445,11 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
         // Note! For this formula it is assumed that offsets are divisible by corresponding Cube block dimensions.
         Value colOffset = rewriter.create<arith::MulIOp>(loc, consts.i32(srcShape[0]), offsets[1]);
         Value rowOffset = rewriter.create<arith::MulIOp>(loc, offsets[0], consts.i32(cubeBlockCols));
+        auto elemType = opType.getElementType();
+        if (!isTensorA && isa<Float32Type>(elemType)) {
+            colOffset = rewriter.create<arith::MulIOp>(loc, consts.i32(cubeBlockCols), offsets[1]);
+            rowOffset = rewriter.create<arith::MulIOp>(loc, offsets[0], consts.i32(srcShape[1]));
+        }
         Value linearOffset = rewriter.create<arith::AddIOp>(loc, colOffset, rowOffset);
         src = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcType, src, linearOffset);
         auto dstTensorOp = createTensorOp(rewriter, loc, opType);
@@ -456,10 +461,10 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
         bool isTransposeA = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeA);
         bool isTransposeB = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeB);
         auto dstFracStride = llvm::divideCeilSigned(isTransposeB ? dstShape[0] : dstShape[1], cubeBlockCols);
-        if (isTensorA || !isa<Float32Type>(opType.getElementType()) || isTransposeB) {
+        if (isTensorA || !isa<Float32Type>(elemType) || isTransposeB) {
             // LoadData2DParams doesn't support ifTranspose for float32, LoadDataWithTranpose doesn't support TPosition
             // A2 on Ascend910_95. Used LoadData2DParamsV2
-            if (isTransposeA && isa<Float32Type>(opType.getElementType())) {
+            if (isTransposeA && isa<Float32Type>(elemType)) {
                 auto paramsType = rewriter.getType<ascendc::LoadData2DParamsV2Type>();
                 auto mStep = consts.i32(llvm::divideCeilSigned(dstShape[1], ascendc::cubeBlockSize));
                 auto kStep = consts.i32(
