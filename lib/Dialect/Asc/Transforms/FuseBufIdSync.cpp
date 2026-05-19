@@ -29,7 +29,7 @@ namespace {
 
 void eraseGetBuf(Operation* op)
 {
-    auto prevNode = op->getPrevNode();
+    auto* prevNode = op->getPrevNode();
     if (!prevNode)
         return;
     if (auto getBuf = dyn_cast<ascendc::GetBufOp>(prevNode)) {
@@ -41,7 +41,7 @@ void eraseGetBuf(Operation* op)
 
 void eraseRlsBuf(Operation* op)
 {
-    auto nextNode = op->getNextNode();
+    auto* nextNode = op->getNextNode();
     if (!nextNode)
         return;
     if (auto rlsBuf = dyn_cast<ascendc::RlsBufOp>(nextNode)) {

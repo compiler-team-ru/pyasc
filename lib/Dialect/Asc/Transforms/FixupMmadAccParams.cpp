@@ -9,8 +9,8 @@
  */
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
-#include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
+#include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -57,7 +57,7 @@ class FixupMmadAccParamsPass : public ascendc::impl::FixupMmadAccParamsBase<Fixu
                 Value loadInitVal = builder.create<memref::LoadOp>(mmadParamsOp.getLoc(), cMatrixInitVar, indices);
                 mmadParamsOp.setField("cmatrixInitVal", loadInitVal);
                 builder.setInsertionPointAfter(mmadOp);
-                builder.create<memref::StoreOp>(mmadParamsOp.getLoc(), consts.i1(0), cMatrixInitVar, indices);
+                builder.create<memref::StoreOp>(mmadParamsOp.getLoc(), consts.i1(false), cMatrixInitVar, indices);
             }
         }
     }

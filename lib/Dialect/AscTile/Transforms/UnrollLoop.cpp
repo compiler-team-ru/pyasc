@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "ascir/Dialect/AscTile/Utils/Attributes.h"
 #include "ascir/Dialect/AscTile/Transforms/Passes.h"
+#include "ascir/Dialect/AscTile/Utils/Attributes.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/SCF/Utils/Utils.h"

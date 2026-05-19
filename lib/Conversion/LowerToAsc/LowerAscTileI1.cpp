@@ -32,7 +32,7 @@ using namespace mlir::asclower;
 namespace {
 
 struct LoweringConversionTarget : public ConversionTarget {
-    LoweringConversionTarget(TensorTypeConverter& converter, MLIRContext* context) : ConversionTarget(*context)
+    LoweringConversionTarget(MLIRContext* context) : ConversionTarget(*context)
     {
         addIllegalOp<asctile::CmpOp, asctile::CmpSOp, asctile::SelectOp>();
         addLegalDialect<arith::ArithDialect, ascendc::AscendCDialect>();
@@ -84,7 +84,7 @@ struct ConvertCmp : public ConvertOp<asctile::CmpOp> {
         }
         auto srcNumElems = srcType.getNumElements();
         I1ReplacementType replType(op.getContext());
-        auto dstShape = llvm::divideCeil(srcNumElems, replType.width);
+        int64_t dstShape = llvm::divideCeilSigned(srcNumElems, replType.width);
         Value dst = createTensorOp(rewriter, loc, dstShape, replType.iType);
         dst = createReCastOp(rewriter, loc, dst, dstShape, replType.uiType);
         ascendc::CMPMODE cmpMode = getCmpMode(op.getCmpMode());
@@ -108,7 +108,7 @@ struct ConvertCmpS : ConvertOp<asctile::CmpSOp> {
         auto base = rewriter.getRemappedValue(op.getBase());
         auto srcType = op.getBase().getType();
         I1ReplacementType replType(op.getContext());
-        auto dstShape = llvm::divideCeil(srcType.getNumElements(), replType.width);
+        auto dstShape = llvm::divideCeilSigned(srcType.getNumElements(), replType.width);
         Value dst = createTensorOp(rewriter, loc, dstShape, replType.iType);
         dst = createReCastOp(rewriter, loc, dst, dstShape, replType.uiType);
         auto mode = getCmpMode(op.getCmpMode());
@@ -150,7 +150,7 @@ struct LowerAscTileI1Pass : public asclower::impl::LowerAscTileI1Base<LowerAscTi
         func::FuncOp funcOp = getOperation();
         TensorTypeConverter converter;
         MLIRContext* context = &getContext();
-        LoweringConversionTarget target(converter, context);
+        LoweringConversionTarget target(context);
         RewritePatternSet patterns(context);
         patterns.insert<ConvertCmp, ConvertCmpS, ConvertSelect>(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())

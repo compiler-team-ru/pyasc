@@ -10,8 +10,8 @@
  * for the full text of the License.
  */
 
-#include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/Asc/IR/Asc.h"
+#include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 

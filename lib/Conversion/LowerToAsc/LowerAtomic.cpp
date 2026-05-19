@@ -8,11 +8,11 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Conversion/LowerToAsc/Passes.h"
+#include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
-#include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
+#include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -33,7 +33,7 @@ using namespace mlir::asclower;
 namespace {
 
 struct LoweringConversionTarget : public ConversionTarget {
-    LoweringConversionTarget(TensorTypeConverter& converter, MLIRContext* context) : ConversionTarget(*context)
+    LoweringConversionTarget(MLIRContext* context) : ConversionTarget(*context)
     {
         addIllegalOp<asctile::AtomicRMWOp>();
         addLegalOp<asctile::StoreOp>();
@@ -79,7 +79,7 @@ struct LowerAtomicPass : public asclower::impl::LowerAtomicBase<LowerAtomicPass>
         func::FuncOp funcOp = getOperation();
         TensorTypeConverter converter;
         MLIRContext* context = &getContext();
-        LoweringConversionTarget target(converter, context);
+        LoweringConversionTarget target(context);
         RewritePatternSet patterns(context);
         patterns.insert<ConvertAtomicRMW>(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())

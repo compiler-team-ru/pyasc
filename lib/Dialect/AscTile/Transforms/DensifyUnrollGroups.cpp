@@ -89,13 +89,9 @@ class Densifier {
         } else {
             llvm_unreachable("unexpected CanMoveKind value");
         }
-        for (Value opnd : toMove->getOperands()) {
-            if (!dom.dominates(opnd, baseOp))
-                return false;
-            if (haveMemoryEffects(op1, op2, opnd))
-                return false;
-        }
-        return true;
+        return llvm::all_of(toMove->getOperands(), [&](Value opnd) {
+            return dom.dominates(opnd, baseOp) && !haveMemoryEffects(op1, op2, opnd);
+        });
     }
 
     void densifyAtTop(UnrollGroup& group)
@@ -159,10 +155,10 @@ public:
 
     void run(function_ref<Target(ArrayRef<Operation*>)> selectTargetFn)
     {
-        for (auto groupIt = groups.begin(); groupIt != groups.end(); ++groupIt) {
-            auto& groupBlocks = groupIt->second;
-            for (auto blockIt = groupBlocks.begin(); blockIt != groupBlocks.end(); ++blockIt) {
-                UnrollGroup& group = blockIt->second;
+        for (auto& groupIt : groups) {
+            auto& groupBlocks = groupIt.second;
+            for (auto& groupBlock : groupBlocks) {
+                UnrollGroup& group = groupBlock.second;
                 auto target = selectTargetFn(group);
                 if (target == Skip)
                     continue;

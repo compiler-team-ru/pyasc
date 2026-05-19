@@ -40,7 +40,7 @@ struct CubeTransposeToLoad : OpRewritePattern<asctile::TransposeOp> {
         auto copyOp = op.getIn().getDefiningOp<asctile::CopyOp>();
         if (!copyOp || !copyOp->hasOneUse())
             return failure();
-        auto attr = tileLoc == TileLocation::L0A ? asctile::attr::transposeA : asctile::attr::transposeB;
+        const auto* attr = tileLoc == TileLocation::L0A ? asctile::attr::transposeA : asctile::attr::transposeB;
         auto copyOpType = copyOp.getType();
         auto shape = copyOpType.getShape();
         if (shape.size() != 2)
@@ -51,7 +51,7 @@ struct CubeTransposeToLoad : OpRewritePattern<asctile::TransposeOp> {
         rewriter.startOpModification(newCopyOp);
         newCopyOp->setAttr(attr, rewriter.getUnitAttr());
         rewriter.finalizeOpModification(newCopyOp);
-        auto loadOp = newCopyOp.getBase().getDefiningOp();
+        auto* loadOp = newCopyOp.getBase().getDefiningOp();
         if (!loadOp || !loadOp->hasOneUse())
             return failure();
         rewriter.startOpModification(loadOp);

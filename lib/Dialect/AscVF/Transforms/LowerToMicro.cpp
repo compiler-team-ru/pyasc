@@ -9,9 +9,9 @@
  */
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
-#include "ascir/Dialect/AscVF/IR/AscVF.h"
-#include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
+#include "ascir/Dialect/AscVF/IR/AscVF.h"
+#include "ascir/Dialect/AscVF/Transforms/Passes.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
@@ -219,10 +219,9 @@ Value createGetVecLen(OpBuilder builder, Operation* op)
     if (auto vecLen = ascendc::getVecLen(op)) {
         ascir::ConstantOpBuilder consts(builder);
         return consts.index(vecLen.value());
-    } else {
-        auto getVecLenIndex = builder.create<ascendc::GetVecLenOp>(builder.getUnknownLoc(), builder.getIndexType());
-        return getVecLenIndex.getResult();
     }
+    auto getVecLenIndex = builder.create<ascendc::GetVecLenOp>(builder.getUnknownLoc(), builder.getIndexType());
+    return getVecLenIndex.getResult();
 }
 
 std::pair<Value, Value> createRepeatTimes(OpBuilder builder, Value calCount, Value getVecLenIndex, Type groupType)
@@ -280,7 +279,7 @@ void lowerToMicro(ascvf::VecScopeOp vecScopeOp, Value calCount, Type groupType)
     });
 }
 
-ascvf::VecScopeOp wrapInVecScope(OpBuilder& builder, SmallVector<Operation*> ops)
+ascvf::VecScopeOp wrapInVecScope(OpBuilder& builder, const SmallVector<Operation*>& ops)
 {
     auto vecScope = builder.create<ascvf::VecScopeOp>(builder.getUnknownLoc());
     auto* blockVecScope = &vecScope.getRegion().emplaceBlock();
@@ -319,8 +318,4 @@ struct LowerToMicroPass : public ascvf::impl::LowerToMicroBase<LowerToMicroPass>
 
 } // namespace
 
-namespace mlir {
-namespace ascvf {
-std::unique_ptr<Pass> createLowerToMicroPass() { return std::make_unique<LowerToMicroPass>(); }
-} // namespace ascvf
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascvf::createLowerToMicroPass() { return std::make_unique<LowerToMicroPass>(); }

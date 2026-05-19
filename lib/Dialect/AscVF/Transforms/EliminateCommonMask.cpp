@@ -10,7 +10,7 @@
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/AscVF/IR/AscVF.h"
-#include "ascir/Dialect/Asc/Transforms/Passes.h"
+#include "ascir/Dialect/AscVF/Transforms/Passes.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 
@@ -69,8 +69,7 @@ struct EliminateCommonMaskPass : public ascvf::impl::EliminateCommonMaskBase<Eli
 
 } // namespace
 
-namespace mlir {
-namespace ascvf {
-std::unique_ptr<Pass> createEliminateCommonMaskPass() { return std::make_unique<EliminateCommonMaskPass>(); }
-} // namespace ascvf
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascvf::createEliminateCommonMaskPass()
+{
+    return std::make_unique<EliminateCommonMaskPass>();
+}

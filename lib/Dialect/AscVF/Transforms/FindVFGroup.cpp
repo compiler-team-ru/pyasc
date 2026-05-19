@@ -9,9 +9,9 @@
  */
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
-#include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/AscVF/IR/AscVF.h"
+#include "ascir/Dialect/AscVF/Transforms/Passes.h"
 #include "ascir/Dialect/AscVF/Utils/Utils.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/Utils/Utils.h"
@@ -63,7 +63,7 @@ Value getCalCount(Operation* op)
         .Case<ascendc::BinaryL2Op, ascendc::UnaryL2Op, ascendc::DuplicateL2Op>([](auto op) { return op.getCalCount(); })
         .Case<ascendc::ReduceMaxL2Op, ascendc::ReduceMinL2Op, ascendc::ReduceSumL2Op>(
             [](auto op) { return op.getCount(); })
-        .Default([](Operation* op) { return Value{}; });
+        .Default([](Operation* /*op*/) { return Value{}; });
 }
 
 Type getType(Operation* op)
@@ -242,8 +242,4 @@ struct FindVFGroupPass : public ascvf::impl::FindVFGroupBase<FindVFGroupPass> {
 
 } // namespace
 
-namespace mlir {
-namespace ascvf {
-std::unique_ptr<Pass> createFindVFGroupPass() { return std::make_unique<FindVFGroupPass>(); }
-} // namespace ascvf
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascvf::createFindVFGroupPass() { return std::make_unique<FindVFGroupPass>(); }

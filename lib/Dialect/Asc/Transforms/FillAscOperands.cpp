@@ -48,7 +48,7 @@ int64_t getRepeatTimes(ShapedType type)
     auto sizeType = ascendc::getElementTypeSize(type);
     assert((sizeType == 2 || sizeType == 4) && "Unsupported element type");
     auto numElemsPerRepeat = ascendc::repeatBlockSize / sizeType;
-    return llvm::divideCeil(type.getNumElements(), numElemsPerRepeat);
+    return llvm::divideCeilSigned(type.getNumElements(), numElemsPerRepeat);
 }
 
 std::pair<uint64_t, uint64_t> getMask(ShapedType type)
@@ -59,7 +59,7 @@ std::pair<uint64_t, uint64_t> getMask(ShapedType type)
     auto mask = llvm::maskTrailingOnes<uint64_t>(ascendc::bitmaskSize);
     if (sizeType == 2)
         return {mask, mask};
-    return {0ul, mask};
+    return {0UL, mask};
 }
 
 template <class OpT>
@@ -69,7 +69,8 @@ void fillMask(OpBuilder& builder, Location loc, ConstantOpBuilder& consts, Shape
     if (op->hasAttr(ascendc::attr::maskSet))
         return;
     auto [maskHVal, maskLVal] = getMask(srcType);
-    auto mask = builder.create<emitasc::MaskOp>(loc, consts.i64(maskHVal), consts.i64(maskLVal));
+    auto mask = builder.create<emitasc::MaskOp>(
+        loc, consts.i64(static_cast<int64_t>(maskHVal)), consts.i64(static_cast<int64_t>(maskLVal)));
     op.getMaskMutable().assign(mask);
 }
 

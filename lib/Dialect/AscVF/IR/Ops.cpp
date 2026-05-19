@@ -8,8 +8,8 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "ascir/Dialect/AscVF/IR/AscVF.h"
 #include "ascir/Dialect/Asc/IR/Asc.h"
+#include "ascir/Dialect/AscVF/IR/AscVF.h"
 
 #include "mlir/Dialect/Utils/StaticValueUtils.h"
 #include "mlir/IR/Builders.h"
@@ -68,10 +68,10 @@ Type VFGroupOp::getGroupType()
 // VFForOp
 //===----------------------------------------------------------------------===//
 
-void VFForOp::build(OpBuilder& builder, OperationState& state, Value ub)
+void VFForOp::build(OpBuilder& builder, OperationState& state, Value upperBound)
 {
     OpBuilder::InsertionGuard guard(builder);
-    state.addOperands(ub);
+    state.addOperands(upperBound);
     Type type = builder.getIndexType();
     Region* bodyRegion = state.addRegion();
     Block* bodyBlock = builder.createBlock(bodyRegion);

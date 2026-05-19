@@ -33,7 +33,7 @@ using namespace mlir::asclower;
 namespace {
 
 struct RedressTypeConverter : public LoweringTypeConverter {
-    RedressTypeConverter() : LoweringTypeConverter()
+    RedressTypeConverter()
     {
         addConversion([](asctile::TileType type) {
             auto elType = type.getElementType();
@@ -50,7 +50,7 @@ struct RedressTypeConverter : public LoweringTypeConverter {
 };
 
 struct RedressConversionTarget : public ConversionTarget {
-    RedressConversionTarget(RedressTypeConverter& converter, MLIRContext* context) : ConversionTarget(*context)
+    RedressConversionTarget(MLIRContext* context) : ConversionTarget(*context)
     {
         addLegalDialect<arith::ArithDialect, memref::MemRefDialect, vector::VectorDialect>();
         addDynamicallyLegalOp<arith::ConstantOp, vector::BroadcastOp>([](Operation* op) {
@@ -79,7 +79,7 @@ struct RedressSplatConstant : ConvertOp<arith::ConstantOp> {
         if (!dense.getSplatValue<IntegerAttr>().getValue().isZero())
             value = replType.max();
         auto newType = cast<ShapedType>(converter().convertType(oldType));
-        auto attr = SplatElementsAttr::get(newType, static_cast<I1ReplacementType::UInt>(value));
+        auto attr = SplatElementsAttr::get(newType, value);
         rewriter.replaceOpWithNewOp<arith::ConstantOp>(op, attr);
         return success();
     }
@@ -113,7 +113,7 @@ struct RedressI1TilePass : public asclower::impl::RedressI1TileBase<RedressI1Til
         func::FuncOp funcOp = getOperation();
         RedressTypeConverter converter;
         MLIRContext* context = &getContext();
-        RedressConversionTarget target(converter, context);
+        RedressConversionTarget target(context);
         RewritePatternSet patterns(context);
         patterns.insert<RedressSplatConstant, RedressDenseConstant>(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())

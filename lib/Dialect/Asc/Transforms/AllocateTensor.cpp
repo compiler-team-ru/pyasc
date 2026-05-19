@@ -9,6 +9,7 @@
  */
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
+#include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -80,8 +81,4 @@ struct AllocateTensorPass : public ascendc::impl::AllocateTensorBase<AllocateTen
 
 } // namespace
 
-namespace mlir {
-namespace ascendc {
-std::unique_ptr<Pass> createAllocateTensorPass() { return std::make_unique<AllocateTensorPass>(); }
-} // namespace ascendc
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascendc::createAllocateTensorPass() { return std::make_unique<AllocateTensorPass>(); }
