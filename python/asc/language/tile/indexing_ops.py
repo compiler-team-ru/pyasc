@@ -17,6 +17,24 @@ from .utils import create_tile, infer_common_dtype
 
 
 def where(mask: Tile, src0: Union[Tile, RuntimeNumeric], src1: Union[Tile, RuntimeNumeric]) -> Tile:
+    """
+    Select elements from two sources based on a mask.
+
+    For each element, returns the corresponding element from :code:`src0` if the mask element is true (non-zero),
+    otherwise returns the element from :code:`src1`.
+
+    Args:
+        mask: A boolean tile specifying which elements to select
+        src0: The source for elements where mask is true (tile or scalar)
+        src1: The source for elements where mask is false (tile or scalar)
+
+    Returns:
+        Tile: A tile with elements selected from :code:`src0` or :code:`src1` based on the mask
+
+    Note:
+        At least one of :code:`src0` or :code:`src1` must be a tile with the same shape as the mask.
+        Scalars are broadcast to the mask shape.
+    """
     check_type("mask", mask, Tile)
     src_dtype = infer_common_dtype(src0, src1)
     src0 = create_tile(src0, src_dtype, mask.shape)
@@ -39,6 +57,44 @@ def mask(*, bits: Iterable[RuntimeInt], other: Optional[RuntimeNumeric] = None) 
 @contextmanager
 def mask(*, count: Optional[RuntimeInt] = None, bits: Optional[Iterable[RuntimeInt]] = None,
          other: Optional[RuntimeNumeric] = None) -> Generator[None, Any, None]:
+    """
+    A context manager for masked operations on tiles.
+
+    Within the mask context, operations are applied only to the specified elements, with other elements optionally set
+    to a different value.
+
+    Two masking modes are supported:
+
+    1. **Count-based masking**: Apply operations to the first :code:`count` elements along the innermost dimension.
+       Elements beyond :code:`count` are set to :code:`other` (default 0).
+
+    2. **Bit-based masking**: Apply operations to elements where the bit index (computed from position) falls within the
+       range specified by :code:`bits`. :code:`bits` must contain exactly two integers defining the range.
+
+    Args:
+        count: The number of elements to apply operations to (from the start). Mutually exclusive with :code:`bits`.
+        bits: A tuple of two integers defining a bit-based range for masking. Mutually exclusive with :code:`count`.
+        other: The value to use for elements outside the mask. Default is 0.
+
+    Raises:
+        ValueError: If neither or both of :code:`count` and :code:`bits` are provided,
+                    or if :code:`bits` doesn't contain exactly two integers.
+
+    Note:
+        Exactly one of :code:`count` or :code:`bits` must be provided.
+        This context manager can only be applied to vector operations (e.g., add, exp), not to load/store operations.
+
+    Examples:
+        Apply addition only to first 8 elements, others set to 0: ::
+
+            with asc2.mask(count=8, other=0):
+                result = tile_a + tile_b
+
+        Apply exp only to elements within bit range, others set to -1: ::
+
+            with asc2.mask(bits=[0, 64], other=-1):
+                result = asc2.exp(tile)
+    """
     builder = global_builder.get_ir_builder()
     other = _mat(other).to_ir() if other is not None else None
     if count is not None:

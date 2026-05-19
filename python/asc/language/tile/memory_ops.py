@@ -43,6 +43,21 @@ def infer_offsets(tensor_shape: Tuple[RuntimeInt], shape: Iterable[int], tile_id
 
 def copy(tile: Tile, shape: Optional[Iterable[int]] = None, *, offsets: Optional[Iterable[RuntimeInt]] = None,
          location: TileLocation = TileLocation.UB) -> Tile:
+    """
+    Copy a tile to a new tile, optionally reshaping and relocating.
+
+    Args:
+        tile: The source tile to copy.
+        shape: The shape of the resulting tile. If None, uses the source tile's shape.
+        offsets: The offsets into the source tile for each dimension. Default is zeros.
+        location: The memory location for the destination tile. Default is :code:`TileLocation.UB`.
+
+    Returns:
+        Tile: A new tile that is a copy of the source tile
+
+    Raises:
+        RuntimeError: If shape is invalid, data alignment check fails, or offsets rank mismatch
+    """
     if shape is None:
         shape = tile.shape
     if offsets is None:
@@ -78,6 +93,41 @@ def load(tensor: Tensor, *, offsets: Iterable[RuntimeInt]) -> PlainValue:
 def load(tensor: Tensor, shape: Optional[Iterable[int]] = None, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
          tile_id: Optional[Iterable[RuntimeInt]] = None, offsets: Optional[Iterable[RuntimeInt]] = None,
          location: TileLocation = TileLocation.UB, pad_value: RuntimeNumeric = 0) -> Union[Tile, PlainValue]:
+    """
+    Load data from a tensor into a tile or scalar value.
+
+    This function supports three modes of operation:
+
+    1. **Load a tile with explicit offsets**: Load a tile of the given shape from the tensor
+       at the specified byte offsets.
+
+    2. **Load a tile with tile_id**: Load a tile of the given shape where the offset is
+       computed as :code:`tile_id * shape` for each dimension.
+
+    3. **Load a scalar**: When shape is not provided, load a single scalar value at the specified offsets.
+
+    Args:
+        tensor: The source tensor in global memory.
+        shape: The shape of the tile to load. If None, loads a scalar value.
+        real_shape: The actual shape of data when loading from a partial tile.
+            Used when the tile shape is larger than the available data.
+            Must match the rank of :code:`shape` and each dimension must not exceed the corresponding tile dimension.
+        offsets: The offsets into the tensor for each dimension. Mutually exclusive with :code:`tile_id`.
+        tile_id: The tile index for each dimension, where offset is computed as :code:`tile_id * shape`.
+            Mutually exclusive with :code:`offsets`.
+        location: The memory location for the tile. Default is :code:`TileLocation.UB`.
+        pad_value: The value to use for padding when :code:`real_shape` is provided. Default is 0.
+
+    Returns:
+        Tile: A tile loaded from the tensor (when :code:`shape` is provided)
+        PlainValue: A scalar value loaded from the tensor (when :code:`shape` is None)
+
+    Raises:
+        ValueError: If neither or both of :code:`offsets` and :code:`tile_id` are provided
+
+    Note:
+        Exactly one of :code:`offsets` or :code:`tile_id` must be provided.
+    """
     if (tile_id is None) == (offsets is None):
         raise ValueError("Exactly one of 'tile_id' or 'offsets' must be provided")
     builder = global_builder.get_ir_builder()
@@ -117,6 +167,37 @@ def store(value: RuntimeNumeric, tensor: Tensor, *, offsets: Iterable[RuntimeInt
 
 def store(value: Union[Tile, RuntimeNumeric], tensor: Tensor, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
           tile_id: Optional[Iterable[RuntimeInt]] = None, offsets: Optional[Iterable[RuntimeInt]] = None) -> None:
+    """
+    Store data from a tile or scalar value to a tensor in global memory.
+
+    This function supports three modes of operation:
+
+    1. **Store a tile with explicit offsets**: Store a tile to the tensor at the specified byte offsets.
+
+    2. **Store a tile with tile_id**: Store a tile where the offset is computed as :code:`tile_id * tile_shape` for each
+       dimension.
+
+    3. **Store a scalar**: Store a single scalar value (or a tile with one element) at the specified offsets.
+
+    Args:
+        value: The source value to store. Can be a tile, a scalar value, or a tile with exactly one element.
+        tensor: The destination tensor in global memory.
+        real_shape: The actual shape of data when storing a partial tile.
+            Must match the rank of the tile and each dimension must not exceed the corresponding tile dimension.
+            Cannot be used for scalar stores.
+        offsets: The offsets into the tensor for each dimension. Mutually exclusive with :code:`tile_id`.
+            Required for scalar stores.
+        tile_id: The tile index for each dimension, where offset is computed as :code:`tile_id * tile_shape`.
+            Mutually exclusive with :code:`offsets`. Cannot be used for scalar stores.
+
+    Raises:
+        ValueError: If neither or both of :code:`offsets` and :code:`tile_id` are provided (for tile stores), or if
+                    :code:`tile_id` or :code:`real_shape` is used with scalar stores.
+
+    Note:
+        For tile stores, exactly one of :code:`offsets` or :code:`tile_id` must be provided.
+        For scalar stores, :code:`offsets` must be provided and :code:`tile_id` and :code:`real_shape` cannot be used.
+    """
     builder = global_builder.get_ir_builder()
     scalar_store = not isinstance(value, Tile) or value.size == 1
     if scalar_store:

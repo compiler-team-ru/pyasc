@@ -22,12 +22,45 @@ def op_atomic_impl(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt], ki
 
 
 def atomic_add(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt]) -> None:
+    """
+    Atomically add tile elements to a tensor at specified offsets.
+
+    Performs an atomic read-modify-write operation, adding each element of :code:`tile` to the corresponding element in
+    :code:`tensor` at the given :code:`offsets`.
+
+    Args:
+        tile: The source tile whose elements will be added
+        tensor: The destination tensor in global memory
+        offsets: The offsets into the tensor for each dimension
+    """
     return op_atomic_impl(tile, tensor, offsets, ir.AtomicKind.Add)
 
 
 def atomic_max(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt]) -> None:
+    """
+    Atomically compute the maximum between tile elements and tensor elements at specified offsets.
+
+    Performs an atomic read-modify-write operation, storing the maximum of each element in :code:`tile` and the
+    corresponding element in :code:`tensor` at the given :code:`offsets`.
+
+    Args:
+        tile: The source tile containing comparison values
+        tensor: The destination tensor in global memory
+        offsets: The offsets into the tensor for each dimension
+    """
     return op_atomic_impl(tile, tensor, offsets, ir.AtomicKind.Max)
 
 
 def atomic_min(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt]) -> None:
+    """
+    Atomically compute the minimum between tile elements and tensor elements at specified offsets.
+
+    Performs an atomic read-modify-write operation, storing the minimum of each element in :code:`tile` and the
+    corresponding element in :code:`tensor` at the given :code:`offsets`.
+
+    Args:
+        tile: The source tile containing comparison values
+        tensor: The destination tensor in global memory
+        offsets: The offsets into the tensor for each dimension
+    """
     return op_atomic_impl(tile, tensor, offsets, ir.AtomicKind.Min)

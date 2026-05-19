@@ -67,9 +67,9 @@ def reduce_sum(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, 
     When dimension is not specified, the entire tile is reduced to a single scalar value.
 
     Args:
-        input: the input tile
-        dims: optional, dimensions to reduce, should be in range of [0..len(input.shape)-1]
-        keep_dims: if set to True, then reduced dimensions are kept in the result shape with size of 1
+        input: The input tile
+        dims: Optional, dimensions to reduce, should be in range of [0..len(input.shape)-1]
+        keep_dims: If set to True, then reduced dimensions are kept in the result shape with size of 1
 
     Examples:
         Reduce tile by first (outermost) dimension, resulting tile having the shape [256],
@@ -106,9 +106,9 @@ def reduce_max(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, 
     When dimension is not specified, the entire tile is reduced to a single scalar value.
 
     Args:
-        input: the input tile
-        dims: optional, dimensions to reduce, should be in range of [0..len(input.shape)-1]
-        keep_dims: if set to True, then reduced dimensions are kept in the result shape with size of 1
+        input: The input tile
+        dims: Optional, dimensions to reduce, should be in range of [0..len(input.shape)-1]
+        keep_dims: If set to True, then reduced dimensions are kept in the result shape with size of 1
 
     Examples:
         Reduce tile by first (outermost) dimension, resulting tile having the shape [256],
@@ -145,9 +145,9 @@ def reduce_min(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, 
     When dimension is not specified, the entire tile is reduced to a single scalar value.
 
     Args:
-        input: the input tile
-        dims: optional, dimensions to reduce, should be in range of [0..len(input.shape)-1]
-        keep_dims: if set to True, then reduced dimensions are kept in the result shape with size of 1
+        input: The input tile
+        dims: Optional, dimensions to reduce, should be in range of [0..len(input.shape)-1]
+        keep_dims: If set to True, then reduced dimensions are kept in the result shape with size of 1
 
     Examples:
         Reduce tile by first (outermost) dimension, resulting tile having the shape [256],
@@ -173,9 +173,9 @@ def reduce_prod(input: Tile, *dims: int, keep_dims: bool = False) -> Tile:
     unless :code:`keep_dims=True` is provided.
 
     Args:
-        input: the input tile
-        dims: dimensions to reduce, should be in range of [0..len(input.shape)-1]
-        keep_dims: if set to True, then reduced dimensions are kept in the result shape with size of 1
+        input: The input tile
+        dims: Dimensions to reduce, should be in range of [0..len(input.shape)-1]
+        keep_dims: If set to True, then reduced dimensions are kept in the result shape with size of 1
 
     Examples:
         Reduce tile by first (outermost) dimension, resulting tile having the shape [256],
