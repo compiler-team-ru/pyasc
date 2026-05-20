@@ -266,6 +266,7 @@ void bindContextAndDialect(py::module& m)
             >();
         ascendc::registerExternalModels(registry);
         ascendc::registerInlinerInterfaces(registry);
+        asctile::registerExternalModels(registry);
         emitasc::registerExternalModels(registry);
         func::registerAllExtensions(registry);
         context.appendDialectRegistry(registry);
