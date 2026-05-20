@@ -13,6 +13,14 @@ import asc
 import asc2
 from asc.runtime import config
 
+STATIC = "static"
+DYNAMIC = "dynamic"
+
+
+@pytest.fixture(autouse=True)
+def set_platform(backend: config.Backend, platform: config.Platform, device_id: int):
+    config.set_platform(backend, platform, device_id, check=False)
+
 
 @asc2.jit(always_compile=True)
 def load_real_shape_1d_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, size: int,
@@ -45,11 +53,10 @@ load_1d_test_cases = [
 ]
 
 
-@pytest.mark.parametrize("kernel_type", ["static", "dynamic"])
+@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
 @pytest.mark.parametrize("shape, tile_shape, real_shape, offset", load_1d_test_cases)
-def test_load_real_shape_1d(backend, platform, device_id, kernel_type, shape, tile_shape, real_shape, offset):
+def test_load_real_shape_1d(kernel_type, shape, tile_shape, real_shape, offset):
     torch.manual_seed(42)
-    config.set_platform(backend, platform, device_id, check=False)
 
     x = torch.arange(1, shape + 1, dtype=torch.float32)
 
@@ -60,7 +67,7 @@ def test_load_real_shape_1d(backend, platform, device_id, kernel_type, shape, ti
 
     out = torch.empty(1, dtype=torch.float32)
 
-    if kernel_type == "static":
+    if kernel_type == STATIC:
         load_real_shape_1d_kernel[1](x, out, size=shape, tile_shape=[tile_shape], real_shape=[real_shape],
                                      offset=[offset])
     else:
@@ -105,14 +112,15 @@ load_test_cases = [
     ([4, 42], [4, 8], [3, 7], [0, 0]),
     ([4, 42], [3, 8], [2, 5], [1, 0]),
     ([4, 42], [2, 8], [2, 5], [1, 17]),
+    ([32, 32], [32, 40], [32, 1], [3, 5]),
 ]
 
 
-@pytest.mark.parametrize("kernel_type", ["static", "dynamic"])
+@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
 @pytest.mark.parametrize("shape, tile_shape, real_shape, offsets", load_test_cases)
-def test_load_real_shape(backend, platform, device_id, kernel_type, shape, tile_shape, real_shape, offsets):
+def test_load_real_shape(platform, require_c310, kernel_type, shape, tile_shape, real_shape, offsets):
+    require_c310(platform)
     torch.manual_seed(42)
-    config.set_platform(backend, platform, device_id, check=False)
 
     rows, cols = shape
     offset_row, offset_col = offsets
@@ -127,7 +135,7 @@ def test_load_real_shape(backend, platform, device_id, kernel_type, shape, tile_
 
     out = torch.empty(1, dtype=torch.float32)
 
-    if kernel_type == "static":
+    if kernel_type == STATIC:
         load_real_shape_kernel[1](x, out, rows=rows, cols=cols, tile_shape=tile_shape, real_shape=real_shape,
                                   offsets=offsets)
     else:
@@ -176,12 +184,12 @@ store_test_cases = [
 ]
 
 
-@pytest.mark.parametrize("kernel_type", ["static", "dynamic"])
+@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
 @pytest.mark.parametrize("input_shape, output_shape, tile_shape, real_shape, offsets", store_test_cases)
-def test_store_real_shape(backend, platform, device_id, kernel_type, input_shape, output_shape, tile_shape, real_shape,
+def test_store_real_shape(platform, require_c310, kernel_type, input_shape, output_shape, tile_shape, real_shape,
                           offsets):
+    require_c310(platform)
     torch.manual_seed(42)
-    config.set_platform(backend, platform, device_id, check=False)
 
     in_rows, in_cols = input_shape
     out_rows, out_cols = output_shape
@@ -192,7 +200,7 @@ def test_store_real_shape(backend, platform, device_id, kernel_type, input_shape
     y = torch.rand((in_rows, in_cols), dtype=torch.float32) * 2.0
     out = torch.full((out_rows, out_cols), 1000.0, dtype=torch.float32)
 
-    if kernel_type == "static":
+    if kernel_type == STATIC:
         store_real_shape_kernel[1](x, y, out, in_rows=in_rows, in_cols=in_cols, out_rows=out_rows, out_cols=out_cols,
                                    tile_shape=tile_shape, real_shape=real_shape, offsets=offsets)
     else:

@@ -154,6 +154,8 @@ template <
     AnyOfT<OpType, ascendc::DuplicateL2Op, ascendc::UnaryL2Op, ascendc::BinaryL2Op, ascendc::VecScalarL2Op> = true>
 void fillOperation(OpType op)
 {
+    if (op->hasAttr(ascendc::attr::calCountSet))
+        return;
     OpBuilder builder(op);
     ConstantOpBuilder consts(builder);
     auto shapedType = dyn_cast<ShapedType>(op.getDst().getType()); // NOTE: Correct if dstType is same srcType

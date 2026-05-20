@@ -101,7 +101,9 @@ def kernel_scalar_load_store(x_ptr, y_ptr, z_ptr, tensor_shape: asc.ConstExpr, o
 
 
 @pytest.mark.parametrize("dim, tensor_shape, tile_shape, tile_id, offsets, is_static", tests)
-def test_load_store(dim, tensor_shape, tile_shape, tile_id, offsets, is_static):
+def test_load_store(platform, require_c310, dim, tensor_shape, tile_shape, tile_id, offsets, is_static):
+    if dim == 2 and not is_static:
+        require_c310(platform)
     x, y = [torch.randn(tensor_shape) for _ in range(2)]
     device = "cpu"
     z = torch.zeros(tensor_shape, dtype=torch.float32, device=device)
@@ -149,3 +151,41 @@ def test_store_1elem_tile(tensor_shape, offsets):
     y_ref = y.clone()
     y_ref[offsets] = x[offsets]
     torch.testing.assert_close(y, y_ref)
+
+
+@asc2.jit(always_compile=True)
+def kernel_load_padding(x_ptr, out_ptr, input_shape: asc.ConstExpr, tile_shape: asc.ConstExpr, offsets: asc.ConstExpr,
+                        pad_value: asc.ConstExpr) -> None:
+    x_gm = asc2.tensor(x_ptr, input_shape)
+    out_gm = asc2.tensor(out_ptr, tile_shape)
+    tile = asc2.load(x_gm, shape=tile_shape, offsets=offsets, pad_value=pad_value)
+    asc2.store(tile, out_gm, offsets=[0, 0])
+
+
+@pytest.mark.parametrize(
+    "input_shape, tile_shape, offsets",
+    (
+        ([16, 16], [8, 8], [0, 0]),
+        ([16, 4], [8, 16], [0, 0]),
+        ([12, 12], [24, 16], [0, 0]),
+        ([9, 9], [8, 8], [5, 4]),
+    ),
+)
+def test_load_padding(platform, require_c310, input_shape, tile_shape, offsets):
+    require_c310(platform)
+    pad_value = -1000.0
+    x = torch.arange(1, input_shape[0] * input_shape[1] + 1, dtype=torch.float32, device="cpu").reshape(input_shape)
+    out = torch.full(tile_shape, pad_value, dtype=torch.float32, device="cpu")
+    kernel_load_padding[1](x, out, input_shape, tile_shape, offsets, pad_value)
+    out_expected = torch.full(tile_shape, pad_value, dtype=torch.float32, device="cpu")
+    row_start, col_start = offsets
+    tile_rows, tile_cols = tile_shape
+    src_rows, src_cols = input_shape
+    available_rows = max(0, min(src_rows, row_start + tile_rows) - row_start)
+    available_cols = max(0, min(src_cols, col_start + tile_cols) - col_start)
+    real_rows, real_cols = available_rows, available_cols
+    valid_rows = min(real_rows, input_shape[0] - row_start) if row_start < input_shape[0] else 0
+    valid_cols = min(real_cols, input_shape[1] - col_start) if col_start < input_shape[1] else 0
+    if valid_rows > 0 and valid_cols > 0:
+        out_expected[0:valid_rows, 0:valid_cols] = x[row_start:row_start + valid_rows, col_start:col_start + valid_cols]
+    torch.testing.assert_close(out, out_expected)
