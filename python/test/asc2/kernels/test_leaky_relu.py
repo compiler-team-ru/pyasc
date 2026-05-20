@@ -13,6 +13,11 @@ import asc.runtime.config as config
 import asc2
 
 
+@asc2.jit
+def leaky_relu(x, alpha):
+    return asc2.where(x >= 0, x, x * alpha)
+
+
 @asc2.jit(always_compile=True)
 def leaky_relu_kernel(x_ptr: asc.GlobalAddress, alpha: float, out_ptr: asc.GlobalAddress, size: int,
                       tile_size: asc.ConstExpr[int], tile_per_block: asc.ConstExpr[int]):
@@ -22,7 +27,7 @@ def leaky_relu_kernel(x_ptr: asc.GlobalAddress, alpha: float, out_ptr: asc.Globa
     for i in range(tile_per_block, unroll_factor=2, parallel=True):
         tile_offset = base_offset + i * tile_size
         x = asc2.load(x_gm, [tile_size], offsets=[tile_offset])
-        out = asc2.where(x >= 0, x, x * alpha)
+        out = leaky_relu(x, alpha)
         asc2.store(out, out_gm, offsets=[tile_offset])
 
 

@@ -32,6 +32,8 @@ inline void registerDialects(DialectRegistry& registry)
     registerAllDialects(registry);
     registry.insert<ascendc::AscendCDialect, asctile::AscTileDialect, ascvf::AscVFDialect, emitasc::EmitAscDialect>();
     ascendc::registerExternalModels(registry);
+    asctile::registerExternalModels(registry);
+    ascvf::registerExternalModels(registry);
     emitasc::registerExternalModels(registry);
 }
 
