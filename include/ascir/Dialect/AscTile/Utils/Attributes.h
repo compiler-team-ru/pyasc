@@ -20,6 +20,7 @@ LITERAL isMatrixA = "asctile.is_matrix_a";
 LITERAL parallel = "asctile.parallel";
 LITERAL transposeA = "asctile.transpose_a";
 LITERAL transposeB = "asctile.transpose_b";
+LITERAL transposeDims = "asctile.transpose_dims";
 LITERAL unrollFactor = "asctile.unroll_factor";
 LITERAL unrollGroup = "asctile.unroll_group";
 

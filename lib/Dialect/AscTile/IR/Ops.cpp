@@ -9,6 +9,7 @@
  */
 
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
+#include "ascir/Dialect/AscTile/Utils/Attributes.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/IR/Builders.h"
@@ -161,13 +162,24 @@ LogicalResult LoadOp::canonicalize(LoadOp op, PatternRewriter& rewriter)
 
 LogicalResult LoadOp::verify()
 {
-    auto realShape = getRealShape();
+    SmallVector<Value> realShape = getRealShape();
     if (realShape.empty())
         return success();
     auto tileShape = getType().getShape();
     if (tileShape.size() != realShape.size())
         return emitOpError() << "real_shape must have same rank as tile shape";
 
+    if (auto attr = getOperation()->getAttrOfType<DenseI32ArrayAttr>(asctile::attr::transposeDims)) {
+        ArrayRef<int32_t> transposeDims = attr;
+        if (transposeDims.size() != tileShape.size())
+            return emitOpError() << "transpose_dims must have same rank as tile";
+        SmallVector<Value> tmp;
+        for (size_t i = 0; i < tileShape.size(); ++i) {
+            auto dim = transposeDims[i];
+            tmp.push_back(realShape[dim]);
+        }
+        tmp.swap(realShape);
+    }
     for (auto [realDimValue, tileDim] : llvm::zip_equal(realShape, tileShape)) {
         APInt realDim;
         if (!matchPattern(realDimValue, m_ConstantInt(&realDim)))
