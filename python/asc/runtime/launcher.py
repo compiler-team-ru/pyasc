@@ -196,7 +196,7 @@ class Launcher:
 
     @classmethod
     def check_memory_overflow(cls, memory_consumed: Dict[str, int]) -> None:
-        platform_info = get_platform_info(Platform(rt.current_platform()))
+        platform_info = get_platform_info(rt.get_soc_version())
         key_to_attr = (
             ("UB", "ub_size"),
             ("L1", "l1_size"),
