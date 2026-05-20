@@ -8,7 +8,7 @@
 
 import os
 import ctypes
-from dataclasses import dataclass
+from dataclasses import dataclass, replace as dataclass_replace
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 from typing_extensions import TypeAlias
 
@@ -49,33 +49,6 @@ class MsprofLauncher(object):
         self.utils.msprof_report_api(self.start_time, end_time, kernel_name)
 
 
-ub_capacity = {
-    Platform.Ascend910B1: 192 * 1024,
-    Platform.Ascend910B2: 192 * 1024,
-    Platform.Ascend910B2C: 192 * 1024,
-    Platform.Ascend910B3: 192 * 1024,
-    Platform.Ascend910B4: 192 * 1024,
-    Platform.Ascend910B4_1: 192 * 1024,
-    Platform.Ascend910_9362: 192 * 1024,
-    Platform.Ascend910_9372: 192 * 1024,
-    Platform.Ascend910_9381: 192 * 1024,
-    Platform.Ascend910_9382: 192 * 1024,
-    Platform.Ascend910_9391: 192 * 1024,
-    Platform.Ascend910_9392: 192 * 1024,
-    Platform.Ascend910_9579: 248 * 1024,
-    Platform.Ascend910_9589: 248 * 1024,
-    Platform.Ascend910_9599: 248 * 1024,
-    Platform.Ascend950PR_950z: 248 * 1024,
-    Platform.Ascend950PR_9579: 248 * 1024,
-    Platform.Ascend950PR_957b: 248 * 1024,
-    Platform.Ascend950PR_957c: 248 * 1024,
-    Platform.Ascend950PR_957d: 248 * 1024,
-    Platform.Ascend950PR_9589: 248 * 1024,
-    Platform.Ascend950PR_958b: 248 * 1024,
-    Platform.Ascend950PR_9599: 248 * 1024,
-}
-
-
 @dataclass(frozen=True)
 class LaunchOptions:
     """
@@ -109,12 +82,11 @@ class PlatformInfo:
     l0a_size: int
     l0b_size: int
     l0c_size: int
-    bt_size: int
 
 
 def get_platform_info(platform: Platform) -> PlatformInfo:
     info_910b = PlatformInfo(ub_size=192 * 1024, l1_size=512 * 1024, l0a_size=64 * 1024, l0b_size=64 * 1024,
-                             l0c_size=128 * 1024, bt_size=1024)
+                             l0c_size=128 * 1024)
     if platform in (Platform.Ascend910B1, Platform.Ascend910B2, Platform.Ascend910B2C, Platform.Ascend910B3,
                     Platform.Ascend910B4, Platform.Ascend910B4_1):
         return info_910b
@@ -122,10 +94,11 @@ def get_platform_info(platform: Platform) -> PlatformInfo:
     if platform in (Platform.Ascend910_9362, Platform.Ascend910_9372, Platform.Ascend910_9381, Platform.Ascend910_9382,
                     Platform.Ascend910_9391, Platform.Ascend910_9392):
         return info_910_93
-    if platform in (Platform.Ascend950PR_950z, Platform.Ascend950PR_9579, Platform.Ascend950PR_957b,
+    if platform in (Platform.Ascend910_9579, Platform.Ascend910_9589, Platform.Ascend910_9599,
+                    Platform.Ascend950PR_950z, Platform.Ascend950PR_9579, Platform.Ascend950PR_957b,
                     Platform.Ascend950PR_957c, Platform.Ascend950PR_957d, Platform.Ascend950PR_9589,
                     Platform.Ascend950PR_958b, Platform.Ascend950PR_9599):
-        return dataclass_replace(info_910_93, ub_size=248 * 1024, bt_size=4 * 1024)
+        return dataclass_replace(info_910_93, ub_size=248 * 1024)
     raise ValueError(f"Unknown platform: {platform}")
 
 
@@ -142,10 +115,6 @@ class Launcher:
             return isinstance(value, torch.Tensor) and value.dim() == 0
         except ModuleNotFoundError:
             return False
-
-    @staticmethod
-    def get_ub_capacity() -> int:
-        return ub_capacity[Platform(rt.current_platform())]
 
     @staticmethod
     def is_torch_scalar(value: Any) -> bool:
@@ -227,14 +196,24 @@ class Launcher:
 
     @classmethod
     def check_memory_overflow(cls, memory_consumed: Dict[str, int]) -> None:
-        ub_consumed = memory_consumed.get("UB", 0)
-        if ub_consumed > cls.get_ub_capacity():
-            raise RuntimeError(f"UB overflow: {cls.get_ub_capacity()} is available, {ub_consumed} is used.")
-        # TODO: check other memory realms
+        platform_info = get_platform_info(Platform(rt.current_platform()))
+        key_to_attr = (
+            ("UB", "ub_size"),
+            ("L1", "l1_size"),
+            ("L0A", "l0a_size"),
+            ("L0B", "l0b_size"),
+            ("L0C", "l0c_size"),
+        )
+        for key, attr in key_to_attr:
+            consumed = memory_consumed.get(key, 0)
+            capacity = getattr(platform_info, attr)
+            if consumed > capacity:
+                raise RuntimeError(f"{key} overflow: {capacity} bytes are available, {consumed} bytes are used.")
 
     def run(self, kernel: CompiledKernel, function_name: str, user_args: Tuple[Any], discard_handles: bool = True,
             kernel_callback: Optional[KernelCallback] = None) -> None:
-        if kernel.meta.memory_consumed is not None:
+        is_launched = isinstance(kernel, LaunchedKernel)
+        if not is_launched and kernel.meta.memory_consumed is not None:
             self.check_memory_overflow(kernel.meta.memory_consumed)
         dry_run = os.environ.get('DRY_RUN')
         if dry_run:
@@ -254,7 +233,7 @@ class Launcher:
         if kernel.meta.enable_debug:
             kernel_args.append(np.zeros(utils.TOTAL_DUMP_SIZE, dtype=np.int8))
         kernel_args = self.expand_kernel_args(tuple(kernel_args))
-        if isinstance(kernel, LaunchedKernel):
+        if is_launched:
             kernel_handle = None
             function = kernel.handle
         else:
