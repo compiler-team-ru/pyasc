@@ -168,6 +168,7 @@ def squeeze(input: Tile, *axis: int) -> Tile:
     return reshape(input, *shape)
 
 
+@bind_tile_method
 def transpose(input: Tile) -> Tile:
     """
     Transpose a 2D tile by swapping its dimensions.

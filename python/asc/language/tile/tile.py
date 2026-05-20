@@ -221,6 +221,9 @@ class Tile(IRValue):
     def squeeze(self, *axis: int) -> Self:
         ...
 
+    def transpose(self) -> Self:
+        ...
+
 
 class BinaryOperandTypeError(TypeError):
     """Exception for dunder methods implementing binary operators"""

@@ -37,7 +37,7 @@ struct CubeTransposeToLoad : OpRewritePattern<asctile::TransposeOp> {
         auto tileLoc = opType.getLoc();
         if (tileLoc != TileLocation::L0A && tileLoc != TileLocation::L0B)
             return failure();
-        auto copyOp = op.getIn().getDefiningOp<asctile::CopyOp>();
+        auto copyOp = op.getOperand().getDefiningOp<asctile::CopyOp>();
         if (!copyOp || !copyOp->hasOneUse())
             return failure();
         const auto* attr = tileLoc == TileLocation::L0A ? asctile::attr::transposeA : asctile::attr::transposeB;

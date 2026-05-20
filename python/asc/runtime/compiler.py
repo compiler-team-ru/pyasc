@@ -211,6 +211,7 @@ class Compiler:
             passes.asctile.add_transform_math_ops(pm)
             passes.asctile.add_transform_store_fixpipe(pm)
             if arch_c310:
+                passes.asctile.add_vector_transpose_to_load(pm)
                 passes.asctile.add_unscalarize_reduction(pm)
                 passes.common.add_canonicalizer(pm)
                 passes.common.add_cse(pm)

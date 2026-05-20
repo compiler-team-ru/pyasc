@@ -17,27 +17,27 @@ def CubeTransposeToLoad : Pass<"asctile-cube-transpose-to-load", "func::FuncOp">
   let summary = "Remove transpose operations on cube operands and add transpose attributes to load/copy operations";
   let constructor = "mlir::asctile::createCubeTransposeToLoadPass()";
   let description = [{
-    This pass eliminates `asctile.transpose` operations on cube (matrix multiplication) operands in L0A/L0B 
+    This pass eliminates `asctile.transpose` operations on cube (matrix multiplication) operands in L0A/L0B
     buffers by adding `transposeA` or `transposeB` attributes to the underlying load and copy operations.
-    
+
     The transformation applies when:
     1. The transpose result is in L0A or L0B buffer (cube operands)
     2. The transpose input is a `copy` operation with exactly one use
     3. The copy's source is a `load` operation with exactly one use
-    
+
     The pass:
     - Removes the transpose operation
     - Adds `transposeA` attribute to load and copy if result is in L0A
     - Adds `transposeB` attribute to load and copy if result is in L0B
     - Swaps the dimensions in the copy result type (transposed shape)
-    
+
     Example transformation:
     ```mlir
     // Before: separate load, copy, and transpose
     %0 = load %tensor[%i, %j], %pad : tensor, tile<32x128xf16, L1>
     %1 = copy %0[%x, %y] : tile<32x128xf16, L1>, tile<32x128xf16, L0A>
     %2 = transpose %1 : tile<32x128xf16, L0A> to tile<128x32xf16, L0A>
-    
+
     // After: transpose attribute propagated, transpose op removed
     %0 = load %tensor[%i, %j], %pad {transposeA} : tensor, tile<32x128xf16, L1>
     %1 = copy %0[%x, %y] {transposeA} : tile<128x32xf16, L1>, tile<128x32xf16, L0A>
@@ -384,6 +384,26 @@ def UnscalarizeReduction : Pass<"asctile-unscalarize-reduction", "func::FuncOp">
     %scalar = reduce_as_1d <sum> %tile : tile<16xf32>, f32
     %result = adds %tile, %scalar : tile<16xf32>  // unscalarizable
     %scalar_op = addf %scalar, %scalar : f32      // scalar user -> NOT transformed
+    ```
+  }];
+}
+
+def VectorTransposeToLoad : Pass<"asctile-vector-transpose-to-load", "func::FuncOp"> {
+  let summary = "Replace transpose and load to single operation when possible";
+  let constructor = "mlir::asctile::createVectorTransposeToLoadPass()";
+  let dependentDialects = ["asctile::AscTileDialect"];
+  let description = [{
+    Replace `asctile.load` and `asctile.transpose` into single `asctile.load` with `asctile.transpose_dims` attribute.
+    This pass only handles GM->UB transfers.
+
+    Example:
+    ```mlir
+    // Before:
+    %1 = asctile.load : !asctile.tile<16x32xf32, UB>
+    %2 = asctile.transpose %1 : !asctile.tile<16x32xf32, UB> to !asctile.tile<32x16xf32, UB>
+
+    // After:
+    %2 = asctile.load {asctile.transpose_dims = [1, 0]} : !asctile.tile<32x16xf32, UB>
     ```
   }];
 }

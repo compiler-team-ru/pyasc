@@ -164,6 +164,54 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
                         dstNzMatrixStride});
                 rewriter.create<ascendc::DataCopyL2Op>(loc, dst, src, nd2NzParams);
             }
+        } else if (auto transposeAttrs = op->getAttrOfType<DenseI32ArrayAttr>(asctile::attr::transposeDims)) {
+            assert(dstLoc == asctile::TileLocation::UB);
+            auto padValue = rewriter.getRemappedValue(op.getPadValue());
+            auto typeSize = ascendc::getElementTypeSize(dstType);
+            auto numElements = calculateNumElements(rewriter, loc, srcShape);
+            auto offsets = op.getOffsets();
+            ArrayRef<int32_t> transposeDims = transposeAttrs;
+            auto dims = transposeDims.size();
+            auto realShapeValues = op.getRealShape();
+            SmallVector<int64_t> dimsOrder(dims, 0); // transpose dimension order
+            SmallVector<int64_t> readShape(dims, 0); // original read shape
+            for (size_t i = 0; i < dims; ++i) {
+                dimsOrder[i] = transposeDims[i];
+                readShape[dimsOrder[i]] = dstShape[i];
+            }
+            SmallVector<Value> size(dims, const1);
+            SmallVector<Value> strides(dims, Value());
+            strides.back() = const1;
+            for (int64_t i = static_cast<int64_t>(dims) - 2; i >= 0; i--) {
+                auto op = rewriter.create<arith::MulIOp>(loc, srcShape[i + 1], strides[i + 1]);
+                strides[i] = op;
+            }
+            SmallVector<Value> srcStride(dims, Value());
+            SmallVector<int32_t> dstStride(dims, 0);
+            SmallVector<int32_t> padLeft(dims, 0);
+            SmallVector<int32_t> padRight(dims, 0);
+            for (size_t i = 0; i < dims; ++i) {
+                if (i < realShapeValues.size())
+                    size[i] = rewriter.getRemappedValue(realShapeValues[i]);
+                else
+                    size[i] = consts.i32(readShape[i]);
+                int32_t writeStride = 1;
+                // get dimension i maps to dimension dimOrder[i]
+                // of target shape, so calc it stride
+                auto mappedDim = dimsOrder[i];
+                for (size_t j = mappedDim + 1; j < dims; ++j) {
+                    writeStride *= (int32_t)dstShape[j];
+                }
+                srcStride[i] = strides[i];
+                dstStride[i] = writeStride;
+                padLeft[i] = 0;
+                padRight[i] = 0;
+            }
+            auto paramsType = rewriter.getType<ascendc::NdDmaParamsType>(srcType.getElementType(), dims);
+            auto params = rewriter.create<ascendc::NdDmaParamsOp>(
+                loc, paramsType, dims, padValue, size, srcStride, rewriter.getI32ArrayAttr(dstStride),
+                rewriter.getI32ArrayAttr(padLeft), rewriter.getI32ArrayAttr(padRight));
+            rewriter.create<ascendc::DataCopyNdDmaOp>(loc, dst, src, params.getResult(), dims);
         } else {
             auto padValue = rewriter.getRemappedValue(op.getPadValue());
             auto typeSize = ascendc::getElementTypeSize(dstType);
