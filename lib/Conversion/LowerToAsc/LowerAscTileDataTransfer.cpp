@@ -10,6 +10,7 @@
 
 #include "ascir/Conversion/LowerToAsc/Passes.h"
 #include "ascir/Dialect/Asc/IR/Asc.h"
+#include "ascir/Dialect/Asc/Utils/Attributes.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/AscTile/Utils/Attributes.h"
@@ -166,10 +167,8 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
         } else {
             auto padValue = rewriter.getRemappedValue(op.getPadValue());
             auto typeSize = ascendc::getElementTypeSize(dstType);
-            auto numElements = calculateNumElements(rewriter, loc, srcShape);
             Value dstLastDim = consts.i32(dstShape[dstShape.size() - 1]);
             Value srcLastDim = srcShape[srcShape.size() - 1];
-            Value numElementsInBlock = consts.i32(ascendc::ubBlockSize / typeSize);
             Value typeSizeValue = consts.i32(typeSize);
             auto offsets = op.getOffsets();
             Value lastDimOffset = offsets.back();
@@ -180,40 +179,77 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
             Value minTailElements = rewriter.create<arith::MinSIOp>(loc, dstLastDim, tailElements);
             Value blockLen;
             Value srcStrideElements;
-            Value rightPad;
-            if (auto realShape = op.getRealShape(); !realShape.empty()) {
+            auto realShape = op.getRealShape();
+            if (!realShape.empty()) {
                 auto realLastDim = realShape.back();
                 Value realTailElements = rewriter.create<arith::MinSIOp>(loc, realLastDim, tailElements);
                 blockLen = rewriter.create<arith::MulIOp>(loc, realTailElements, typeSizeValue);
                 srcStrideElements = rewriter.create<arith::SubIOp>(loc, srcLastDim, realTailElements);
-                rightPad = rewriter.create<arith::SubIOp>(loc, dstLastDim, realLastDim);
             } else {
                 blockLen = rewriter.create<arith::MulIOp>(loc, minTailElements, typeSizeValue);
                 srcStrideElements = rewriter.create<arith::SubIOp>(loc, srcLastDim, minTailElements);
-                rightPad = rewriter.create<arith::SubIOp>(loc, dstLastDim, minTailElements);
             }
-            auto padMoreBlock =
-                rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::sgt, rightPad, numElementsInBlock);
-            rightPad = rewriter.create<arith::SelectOp>(loc, padMoreBlock, numElementsInBlock, rightPad);
-            auto ifPadMoreBlock = rewriter.create<scf::IfOp>(loc, padMoreBlock, false);
+            auto ubBlockSizeValue = consts.i32(ascendc::ubBlockSize);
+            auto blockLenRemainder = rewriter.create<arith::RemSIOp>(loc, blockLen, ubBlockSizeValue);
+            auto remainderIsZero =
+                rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::eq, blockLenRemainder, const0);
+            auto rightPadBytes = rewriter.create<arith::SelectOp>(
+                loc, remainderIsZero, const0, rewriter.create<arith::SubIOp>(loc, ubBlockSizeValue, blockLenRemainder));
+            auto alignedBlockSize = rewriter.create<arith::AddIOp>(loc, blockLen, rightPadBytes);
+            auto rowSizeBytes = rewriter.create<arith::MulIOp>(loc, dstLastDim, typeSizeValue);
+            auto hasGap =
+                rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::sgt, rowSizeBytes, alignedBlockSize);
+            auto ifHasGap = rewriter.create<scf::IfOp>(loc, hasGap, false);
             {
                 ConvertRewriter::InsertionGuard guard(rewriter);
-                rewriter.setInsertionPointToStart(ifPadMoreBlock.thenBlock());
-                rewriter.create<ascendc::DuplicateL2Op>(loc, dst, padValue, numElements);
+                rewriter.setInsertionPointToStart(ifHasGap.thenBlock());
+                rewriter.create<ascendc::DuplicateL2Op>(loc, dst, padValue, const0);
             }
-            Value srcStride = rewriter.create<arith::MulIOp>(loc, srcStrideElements, typeSizeValue);
             Value blockCount = const1;
-            for (size_t i = 0; i + 1 < dstShape.size(); i++)
-                blockCount = rewriter.create<arith::MulIOp>(loc, blockCount, consts.i32(dstShape[i]));
+            if (dstShape.size() > 1) {
+                // innerRows = max(0, min(srcRows, dstRows + offsetRows) - offsetRows)
+                // If real_shape is provided, further limit innerRows to real_shape[0]
+                auto srcRows = srcShape[0];
+                auto dstRows = consts.i32(dstShape[0]);
+                auto offsetRows = offsets[0];
+                auto endPos = rewriter.create<arith::AddIOp>(loc, dstRows, offsetRows);
+                auto clampedEnd = rewriter.create<arith::MinSIOp>(loc, srcRows, endPos);
+                auto rowCount = rewriter.create<arith::SubIOp>(loc, clampedEnd, offsetRows);
+                Value innerRows = rewriter.create<arith::MaxSIOp>(loc, const0, rowCount);
+                if (!realShape.empty()) {
+                    auto realRows = realShape[0];
+                    innerRows = rewriter.create<arith::MinSIOp>(loc, innerRows, realRows);
+                }
+                blockCount = innerRows;
+                auto padRows = rewriter.create<arith::SubIOp>(loc, dstRows, innerRows);
+                auto padRowsIsPositive =
+                    rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::sgt, padRows, const0);
+                auto ifPadRows = rewriter.create<scf::IfOp>(loc, padRowsIsPositive, false);
+                {
+                    ConvertRewriter::InsertionGuard guard(rewriter);
+                    rewriter.setInsertionPointToStart(ifPadRows.thenBlock());
+                    auto dstCols = consts.i32(dstShape.back());
+                    auto padOffset = rewriter.create<arith::MulIOp>(loc, innerRows, dstCols);
+                    auto padTensor = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dstType, dst, padOffset);
+                    auto padCalCount = rewriter.create<arith::MulIOp>(loc, padRows, dstCols);
+                    auto dupOp = rewriter.create<ascendc::DuplicateL2Op>(loc, padTensor, padValue, padCalCount);
+                    dupOp->setAttr(ascendc::attr::calCountSet, rewriter.getUnitAttr());
+                }
+            }
+
+            auto srcStride = rewriter.create<arith::MulIOp>(loc, srcStrideElements, typeSizeValue);
+            auto rightPadElements = rewriter.create<arith::DivSIOp>(loc, rightPadBytes, typeSizeValue);
+            auto dstStrideBytes = rewriter.create<arith::SubIOp>(loc, rowSizeBytes, alignedBlockSize);
+            auto dstStrideDataBlocks = rewriter.create<arith::DivSIOp>(loc, dstStrideBytes, ubBlockSizeValue);
             auto ui32Type = rewriter.getIntegerType(32, false);
             auto dataCopyExtParams = rewriter.create<ascendc::ConstructOp>(
                 loc, rewriter.getType<ascendc::DataCopyExtParamsType>(),
-                ValueRange{blockCount, blockLen, srcStride, const0, const0},
+                ValueRange{blockCount, blockLen, srcStride, dstStrideDataBlocks, const0},
                 rewriter.getTypeArrayAttr(
                     {rewriter.getIntegerType(16, false), ui32Type, ui32Type, ui32Type, ui32Type}));
             auto dataCopyPadExtParams = rewriter.create<ascendc::ConstructOp>(
                 loc, rewriter.getType<ascendc::DataCopyPadExtParamsType>(getElementTypeOrSelf(dstType)),
-                ValueRange{const1, const0, rightPad, padValue},
+                ValueRange{const1, const0, rightPadElements, padValue},
                 rewriter.getTypeArrayAttr(
                     {rewriter.getI32Type(), rewriter.getI32Type(), rewriter.getIntegerType(8, false),
                      padValue.getType()}));
