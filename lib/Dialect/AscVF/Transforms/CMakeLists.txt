@@ -11,6 +11,7 @@ add_mlir_dialect_library(MLIRAscVFTransforms
   EliminateDataTransfer.cpp
   FindVFGroup.cpp
   FuseVFFor.cpp
+  InsertLocalMemBar.cpp
   LowerToMicro.cpp
   MaterializeLoadStore.cpp
   ReorderOpsInVecScope.cpp

@@ -37,6 +37,13 @@ void merge(ascvf::VFForOp firstLoop, ascvf::VFForOp secondLoop)
     secondLoop.erase();
 }
 
+bool canMerge(ascvf::VFForOp firstLoop, ascvf::VFForOp secondLoop)
+{
+    Value val1 = firstLoop.getUpperBound();
+    Value val2 = secondLoop.getUpperBound();
+    return val1 == val2 || getConstantIntValue(val1) == getConstantIntValue(val2);
+}
+
 void fuseLoops(ascvf::VecScopeOp vecScopeOp)
 {
     auto& ops = vecScopeOp.getBody()->getOperations();
@@ -48,8 +55,10 @@ void fuseLoops(ascvf::VecScopeOp vecScopeOp)
         if (auto curLoop = dyn_cast<ascvf::VFForOp>(*it)) {
             auto nextIt = std::next(it);
             if (auto nextLoop = dyn_cast<ascvf::VFForOp>(*nextIt)) {
-                merge(curLoop, nextLoop);
-                merged = true;
+                if (canMerge(curLoop, nextLoop)) {
+                    merge(curLoop, nextLoop);
+                    merged = true;
+                }
             }
         }
         if (!merged)

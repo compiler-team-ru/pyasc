@@ -23,6 +23,7 @@ std::unique_ptr<Pass> createEliminateCommonMaskPass();
 std::unique_ptr<Pass> createEliminateDataTransferPass();
 std::unique_ptr<Pass> createFindVFGroupPass();
 std::unique_ptr<Pass> createFuseVFForPass();
+std::unique_ptr<Pass> createInsertLocalMemBarPass();
 std::unique_ptr<Pass> createLowerToMicroPass();
 std::unique_ptr<Pass> createMaterializeLoadStorePass();
 std::unique_ptr<Pass> createReorderOpsInVecScopePass();

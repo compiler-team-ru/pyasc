@@ -374,7 +374,7 @@ def AscendC_MemType : I32EnumAttr<"MemType", "", [
   I32EnumAttrCase<"SCALAR_ALL", 5>,
 ]>{
   let cppNamespace = "::mlir::ascendc";
-  let description = "Represents AscendC::Reg::MemType";
+  let description = "Represents AscendC::MicroAPI::MemType";
   let underlyingType = "uint8_t";
 }
 

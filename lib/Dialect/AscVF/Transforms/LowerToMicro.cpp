@@ -30,14 +30,10 @@ using namespace mlir;
 
 namespace {
 
-ascendc::UpdateMaskOp createUpdateMask(ascvf::VFForOp loop, Value calCount, Type type)
+ascendc::UpdateMaskOp createUpdateMask(OpBuilder& builder, Value calCountVar, Type type)
 {
-    OpBuilder builder(loop);
-    auto calCountVar = builder.create<emitasc::VariableOp>(
-        builder.getUnknownLoc(), MemRefType::get(1, builder.getIntegerType(32U, false)), calCount);
-    builder.setInsertionPointToStart(loop.getBody());
     auto updateMask = builder.create<ascendc::UpdateMaskOp>(
-        builder.getUnknownLoc(), builder.getType<ascendc::MaskRegType>(), calCountVar.getResult(), type);
+        builder.getUnknownLoc(), builder.getType<ascendc::MaskRegType>(), calCountVar, type);
     return updateMask;
 }
 
@@ -96,14 +92,21 @@ Value getNeutralElement(ascir::ConstantOpBuilder& consts, Type elemType)
 }
 
 class TranslatorFactory {
-    Value calCount, repeatTimes, oneRepeatSizeIndex;
+    Value calCount, oneRepeatSize;
     Type elemType;
 
 public:
-    TranslatorFactory(Value calCount, Value repeatTimes, Value oneRepeatSizeIndex, Type elemType)
-        : calCount(calCount), repeatTimes(repeatTimes), oneRepeatSizeIndex(oneRepeatSizeIndex), elemType(elemType)
+    TranslatorFactory(Value calCount, Value oneRepeatSize, Type elemType)
+        : calCount(calCount), oneRepeatSize(oneRepeatSize), elemType(elemType)
     {}
     ~TranslatorFactory() = default;
+
+    Value createRepeatTimes(OpBuilder builder)
+    {
+        auto repeatTimes = builder.create<arith::CeilDivSIOp>(
+            builder.getUnknownLoc(), builder.getIndexType(), calCount, oneRepeatSize);
+        return repeatTimes.getResult();
+    }
 
     template <typename T>
     auto binary()
@@ -115,12 +118,13 @@ public:
             auto src1Reg = createRegTensor(builder, elemType);
             auto dstReg = createRegTensor(builder, elemType);
 
-            auto loop = createLoop(builder);
+            auto calCountVar = builder.create<emitasc::VariableOp>(
+                builder.getUnknownLoc(), MemRefType::get(1, builder.getIntegerType(32U, false)), calCount);
+            auto repeatTimes = createRepeatTimes(builder);
+            auto loop = createLoop(builder, repeatTimes);
             builder.setInsertionPointToStart(loop.getBody());
-
-            auto updateMask = createUpdateMask(loop, calCount, elemType);
-            auto mulOp =
-                builder.create<arith::MulIOp>(builder.getUnknownLoc(), loop.getInductionVar(), oneRepeatSizeIndex);
+            auto updateMask = createUpdateMask(builder, calCountVar.getResult(), elemType);
+            auto mulOp = builder.create<arith::MulIOp>(builder.getUnknownLoc(), loop.getInductionVar(), oneRepeatSize);
             createLoad(builder, src0Reg, binaryOp.getSrc0(), mulOp);
             createLoad(builder, src1Reg, binaryOp.getSrc1(), mulOp);
             builder.create<T>(builder.getUnknownLoc(), dstReg, src0Reg, src1Reg, updateMask.getResult());
@@ -138,12 +142,14 @@ public:
             ascir::ConstantOpBuilder consts(builder);
             auto srcReg = createRegTensor(builder, elemType);
             auto dstReg = createRegTensor(builder, elemType);
-            auto loop = createLoop(builder);
-            builder.setInsertionPointToStart(loop.getBody());
 
-            auto updateMask = createUpdateMask(loop, calCount, elemType);
-            auto mulOp =
-                builder.create<arith::MulIOp>(builder.getUnknownLoc(), loop.getInductionVar(), oneRepeatSizeIndex);
+            auto calCountVar = builder.create<emitasc::VariableOp>(
+                builder.getUnknownLoc(), MemRefType::get(1, builder.getIntegerType(32U, false)), calCount);
+            auto repeatTimes = createRepeatTimes(builder);
+            auto loop = createLoop(builder, repeatTimes);
+            builder.setInsertionPointToStart(loop.getBody());
+            auto updateMask = createUpdateMask(builder, calCountVar.getResult(), elemType);
+            auto mulOp = builder.create<arith::MulIOp>(builder.getUnknownLoc(), loop.getInductionVar(), oneRepeatSize);
             createLoad(builder, srcReg, unaryOp.getSrc(), mulOp);
             builder.create<T>(builder.getUnknownLoc(), dstReg, srcReg, updateMask.getResult());
             createStore(builder, unaryOp.getDst(), dstReg, mulOp, updateMask.getResult());
@@ -161,21 +167,36 @@ public:
             auto srcReg = createRegTensor(builder, elemType);
             auto dstReg = createRegTensor(builder, elemType);
             auto accReg = createRegTensor(builder, elemType);
+            auto acc0Reg = createRegTensor(builder, elemType);
             Value neutral = getNeutralElement<ReduceL2Op>(consts, elemType);
-            auto duplicateOp =
-                builder.create<ascendc::DuplicateScalarMicroOp>(builder.getUnknownLoc(), accReg, neutral);
-
-            auto loop = createLoop(builder);
+            builder.create<ascendc::DuplicateScalarMicroOp>(builder.getUnknownLoc(), accReg, neutral);
+            auto maskAll = createMask(builder, elemType, ascendc::MaskPattern::ALL);
+            auto repeatTimes = builder.create<arith::CeilDivSIOp>(
+                builder.getUnknownLoc(), builder.getIndexType(), calCount, oneRepeatSize);
+            auto calCountVar = builder.create<emitasc::VariableOp>(
+                builder.getUnknownLoc(), MemRefType::get(1, builder.getIntegerType(32U, false)), calCount);
+            auto loop = createLoop(builder, repeatTimes);
             builder.setInsertionPoint(loop);
             builder.setInsertionPointToStart(loop.getBody());
-            auto mulOp =
-                builder.create<arith::MulIOp>(builder.getUnknownLoc(), loop.getInductionVar(), oneRepeatSizeIndex);
-            auto updateMask = createUpdateMask(loop, calCount, elemType);
-            auto load = createLoad(builder, srcReg, reduceOp.getSrc(), mulOp);
-            builder.create<AccumulateMicroOp>(builder.getUnknownLoc(), accReg, accReg, srcReg, updateMask);
+            auto updateMask = createUpdateMask(builder, calCountVar.getResult(), elemType);
+            auto mulOp = builder.create<arith::MulIOp>(builder.getUnknownLoc(), loop.getInductionVar(), oneRepeatSize);
+            createLoad(builder, srcReg, reduceOp.getSrc(), mulOp);
+            builder.create<AccumulateMicroOp>(builder.getUnknownLoc(), accReg, accReg, srcReg, maskAll);
 
             builder.setInsertionPointAfter(loop);
-            auto maskAll = createMask(builder, elemType, ascendc::MaskPattern::ALL);
+            auto remOp = builder.create<arith::RemSIOp>(builder.getUnknownLoc(), calCount, oneRepeatSize);
+            auto cmpOp = builder.create<arith::CmpIOp>(
+                builder.getUnknownLoc(), arith::CmpIPredicate::ne, remOp.getResult(), consts.index(0));
+            auto ifOp = builder.create<scf::IfOp>(builder.getUnknownLoc(), cmpOp.getResult(), false);
+            builder.create<ascendc::DuplicateScalarMicroOp>(builder.getUnknownLoc(), acc0Reg, neutral);
+            builder.setInsertionPointToStart(ifOp.getBody());
+            auto lastIter = builder.create<arith::MulIOp>(builder.getUnknownLoc(), repeatTimes, oneRepeatSize);
+            createLoad(builder, srcReg, reduceOp.getSrc(), lastIter);
+            auto tailMask = createUpdateMask(builder, calCountVar.getResult(), elemType);
+            builder.create<ascendc::SelectMicroOp>(builder.getUnknownLoc(), acc0Reg, srcReg, acc0Reg, tailMask);
+            builder.create<AccumulateMicroOp>(builder.getUnknownLoc(), accReg, accReg, acc0Reg, maskAll);
+
+            builder.setInsertionPointAfter(ifOp);
             builder.create<ReduceMicroOp>(builder.getUnknownLoc(), dstReg, accReg, maskAll);
             auto maskOne = createMask(builder, elemType, ascendc::MaskPattern::VL1);
             createStore(builder, reduceOp.getDst(), dstReg, consts.index(0), maskOne);
@@ -195,22 +216,23 @@ public:
             auto maskAll = createMask(builder, elemType, ascendc::MaskPattern::ALL);
             builder.create<ascendc::DuplicateMicroOp>(builder.getUnknownLoc(), tmpReg, srcReg, maskAll);
 
-            auto loop = createLoop(builder);
-            auto updateMask = createUpdateMask(loop, calCount, elemType);
+            auto calCountVar = builder.create<emitasc::VariableOp>(
+                builder.getUnknownLoc(), MemRefType::get(1, builder.getIntegerType(32U, false)), calCount);
+            auto repeatTimes = createRepeatTimes(builder);
+
+            auto loop = createLoop(builder, repeatTimes);
             builder.setInsertionPoint(loop.getBody()->getTerminator());
-            auto mulOp =
-                builder.create<arith::MulIOp>(builder.getUnknownLoc(), loop.getInductionVar(), oneRepeatSizeIndex);
+            auto updateMask = createUpdateMask(builder, calCountVar.getResult(), elemType);
+            auto mulOp = builder.create<arith::MulIOp>(builder.getUnknownLoc(), loop.getInductionVar(), oneRepeatSize);
             auto store = createStore(builder, duplicateOp.getDst(), tmpReg, mulOp, updateMask);
             duplicateOp.erase();
         };
     }
 
 private:
-    ascvf::VFForOp createLoop(OpBuilder builder)
+    ascvf::VFForOp createLoop(OpBuilder builder, Value ub)
     {
-        ascir::ConstantOpBuilder consts(builder);
-        auto loop = builder.create<ascvf::VFForOp>(builder.getUnknownLoc(), repeatTimes);
-        return loop;
+        return builder.create<ascvf::VFForOp>(builder.getUnknownLoc(), ub);
     }
 };
 
@@ -224,29 +246,25 @@ Value createGetVecLen(OpBuilder builder, Operation* op)
     return getVecLenIndex.getResult();
 }
 
-std::pair<Value, Value> createRepeatTimes(OpBuilder builder, Value calCount, Value getVecLenIndex, Type groupType)
+Value createOneRepeatSize(OpBuilder builder, Value getVecLenIndex, Type groupType)
 {
     ascir::ConstantOpBuilder consts(builder);
     auto sizeIndex = consts.index(ascendc::getTypeSize(groupType));
-    auto div =
+    auto oneRepeatSize =
         builder.create<arith::DivSIOp>(builder.getUnknownLoc(), builder.getIndexType(), getVecLenIndex, sizeIndex);
-    auto oneRepeatSizeIndex = div.getResult();
-    if (!calCount.getType().isIndex()) {
-        auto castOp = builder.create<arith::IndexCastOp>(builder.getUnknownLoc(), builder.getIndexType(), calCount);
-        calCount = castOp.getResult();
-    }
-    auto repeatTimes = builder.create<arith::CeilDivSIOp>(
-        builder.getUnknownLoc(), builder.getIndexType(), calCount, oneRepeatSizeIndex);
-    return {oneRepeatSizeIndex, repeatTimes};
+    return oneRepeatSize;
 }
 
 void lowerToMicro(ascvf::VecScopeOp vecScopeOp, Value calCount, Type groupType)
 {
     auto builder = OpBuilder::atBlockBegin(vecScopeOp.getBody());
-    Value oneRepeatSizeIndex, repeatTimes;
     auto getVecLenIndex = createGetVecLen(builder, vecScopeOp);
-    std::tie(oneRepeatSizeIndex, repeatTimes) = createRepeatTimes(builder, calCount, getVecLenIndex, groupType);
-    TranslatorFactory factory(calCount, repeatTimes, oneRepeatSizeIndex, groupType);
+    Value oneRepeatSizeIndex = createOneRepeatSize(builder, getVecLenIndex, groupType);
+    if (!calCount.getType().isIndex()) {
+        auto castOp = builder.create<arith::IndexCastOp>(builder.getUnknownLoc(), builder.getIndexType(), calCount);
+        calCount = castOp.getResult();
+    }
+    TranslatorFactory factory(calCount, oneRepeatSizeIndex, groupType);
 
     vecScopeOp.walk([&](Operation* op) {
         llvm::TypeSwitch<Operation*>(op)

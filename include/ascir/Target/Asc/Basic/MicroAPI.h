@@ -68,6 +68,10 @@ LogicalResult printOperation(CodeEmitter& emitter, ascendc::DuplicateScalarMicro
 
 LogicalResult printOperation(CodeEmitter& emitter, ascendc::GetVecLenOp op);
 
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::LocalMemBarOp op);
+
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::SelectMicroOp op);
+
 LogicalResult printOperation(CodeEmitter& emitter, ascendc::CreateMaskOp op);
 
 } // namespace ascendc

@@ -56,6 +56,17 @@ def FuseVFFor : Pass<"ascvf-fuse-vf-for", "func::FuncOp"> {
   let dependentDialects = ["ascvf::AscVFDialect"];
 }
 
+def InsertLocalMemBar : Pass<"ascvf-insert-local-mem-bar", "func::FuncOp"> {
+  let summary = "Inserts local memory barriers between consecutive VFForOp loops";
+  let description = [{
+    Inserts LocalMemBarOp operations between consecutive VFForOp loops within
+    VFGroupOp to synchronize vector store and vector load operations, ensuring
+    proper memory ordering for vector fusion execution.
+  }];
+  let constructor = "mlir::ascvf::createInsertLocalMemBarPass()";
+  let dependentDialects = ["ascvf::AscVFDialect"];
+}
+
 def LowerToMicro : Pass<"ascvf-lower-to-micro", "func::FuncOp"> {
   let summary = "Lowers L2 operations to micro-level operations with loops";
   let description = [{

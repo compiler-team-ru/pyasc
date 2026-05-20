@@ -242,10 +242,12 @@ class Compiler:
             passes.ascvf.add_find_vf_group(pm)
             passes.ascvf.add_lower_to_micro(pm)
             passes.common.add_canonicalizer(pm)
+            passes.common.add_cse(pm)
             passes.ascvf.add_reorder_ops_in_vec_scope(pm)
             passes.ascvf.add_fuse_vf_for(pm)
             passes.ascvf.add_eliminate_data_transfer(pm)
             passes.ascvf.add_eliminate_common_mask(pm)
+            passes.ascvf.add_insert_local_mem_bar(pm)
             passes.ascvf.add_materialize_load_store(pm)
         if self.options.static_alloc:
             passes.ascendc.add_allocate_tensor(pm)
