@@ -83,6 +83,11 @@ def AscendC_DuplicateScalarMicroOp : AscendC_Op<"duplicate", []> {
 // Other MicroAPI operations
 //===----------------------------------------------------------------------===//
 
+def MicroAPI_SelectMicroOp : MicroAPIOp<"select_micro", "Select"> {
+  let arguments = (ins AscendC_RegTensor:$dstReg, AscendC_RegTensor:$src0Reg,
+                       AscendC_RegTensor:$src1Reg, AscendC_MaskReg:$maskReg);
+}
+
 def MicroAPI_DataCopyLoadOp : MicroAPIOp<"data_copy_vld_micro", "DataCopy"> {
   let description = "Perform copying between tensors (UB to RegTensor)";
   let arguments = (ins AscendC_RegTensor:$dstReg,
@@ -112,6 +117,11 @@ def MicroAPI_RegTensorOp : MicroAPIOp<"reg_tensor", "RegTensor"> {
   let assemblyFormat = [{
     attr-dict `:` type($result)
   }];
+}
+
+def MicroAPI_LocalMemBarOp : MicroAPIOp<"local_mem_bar", "LocalMemBar"> {
+  let arguments = (ins AscendC_MemType:$src, AscendC_MemType:$dst);
+  let assemblyFormat = "$src `,` $dst attr-dict";
 }
 
 def MicroAPI_MaskRegOp : MicroAPIOp<"mask_reg", "MaskReg"> {

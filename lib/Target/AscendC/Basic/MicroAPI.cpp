@@ -66,6 +66,24 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GetVe
     return success();
 }
 
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::LocalMemBarOp op)
+{
+    auto& os = emitter.ostream();
+    os << ascNamespace << "::" << op.getAPIName() << "<" << ascNamespace
+       << "::MicroAPI::MemType::" << ascendc::stringifyEnum(op.getSrc()) << ", " << ascNamespace
+       << "::MicroAPI::MemType::" << ascendc::stringifyEnum(op.getDst()) << ">()";
+    return success();
+}
+
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::SelectMicroOp op)
+{
+    auto& os = emitter.ostream();
+    os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDstReg()) << ", "
+       << emitter.getOrCreateName(op.getSrc0Reg()) << ", " << emitter.getOrCreateName(op.getSrc1Reg()) << ", "
+       << emitter.getOrCreateName(op.getMaskReg()) << ")";
+    return success();
+}
+
 LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::CreateMaskOp op)
 {
     auto& os = emitter.ostream();

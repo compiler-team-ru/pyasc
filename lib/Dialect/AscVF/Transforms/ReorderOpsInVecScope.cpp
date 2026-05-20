@@ -30,17 +30,19 @@ using namespace mlir;
 
 namespace {
 
-enum class Order { ConstantOp, RegTensorOp, VariableOp, UpdateMaskOp, CreateMaskOp, DuplicateOp, Any };
+enum class Order { ConstantOp, RegTensorOp, CreateMaskOp, DuplicateOp, Expr, Any };
 
 Order getOrder(Operation* op)
 {
     return llvm::TypeSwitch<Operation*, Order>(op)
-        .Case<arith::ConstantOp>([](auto) { return Order::ConstantOp; })
-        .Case<ascendc::RegTensorOp>([](auto) { return Order::RegTensorOp; })
-        .Case<emitasc::VariableOp>([](auto) { return Order::VariableOp; })
-        .Case<ascendc::UpdateMaskOp>([](auto) { return Order::UpdateMaskOp; })
-        .Case<ascendc::CreateMaskOp>([](auto) { return Order::CreateMaskOp; })
-        .Case<ascendc::DuplicateScalarMicroOp>([](auto) { return Order::DuplicateOp; })
+        .Case([](ascendc::DuplicateScalarMicroOp) { return Order::DuplicateOp; })
+        .Case([](arith::ConstantOp) { return Order::ConstantOp; })
+        .Case([](ascendc::CreateMaskOp) { return Order::CreateMaskOp; })
+        .Case<
+            arith::AddIOp, arith::SubIOp, arith::DivSIOp, arith::CeilDivSIOp, arith::MulIOp, arith::RemSIOp,
+            arith::CmpIOp, emitasc::VariableOp, ascendc::GetVecLenOp, ascendc::UpdateMaskOp, arith::IndexCastOp>(
+            [](auto) { return Order::Expr; })
+        .Case([](ascendc::RegTensorOp) { return Order::RegTensorOp; })
         .Default([](auto) { return Order::Any; });
 }
 

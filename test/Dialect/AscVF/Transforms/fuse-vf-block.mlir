@@ -1,4 +1,4 @@
-// RUN: ascir-opt -ascvf-find-vf-group -ascvf-lower-to-micro -ascvf-reorder-ops-in-vec-scope -ascvf-fuse-vf-for -ascvf-eliminate-data-transfer -ascvf-eliminate-common-mask -ascvf-materialize-load-store %s | FileCheck %s
+// RUN: ascir-opt -ascvf-find-vf-group -ascvf-lower-to-micro -cse -ascvf-reorder-ops-in-vec-scope -ascvf-fuse-vf-for -ascvf-eliminate-data-transfer -ascvf-eliminate-common-mask -ascvf-materialize-load-store %s | FileCheck %s
 
 // CHECK-LABEL: func.func @general_test(%arg0: !ascendc.que_bind<gm, vecin, 1>) {
 // CHECK:   ascvf.vf_group %0, %2, %1, %c256_i32 : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32 {
@@ -6,22 +6,22 @@
 // CHECK:     %4 = ascendc.local_tensor.get_phy_addr_v2 %2 : !ascendc.local_tensor<*xf32>, memref<f32, 26>
 // CHECK:     %5 = ascendc.local_tensor.get_phy_addr_v2 %0 : !ascendc.local_tensor<*xf32>, memref<f32, 26>
 // CHECK:     ascvf.vec_scope {
-// CHECK:       %12 = emitasc.variable %c256_i32 : i32, memref<1xui32>
-// CHECK:       %13 = emitasc.variable %c256_i32 : i32, memref<1xui32>
-// CHECK:       %14 = ascendc.get_vec_len : index
-// CHECK:       %15 = arith.divsi %14, %c4 : index
-// CHECK:       %16 = arith.index_cast %c256_i32 : i32 to index
-// CHECK:       %17 = arith.ceildivsi %16, %15 : index
-// CHECK:       ascvf.vf_for %17 : index {
+// CHECK:       %12 = ascendc.get_vec_len : index
+// CHECK:       %13 = arith.divsi %12, %c4 : index
+// CHECK:       %14 = arith.index_cast %c256_i32 : i32 to index
+// CHECK:       %15 = emitasc.variable %14 : index, memref<1xui32>
+// CHECK:       %16 = arith.ceildivsi %14, %13 : index
+// CHECK:       %17 = emitasc.variable %14 : index, memref<1xui32>
+// CHECK:       ascvf.vf_for %16 : index {
 // CHECK:       ^bb0(%arg1: index):
-// CHECK:         %18 = ascendc.update_mask f32, %12 : memref<1xui32>
-// CHECK:         %19 = arith.muli %arg1, %15 : index
+// CHECK:         %18 = ascendc.update_mask f32, %15 : memref<1xui32>
+// CHECK:         %19 = arith.muli %arg1, %13 : index
 // CHECK:         %20 = emitasc.ptr_offset %3[%19] : memref<f32, 26>, memref<f32, 26>
 // CHECK:         ascendc.data_copy_vld_micro %6, %20 : !ascendc.reg_tensor<f32>, memref<f32, 26>
 // CHECK:         %21 = emitasc.ptr_offset %4[%19] : memref<f32, 26>, memref<f32, 26>
 // CHECK:         ascendc.data_copy_vld_micro %7, %21 : !ascendc.reg_tensor<f32>, memref<f32, 26>
 // CHECK:         ascendc.add_micro %8, %6, %7, %18 : !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-// CHECK:         %22 = arith.muli %arg1, %15 : index
+// CHECK:         %22 = arith.muli %arg1, %13 : index
 // CHECK:         ascendc.mul_micro %11, %8, %7, %18 : !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
 // CHECK:         %23 = emitasc.ptr_offset %5[%22] : memref<f32, 26>, memref<f32, 26>
 // CHECK:         ascendc.data_copy_vst_micro %23, %11, %18 : memref<f32, 26>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg

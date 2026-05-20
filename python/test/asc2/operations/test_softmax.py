@@ -50,6 +50,7 @@ def test_softmax_2d(dtype: torch.dtype, shape):
     (torch.float16, 1024),
     (torch.float32, 8),
     (torch.float32, 1024),
+    (torch.float32, 1040),
 ])
 def test_softmax_1d(dtype: torch.dtype, length):
     src = torch.rand(length, dtype=dtype)
