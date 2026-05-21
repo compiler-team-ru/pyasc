@@ -85,7 +85,7 @@ struct LowerMathPass : public asclower::impl::LowerMathBase<LowerMathPass> {
         RewritePatternSet patterns(context);
         patterns.insert<
             //
-            ConvertUnaryToLib<math::LogOp, ascendc::LogOp>, ConvertUnaryToLib<math::ErfOp, ascendc::ErfOp>,
+            ConvertUnaryToL2<math::LogOp, ascendc::LnL2Op>, ConvertUnaryToLib<math::ErfOp, ascendc::ErfOp>,
             ConvertUnaryToLib<math::AsinOp, ascendc::AsinOp>, ConvertUnaryToLib<math::AcosOp, ascendc::AcosOp>,
             ConvertUnaryToLib<math::CosOp, ascendc::CosOp>, ConvertUnaryToLib<math::SinOp, ascendc::SinOp>,
             ConvertUnaryToLib<math::TanOp, ascendc::TanOp>, ConvertUnaryToLib<math::SinhOp, ascendc::SinhOp>,

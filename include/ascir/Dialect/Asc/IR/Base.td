@@ -303,6 +303,13 @@ class UnaryMicroOp<string baseMnemonic, string apiName, list<Trait> traits = []>
                    AscendC_MaskReg:$maskReg);
 }
 
+class VecScalarMicroOp<string baseMnemonic, string apiName, list<Trait> traits = []>
+    : MicroAPIOp<baseMnemonic # "_micro", apiName, [VecScalarMicroOpInterface] # traits> {
+  let description = "`AscendC::MicroAPI::" # apiName # "` is a vector scalar MicroAPI operation.\n";
+  let arguments = (ins AscendC_RegTensor:$dstReg, AscendC_RegTensor:$srcReg, AnyType: $scalar,
+                   AscendC_MaskReg:$maskReg);
+}
+
 //===----------------------------------------------------------------------===//
 // Math library operations
 //===----------------------------------------------------------------------===//

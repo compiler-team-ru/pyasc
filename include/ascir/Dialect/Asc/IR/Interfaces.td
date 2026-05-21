@@ -276,6 +276,11 @@ def UnaryMicroOpInterface : AscendC_OpInterface<"UnaryMicroOp", [MicroAPIOpInter
   let methods = [getDstReg, getSrcReg, getMaskReg];
 }
 
+def VecScalarMicroOpInterface : AscendC_OpInterface<"VecScalarMicroOp", [MicroAPIOpInterface]> {
+  let description = "Vector scalar operation (MicroAPI)";
+  let methods = [getDstReg, getSrcReg, getScalar, getMaskReg];
+}
+
 //===----------------------------------------------------------------------===//
 // Math library operations
 //===----------------------------------------------------------------------===//

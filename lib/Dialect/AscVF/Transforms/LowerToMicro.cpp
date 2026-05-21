@@ -158,6 +158,30 @@ public:
         };
     }
 
+    template <typename T>
+    auto vecScalar()
+    {
+        return [&](ascendc::VecScalarL2Op vecScalarOp) {
+            OpBuilder builder(vecScalarOp);
+            ascir::ConstantOpBuilder consts(builder);
+            auto srcReg = createRegTensor(builder, elemType);
+            auto dstReg = createRegTensor(builder, elemType);
+
+            auto calCountVar = builder.create<emitasc::VariableOp>(
+                builder.getUnknownLoc(), MemRefType::get(1, builder.getIntegerType(32U, false)), calCount);
+            auto repeatTimes = createRepeatTimes(builder);
+            auto loop = createLoop(builder, repeatTimes);
+            builder.setInsertionPointToStart(loop.getBody());
+            auto updateMask = createUpdateMask(builder, calCountVar.getResult(), elemType);
+            auto mulOp = builder.create<arith::MulIOp>(builder.getUnknownLoc(), loop.getInductionVar(), oneRepeatSize);
+            createLoad(builder, srcReg, vecScalarOp.getSrc(), mulOp);
+            builder.create<T>(builder.getUnknownLoc(), dstReg, srcReg, vecScalarOp.getScalar(), updateMask.getResult());
+            createStore(builder, vecScalarOp.getDst(), dstReg, mulOp, updateMask.getResult());
+
+            vecScalarOp.erase();
+        };
+    }
+
     template <typename ReduceL2Op, typename AccumulateMicroOp, typename ReduceMicroOp>
     auto reduce()
     {
@@ -171,7 +195,7 @@ public:
             Value neutral = getNeutralElement<ReduceL2Op>(consts, elemType);
             builder.create<ascendc::DuplicateScalarMicroOp>(builder.getUnknownLoc(), accReg, neutral);
             auto maskAll = createMask(builder, elemType, ascendc::MaskPattern::ALL);
-            auto repeatTimes = builder.create<arith::CeilDivSIOp>(
+            auto repeatTimes = builder.create<arith::DivSIOp>(
                 builder.getUnknownLoc(), builder.getIndexType(), calCount, oneRepeatSize);
             auto calCountVar = builder.create<emitasc::VariableOp>(
                 builder.getUnknownLoc(), MemRefType::get(1, builder.getIntegerType(32U, false)), calCount);
@@ -188,8 +212,8 @@ public:
             auto cmpOp = builder.create<arith::CmpIOp>(
                 builder.getUnknownLoc(), arith::CmpIPredicate::ne, remOp.getResult(), consts.index(0));
             auto ifOp = builder.create<scf::IfOp>(builder.getUnknownLoc(), cmpOp.getResult(), false);
-            builder.create<ascendc::DuplicateScalarMicroOp>(builder.getUnknownLoc(), acc0Reg, neutral);
             builder.setInsertionPointToStart(ifOp.getBody());
+            builder.create<ascendc::DuplicateScalarMicroOp>(builder.getUnknownLoc(), acc0Reg, neutral);
             auto lastIter = builder.create<arith::MulIOp>(builder.getUnknownLoc(), repeatTimes, oneRepeatSize);
             createLoad(builder, srcReg, reduceOp.getSrc(), lastIter);
             auto tailMask = createUpdateMask(builder, calCountVar.getResult(), elemType);
@@ -293,7 +317,15 @@ void lowerToMicro(ascvf::VecScopeOp vecScopeOp, Value calCount, Type groupType)
             .Case<ascendc::NegL2Op>(factory.unary<ascendc::NegMicroOp>())
             .Case<ascendc::NotL2Op>(factory.unary<ascendc::NotMicroOp>())
             .Case<ascendc::ReluL2Op>(factory.unary<ascendc::ReluMicroOp>())
-            .Case<ascendc::SqrtL2Op>(factory.unary<ascendc::SqrtMicroOp>());
+            .Case<ascendc::SqrtL2Op>(factory.unary<ascendc::SqrtMicroOp>())
+            // VecScalarOp
+            .Case<ascendc::AddsL2Op>(factory.vecScalar<ascendc::AddsMicroOp>())
+            .Case<ascendc::LeakyReluL2Op>(factory.vecScalar<ascendc::LeakyReluMicroOp>())
+            .Case<ascendc::MaxsL2Op>(factory.vecScalar<ascendc::MaxsMicroOp>())
+            .Case<ascendc::MinsL2Op>(factory.vecScalar<ascendc::MinsMicroOp>())
+            .Case<ascendc::MulsL2Op>(factory.vecScalar<ascendc::MulsMicroOp>())
+            .Case<ascendc::ShiftLeftL2Op>(factory.vecScalar<ascendc::ShiftLeftsMicroOp>())
+            .Case<ascendc::ShiftRightL2Op>(factory.vecScalar<ascendc::ShiftRightsMicroOp>());
     });
 }
 

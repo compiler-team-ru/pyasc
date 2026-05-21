@@ -5,8 +5,7 @@
 // CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <777xf32>
 // CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<777xf32> to !asctile.tile<777xf32, UB>
 // CHECK-NEXT:  %c777_i64 = arith.constant 777 : i64
-// CHECK-NEXT:  %false = arith.constant false
-// CHECK-NEXT:  ascendc.log %1, %0, %c777_i64, %false {operandSegmentSizes = array<i32: 1, 1, 0, 1, 1>}
+// CHECK-NEXT:  ascendc.ln_l2 %1, %0, %c777_i64 : !ascendc.local_tensor<777xf32>, !ascendc.local_tensor<777xf32>, i64
 // CHECK-NEXT:  return
 // CHECK-NEXT:}
 func.func @lower_log(%arg0: !asctile.tile<777xf32, UB>) -> !asctile.tile<777xf32, UB> {

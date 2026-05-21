@@ -54,13 +54,17 @@ bool isFusible(Operation* op)
         ascendc::PreluL2Op,
         // Vector unary operations (L2)
         ascendc::AbsL2Op, ascendc::ExpL2Op, ascendc::LnL2Op, ascendc::NegL2Op, ascendc::NotL2Op, ascendc::ReluL2Op,
-        ascendc::SqrtL2Op>(op);
+        ascendc::SqrtL2Op,
+        // Vector scalar operations (L2)
+        ascendc::AddsL2Op, ascendc::MulsL2Op, ascendc::MaxsL2Op, ascendc::MinsL2Op, ascendc::LeakyReluL2Op,
+        ascendc::ShiftLeftL2Op, ascendc::ShiftRightL2Op>(op);
 }
 
 Value getCalCount(Operation* op)
 {
     return llvm::TypeSwitch<Operation*, Value>(op)
-        .Case<ascendc::BinaryL2Op, ascendc::UnaryL2Op, ascendc::DuplicateL2Op>([](auto op) { return op.getCalCount(); })
+        .Case<ascendc::BinaryL2Op, ascendc::UnaryL2Op, ascendc::VecScalarL2Op, ascendc::DuplicateL2Op>(
+            [](auto op) { return op.getCalCount(); })
         .Case<ascendc::ReduceMaxL2Op, ascendc::ReduceMinL2Op, ascendc::ReduceSumL2Op>(
             [](auto op) { return op.getCount(); })
         .Default([](Operation* /*op*/) { return Value{}; });
@@ -70,8 +74,8 @@ Type getType(Operation* op)
 {
     return llvm::TypeSwitch<Operation*, Type>(op)
         .Case<
-            ascendc::BinaryL2Op, ascendc::UnaryL2Op, ascendc::ReduceMaxL2Op, ascendc::ReduceMinL2Op,
-            ascendc::ReduceSumL2Op, ascendc::DuplicateL2Op>([](auto op) {
+            ascendc::BinaryL2Op, ascendc::UnaryL2Op, ascendc::VecScalarL2Op, ascendc::ReduceMaxL2Op,
+            ascendc::ReduceMinL2Op, ascendc::ReduceSumL2Op, ascendc::DuplicateL2Op>([](auto op) {
             assert(isa<ascendc::LocalTensorType>(op.getDst().getType()));
             return getElementTypeOrSelf(op.getDst());
         })
@@ -173,8 +177,8 @@ ValueVector getOutputLocalTensors(ArrayRef<Operation*> group)
     for (auto* op : group) {
         llvm::TypeSwitch<Operation*>(op)
             .Case<
-                ascendc::BinaryL2Op, ascendc::UnaryL2Op, ascendc::ReduceMaxL2Op, ascendc::ReduceMinL2Op,
-                ascendc::ReduceSumL2Op, ascendc::DuplicateL2Op>(
+                ascendc::BinaryL2Op, ascendc::UnaryL2Op, ascendc::VecScalarL2Op, ascendc::ReduceMaxL2Op,
+                ascendc::ReduceMinL2Op, ascendc::ReduceSumL2Op, ascendc::DuplicateL2Op>(
                 [&](auto op) { outputLocalTensors.push_back(op.getDst()); });
     }
     return ascvf::deduplicate(outputLocalTensors);

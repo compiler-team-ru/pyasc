@@ -88,6 +88,9 @@ using PrintableOpTypes = std::tuple<
     // Unary MicroAPI operations
     ascendc::AbsMicroOp, ascendc::ExpMicroOp, ascendc::LnMicroOp, ascendc::LogMicroOp, ascendc::Log10MicroOp,
     ascendc::MaskNotMicroOp, ascendc::NegMicroOp, ascendc::NotMicroOp, ascendc::ReluMicroOp, ascendc::SqrtMicroOp,
+    // VecScalar MicroAPI operations
+    ascendc::AddsMicroOp, ascendc::MulsMicroOp, ascendc::MaxsMicroOp, ascendc::MinsMicroOp, ascendc::LeakyReluMicroOp,
+    ascendc::ShiftLeftsMicroOp, ascendc::ShiftRightsMicroOp,
     // Builtin ops
     ModuleOp,
     // EmitC ops

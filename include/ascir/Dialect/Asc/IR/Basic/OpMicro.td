@@ -55,6 +55,18 @@ def ReluMicroOp : UnaryMicroOp<"relu", "Relu">;
 def SqrtMicroOp : UnaryMicroOp<"sqrt", "Sqrt">;
 
 //===----------------------------------------------------------------------===//
+// VecScalar MicroAPI operations
+//===----------------------------------------------------------------------===//
+
+def AddsMicroOp : VecScalarMicroOp<"adds", "Adds">;
+def LeakyReluMicroOp : VecScalarMicroOp<"leaky_relu", "LeakyRelu">;
+def MulsMicroOp : VecScalarMicroOp<"muls", "Muls">;
+def MaxsMicroOp : VecScalarMicroOp<"maxs", "Maxs">;
+def MinsMicroOp : VecScalarMicroOp<"mins", "Mins">;
+def ShiftLeftsMicroOp : VecScalarMicroOp<"shift_lefts", "ShiftLefts">;
+def ShiftRightsMicroOp : VecScalarMicroOp<"shift_rights", "ShiftRights">;
+
+//===----------------------------------------------------------------------===//
 // Reduce MicroAPI operations
 //===----------------------------------------------------------------------===//
 
