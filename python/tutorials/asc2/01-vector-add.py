@@ -6,7 +6,7 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-import numpy as np
+import torch
 
 import asc
 import asc.runtime.config as config
@@ -30,9 +30,9 @@ def vadd_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, out_ptr: asc
         asc2.store(out, out_gm, offsets=[tile_offset])
 
 
-def vadd_launch(x: np.ndarray, y: np.ndarray) -> np.ndarray:
-    out = np.empty_like(x)
-    size = out.size
+def vadd_launch(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    out = torch.empty_like(x)
+    size = out.numel()
     core_num = 16
     tile_size = 128
     num_tiles = asc.ceildiv(size, tile_size)
@@ -41,10 +41,9 @@ def vadd_launch(x: np.ndarray, y: np.ndarray) -> np.ndarray:
 
 
 if __name__ == "__main__":
-    config.set_platform(backend="Model", platform=config.Platform.Ascend950PR_9599, device_id=0)
-    rng = np.random.default_rng(seed=2026)
+    config.set_platform(backend="Model", soc_version=config.Platform.Ascend950PR_9599, device_id=0)
     size = 8192
-    x = rng.random(size, dtype=np.float32) * 10
-    y = rng.random(size, dtype=np.float32) * 10
+    x = torch.randn(size, dtype=torch.float32, device="cpu") * 10
+    y = torch.randn(size, dtype=torch.float32, device="cpu") * 10
     out = vadd_launch(x, y)
-    np.testing.assert_allclose(out, x + y)
+    torch.testing.assert_close(out, x + y, atol=1e-5, rtol=1e-5)
