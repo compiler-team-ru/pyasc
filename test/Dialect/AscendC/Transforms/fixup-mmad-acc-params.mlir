@@ -22,12 +22,10 @@ func.func @mmad_single(%arg0: !ascendc.local_tensor<16x16xf16>, %arg1: !ascendc.
 // CHECK-LABEL: func.func @mmad_acc_single
 // CHECK:         %[[C01ACC:[0-9a-z_]+]] = ascendc.local_tensor_auto co1() : <64x256xf32>
 // CHECK-NEXT:    %[[VARPTR:[0-9a-z_]+]] = emitasc.variable true, memref<1xi1>
-// CHECK-NEXT:    %c0 = arith.constant 0 : index
 // CHECK-NEXT:    %[[VARVAL:[0-9a-z_]+]] = memref.load %[[VARPTR]][%c0] : memref<1xi1>
 // CHECK-NEXT:    %[[MMADPARAMS:[0-9a-z_]+]] = emitasc.init_struct !ascendc.mmad_params("m" = %c64_i32 : i32, "n" = %c256_i32 : i32, "k" = %c128_i32 : i32, "cmatrixInitVal" = %[[VARVAL]] : i1)
 // CHECK-NEXT:    ascendc.mmad %[[C01ACC]], %arg0, %arg1, %[[MMADPARAMS]] : !ascendc.local_tensor<64x256xf32>, !ascendc.local_tensor<64x128xf16>, !ascendc.local_tensor<128x256xf16>, !ascendc.mmad_params
-// CHECK-NEXT:    %[[FALSE:[0-9a-z_]+]] = arith.constant false
-// CHECK-NEXT:    memref.store %[[FALSE]], %[[VARPTR]][%c0] : memref<1xi1>
+// CHECK-NEXT:    memref.store %false, %[[VARPTR]][%c0] : memref<1xi1>
 // CHECK-NEXT:    return
 func.func @mmad_acc_single(%arg0: !ascendc.local_tensor<64x128xf16>, %arg1: !ascendc.local_tensor<128x256xf16>) -> (!ascendc.local_tensor<64x256xf32>) {
   %c1_i32 = arith.constant 1 : i32
@@ -66,22 +64,18 @@ func.func @multi_mmad_multi_dst(%arg0: !ascendc.local_tensor<32x16xf16>, %arg1: 
 // CHECK-LABEL: func.func @multi_mmad_acc_multi_dst
 // CHECK:         %[[C01ACC1:[0-9a-z_]+]] = ascendc.local_tensor_auto co1() : <16x16xf32>
 // CHECK-NEXT:    %[[VAR1PTR:[0-9a-z_]+]] = emitasc.variable true, memref<1xi1>
-// CHECK:         scf.for
-// CHECK:           %[[IDX1:[0-9a-z_]+]] = arith.constant 0 : index
-// CHECK-NEXT:      %[[VAR1VAL:[0-9a-z_]+]] = memref.load %[[VAR1PTR]][%[[IDX1]]] : memref<1xi1>
+// CHECK-NEXT:    scf.for
+// CHECK:           %[[VAR1VAL:[0-9a-z_]+]] = memref.load %[[VAR1PTR]][%c0] : memref<1xi1>
 // CHECK-NEXT:      %[[MMADPARAMS1:[0-9a-z_]+]] = emitasc.init_struct !ascendc.mmad_params("m" = %c16_i32 : i32, "n" = %c16_i32 : i32, "k" = %c16_i32 : i32, "cmatrixInitVal" = %[[VAR1VAL]] : i1)
 // CHECK-NEXT:      ascendc.mmad %[[C01ACC1]], %{{[0-9a-z_]+}}, %{{[0-9a-z_]+}}, %[[MMADPARAMS1]] : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf16>, !ascendc.local_tensor<16x16xf16>, !ascendc.mmad_params
-// CHECK-NEXT:      %[[FALSE1:[0-9a-z_]+]] = arith.constant false
-// CHECK-NEXT:      memref.store %[[FALSE1]], %[[VAR1PTR]][%[[IDX1]]] : memref<1xi1>
+// CHECK-NEXT:      memref.store %false, %[[VAR1PTR]][%c0] : memref<1xi1>
 // CHECK-NEXT:    }
 // CHECK-NEXT:    %[[C01ACC2:[0-9a-z_]+]] = ascendc.local_tensor_auto co1() : <16x16xf32>
 // CHECK-NEXT:    %[[VAR2PTR:[0-9a-z_]+]] = emitasc.variable true, memref<1xi1>
-// CHECK-NEXT:    %[[IDX2:[0-9a-z_]+]] = arith.constant 0 : index
-// CHECK-NEXT:    %[[VAR2VAL:[0-9a-z_]+]] = memref.load %[[VAR2PTR]][%[[IDX2]]] : memref<1xi1>
+// CHECK-NEXT:    %[[VAR2VAL:[0-9a-z_]+]] = memref.load %[[VAR2PTR]][%c0] : memref<1xi1>
 // CHECK-NEXT:    %[[MMADPARAMS2:[0-9a-z_]+]] = emitasc.init_struct !ascendc.mmad_params("m" = %c16_i32 : i32, "n" = %c16_i32 : i32, "k" = %c32_i32 : i32, "cmatrixInitVal" = %[[VAR2VAL]] : i1)
 // CHECK-NEXT:    ascendc.mmad %[[C01ACC2]], %{{[0-9a-z_]+}}, %{{[0-9a-z_]+}}, %[[MMADPARAMS2]] : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x32xf16>, !ascendc.local_tensor<32x16xf16>, !ascendc.mmad_params
-// CHECK-NEXT:    %[[FALSE2:[0-9a-z_]+]] = arith.constant false
-// CHECK-NEXT:    memref.store %[[FALSE2]], %[[VAR2PTR]][%[[IDX2]]] : memref<1xi1>
+// CHECK-NEXT:    memref.store %false, %[[VAR2PTR]][%c0] : memref<1xi1>
 // CHECK-NEXT:    return
 func.func @multi_mmad_acc_multi_dst(%arg0: !ascendc.local_tensor<16x32xf16>, %arg1: !ascendc.local_tensor<32x16xf16>) -> (!ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf32>) {
   %c0_i32 = arith.constant 0 : i32
@@ -107,20 +101,16 @@ func.func @multi_mmad_acc_multi_dst(%arg0: !ascendc.local_tensor<16x32xf16>, %ar
 // CHECK-LABEL: func.func @multi_mmad_acc_single_dst
 // CHECK:         %[[C01ACC:[0-9a-z_]+]] = ascendc.local_tensor_auto co1() : <16x16xf32>
 // CHECK-NEXT:    %[[VARPTR:[0-9a-z_]+]] = emitasc.variable true, memref<1xi1>
-// CHECK:         scf.for
-// CHECK:           %[[IDX1:[0-9a-z_]+]] = arith.constant 0 : index
-// CHECK-NEXT:      %[[VAR1VAL:[0-9a-z_]+]] = memref.load %[[VARPTR]][%[[IDX1]]] : memref<1xi1>
+// CHECK-NEXT:    scf.for
+// CHECK:           %[[VAR1VAL:[0-9a-z_]+]] = memref.load %[[VARPTR]][%c0] : memref<1xi1>
 // CHECK-NEXT:      %[[MMADPARAMS1:[0-9a-z_]+]] = emitasc.init_struct !ascendc.mmad_params("m" = %c16_i32 : i32, "n" = %c16_i32 : i32, "k" = %c16_i32 : i32, "cmatrixInitVal" = %[[VAR1VAL]] : i1)
 // CHECK-NEXT:      ascendc.mmad %[[C01ACC]], %{{[0-9a-z_]+}}, %{{[0-9a-z_]+}}, %[[MMADPARAMS1]] : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf16>, !ascendc.local_tensor<16x16xf16>, !ascendc.mmad_params
-// CHECK-NEXT:      %[[FALSE1:[0-9a-z_]+]] = arith.constant false
-// CHECK-NEXT:      memref.store %[[FALSE1]], %[[VARPTR]][%[[IDX1]]] : memref<1xi1>
+// CHECK-NEXT:      memref.store %false, %[[VARPTR]][%c0] : memref<1xi1>
 // CHECK-NEXT:    }
-// CHECK-NEXT:    %[[IDX2:[0-9a-z_]+]] = arith.constant 0 : index
-// CHECK-NEXT:    %[[VAR2VAL:[0-9a-z_]+]] = memref.load %[[VARPTR]][%[[IDX2]]] : memref<1xi1>
+// CHECK-NEXT:    %[[VAR2VAL:[0-9a-z_]+]] = memref.load %[[VARPTR]][%c0] : memref<1xi1>
 // CHECK-NEXT:    %[[MMADPARAMS2:[0-9a-z_]+]] = emitasc.init_struct !ascendc.mmad_params("m" = %c16_i32 : i32, "n" = %c16_i32 : i32, "k" = %c32_i32 : i32, "cmatrixInitVal" = %[[VAR2VAL]] : i1)
 // CHECK-NEXT:    ascendc.mmad %[[C01ACC]], %{{[0-9a-z_]+}}, %{{[0-9a-z_]+}}, %[[MMADPARAMS2]] : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x32xf16>, !ascendc.local_tensor<32x16xf16>, !ascendc.mmad_params
-// CHECK-NEXT:    %[[FALSE2:[0-9a-z_]+]] = arith.constant false
-// CHECK-NEXT:    memref.store %[[FALSE2]], %[[VARPTR]][%[[IDX2]]] : memref<1xi1>
+// CHECK-NEXT:    memref.store %false, %[[VARPTR]][%c0] : memref<1xi1>
 // CHECK-NEXT:    return
 func.func @multi_mmad_acc_single_dst(%arg0: !ascendc.local_tensor<16x32xf16>, %arg1: !ascendc.local_tensor<32x16xf16>) -> (!ascendc.local_tensor<16x16xf32>) {
   %c0_i32 = arith.constant 0 : i32
@@ -145,13 +135,11 @@ func.func @multi_mmad_acc_single_dst(%arg0: !ascendc.local_tensor<16x32xf16>, %a
 // CHECK-LABEL: func.func @mmad_acc_and_mmad_wo_acc
 // CHECK:         %[[C01ACC1:[0-9a-z_]+]] = ascendc.local_tensor_auto co1() : <16x16xf32>
 // CHECK-NEXT:    %[[VARPTR:[0-9a-z_]+]] = emitasc.variable true, memref<1xi1>
-// CHECK:         scf.for
-// CHECK:           %[[IDX:[0-9a-z_]+]] = arith.constant 0 : index
-// CHECK-NEXT:      %[[VARVAL:[0-9a-z_]+]] = memref.load %[[VARPTR]][%[[IDX]]] : memref<1xi1>
+// CHECK-NEXT:    scf.for
+// CHECK:           %[[VARVAL:[0-9a-z_]+]] = memref.load %[[VARPTR]][%c0] : memref<1xi1>
 // CHECK-NEXT:      %[[MMADPARAMS1:[0-9a-z_]+]] = emitasc.init_struct !ascendc.mmad_params("m" = %c16_i32 : i32, "n" = %c16_i32 : i32, "k" = %c16_i32 : i32, "cmatrixInitVal" = %[[VARVAL]] : i1)
 // CHECK-NEXT:      ascendc.mmad %[[C01ACC1]], %{{[0-9a-z_]+}}, %{{[0-9a-z_]+}}, %[[MMADPARAMS1]] : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf16>, !ascendc.local_tensor<16x16xf16>, !ascendc.mmad_params
-// CHECK-NEXT:      %[[FALSE:[0-9a-z_]+]] = arith.constant false
-// CHECK-NEXT:      memref.store %[[FALSE]], %[[VARPTR]][%[[IDX]]] : memref<1xi1>
+// CHECK-NEXT:      memref.store %false, %[[VARPTR]][%c0] : memref<1xi1>
 // CHECK-NEXT:    }
 // CHECK-NEXT:    %[[C01ACC2:[0-9a-z_]+]] = ascendc.local_tensor_auto co1() : <16x16xf32>
 // CHECK-NEXT:    %[[MMADPARAMS2:[0-9a-z_]+]] = emitasc.init_struct !ascendc.mmad_params("m" = %c16_i32 : i32, "n" = %c16_i32 : i32, "k" = %c32_i32 : i32)

@@ -31,13 +31,13 @@ namespace {
 class FixupMmadAccParamsPass : public ascendc::impl::FixupMmadAccParamsBase<FixupMmadAccParamsPass> {
     void runOnOperation() override
     {
-        llvm::DenseMap<Value, SmallVector<ascendc::MmadOp>> mmadOpsOfDst;
+        llvm::DenseMap<Operation*, SmallVector<ascendc::MmadOp>> mmadOpsOfDst;
 
         func::FuncOp funcOp = getOperation();
         funcOp.walk([&mmadOpsOfDst](ascendc::MmadOp op) {
-            auto mmadParamsOp = cast<emitasc::InitStructOp>(op.getMmadParams().getDefiningOp());
-            if (mmadParamsOp.hasField("cmatrixInitVal")) {
-                mmadOpsOfDst[op.getDst()].push_back(op);
+            auto mmadParamsOp = op.getMmadParams().getDefiningOp<emitasc::InitStructOp>();
+            if (mmadParamsOp && mmadParamsOp.hasField("cmatrixInitVal")) {
+                mmadOpsOfDst[op.getDst().getDefiningOp()].push_back(op);
             }
         });
         if (mmadOpsOfDst.empty()) {
@@ -46,18 +46,18 @@ class FixupMmadAccParamsPass : public ascendc::impl::FixupMmadAccParamsBase<Fixu
 
         OpBuilder builder(funcOp.getFunctionBody());
         ascir::ConstantOpBuilder consts(builder);
+        Value zero = consts.index(0);
+        Value falseVal = consts.i1(false);
         for (const auto& [dst, mmadOps] : mmadOpsOfDst) {
-            Operation* c1TensorOp = dst.getDefiningOp();
-            builder.setInsertionPointAfter(c1TensorOp);
-            Value cMatrixInitVar = builder.create<emitasc::VariableOp>(c1TensorOp->getLoc(), builder.getBoolAttr(true));
+            builder.setInsertionPointAfter(dst);
+            Value cMatrixInitVar = builder.create<emitasc::VariableOp>(dst->getLoc(), builder.getBoolAttr(true));
             for (ascendc::MmadOp mmadOp : mmadOps) {
-                auto mmadParamsOp = cast<emitasc::InitStructOp>(mmadOp.getMmadParams().getDefiningOp());
+                auto mmadParamsOp = mmadOp.getMmadParams().getDefiningOp<emitasc::InitStructOp>();
                 builder.setInsertionPoint(mmadParamsOp);
-                ValueRange indices{consts.index(0)};
-                Value loadInitVal = builder.create<memref::LoadOp>(mmadParamsOp.getLoc(), cMatrixInitVar, indices);
+                Value loadInitVal = builder.create<memref::LoadOp>(mmadParamsOp.getLoc(), cMatrixInitVar, zero);
                 mmadParamsOp.setField("cmatrixInitVal", loadInitVal);
                 builder.setInsertionPointAfter(mmadOp);
-                builder.create<memref::StoreOp>(mmadParamsOp.getLoc(), consts.i1(false), cMatrixInitVar, indices);
+                builder.create<memref::StoreOp>(mmadParamsOp.getLoc(), falseVal, cMatrixInitVar, zero);
             }
         }
     }
