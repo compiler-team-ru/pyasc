@@ -44,12 +44,12 @@ constexpr int maxRepeat = 255;
 constexpr int basicBlkBslength = 8;
 constexpr int halfSizeInByte = 2;
 
-unsigned int calculateFinalTensorSize(const unsigned int& typeSize, int64_t calCount)
+unsigned calculateFinalTensorSize(unsigned typeSize, int64_t calCount)
 {
-    unsigned int elementsPerBlock = ascendc::ubBlockSize / typeSize;
-    unsigned int elementsPerRepeat = ascendc::repeatBlockSize / typeSize;
-    unsigned int firstMaxRepeat = calCount / elementsPerRepeat;
-    return llvm::divideCeilSigned(firstMaxRepeat, elementsPerBlock) * elementsPerBlock;
+    unsigned elementsPerBlock = ascendc::ubBlockSize / typeSize;
+    unsigned elementsPerRepeat = ascendc::repeatBlockSize / typeSize;
+    unsigned firstMaxRepeat = llvm::divideCeil(calCount, elementsPerRepeat);
+    return llvm::divideCeil(firstMaxRepeat, elementsPerBlock) * elementsPerBlock;
 }
 
 std::pair<int, int> unpack2DShape(ArrayRef<int64_t> shape)
