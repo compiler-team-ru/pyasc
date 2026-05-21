@@ -16,7 +16,7 @@ import asc.runtime.config as config
 import asc2
 
 
-@asc2.jit(reuse_ub=True, reuse_ub_in_out=True)
+@asc2.jit(reuse_ub=True, reuse_ub_in_out=True, vf_fusion=True)
 def kl_div(input_x_ptr: asc.GlobalAddress, input_target_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress,
            input_size: asc.ConstExpr, tile_length: asc.ConstExpr, unroll_factor: asc.ConstExpr):
     loop_count = asc.ceildiv(input_size, tile_length)

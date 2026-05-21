@@ -53,6 +53,23 @@ printOperation(CodeEmitter& emitter, MicroOp op)
 }
 
 //===----------------------------------------------------------------------===//
+// VecScalar MicroAPI operations
+//===----------------------------------------------------------------------===//
+
+template <typename VecScalarOp>
+LogicalResultForT<
+    VecScalarOp, ascendc::AddsMicroOp, ascendc::MulsMicroOp, ascendc::MaxsMicroOp, ascendc::MinsMicroOp,
+    ascendc::LeakyReluMicroOp, ascendc::ShiftLeftsMicroOp, ascendc::ShiftRightsMicroOp>
+printOperation(CodeEmitter& emitter, VecScalarOp op)
+{
+    auto& os = emitter.ostream();
+    os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDstReg()) << ", "
+       << emitter.getOrCreateName(op.getSrcReg()) << ", " << emitter.getOrCreateName(op.getScalar()) << ", "
+       << emitter.getOrCreateName(op.getMaskReg()) << ")";
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
 // Other MicroAPI operations
 //===----------------------------------------------------------------------===//
 

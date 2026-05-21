@@ -1,4 +1,4 @@
-// RUN: ascir-opt -ascvf-find-vf-group -ascvf-lower-to-micro -cse -ascvf-reorder-ops-in-vec-scope -ascvf-fuse-vf-for -ascvf-eliminate-data-transfer -ascvf-eliminate-common-mask -ascvf-materialize-load-store %s | FileCheck %s
+// RUN: ascir-opt -split-input-file -ascvf-find-vf-group -ascvf-lower-to-micro -cse -ascvf-reorder-ops-in-vec-scope -ascvf-fuse-vf-for -ascvf-eliminate-data-transfer -ascvf-eliminate-common-mask -ascvf-materialize-load-store %s | FileCheck %s
 
 // CHECK-LABEL: func.func @general_test(%arg0: !ascendc.que_bind<gm, vecin, 1>) {
 // CHECK:   ascvf.vf_group %0, %2, %1, %c256_i32 : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32 {
@@ -14,17 +14,17 @@
 // CHECK:       %17 = emitasc.variable %14 : index, memref<1xui32>
 // CHECK:       ascvf.vf_for %16 : index {
 // CHECK:       ^bb0(%arg1: index):
-// CHECK:         %18 = ascendc.update_mask f32, %15 : memref<1xui32>
-// CHECK:         %19 = arith.muli %arg1, %13 : index
-// CHECK:         %20 = emitasc.ptr_offset %3[%19] : memref<f32, 26>, memref<f32, 26>
+// CHECK:         %18 = arith.muli %arg1, %13 : index
+// CHECK:         %19 = ascendc.update_mask f32, %15 : memref<1xui32>
+// CHECK:         %20 = emitasc.ptr_offset %3[%18] : memref<f32, 26>, memref<f32, 26>
 // CHECK:         ascendc.data_copy_vld_micro %6, %20 : !ascendc.reg_tensor<f32>, memref<f32, 26>
-// CHECK:         %21 = emitasc.ptr_offset %4[%19] : memref<f32, 26>, memref<f32, 26>
+// CHECK:         %21 = emitasc.ptr_offset %4[%18] : memref<f32, 26>, memref<f32, 26>
 // CHECK:         ascendc.data_copy_vld_micro %7, %21 : !ascendc.reg_tensor<f32>, memref<f32, 26>
-// CHECK:         ascendc.add_micro %8, %6, %7, %18 : !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK:         ascendc.add_micro %8, %6, %7, %19 : !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
 // CHECK:         %22 = arith.muli %arg1, %13 : index
-// CHECK:         ascendc.mul_micro %11, %8, %7, %18 : !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK:         ascendc.mul_micro %11, %8, %7, %19 : !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
 // CHECK:         %23 = emitasc.ptr_offset %5[%22] : memref<f32, 26>, memref<f32, 26>
-// CHECK:         ascendc.data_copy_vst_micro %23, %11, %18 : memref<f32, 26>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK:         ascendc.data_copy_vst_micro %23, %11, %19 : memref<f32, 26>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
 // CHECK:       }
 // CHECK:     }
 // CHECK:   } {operandSegmentSizes = array<i32: 1, 2, 1>}
@@ -170,6 +170,27 @@ func.func @translate_binary_l2(%calCount : i32, %vec : !ascendc.local_tensor<*xf
   return
 }
 
+// CHECK-LABEL: func.func @translate_vec_scalar_l2
+// CHECK: ascendc.adds_micro
+// CHECK: ascendc.leaky_relu_micro
+// CHECK: ascendc.leaky_relu_micro
+// CHECK: ascendc.muls_micro
+// CHECK: ascendc.maxs_micro
+// CHECK: ascendc.mins_micro
+// CHECK: ascendc.shift_lefts_micro
+// CHECK: ascendc.shift_rights_micro
+func.func @translate_vec_scalar_l2(%calCount : i32, %vec : !ascendc.local_tensor<*xf32>, %scalar: f32) {
+  ascendc.adds_l2 %vec, %vec, %scalar, %calCount : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, f32, i32
+  ascendc.leaky_relu_l2 %vec, %vec, %scalar, %calCount : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, f32, i32
+  ascendc.leaky_relu_l2 %vec, %vec, %scalar, %calCount : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, f32, i32
+  ascendc.muls_l2 %vec, %vec, %scalar, %calCount : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, f32, i32
+  ascendc.maxs_l2 %vec, %vec, %scalar, %calCount : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, f32, i32
+  ascendc.mins_l2 %vec, %vec, %scalar, %calCount : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, f32, i32
+  ascendc.shift_left_l2 %vec, %vec, %scalar, %calCount : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, f32, i32
+  ascendc.shift_right_l2 %vec, %vec, %scalar, %calCount : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, f32, i32
+  return
+}
+
 // CHECK-LABEL: func.func @tensor_is_not_output_if_it_has_no_users
 func.func @tensor_is_not_output_if_it_has_no_users(%arg0: memref<*xf32, 22>) {
   %c0_i64 = arith.constant 0 : i64
@@ -290,7 +311,10 @@ func.func @softmax_kernel(%arg0: memref<*xf32, 22>) {
   return
 }
 
+// -----
+
 // CHECK-LABEL: func.func @known_vec_len
+// CHECK: ascvf.vf_group
 // CHECK-NOT: ascendc.get_vec_len
 module attributes {asc.vf_vec_len = 256 : i32} {
   func.func @known_vec_len(%gm: !ascendc.global_tensor<?x?xf32>, %ext_params: !ascendc.data_copy_ext_params, %x: !ascendc.local_tensor<1x1024xf32>, %y: !ascendc.local_tensor<1x1024xf32>, %z: !ascendc.local_tensor<1x1024xf32>, %f: !ascendc.local_tensor<1x1024xf32>, %cal: i64) {
