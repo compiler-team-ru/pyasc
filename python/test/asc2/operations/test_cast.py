@@ -30,6 +30,7 @@ def cast_kernel(x_ptr, z_ptr, size: asc.ConstExpr, dst_dtype: asc.ConstExpr) -> 
     (asc.float16, torch.int16, torch.float16),
     (asc.float32, torch.int16, torch.float32),
     (asc.float32, torch.int32, torch.float32),
+    (asc.float16, torch.int32, torch.float16),
     (asc.float32, torch.int64, torch.float32),
     # float -> int
     (asc.int32, torch.bfloat16, torch.int32),
@@ -52,7 +53,8 @@ def test_cast(backend, platform, device_id, require_c310, dst_dtype, torch_src, 
             or (torch_src == torch.float16 and torch_dst == torch.bfloat16)
             or (torch_src == torch.int8 and torch_dst == torch.int16)
             or (torch_src == torch.int8 and torch_dst == torch.int32)
-            or (torch_src == torch.int16 and torch_dst == torch.int32)):
+            or (torch_src == torch.int16 and torch_dst == torch.int32)
+            or (torch_src == torch.int32 and torch_dst == torch.float16)):
         require_c310(platform)
     config.set_platform(backend, platform, device_id, check=False)
     device = "cpu"

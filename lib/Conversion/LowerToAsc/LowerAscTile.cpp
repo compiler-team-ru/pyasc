@@ -151,7 +151,7 @@ struct ConvertCast : ConvertOp<asctile::CastOp> {
         }
         if (srcIntWidth && isa<FloatType>(dstType)) {
             unsigned sw = *srcIntWidth;
-            if (isa<Float16Type>(dstType) && (sw == 8 || sw == 16))
+            if (isa<Float16Type>(dstType) && (sw == 8 || sw == 16 || sw == 32))
                 return true;
             if (isa<Float32Type>(dstType) && (sw == 16 || sw == 32 || sw == 64))
                 return true;
@@ -168,13 +168,9 @@ struct ConvertCast : ConvertOp<asctile::CastOp> {
             return false;
         }
         if (isa<FloatType>(srcType) && isa<FloatType>(dstType)) {
-            if (isa<BFloat16Type>(srcType) && (isa<Float16Type>(dstType) || isa<Float32Type>(dstType)))
-                return true;
-            if (isa<Float16Type>(srcType) && (isa<BFloat16Type>(dstType) || isa<Float32Type>(dstType)))
-                return true;
-            if (isa<Float32Type>(srcType) && (isa<BFloat16Type>(dstType) || isa<Float16Type>(dstType)))
-                return true;
-            return false;
+            return (isa<BFloat16Type>(srcType) && isa<Float16Type, Float32Type>(dstType)) ||
+                   (isa<Float16Type>(srcType) && isa<BFloat16Type, Float32Type>(dstType)) ||
+                   (isa<Float32Type>(srcType) && isa<BFloat16Type, Float16Type, Float32Type>(dstType));
         }
         return false;
     }
@@ -190,8 +186,7 @@ struct ConvertCast : ConvertOp<asctile::CastOp> {
         if (srcIsInt && dstIsFloat) {
             unsigned srcWidth = cast<IntegerType>(srcType).getWidth();
             unsigned dstWidth = cast<FloatType>(dstType).getWidth();
-            if ((srcWidth == 8 && dstWidth == 16) || (srcWidth == 32 && dstWidth == 16) ||
-                (srcWidth == 16 && dstWidth == 32)) {
+            if ((srcWidth == 8 && dstWidth == 16) || (srcWidth == 16 && dstWidth == 32)) {
                 return ascendc::RoundMode::CAST_NONE;
             }
             return ascendc::RoundMode::CAST_RINT;
