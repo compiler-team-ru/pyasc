@@ -176,8 +176,8 @@ func.func @lower_reduce_sum_as_1d(%arg0: !asctile.tile<16x32x8xf32, UB>) -> f32 
 // CHECK-LABEL: func.func @lower_reduce_min_as_1d(%arg0: !asctile.tile<16xf32, UB>) -> f32 {
 // CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<16xf32, UB> to !ascendc.local_tensor<16xf32>
 // CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <1xf32>
-// CHECK-NEXT:  %2 = ascendc.local_tensor_auto veccalc() : <0xf32>
-// CHECK-NEXT:  ascendc.reduce_min_l2 %1, %0, %2, %c16_i64, %c0_i64 : !ascendc.local_tensor<1xf32>, !ascendc.local_tensor<16xf32>, !ascendc.local_tensor<0xf32>, i64, i64
+// CHECK-NEXT:  %2 = ascendc.local_tensor_auto veccalc() : <8xf32>
+// CHECK-NEXT:  ascendc.reduce_min_l2 %1, %0, %2, %c16_i64, %c0_i64 : !ascendc.local_tensor<1xf32>, !ascendc.local_tensor<16xf32>, !ascendc.local_tensor<8xf32>, i64, i64
 // CHECK-NEXT:  %3 = ascendc.local_tensor.get_value %1, %c0_i64 : !ascendc.local_tensor<1xf32>, i64, f32
 // CHECK-NEXT:  return %3 : f32
 // CHECK-NEXT:}
@@ -189,8 +189,8 @@ func.func @lower_reduce_min_as_1d(%arg0: !asctile.tile<16xf32, UB>) -> f32 {
 // CHECK-LABEL: func.func @lower_reduce_max_as_1d(%arg0: !asctile.tile<16xf32, UB>) -> f32 {
 // CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<16xf32, UB> to !ascendc.local_tensor<16xf32>
 // CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <1xf32>
-// CHECK-NEXT:  %2 = ascendc.local_tensor_auto veccalc() : <0xf32>
-// CHECK-NEXT:  ascendc.reduce_max_l2 %1, %0, %2, %c16_i64, %c0_i64 : !ascendc.local_tensor<1xf32>, !ascendc.local_tensor<16xf32>, !ascendc.local_tensor<0xf32>, i64, i64
+// CHECK-NEXT:  %2 = ascendc.local_tensor_auto veccalc() : <8xf32>
+// CHECK-NEXT:  ascendc.reduce_max_l2 %1, %0, %2, %c16_i64, %c0_i64 : !ascendc.local_tensor<1xf32>, !ascendc.local_tensor<16xf32>, !ascendc.local_tensor<8xf32>, i64, i64
 // CHECK-NEXT:  %3 = ascendc.local_tensor.get_value %1, %c0_i64 : !ascendc.local_tensor<1xf32>, i64, f32
 // CHECK-NEXT:  return %3 : f32
 // CHECK-NEXT:}
