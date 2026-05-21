@@ -21,7 +21,7 @@ python3 python/tutorials/asc2/01-vector-add.py
 
 ### Kernel function
 
-The functions which are executed on Ascend NPU must be marked with `@asc2.jit` decorator. In this case
+The functions which are executed on Ascend NPU must be marked with `@asc2.jit` decorator. In this case:
 - Pointers to input and output tensors should have `asc.GlobalAddress` type.
 - Scalar parameters are passed as Python types (e.g. `int`, `float`).
 - For optimization purposes it is recommended to pass scalar parameter as constants (e.g. `asc.ConstExpr[int]`).
@@ -32,7 +32,7 @@ def vadd_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, out_ptr: asc
                 tile_size: asc.ConstExpr[int], tile_per_block: asc.ConstExpr[int]):
 ```
 
-Tensor descriptor is created from `asc.GlobalAddress` to reprsent entire tensor.
+Tensor descriptor is created from `asc.GlobalAddress` to represent entire tensor.
 
 ```python
 x_gm = asc2.tensor(x_ptr, [size])
@@ -44,7 +44,7 @@ Python expressions are used to calculate offset and define the loop iterating ov
 - `asc2.block_idx()` function is used to get current AICORE index.
 - `asc2.block_num()` function provides number of AICOREs launched.
 - `unroll_factor` parameter of `asc2.range` in `for` loop can be used to manage software pipelining. Set it to `2` to enable double buffering.
-- `parallel` parameter of `asc2.range` in `for` loop enable overlapping of store operation of `i`-th iteration and load of `i+1`-th iteration. It is user responsibility to ensure that there are no data dependencies between iterations.
+- `parallel` parameter of `asc2.range` in `for` loop enable overlapping of store operation of `i`-th iteration and load of `i+1`-th iteration. It is user responsibility to ensure that there are no data dependencies between overlapped iterations.
 
 ```python
 base_offset = asc2.block_idx() * tile_size * tile_per_block
@@ -52,22 +52,22 @@ for i in asc2.range(tile_per_block, unroll_factor=2, parallel=True):
     tile_offset = base_offset + i * tile_size
 ```
 
-`asc2.load` is used to create tile object which is used for further calculations. Data movement from GM to UB/L1/L0A/L0B happens in this operation.
+`asc2.load` is used to create tile object which is used for further calculations. Data movement from GM to UB/L1/L0A/L0B happens in this operation. If `location' parameter is set, then the corresponding memory realm is used to load data to. Otherwise it is loaded to UB.
 
 ```python
-x = asc2.load(x_gm, [tile_size], offsets=[tile_offset])
-y = asc2.load(y_gm, [tile_size], offsets=[tile_offset], location=asc2.TileLocation.L1)
+x = asc2.load(x_gm, [tile_size], offsets=[tile_offset], location=asc2.TileLocation.UB)
+y = asc2.load(y_gm, [tile_size], offsets=[tile_offset])  # location can be omitted
 ```
 
-One or more operations can be applied for tiles. It is compiler responsibility to allocate required number of memeory blocks in UB.
+One or more operations can be applied for tiles. It is compiler responsibility to allocate required number of memory blocks in UB.
 
 ```python
 out = x + y
 ```
 
-`asc2.store` is used to move data from L0C/UB back to GM.
+`asc2.store` is used to move data from L0C/UB back to GM. Source location is defined by tile itself, so no `location` parameter is present in `asc2.store`.
 
-```
+```python
 asc2.store(out, out_gm, offsets=[tile_offset])
 ```
 
@@ -100,9 +100,9 @@ Example:
 
 ```python
 backend = "Model" # can be "Model" for simulator or "NPU" for device
-platform = config.Platform.Ascend950PR_9599 # Device version
+soc_version = config.Platform.Ascend950PR_9599 # Device version
 device_id = 0 # might be necessary to provide if more than one NPU device is present in the system
-config.set_platform(backend, platform, device_id)
+config.set_platform(backend, soc_version, device_id)
 rng = np.random.default_rng(seed=2026)
 size = 8192
 x = rng.random(size, dtype=np.float32) * 10
@@ -121,7 +121,7 @@ np.testing.assert_allclose(out, x + y)
 PYASC_DUMP_PATH=dumps python3 python/tutorials/asc2/01-vector-add.py
 ```
 
-As a result, the following directory structure is created:
+As a result, the following directory structure is created in the current directory:
 
 ``` bash
 dumps/
@@ -137,8 +137,8 @@ Note: it is necessary to set `always_compile=True` JIT option to avoid caching a
 ### Tune generated Ascend C code
 
 The Ascend C code generated from PyAsc2 can be injected back in PyAsc2 python code:
-- pass content of generated kernel as parameter to `asc.inline()` method
-- comment out `TPipe` definition in the code (see an example below)
+- pass content of generated kernel as parameter to `asc.inline()` method;
+- comment out `TPipe` definition in the code (see an example below).
 
 ```python
 @asc2.jit(kernel_type=config.KernelType.AIV_ONLY)
@@ -160,3 +160,5 @@ v6.SetGlobalBuffer(v1_x_ptr);
 return;
     ''')
 ```
+
+> Note: co-existence of PyAsc2 API and `asc.inline` in the same kernel is not supported for now.
