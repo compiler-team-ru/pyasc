@@ -30,28 +30,13 @@ using namespace mlir::asclower;
 
 namespace {
 
-struct LoweringConversionTarget : public ConversionTarget {
-    LoweringConversionTarget(TensorTypeConverter& converter, MLIRContext* context) : ConversionTarget(*context)
-    {
-        addLegalDialect<ascendc::AscendCDialect, arith::ArithDialect>();
-        addDynamicallyLegalOp<
-            //
-            arith::AddFOp, arith::AddIOp, arith::SubFOp, arith::SubIOp, arith::MulFOp, arith::MulIOp, arith::DivFOp,
-            arith::MaxSIOp, arith::MinSIOp, arith::MaximumFOp, arith::MinimumFOp, arith::MaxNumFOp, arith::MinNumFOp,
-            arith::AndIOp, arith::OrIOp
-            //
-            >([&](Operation* op) { return converter.isLegal(op); });
-        addLegalOp<UnrealizedConversionCastOp>();
-    }
-};
-
 template <typename ArithOp, typename L2Op>
 struct ConvertToL2 : ConvertOp<ArithOp> {
     using ConvertOp<ArithOp>::ConvertOp;
     using ConvertOp<ArithOp>::createTensorOp;
     using ConvertOp<ArithOp>::calCount;
 
-    LogicalResult convert(ArithOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(ArithOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         Location loc = op.getLoc();
@@ -70,7 +55,7 @@ struct ConvertBitwiseToL2 : public ConvertOp<ArithOp> {
     using ConvertOp<ArithOp>::createTensorOp;
     using ConvertOp<ArithOp>::createReCastOp;
 
-    LogicalResult convert(ArithOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(ArithOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto shapedTy = cast<asctile::TileType>(op.getType());
@@ -106,7 +91,16 @@ struct LowerArithBinaryPass : public asclower::impl::LowerArithBinaryBase<LowerA
         func::FuncOp funcOp = getOperation();
         TensorTypeConverter converter;
         MLIRContext* context = &getContext();
-        LoweringConversionTarget target(converter, context);
+        ConversionTarget target(*context);
+        target.addLegalDialect<ascendc::AscendCDialect, arith::ArithDialect>();
+        target.addDynamicallyLegalOp<
+            //
+            arith::AddFOp, arith::AddIOp, arith::SubFOp, arith::SubIOp, arith::MulFOp, arith::MulIOp, arith::DivFOp,
+            arith::MaxSIOp, arith::MinSIOp, arith::MaximumFOp, arith::MinimumFOp, arith::MaxNumFOp, arith::MinNumFOp,
+            arith::AndIOp, arith::OrIOp
+            //
+            >([&converter](Operation* op) { return converter.isLegal(op); });
+        target.addLegalOp<UnrealizedConversionCastOp>();
         RewritePatternSet patterns(context);
         patterns.insert<
             //

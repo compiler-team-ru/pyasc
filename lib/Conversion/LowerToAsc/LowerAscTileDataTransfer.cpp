@@ -116,7 +116,7 @@ struct ConvertLoad : ConvertOp<asctile::LoadOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(asctile::LoadOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::LoadOp op, ConvertRewriter& rewriter) const override
     {
         auto opType = op.getType();
         auto dstLoc = opType.getLoc();
@@ -312,7 +312,7 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(asctile::StoreOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::StoreOp op, ConvertRewriter& rewriter) const override
     {
         auto base = op.getBase();
         auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
@@ -378,7 +378,7 @@ struct ConvertStoreFixpipe : ConvertOp<asctile::StoreFixpipeOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(asctile::StoreFixpipeOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::StoreFixpipeOp op, ConvertRewriter& rewriter) const override
     {
         auto base = op.getBase();
         auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
@@ -442,7 +442,7 @@ struct ConvertCopyFixpipe : ConvertOp<asctile::CopyFixpipeOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(asctile::CopyFixpipeOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::CopyFixpipeOp op, ConvertRewriter& rewriter) const override
     {
         auto base = op.getResult();
         auto loc = op.getLoc();
@@ -504,7 +504,7 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(asctile::CopyOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::CopyOp op, ConvertRewriter& rewriter) const override
     {
         auto opType = op.getType();
         auto dstPos = opType.getLoc();
@@ -620,7 +620,7 @@ struct ConvertGetValue : ConvertOp<asctile::GetValueOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(asctile::GetValueOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::GetValueOp op, ConvertRewriter& rewriter) const override
     {
         auto base = op.getBase();
         auto loc = op.getLoc();
@@ -638,7 +638,7 @@ struct ConvertSetValue : ConvertOp<asctile::SetValueOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(asctile::SetValueOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::SetValueOp op, ConvertRewriter& rewriter) const override
     {
         auto base = op.getBase();
         auto loc = op.getLoc();

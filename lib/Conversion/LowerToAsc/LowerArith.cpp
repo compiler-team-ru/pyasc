@@ -29,23 +29,11 @@ using namespace mlir::asclower;
 
 namespace {
 
-struct LoweringConversionTarget : public ConversionTarget {
-    LoweringConversionTarget(TensorTypeConverter& converter, MLIRContext* context) : ConversionTarget(*context)
-    {
-        addDynamicallyLegalOp<
-            //
-            arith::ConstantOp, arith::BitcastOp, arith::NegFOp
-            //
-            >([&](Operation* op) { return converter.isLegal(op); });
-        addLegalDialect<ascendc::AscendCDialect>();
-    }
-};
-
 struct ConvertSplatConstant : ConvertOp<arith::ConstantOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(arith::ConstantOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(arith::ConstantOp op, ConvertRewriter& rewriter) const override
     {
         if (!isa_and_present<SplatElementsAttr>(op.getValue()))
             return failure();
@@ -64,7 +52,7 @@ struct ConvertDenseConstant : ConvertOp<arith::ConstantOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(arith::ConstantOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(arith::ConstantOp op, ConvertRewriter& rewriter) const override
     {
         auto dense = dyn_cast<DenseElementsAttr>(op.getValue());
         if (!dense || dense.isSplat())
@@ -82,23 +70,21 @@ struct ConvertDenseConstant : ConvertOp<arith::ConstantOp> {
 };
 
 struct ConvertBitcast : public ConvertOp<arith::BitcastOp> {
-    using ConvertOp::converter;
     using ConvertOp::ConvertOp;
 
-    LogicalResult convert(arith::BitcastOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(arith::BitcastOp op, ConvertRewriter& rewriter) const override
     {
         rewriter.replaceOpWithNewOp<ascendc::LocalTensorReinterpretCastOp>(
-            op, converter().convertType(op.getType()), rewriter.getRemappedValue(op.getIn()));
+            op, typeConverter->convertType(op.getType()), rewriter.getRemappedValue(op.getIn()));
         return success();
     }
 };
 
 struct ConvertNegF : public ConvertOp<arith::NegFOp> {
-    using ConvertOp::converter;
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(arith::NegFOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(arith::NegFOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loc = op.getLoc();
@@ -119,7 +105,13 @@ struct LowerArithPass : public asclower::impl::LowerArithBase<LowerArithPass> {
         func::FuncOp funcOp = getOperation();
         TensorTypeConverter converter;
         MLIRContext* context = &getContext();
-        LoweringConversionTarget target(converter, context);
+        ConversionTarget target(*context);
+        target.addDynamicallyLegalOp<
+            //
+            arith::ConstantOp, arith::BitcastOp, arith::NegFOp
+            //
+            >([&converter](Operation* op) { return converter.isLegal(op); });
+        target.addLegalDialect<ascendc::AscendCDialect>();
         RewritePatternSet patterns(context);
         patterns.insert<
             //

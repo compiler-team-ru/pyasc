@@ -31,15 +31,6 @@ using namespace mlir::asclower;
 
 namespace {
 
-struct LoweringConversionTarget : public ConversionTarget {
-    LoweringConversionTarget(MLIRContext* context) : ConversionTarget(*context)
-    {
-        addIllegalOp<asctile::CmpOp, asctile::CmpSOp, asctile::SelectOp>();
-        addLegalDialect<arith::ArithDialect, ascendc::AscendCDialect>();
-        addLegalOp<UnrealizedConversionCastOp>();
-    }
-};
-
 ascendc::CMPMODE getCmpMode(asctile::CompareMode mode)
 {
     switch (mode) {
@@ -60,10 +51,9 @@ ascendc::CMPMODE getCmpMode(asctile::CompareMode mode)
 }
 
 struct ConvertCmp : public ConvertOp<asctile::CmpOp> {
-    using ConvertOp::converter;
     using ConvertOp::ConvertOp;
 
-    LogicalResult convert(asctile::CmpOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::CmpOp op, ConvertRewriter& rewriter) const override
     {
         auto loc = op.getLoc();
         Value src0 = rewriter.getRemappedValue(op.getLhs());
@@ -100,7 +90,7 @@ struct ConvertCmpS : ConvertOp<asctile::CmpSOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(asctile::CmpSOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::CmpSOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loc = op.getLoc();
@@ -125,7 +115,7 @@ struct ConvertSelect : ConvertOp<asctile::SelectOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(asctile::SelectOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::SelectOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loc = op.getLoc();
@@ -150,7 +140,10 @@ struct LowerAscTileI1Pass : public asclower::impl::LowerAscTileI1Base<LowerAscTi
         func::FuncOp funcOp = getOperation();
         TensorTypeConverter converter;
         MLIRContext* context = &getContext();
-        LoweringConversionTarget target(context);
+        ConversionTarget target(*context);
+        target.addIllegalOp<asctile::CmpOp, asctile::CmpSOp, asctile::SelectOp>();
+        target.addLegalDialect<arith::ArithDialect, ascendc::AscendCDialect>();
+        target.addLegalOp<UnrealizedConversionCastOp>();
         RewritePatternSet patterns(context);
         patterns.insert<ConvertCmp, ConvertCmpS, ConvertSelect>(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())

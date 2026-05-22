@@ -32,19 +32,10 @@ using namespace mlir::asclower;
 
 namespace {
 
-struct LoweringConversionTarget : public ConversionTarget {
-    LoweringConversionTarget(MLIRContext* context) : ConversionTarget(*context)
-    {
-        addIllegalOp<asctile::AtomicRMWOp>();
-        addLegalOp<asctile::StoreOp>();
-        addLegalDialect<ascendc::AscendCDialect>();
-    }
-};
-
 struct ConvertAtomicRMW : ConvertOp<asctile::AtomicRMWOp> {
-    using ConvertOp<asctile::AtomicRMWOp>::ConvertOp;
+    using ConvertOp::ConvertOp;
 
-    LogicalResult convert(asctile::AtomicRMWOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::AtomicRMWOp op, ConvertRewriter& rewriter) const override
     {
         auto loc = op.getLoc();
         auto base = op.getBase();
@@ -79,7 +70,10 @@ struct LowerAtomicPass : public asclower::impl::LowerAtomicBase<LowerAtomicPass>
         func::FuncOp funcOp = getOperation();
         TensorTypeConverter converter;
         MLIRContext* context = &getContext();
-        LoweringConversionTarget target(context);
+        ConversionTarget target(*context);
+        target.addIllegalOp<asctile::AtomicRMWOp>();
+        target.addLegalOp<asctile::StoreOp>();
+        target.addLegalDialect<ascendc::AscendCDialect>();
         RewritePatternSet patterns(context);
         patterns.insert<ConvertAtomicRMW>(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())

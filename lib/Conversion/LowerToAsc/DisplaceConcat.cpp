@@ -71,18 +71,17 @@ struct ConcatToNoop : public OpRewritePattern<asctile::ConcatOp> {
 
 struct ConvertConcat : public ConvertOp<asctile::ConcatOp> {
     using ConvertOp::calCount;
-    using ConvertOp::converter;
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(asctile::ConcatOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::ConcatOp op, ConvertRewriter& rewriter) const override
     {
         auto loc = op.getLoc();
         ascir::ConstantOpBuilder consts(rewriter);
         Value dst = createTensorOp(rewriter, loc, op.getType());
         int64_t offset = 0;
         for (auto opnd : op.getOperands()) {
-            auto tensorType = converter().convertType(opnd.getType());
+            auto tensorType = typeConverter->convertType(opnd.getType());
             auto tensor = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, tensorType, dst, consts.i64(offset));
             Value src = rewriter.getRemappedValue(opnd);
             rewriter.create<ascendc::DataCopyL2Op>(loc, tensor, src, consts.i64(calCount(src)));

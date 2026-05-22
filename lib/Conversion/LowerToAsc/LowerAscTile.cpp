@@ -67,30 +67,13 @@ bool check1D2DShape(Operation* op, ArrayRef<int64_t> shape)
     return true;
 }
 
-struct LoweringConversionTarget : public ConversionTarget {
-    LoweringConversionTarget(MLIRContext* context) : ConversionTarget(*context)
-    {
-        addIllegalOp<
-            //
-            asctile::TensorOp, asctile::SplatOp, asctile::ReluOp, asctile::CastOp, asctile::SoftmaxOp,
-            asctile::MatmulOp, asctile::ReshapeOp, asctile::BroadcastOp, asctile::AddSOp, asctile::SubSOp,
-            asctile::MulSOp, asctile::DivSOp, asctile::MinSOp, asctile::MaxSOp, asctile::ShLSOp, asctile::ShRSOp,
-            asctile::ReduceAs1dOp, asctile::ReduceOp, asctile::AccumulatorOp, asctile::MatmulAccOp
-            //
-            >();
-        addLegalDialect<ascendc::AscendCDialect, arith::ArithDialect, emitasc::EmitAscDialect>();
-        addLegalOp<UnrealizedConversionCastOp>();
-    }
-};
-
 struct ConvertTensor : public ConvertOp<asctile::TensorOp> {
-    using ConvertOp::converter;
     using ConvertOp::ConvertOp;
 
-    LogicalResult convert(asctile::TensorOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::TensorOp op, ConvertRewriter& rewriter) const override
     {
         auto loc = op.getLoc();
-        Value tensor = rewriter.create<ascendc::GlobalTensorOp>(loc, converter().convertType(op.getType()));
+        Value tensor = rewriter.create<ascendc::GlobalTensorOp>(loc, typeConverter->convertType(op.getType()));
         rewriter.create<ascendc::GlobalTensorSetGlobalBufferOp>(loc, tensor, op.getBase(), /*size*/ Value{});
         rewriter.replaceOp(op, tensor);
         return success();
@@ -98,10 +81,9 @@ struct ConvertTensor : public ConvertOp<asctile::TensorOp> {
 };
 
 struct ConvertSplat : public ConvertOp<asctile::SplatOp> {
-    using ConvertOp::converter;
     using ConvertOp::ConvertOp;
 
-    LogicalResult convert(asctile::SplatOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::SplatOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loc = op.getLoc();
@@ -116,7 +98,7 @@ struct ConvertRelu : ConvertOp<asctile::ReluOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(asctile::ReluOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::ReluOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         Location loc = op.getLoc();
@@ -205,7 +187,7 @@ struct ConvertCast : ConvertOp<asctile::CastOp> {
         return ascendc::RoundMode::CAST_NONE;
     }
 
-    LogicalResult convert(asctile::CastOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::CastOp op, ConvertRewriter& rewriter) const override
     {
         Location loc = op.getLoc();
         Value dst = createTensorOp(rewriter, loc, op.getType());
@@ -226,7 +208,7 @@ struct ConvertSoftmax : ConvertOp<asctile::SoftmaxOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(asctile::SoftmaxOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::SoftmaxOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loc = op.getLoc();
@@ -321,7 +303,7 @@ struct ConvertRmsNorm : ConvertOp<asctile::RmsNormOp> {
                 mainBsLength, mainBsLengthAlign, loopRound, tailBshLength,   inputTailPos,        tailBsLength};
     }
 
-    LogicalResult convert(asctile::RmsNormOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::RmsNormOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loc = op.getLoc();
@@ -361,7 +343,7 @@ struct ConvertMatmul : ConvertOp<asctile::MatmulOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(asctile::MatmulOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::MatmulOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loc = op.getLoc();
@@ -387,10 +369,10 @@ struct ConvertReshape : ConvertOp<asctile::ReshapeOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(asctile::ReshapeOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::ReshapeOp op, ConvertRewriter& rewriter) const override
     {
         rewriter.replaceOpWithNewOp<ascendc::LocalTensorReinterpretCastOp>(
-            op, converter().convertType(op.getType()), rewriter.getRemappedValue(op.getIn()));
+            op, typeConverter->convertType(op.getType()), rewriter.getRemappedValue(op.getIn()));
         return success();
     }
 };
@@ -399,7 +381,7 @@ struct ConvertBroadcast : ConvertOp<asctile::BroadcastOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(asctile::BroadcastOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::BroadcastOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loc = op.getLoc();
@@ -453,7 +435,7 @@ struct ConvertToL2 : ConvertOp<TileOp> {
     using ConvertOp<TileOp>::calCount;
     using ConvertOp<TileOp>::createTensorOp;
 
-    LogicalResult convert(TileOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(TileOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         Location loc = op.getLoc();
@@ -472,7 +454,7 @@ struct ConvertVecScalarToL2 : ConvertOp<TileOp> {
     using ConvertOp<TileOp>::calCount;
     using ConvertOp<TileOp>::createTensorOp;
 
-    LogicalResult convert(TileOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(TileOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         Location loc = op.getLoc();
@@ -499,7 +481,7 @@ struct ConvertReduceAs1d : ConvertOp<asctile::ReduceAs1dOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(asctile::ReduceAs1dOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::ReduceAs1dOp op, ConvertRewriter& rewriter) const override
     {
         Type elemType = getElementTypeOrSelf(op.getType());
         unsigned int typeSize = ascendc::getTypeSize(elemType);
@@ -591,7 +573,7 @@ struct ConvertReduce : ConvertOp<asctile::ReduceOp> {
         return std::pair(shape, findPattern(shape.size(), mask));
     }
 
-    LogicalResult convert(asctile::ReduceOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::ReduceOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         Location loc = op.getLoc();
@@ -632,7 +614,7 @@ struct ConvertAccumulator : ConvertOp<asctile::AccumulatorOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult convert(asctile::AccumulatorOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::AccumulatorOp op, ConvertRewriter& rewriter) const override
     {
         auto type = op.getType();
         assert(type.getLoc() == asctile::TileLocation::L0C && "accumulator should be have tile location L0C");
@@ -646,7 +628,7 @@ struct ConvertAccumulator : ConvertOp<asctile::AccumulatorOp> {
 struct ConvertMatmulAcc : ConvertOp<asctile::MatmulAccOp> {
     using ConvertOp::ConvertOp;
 
-    LogicalResult convert(asctile::MatmulAccOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(asctile::MatmulAccOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loc = op.getLoc();
@@ -677,7 +659,17 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         func::FuncOp funcOp = getOperation();
         TensorTypeConverter converter;
         MLIRContext* context = &getContext();
-        LoweringConversionTarget target(context);
+        ConversionTarget target(*context);
+        target.addIllegalOp<
+            //
+            asctile::TensorOp, asctile::SplatOp, asctile::ReluOp, asctile::CastOp, asctile::SoftmaxOp,
+            asctile::MatmulOp, asctile::ReshapeOp, asctile::BroadcastOp, asctile::AddSOp, asctile::SubSOp,
+            asctile::MulSOp, asctile::DivSOp, asctile::MinSOp, asctile::MaxSOp, asctile::ShLSOp, asctile::ShRSOp,
+            asctile::ReduceAs1dOp, asctile::ReduceOp, asctile::AccumulatorOp, asctile::MatmulAccOp
+            //
+            >();
+        target.addLegalDialect<ascendc::AscendCDialect, arith::ArithDialect, emitasc::EmitAscDialect>();
+        target.addLegalOp<UnrealizedConversionCastOp>();
         RewritePatternSet patterns(context);
         patterns.insert<
             //
