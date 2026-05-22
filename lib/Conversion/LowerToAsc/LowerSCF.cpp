@@ -26,22 +26,16 @@ using namespace mlir::asclower;
 
 namespace {
 
-struct LoweringConversionTarget : public ConversionTarget {
-    LoweringConversionTarget(TensorTypeConverter& converter, MLIRContext* context) : ConversionTarget(*context)
-    {
-        addDynamicallyLegalOp<scf::IfOp, scf::ForOp, scf::YieldOp>(
-            [&](Operation* op) { return converter.isLegal(op); });
-        addLegalOp<UnrealizedConversionCastOp>();
-    }
-};
-
 struct LowerSCFPass : public asclower::impl::LowerSCFBase<LowerSCFPass> {
     void runOnOperation() override
     {
         func::FuncOp funcOp = getOperation();
         TensorTypeConverter converter;
         MLIRContext* context = &getContext();
-        LoweringConversionTarget target(converter, context);
+        ConversionTarget target(*context);
+        target.addDynamicallyLegalOp<scf::IfOp, scf::ForOp, scf::YieldOp>(
+            [&converter](Operation* op) { return converter.isLegal(op); });
+        target.addLegalOp<UnrealizedConversionCastOp>();
         RewritePatternSet patterns(context);
         scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns, target);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())

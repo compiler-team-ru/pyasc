@@ -80,8 +80,4 @@ struct ExpandMaskPass : public asclower::impl::ExpandMaskBase<ExpandMaskPass> {
 
 } // namespace
 
-namespace mlir {
-namespace asclower {
-std::unique_ptr<Pass> createExpandMaskPass() { return std::make_unique<ExpandMaskPass>(); }
-} // namespace asclower
-} // namespace mlir
+std::unique_ptr<Pass> mlir::asclower::createExpandMaskPass() { return std::make_unique<ExpandMaskPass>(); }

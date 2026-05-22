@@ -29,22 +29,13 @@ using namespace mlir::asclower;
 
 namespace {
 
-struct LoweringConversionTarget : public ConversionTarget {
-    LoweringConversionTarget(TensorTypeConverter& converter, MLIRContext* context) : ConversionTarget(*context)
-    {
-        addDynamicallyLegalDialect<math::MathDialect>([&](Operation* op) { return converter.isLegal(op); });
-        addLegalDialect<ascendc::AscendCDialect>();
-        addLegalOp<arith::ConstantOp>();
-    }
-};
-
 template <typename MathOp, typename LibraryOp>
 struct ConvertUnaryToLib : public ConvertOp<MathOp> {
     using ConvertOp<MathOp>::createTensorOp;
     using ConvertOp<MathOp>::ConvertOp;
     using ConvertOp<MathOp>::calCount;
 
-    LogicalResult convert(MathOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(MathOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loc = op.getLoc();
@@ -63,7 +54,7 @@ struct ConvertUnaryToL2 : public ConvertOp<MathOp> {
     using ConvertOp<MathOp>::ConvertOp;
     using ConvertOp<MathOp>::calCount;
 
-    LogicalResult convert(MathOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(MathOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loc = op.getLoc();
@@ -81,7 +72,11 @@ struct LowerMathPass : public asclower::impl::LowerMathBase<LowerMathPass> {
         func::FuncOp funcOp = getOperation();
         TensorTypeConverter converter;
         MLIRContext* context = &getContext();
-        LoweringConversionTarget target(converter, context);
+        ConversionTarget target(*context);
+        target.addDynamicallyLegalDialect<math::MathDialect>(
+            [&converter](Operation* op) { return converter.isLegal(op); });
+        target.addLegalDialect<ascendc::AscendCDialect>();
+        target.addLegalOp<arith::ConstantOp>();
         RewritePatternSet patterns(context);
         patterns.insert<
             //

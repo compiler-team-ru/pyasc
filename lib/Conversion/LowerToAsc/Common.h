@@ -92,24 +92,33 @@ struct TensorTypeConverter : public LoweringTypeConverter {
 using ConvertRewriter = ConversionPatternRewriter;
 
 template <typename OpType>
-struct ConvertOp : public ConversionPattern {
-    ConvertOp(LoweringTypeConverter& converter, MLIRContext* context)
-        : ConversionPattern(converter, OpType::getOperationName(), 1, context)
-    {}
+struct ConvertOp : public OpConversionPattern<OpType> {
+    using OpAdaptor = typename OpType::Adaptor;
 
-    const LoweringTypeConverter& converter() const { return *getTypeConverter<LoweringTypeConverter>(); }
+    using OpConversionPattern<OpType>::OpConversionPattern;
+    using OpConversionPattern<OpType>::typeConverter;
 
-    virtual LogicalResult convert(
-        OpType op, [[maybe_unused]] ArrayRef<Value>& operands, ConvertRewriter& rewriter) const
+    virtual void rewrite(OpType op, ConvertRewriter& rewriter) const
     {
-        return convert(op, rewriter);
+        llvm_unreachable("either rewrite() or matchAndRewrite() must be overloaded");
     }
 
-    virtual LogicalResult convert(OpType op, ConvertRewriter& rewriter) const { return failure(); }
-
-    LogicalResult matchAndRewrite(Operation* op, ArrayRef<Value> operands, ConvertRewriter& rewriter) const final
+    void rewrite(OpType op, [[maybe_unused]] OpAdaptor adaptor, ConvertRewriter& rewriter) const final
     {
-        return convert(cast<OpType>(op), operands, rewriter);
+        rewrite(op, rewriter);
+    }
+
+    virtual LogicalResult matchAndRewrite(OpType op, ConvertRewriter& rewriter) const
+    {
+        if (this->match(op).failed())
+            return failure();
+        rewrite(op, rewriter);
+        return success();
+    }
+
+    LogicalResult matchAndRewrite(OpType op, [[maybe_unused]] OpAdaptor adaptor, ConvertRewriter& rewriter) const final
+    {
+        return matchAndRewrite(op, rewriter);
     }
 
     static ascendc::TPosition locationToPosition(asctile::TileLocation loc)
@@ -131,9 +140,9 @@ struct ConvertOp : public ConversionPattern {
         llvm_unreachable("unexpected TileLocation value");
     }
 
-    ascendc::LocalTensorAutoOp createTensorOp(
+    static ascendc::LocalTensorAutoOp createTensorOp(
         OpBuilder& builder, Location loc, ArrayRef<int64_t> shape, Type elementType,
-        std::optional<ascendc::TPosition> position = std::nullopt) const
+        std::optional<ascendc::TPosition> position = std::nullopt)
     {
         auto localTensorAuto = builder.create<ascendc::LocalTensorAutoOp>(
             loc, ascendc::LocalTensorType::get(shape, elementType), position.value_or(ascendc::TPosition::VECCALC));
@@ -144,7 +153,7 @@ struct ConvertOp : public ConversionPattern {
         OpBuilder& builder, Location loc, Type convertibleType,
         std::optional<ascendc::TPosition> position = std::nullopt) const
     {
-        auto convertedType = converter().convertType(convertibleType);
+        auto convertedType = typeConverter->convertType(convertibleType);
         assert(isa<ascendc::LocalTensorType>(convertedType) && "must be convertible");
         auto tensorType = cast<ascendc::LocalTensorType>(convertedType);
         if (auto tileType = dyn_cast<asctile::TileType>(convertibleType)) {
@@ -157,14 +166,14 @@ struct ConvertOp : public ConversionPattern {
         OpBuilder& builder, Location loc, Value convertibleTensor, ArrayRef<int64_t> shape, Type elementType) const
     {
         auto type = ascendc::LocalTensorType::get(shape, elementType);
-        auto tensor = converter().materializeTargetConversion(builder, loc, type, convertibleTensor);
+        auto tensor = typeConverter->materializeTargetConversion(builder, loc, type, convertibleTensor);
         return builder.create<ascendc::LocalTensorReinterpretCastOp>(loc, type, tensor);
     }
 
     ascendc::LocalTensorReinterpretCastOp createReCastOp(
         OpBuilder& builder, Location loc, Value convertibleTensor, Type convertibleType) const
     {
-        auto convertedType = converter().convertType(convertibleType);
+        auto convertedType = typeConverter->convertType(convertibleType);
         assert(isa<ascendc::LocalTensorType>(convertedType) && "must be convertible");
         auto tensorType = cast<ascendc::LocalTensorType>(convertedType);
         return createReCastOp(builder, loc, convertibleTensor, tensorType.getShape(), tensorType.getElementType());
