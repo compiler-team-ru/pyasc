@@ -102,24 +102,29 @@ Operation* findUser(Operation* tensorOp, DominanceInfo& di)
     llvm_unreachable("Unknown target user");
 }
 
+bool isTensorGreaterOrEqual(TensorOp firstOp, TensorOp secondOp)
+{
+    return ascendc::getTypeSize(firstOp.getType()) >= ascendc::getTypeSize(secondOp.getType());
+}
+
+bool reusable(TensorOp op) { return op.getPosition() == ascendc::TPosition::VECCALC && op.getType().hasStaticShape(); }
+
+bool isTensorInDiffRegions(TensorOp bottomTensor, TensorOp topTensor, Region& r1, Region& r2)
+{
+    return (r1.isAncestor(bottomTensor->getParentRegion()) && r2.isAncestor(topTensor->getParentRegion())) ||
+           (r1.isAncestor(topTensor->getParentRegion()) && r2.isAncestor(bottomTensor->getParentRegion()));
+}
+
+void raiseInOut(TensorOp baseTensor, TensorOp newTensor)
+{
+    if (baseTensor.getInput())
+        newTensor.setInput(true);
+    if (baseTensor.getOutput())
+        newTensor.setOutput(true);
+}
+
 struct ReuseUBAllocationPass : public ascendc::impl::ReuseUBAllocationBase<ReuseUBAllocationPass> {
     ReuseUBAllocationPass(const ascendc::ReuseUBAllocationOptions& options) : ReuseUBAllocationBase(options) {}
-
-    static bool isTensorGreaterOrEqual(TensorOp firstOp, TensorOp secondOp)
-    {
-        return ascendc::getTypeSize(firstOp.getType()) >= ascendc::getTypeSize(secondOp.getType());
-    }
-
-    bool reusable(TensorOp op) const
-    {
-        return op.getPosition() == ascendc::TPosition::VECCALC && op.getType().hasStaticShape();
-    }
-
-    bool isTensorInDiffRegions(TensorOp bottomTensor, TensorOp topTensor, Region& r1, Region& r2) const
-    {
-        return (r1.isAncestor(bottomTensor->getParentRegion()) && r2.isAncestor(topTensor->getParentRegion())) ||
-               (r1.isAncestor(topTensor->getParentRegion()) && r2.isAncestor(bottomTensor->getParentRegion()));
-    }
 
     bool testOnReuseImpl(
         TensorOp bottomTensor, TensorOp topTensor, Operation* firstUser, Operation* lastUser, Operation* lastUserAnc,
@@ -173,7 +178,6 @@ struct ReuseUBAllocationPass : public ascendc::impl::ReuseUBAllocationBase<Reuse
         return lastUser->isBeforeInBlock(firstUser);
     }
 
-    template <typename CastOp>
     void reuse(SmallVectorImpl<TensorOp>& tensorOpList, Block* block, DominanceInfo& di)
     {
         while (tensorOpList.size() > 1) {
@@ -182,9 +186,6 @@ struct ReuseUBAllocationPass : public ascendc::impl::ReuseUBAllocationBase<Reuse
                 if (!reusable(tensorOp) || !reusable(topTensorOp) || !testOnReuse(tensorOp, topTensorOp, block, di))
                     continue;
                 if (tensorOp->getBlock() != topTensorOp->getBlock()) {
-                    constexpr bool reuseGreedily = true;
-                    if (!reuseGreedily)
-                        continue;
                     if (topTensorOp->getBlock() != block)
                         topTensorOp->moveBefore(block, block->begin());
                 }
@@ -197,16 +198,18 @@ struct ReuseUBAllocationPass : public ascendc::impl::ReuseUBAllocationBase<Reuse
                 OpBuilder builder(tensorOp);
                 if (isTensorGreaterOrEqual(topTensorOp, tensorOp)) {
                     builder.setInsertionPointAfter(topTensorOp);
-                    auto reinterpretCastOpToSecond =
-                        builder.create<CastOp>(tensorOp->getLoc(), tensorOp.getType(), topTensorOp->getResult(0));
-                    reuseTensorOp(tensorOp, reinterpretCastOpToSecond);
+                    auto castToSecond = builder.create<ascendc::LocalTensorReinterpretCastOp>(
+                        tensorOp->getLoc(), tensorOp.getType(), topTensorOp.getResult());
+                    reuseTensorOp(tensorOp, castToSecond);
+                    raiseInOut(tensorOp, topTensorOp);
                     tensorOp = topTensorOp;
                 } else {
                     tensorOp->moveBefore(topTensorOp);
                     builder.setInsertionPointAfter(tensorOp);
-                    auto reinterpretCastOpToFirst =
-                        builder.create<CastOp>(topTensorOp->getLoc(), topTensorOp.getType(), tensorOp->getResult(0));
-                    reuseTensorOp(topTensorOp, reinterpretCastOpToFirst);
+                    auto castToFirst = builder.create<ascendc::LocalTensorReinterpretCastOp>(
+                        topTensorOp->getLoc(), topTensorOp.getType(), tensorOp.getResult());
+                    reuseTensorOp(topTensorOp, castToFirst);
+                    raiseInOut(topTensorOp, tensorOp);
                 }
                 break;
             }
@@ -246,8 +249,8 @@ struct ReuseUBAllocationPass : public ascendc::impl::ReuseUBAllocationBase<Reuse
                 else if (isa<scf::IfOp>(lastUser))
                     lastUserInIfOpList.push_back(tensorOp);
             }
-            reuse<ascendc::LocalTensorReinterpretCastOp>(lastUserInWhileOpList, block, di);
-            reuse<ascendc::LocalTensorReinterpretCastOp>(lastUserInIfOpList, block, di);
+            reuse(lastUserInWhileOpList, block, di);
+            reuse(lastUserInIfOpList, block, di);
 
             SmallVector<TensorOp> usedTensorOpList;
             for (auto& tensorOp : tensorOpList) {
@@ -255,7 +258,7 @@ struct ReuseUBAllocationPass : public ascendc::impl::ReuseUBAllocationBase<Reuse
                     usedTensorOpList.push_back(tensorOp);
             }
 
-            reuse<ascendc::LocalTensorReinterpretCastOp>(usedTensorOpList, block, di);
+            reuse(usedTensorOpList, block, di);
             block->walk([](TensorOp op) {
                 if (op->hasAttr(eraseMeAttr))
                     op.erase();

@@ -73,7 +73,7 @@ func.func @reuse_with_different_tensor_types_and_shapes(%arg0: !ascendc.global_t
 }
 
 // CHECK-LABEL: func.func @reuse_tensor_with_different_attributes_no_loop(
-// CHECK:       %0 = ascendc.local_tensor_auto veccalc() : <8xi32>
+// CHECK:       %0 = ascendc.local_tensor_auto veccalc() input output : <8xi32>
 // CHECK-NEXT:  %1 = ascendc.reinterpret_cast %0 : !ascendc.local_tensor<8xi32> to !ascendc.local_tensor<8xi32>
 // CHECK-NEXT:  %2 = ascendc.reinterpret_cast %0 : !ascendc.local_tensor<8xi32> to !ascendc.local_tensor<8xi32>
 // CHECK-NEXT:  ascendc.data_copy_l2 %0, %arg0, %c8_i64 : !ascendc.local_tensor<8xi32>, !ascendc.global_tensor<?xi32>, i64
@@ -124,7 +124,7 @@ func.func @noreuse_input_output_in_same_loop(%arg0: !ascendc.global_tensor<?xf32
 // CHECK-LABEL: func.func @reuse_input_output_in_different_loops(
 // CHECK:       %0 = ascendc.local_tensor_auto veccalc() : <8xf32>
 // CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() input : <8xf32>
-// CHECK-NEXT:  %2 = ascendc.local_tensor_auto veccalc() output : <8xf32>
+// CHECK-NEXT:  %2 = ascendc.local_tensor_auto veccalc() input output : <8xf32>
 // CHECK-NEXT:  %3 = ascendc.reinterpret_cast %2 : !ascendc.local_tensor<8xf32> to !ascendc.local_tensor<8xf32>
 // CHECK-NEXT:  scf.for %arg2 = %c0 to %c32 step %c1 {
 // CHECK-NEXT:    ascendc.data_copy_l2 %1, %arg0, %c8_i64 : !ascendc.local_tensor<8xf32>, !ascendc.global_tensor<?xf32>, i64
