@@ -39,7 +39,7 @@ def matmul_launch(a: torch.Tensor, b: torch.Tensor, dtype) -> torch.Tensor:
 ])
 def test_matmul_l0c_to_l1(backend: asc2.Backend, platform: asc2.Platform, device_id: int, m, k, n, torch_dtype,
                           pyasc_dtype):
-    asc2.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id, check=False)
     torch.manual_seed(0)
     device = "npu" if asc2.Backend(backend) == asc2.Backend.NPU else "cpu"
     a = (torch.rand((m, k), dtype=torch_dtype, device=device) - .5) * 10

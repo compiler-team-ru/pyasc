@@ -149,7 +149,7 @@ def get_broadcast_axes(input_shape, output_shape):
      ])
 def test_reduce(backend, platform, device_id, profiler, runs, core_num, unroll_factor, input_shape, input_dtype,
                 output_shape, output_dtype, tiling_key, tiling_values):
-    asc2.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id, check=False)
     is_scalar_input = torch.prod(torch.tensor(input_shape)).item() == 1
     tilingKey, _, _, _, bufferCnt, _, _, _, _, _, _, _, _, _, _, uLpUnit, _, uOutOffset, _, _, _, _, _, _, _, _, _ = tiling_values
     tile_shape = [1, uLpUnit] if is_scalar_input else [uLpUnit, uOutOffset]

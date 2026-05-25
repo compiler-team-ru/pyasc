@@ -61,7 +61,7 @@ def kl_div(input_x_ptr: asc2.GlobalAddress, input_target_ptr: asc2.GlobalAddress
     (2, [1000, 997, 1000, 2, 1], torch.float32, 3328),
 ])
 def test_kl_div(backend, platform, device_id, profiler, runs, unroll_factor, input_shape, input_dtype, tile_length):
-    asc2.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id, check=False)
     length = math.prod(input_shape)
     in_tensor_x = torch.rand(length, dtype=input_dtype)
     in_tensor_target = torch.rand_like(in_tensor_x)

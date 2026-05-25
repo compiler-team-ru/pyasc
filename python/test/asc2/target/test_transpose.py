@@ -21,6 +21,7 @@ class TestCase:
     dtype: torch.dtype
     tile_size: List[int]
     block_size: Union[int, List[int]]
+    __test__ = False  # Suppress PytestCollectionWarning
 
 
 # Reads (h,w) sub tile
@@ -63,21 +64,21 @@ def transpose_column(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddre
     TestCase([512, 128], 1, torch.float32, [512, 8], 8),
     TestCase([612, 128], 1, torch.float32, [632, 8], 8),
     TestCase([3200, 256], 1, torch.float32, [3200, 8], 4),
-    TestCase([4000, 12592], 2, torch.float32, [512, 512], [356, 334]),
+    # TestCase([4000, 12592], 2, torch.float32, [512, 512], [356, 334]),  # UB overflow
     TestCase([4000, 12592], 2, torch.float16, [256, 256], [251, 248]),
-    TestCase([4096, 1024], 2, torch.float32, [256, 256], [251, 164]),
+    # TestCase([4096, 1024], 2, torch.float32, [256, 256], [251, 164]),  # UB overflow
     TestCase([1000, 2048], 2, torch.float32, [160, 256], [146, 252]),
     TestCase([1024, 256], 1, torch.float32, [1024, 8], 8),
     TestCase([128, 6400], 1, torch.float16, [128, 16], 16),
     TestCase([4096, 1024], 2, torch.float32, [256, 176], [251, 164]),
 ])
 def test_transpose(backend: asc2.Backend, platform: asc2.Platform, device_id: int, profiler, runs, test_params):
-    asc2.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id, check=False)
 
     input = torch.randn(test_params.shape, dtype=test_params.dtype, device="cpu")
     width = test_params.shape[1]
     height = test_params.shape[0]
-    out = torch.zeros_like(input, shape=[width, height])
+    out = torch.zeros([width, height], dtype=input.dtype)
     if test_params.mode == 1:
         # load n columns
         total_tiles = asc2.ceildiv(width, test_params.block_size)

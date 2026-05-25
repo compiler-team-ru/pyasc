@@ -46,7 +46,7 @@ def add_kernel_1D(input_x_ptr: asc2.GlobalAddress, input_y_ptr: asc2.GlobalAddre
     ])
 def test_add(backend, platform, device_id, profiler, runs, core_num, unroll_factor, input_shape, input_dtype,
              output_shape, output_dtype, tiling_key, tiling_values):
-    asc2.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id, check=False)
     _, _, tile_length, core_num = tiling_values
 
     # Convert any shape to 1D

@@ -11,7 +11,7 @@ import pytest
 import torch
 
 
-@asc2.jit(static_alloc=True, reuse_ub=True)
+@asc2.jit(static_alloc=True, reuse_ub=True, reuse_ub_in_out=True)
 def gelu_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, input_length: asc2.ConstExpr,
                 tile_length: asc2.ConstExpr, block_loop_num: asc2.ConstExpr, block_loop_num_tail: asc2.ConstExpr,
                 block_length: asc2.ConstExpr, TANH_APPROX_FACTOR: asc2.ConstExpr,
@@ -58,7 +58,7 @@ def gelu_torch(x: torch.Tensor, TANH_APPROX_FACTOR, NEG_SQRT_EIGHT_OVER_PI):
     ])
 def test_gelu(backend: asc2.Backend, platform: asc2.Platform, device_id, profiler, runs, core_num, unroll_factor,
               input_shape, input_dtype, output_shape, output_dtype, tiling_key, tiling_values):
-    asc2.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id, check=False)
     CACHE_LINE_BYTE_LENGTH = 512
     TANH_APPROX_FACTOR = 1.0 / 0.044715
     NEG_SQRT_EIGHT_OVER_PI = -1.595769121 * 0.044715

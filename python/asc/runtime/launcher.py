@@ -215,8 +215,7 @@ class Launcher:
         is_launched = isinstance(kernel, LaunchedKernel)
         if not is_launched and kernel.meta.memory_consumed is not None:
             self.check_memory_overflow(kernel.meta.memory_consumed)
-        dry_run = os.environ.get('DRY_RUN')
-        if dry_run:
+        if os.environ.get("PYASC_DRY_RUN"):
             return
         if not isinstance(kernel.binary, bytes):
             raise RuntimeError("Compiled binary is required to launch the kernel")

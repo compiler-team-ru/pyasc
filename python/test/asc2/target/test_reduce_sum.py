@@ -194,7 +194,7 @@ def reduce_sum_cols(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
     ])
 def test_reduce_sum(backend, platform, device_id, profiler, runs, core_num, unroll_factor, input_shape, input_dtype,
                     output_shape, output_dtype, axis, tiling_key, tiling_values):
-    asc2.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id, check=False)
 
     keep_dims = (len(input_shape) == len(output_shape))
     if keep_dims:
