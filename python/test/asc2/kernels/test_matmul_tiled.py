@@ -36,7 +36,7 @@ def matmul_launch(a: torch.Tensor, b: torch.Tensor, k_tiles: int) -> torch.Tenso
 
 @pytest.mark.parametrize("k_tiles", [2, 4, 8])
 def test_matmul_tiled(backend: asc2.Backend, platform: asc2.Platform, device_id: int, k_tiles):
-    asc2.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id, check=False)
     device = "npu" if asc2.Backend(backend) == asc2.Backend.NPU else "cpu"
     m, k, n = 64, 128, 256
     dtype = torch.float16

@@ -39,7 +39,7 @@ def vmuladd_launch(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
 
 
 def test_vmuladd(backend: asc2.Backend, platform: asc2.Platform, device_id: int):
-    asc2.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id, check=False)
     rng = np.random.default_rng(seed=2026)
     size = 8192
     x = rng.random(size, dtype=np.float32) * 10

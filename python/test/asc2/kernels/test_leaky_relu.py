@@ -40,7 +40,7 @@ def leaky_relu_launch(x: torch.Tensor, alpha: torch.Tensor) -> torch.Tensor:
 
 
 def test_leaky_relu(backend: asc2.Backend, platform: asc2.Platform, device_id: int):
-    asc2.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id, check=False)
     device = "npu" if asc2.Backend(backend) == asc2.Backend.NPU else "cpu"
     size = 8192
     x = torch.rand(size, dtype=torch.bfloat16, device=device) * 10.0 - 5.0

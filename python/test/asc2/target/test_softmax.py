@@ -48,7 +48,7 @@ def softmax(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input
     ])
 def test_softmax(backend, platform, device_id, profiler, runs, core_num, unroll_factor, input_shape, input_dtype,
                  output_shape, output_dtype, axis, tiling_key, tiling_values):
-    asc2.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id, check=False)
 
     total_rows, rows_per_iter, rows_per_core = None, None, None
     if tiling_key == 500:

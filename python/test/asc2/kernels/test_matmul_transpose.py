@@ -43,7 +43,7 @@ def matmul_launch(a: torch.Tensor, b: torch.Tensor, tile_a, tile_b) -> torch.Ten
 ])
 def test_matmul_transpose(backend: asc2.Backend, platform: asc2.Platform, device_id: int, m, k, n, dtype, tile_a,
                           tile_b):
-    asc2.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id, check=False)
     device = "npu" if asc2.Backend(backend) == asc2.Backend.NPU else "cpu"
     a = (torch.rand((k, m), dtype=dtype, device=device) - .5) * 10
     b = (torch.rand((n, k), dtype=dtype, device=device) - .5) * 10

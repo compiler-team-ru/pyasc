@@ -181,7 +181,7 @@ def where_scalar_source_launch(x: torch.Tensor, *, scalar_value: int, scalar_on_
 def test_where_condition_dtypes(backend: asc2.Backend, platform: asc2.Platform, device_id: int, require_c310,
                                 dtype: torch.dtype):
     check_dtype(platform, dtype, require_c310)
-    asc2.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id, check=False)
     size = TILE_SIZE
     x, y = make_data(size, dtype)
     cond = make_condition(size, "alternating", dtype)
@@ -192,7 +192,7 @@ def test_where_condition_dtypes(backend: asc2.Backend, platform: asc2.Platform, 
 
 @pytest.mark.parametrize("pattern", CONDITION_PATTERNS)
 def test_where_condition_patterns(backend: asc2.Backend, platform: asc2.Platform, device_id: int, pattern: str):
-    asc2.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id, check=False)
     size = TILE_SIZE
     x, y = make_data(size, torch.float32)
     cond = make_condition(size, pattern, torch.float32)
@@ -204,7 +204,7 @@ def test_where_condition_patterns(backend: asc2.Backend, platform: asc2.Platform
 @pytest.mark.parametrize("logical_size", [1, 2, 127, 128, 129, 255, 256])
 def test_where_logical_border_prefixes(backend: asc2.Backend, platform: asc2.Platform, device_id: int,
                                        logical_size: int):
-    asc2.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id, check=False)
     num_tiles = asc2.ceildiv(logical_size, TILE_SIZE)
     physical_size = TILE_SIZE * asc2.ceildiv(num_tiles, SINGLE_CORE) * SINGLE_CORE
     x, y = make_data(physical_size, torch.float32)
@@ -215,7 +215,7 @@ def test_where_logical_border_prefixes(backend: asc2.Backend, platform: asc2.Pla
 
 
 def test_where_multicore_unrolled(backend: asc2.Backend, platform: asc2.Platform, device_id: int):
-    asc2.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id, check=False)
     size = TILE_SIZE * MULTI_CORE * 2
     x, y = make_data(size, torch.float32)
     cond = make_condition(size, "alternating", torch.float32)
@@ -230,7 +230,7 @@ def test_where_multicore_unrolled(backend: asc2.Backend, platform: asc2.Platform
 def test_where_scalar_source_layouts(backend: asc2.Backend, platform: asc2.Platform, device_id: int, require_c310,
                                      scalar_on_true: bool, scalar_value: int, dtype: torch.dtype):
     check_dtype(platform, dtype, require_c310)
-    asc2.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id, check=False)
     x, _ = make_data(TILE_SIZE, dtype)
     out = where_scalar_source_launch(x, scalar_value=scalar_value, scalar_on_true=scalar_on_true)
     scalar_tensor = torch.full_like(x, scalar_value)

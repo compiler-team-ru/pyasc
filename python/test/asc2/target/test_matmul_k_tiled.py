@@ -48,7 +48,7 @@ def matmul_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr: a
 ])
 def test_matmul_k_tiled(backend: asc2.Backend, platform: asc2.Platform, device_id: int, profiler, runs, core_num,
                         unroll_factor, input_type, output_type, tiling_data):
-    asc2.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id, check=False)
     quant_type = asc2.float32
     if output_type == torch.float16:
         quant_type = asc2.float16
