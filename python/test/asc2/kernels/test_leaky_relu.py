@@ -6,11 +6,8 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-import torch
-
-import asc
-import asc.runtime.config as config
 import asc2
+import torch
 
 
 @asc2.jit
@@ -19,8 +16,8 @@ def leaky_relu(x, alpha):
 
 
 @asc2.jit(always_compile=True)
-def leaky_relu_kernel(x_ptr: asc.GlobalAddress, alpha: float, out_ptr: asc.GlobalAddress, size: int,
-                      tile_size: asc.ConstExpr[int], tile_per_block: asc.ConstExpr[int]):
+def leaky_relu_kernel(x_ptr: asc2.GlobalAddress, alpha: float, out_ptr: asc2.GlobalAddress, size: int,
+                      tile_size: asc2.ConstExpr[int], tile_per_block: asc2.ConstExpr[int]):
     x_gm = asc2.tensor(x_ptr, [size])
     out_gm = asc2.tensor(out_ptr, [size])
     base_offset = asc2.block_idx() * tile_size * tile_per_block
@@ -37,14 +34,14 @@ def leaky_relu_launch(x: torch.Tensor, alpha: torch.Tensor) -> torch.Tensor:
     size = out.numel()
     core_num = 16
     tile_size = 128
-    num_tiles = asc.ceildiv(size, tile_size)
-    leaky_relu_kernel[core_num](x, alpha, out, size, tile_size, asc.ceildiv(num_tiles, core_num))
+    num_tiles = asc2.ceildiv(size, tile_size)
+    leaky_relu_kernel[core_num](x, alpha, out, size, tile_size, asc2.ceildiv(num_tiles, core_num))
     return out
 
 
-def test_leaky_relu(backend: config.Backend, platform: config.Platform, device_id: int):
-    config.set_platform(backend, platform, device_id)
-    device = "npu" if config.Backend(backend) == config.Backend.NPU else "cpu"
+def test_leaky_relu(backend: asc2.Backend, platform: asc2.Platform, device_id: int):
+    asc2.set_platform(backend, platform, device_id)
+    device = "npu" if asc2.Backend(backend) == asc2.Backend.NPU else "cpu"
     size = 8192
     x = torch.rand(size, dtype=torch.bfloat16, device=device) * 10.0 - 5.0
     alpha = torch.tensor(0.1, dtype=torch.bfloat16)

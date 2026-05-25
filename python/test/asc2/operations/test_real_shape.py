@@ -6,25 +6,22 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
+import asc2
 import pytest
 import torch
-
-import asc
-import asc2
-from asc.runtime import config
 
 STATIC = "static"
 DYNAMIC = "dynamic"
 
 
 @pytest.fixture(autouse=True)
-def set_platform(backend: config.Backend, platform: config.Platform, device_id: int):
-    config.set_platform(backend, platform, device_id, check=False)
+def set_platform(backend: asc2.Backend, platform: asc2.Platform, device_id: int):
+    asc2.set_platform(backend, platform, device_id, check=False)
 
 
 @asc2.jit(always_compile=True)
-def load_real_shape_1d_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, size: int,
-                              tile_shape: asc.ConstExpr, real_shape: asc.ConstExpr, offset: asc.ConstExpr):
+def load_real_shape_1d_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, size: int,
+                              tile_shape: asc2.ConstExpr, real_shape: asc2.ConstExpr, offset: asc2.ConstExpr):
     x_gm = asc2.tensor(x_ptr, [size])
     out_gm = asc2.tensor(out_ptr, [1])
     tile = asc2.load(x_gm, tile_shape, real_shape=real_shape, offsets=offset, pad_value=float('-inf'))
@@ -34,8 +31,8 @@ def load_real_shape_1d_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddre
 
 
 @asc2.jit(always_compile=True)
-def load_real_shape_1d_dynamic_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, size: int, real_size: int,
-                                      tile_shape: asc.ConstExpr, offset: asc.ConstExpr):
+def load_real_shape_1d_dynamic_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, size: int, real_size: int,
+                                      tile_shape: asc2.ConstExpr, offset: asc2.ConstExpr):
     x_gm = asc2.tensor(x_ptr, [size])
     out_gm = asc2.tensor(out_ptr, [1])
     tile = asc2.load(x_gm, tile_shape, real_shape=[real_size], offsets=offset, pad_value=float('-inf'))
@@ -80,8 +77,8 @@ def test_load_real_shape_1d(kernel_type, shape, tile_shape, real_shape, offset):
 
 
 @asc2.jit(always_compile=True)
-def load_real_shape_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, rows: int, cols: int,
-                           tile_shape: asc.ConstExpr, real_shape: asc.ConstExpr, offsets: asc.ConstExpr):
+def load_real_shape_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, rows: int, cols: int,
+                           tile_shape: asc2.ConstExpr, real_shape: asc2.ConstExpr, offsets: asc2.ConstExpr):
     x_gm = asc2.tensor(x_ptr, [rows, cols])
     out_gm = asc2.tensor(out_ptr, [1])
     tile = asc2.load(x_gm, tile_shape, real_shape=real_shape, offsets=offsets, pad_value=float('-inf'))
@@ -91,8 +88,8 @@ def load_real_shape_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress,
 
 
 @asc2.jit(always_compile=True)
-def load_real_shape_dynamic_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, rows: int, cols: int,
-                                   real_rows: int, real_cols: int, tile_shape: asc.ConstExpr, offsets: asc.ConstExpr):
+def load_real_shape_dynamic_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, rows: int, cols: int,
+                                   real_rows: int, real_cols: int, tile_shape: asc2.ConstExpr, offsets: asc2.ConstExpr):
     x_gm = asc2.tensor(x_ptr, [rows, cols])
     out_gm = asc2.tensor(out_ptr, [1])
     tile = asc2.load(x_gm, tile_shape, real_shape=[real_rows, real_cols], offsets=offsets, pad_value=float('-inf'))
@@ -148,9 +145,9 @@ def test_load_real_shape(platform, require_c310, kernel_type, shape, tile_shape,
 
 
 @asc2.jit(always_compile=True)
-def store_real_shape_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress,
-                            in_rows: int, in_cols: int, out_rows: int, out_cols: int, tile_shape: asc.ConstExpr,
-                            real_shape: asc.ConstExpr, offsets: asc.ConstExpr):
+def store_real_shape_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress,
+                            in_rows: int, in_cols: int, out_rows: int, out_cols: int, tile_shape: asc2.ConstExpr,
+                            real_shape: asc2.ConstExpr, offsets: asc2.ConstExpr):
     x_gm = asc2.tensor(x_ptr, [in_rows, in_cols])
     y_gm = asc2.tensor(y_ptr, [in_rows, in_cols])
     out_gm = asc2.tensor(out_ptr, [out_rows, out_cols])
@@ -161,9 +158,9 @@ def store_real_shape_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, 
 
 
 @asc2.jit(always_compile=True)
-def store_real_shape_dynamic_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress,
+def store_real_shape_dynamic_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress,
                                     in_rows: int, in_cols: int, out_rows: int, out_cols: int, real_rows: int,
-                                    real_cols: int, tile_shape: asc.ConstExpr, offsets: asc.ConstExpr):
+                                    real_cols: int, tile_shape: asc2.ConstExpr, offsets: asc2.ConstExpr):
     x_gm = asc2.tensor(x_ptr, [in_rows, in_cols])
     y_gm = asc2.tensor(y_ptr, [in_rows, in_cols])
     out_gm = asc2.tensor(out_ptr, [out_rows, out_cols])

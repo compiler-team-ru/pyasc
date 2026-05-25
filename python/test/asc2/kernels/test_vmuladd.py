@@ -6,17 +6,14 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-import numpy as np
-
-import asc
-import asc.runtime.config as config
 import asc2
+import numpy as np
 
 
 @asc2.jit(always_compile=True, vf_fusion=True)
-def vmuladd_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, z_ptr: asc.GlobalAddress,
-                   out_ptr: asc.GlobalAddress, size: int, tile_size: asc.ConstExpr[int],
-                   tile_per_block: asc.ConstExpr[int], buffer_factor: asc.ConstExpr[int]):
+def vmuladd_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, z_ptr: asc2.GlobalAddress,
+                   out_ptr: asc2.GlobalAddress, size: int, tile_size: asc2.ConstExpr[int],
+                   tile_per_block: asc2.ConstExpr[int], buffer_factor: asc2.ConstExpr[int]):
     x_gm = asc2.tensor(x_ptr, [size])
     y_gm = asc2.tensor(y_ptr, [size])
     z_gm = asc2.tensor(z_ptr, [size])
@@ -36,13 +33,13 @@ def vmuladd_launch(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
     size = out.size
     core_num = 16
     tile_size = 32
-    num_tiles = asc.ceildiv(size, tile_size)
-    vmuladd_kernel[core_num](x, y, z, out, size, tile_size, asc.ceildiv(num_tiles, core_num), buffer_factor=2)
+    num_tiles = asc2.ceildiv(size, tile_size)
+    vmuladd_kernel[core_num](x, y, z, out, size, tile_size, asc2.ceildiv(num_tiles, core_num), buffer_factor=2)
     return out
 
 
-def test_vmuladd(backend: config.Backend, platform: config.Platform, device_id: int):
-    config.set_platform(backend, platform, device_id)
+def test_vmuladd(backend: asc2.Backend, platform: asc2.Platform, device_id: int):
+    asc2.set_platform(backend, platform, device_id)
     rng = np.random.default_rng(seed=2026)
     size = 8192
     x = rng.random(size, dtype=np.float32) * 10

@@ -8,17 +8,14 @@
 
 import math
 
+import asc2
 import pytest
 import torch
 
-import asc
-import asc.runtime.config as config
-import asc2
-
 
 @asc2.jit(always_compile=True, vf_fusion=True)
-def gelu_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, num_rows: asc.ConstExpr,
-                num_columns: asc.ConstExpr, tile_size: asc.ConstExpr, approximate: asc.ConstExpr):
+def gelu_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, num_rows: asc2.ConstExpr,
+                num_columns: asc2.ConstExpr, tile_size: asc2.ConstExpr, approximate: asc2.ConstExpr):
     x_gm = asc2.tensor(x_ptr, [num_rows, num_columns])
     out_gm = asc2.tensor(out_ptr, [num_rows, num_columns])
     for i in range(asc2.block_idx(), num_rows, asc2.block_num(), parallel=True):
@@ -51,9 +48,9 @@ def gelu_torch(x: torch.Tensor, approximate: bool):
 
 
 @pytest.mark.parametrize("approximate", [True, False])
-def test_gelu(backend: config.Backend, platform: config.Platform, device_id: int, approximate: bool):
-    config.set_platform(backend, platform, device_id)
-    device = "npu" if config.Backend(backend) == config.Backend.NPU else "cpu"
+def test_gelu(backend: asc2.Backend, platform: asc2.Platform, device_id: int, approximate: bool):
+    asc2.set_platform(backend, platform, device_id)
+    device = "npu" if asc2.Backend(backend) == asc2.Backend.NPU else "cpu"
     x = torch.rand((30, 1024), dtype=torch.float32, device=device)
     out = gelu_launch(x, approximate)
     torch.testing.assert_close(out, gelu_torch(x, approximate), rtol=1e-3, atol=1e-5)

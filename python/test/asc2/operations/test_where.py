@@ -1,11 +1,8 @@
 from typing import Tuple
 
+import asc2
 import pytest
 import torch
-
-import asc
-from asc.runtime import config
-import asc2
 
 SIZE = 32
 TILE_SIZE = 128
@@ -25,7 +22,7 @@ def create_tensor(dtype: torch.dtype) -> torch.Tensor:
 
 
 @asc2.jit(always_compile=True)
-def where_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, z_ptr: asc.GlobalAddress, op: asc.ConstExpr):
+def where_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, z_ptr: asc2.GlobalAddress, op: asc2.ConstExpr):
     x = asc2.tensor(x_ptr, [SIZE])
     y = asc2.tensor(y_ptr, [SIZE])
     z = asc2.tensor(z_ptr, [SIZE])
@@ -47,7 +44,7 @@ def where_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, z_ptr: asc.
 def test_where_ops(backend, platform, device_id, require_c310, asc_op, torch_op, dtype):
     if dtype not in (torch.float16, torch.float32):
         require_c310(platform)
-    config.set_platform(backend, platform, device_id, check=False)
+    asc2.set_platform(backend, platform, device_id, check=False)
     x = create_tensor(dtype)
     y = create_tensor(dtype)
     result = torch.zeros_like(x)
@@ -57,11 +54,11 @@ def test_where_ops(backend, platform, device_id, require_c310, asc_op, torch_op,
 
 
 @asc2.jit(always_compile=True)
-def where_scalar_kernel(x_ptr: asc.GlobalAddress, scalar, z_ptr: asc.GlobalAddress, op: asc.ConstExpr):
+def where_scalar_kernel(x_ptr: asc2.GlobalAddress, scalar, z_ptr: asc2.GlobalAddress, op: asc2.ConstExpr):
     x = asc2.tensor(x_ptr, [SIZE])
     z = asc2.tensor(z_ptr, [SIZE])
     xt = asc2.load(x, [SIZE], offsets=[0])
-    zt = asc2.where(op(xt, scalar), asc.number(0.0, x_ptr.dtype), asc.number(1.0, x_ptr.dtype))
+    zt = asc2.where(op(xt, scalar), asc2.number(0.0, x_ptr.dtype), asc2.number(1.0, x_ptr.dtype))
     asc2.store(zt, z, offsets=[0])
 
 
@@ -77,7 +74,7 @@ def where_scalar_kernel(x_ptr: asc.GlobalAddress, scalar, z_ptr: asc.GlobalAddre
 def test_where_scalar_ops(backend, platform, device_id, require_c310, asc_op, torch_op, dtype):
     if dtype not in (torch.float16, torch.float32):
         require_c310(platform)
-    config.set_platform(backend, platform, device_id, check=False)
+    asc2.set_platform(backend, platform, device_id, check=False)
     x = create_tensor(dtype)
     y = torch.tensor(0 if dtype.is_signed else 0.5, dtype=dtype)
     result = torch.zeros_like(x)
@@ -87,9 +84,9 @@ def test_where_scalar_ops(backend, platform, device_id, require_c310, asc_op, to
 
 
 @asc2.jit(always_compile=True)
-def where_with_cond_kernel(cond_ptr: asc.GlobalAddress, x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress,
-                           out_ptr: asc.GlobalAddress, size: asc.ConstExpr[int], tile_size: asc.ConstExpr[int],
-                           tile_per_block: asc.ConstExpr[int]):
+def where_with_cond_kernel(cond_ptr: asc2.GlobalAddress, x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress,
+                           out_ptr: asc2.GlobalAddress, size: asc2.ConstExpr[int], tile_size: asc2.ConstExpr[int],
+                           tile_per_block: asc2.ConstExpr[int]):
     cond_gm = asc2.tensor(cond_ptr, [size])
     x_gm = asc2.tensor(x_ptr, [size])
     y_gm = asc2.tensor(y_ptr, [size])
@@ -105,16 +102,16 @@ def where_with_cond_kernel(cond_ptr: asc.GlobalAddress, x_ptr: asc.GlobalAddress
 
 
 @asc2.jit(always_compile=True)
-def where_scalar_source_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, size: asc.ConstExpr[int],
-                               tile_size: asc.ConstExpr[int], tile_per_block: asc.ConstExpr[int],
-                               scalar_value: asc.ConstExpr, scalar_on_true: asc.ConstExpr):
+def where_scalar_source_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, size: asc2.ConstExpr[int],
+                               tile_size: asc2.ConstExpr[int], tile_per_block: asc2.ConstExpr[int],
+                               scalar_value: asc2.ConstExpr, scalar_on_true: asc2.ConstExpr):
     x_gm = asc2.tensor(x_ptr, [size])
     out_gm = asc2.tensor(out_ptr, [size])
     base_offset = asc2.block_idx() * tile_size * tile_per_block
     for i in range(tile_per_block, unroll_factor=2, parallel=True):
         tile_offset = base_offset + i * tile_size
         x = asc2.load(x_gm, [tile_size], offsets=[tile_offset])
-        scalar = asc.number(scalar_value, x_ptr.dtype)
+        scalar = asc2.number(scalar_value, x_ptr.dtype)
         if scalar_on_true:
             out = asc2.where(x > 0, scalar, x)
         else:
@@ -122,7 +119,7 @@ def where_scalar_source_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddr
         asc2.store(out, out_gm, offsets=[tile_offset])
 
 
-def check_dtype(platform: config.Platform, dtype: torch.dtype, require_c310):
+def check_dtype(platform: asc2.Platform, dtype: torch.dtype, require_c310):
     if dtype not in (torch.float16, torch.float32):
         require_c310(platform)
 
@@ -165,8 +162,8 @@ def where_with_cond_launch(cond: torch.Tensor, x: torch.Tensor, y: torch.Tensor,
                            tile_size: int = TILE_SIZE) -> torch.Tensor:
     out = torch.empty_like(x)
     size = out.numel()
-    num_tiles = asc.ceildiv(size, tile_size)
-    where_with_cond_kernel[core_num](cond, x, y, out, size, tile_size, asc.ceildiv(num_tiles, core_num))
+    num_tiles = asc2.ceildiv(size, tile_size)
+    where_with_cond_kernel[core_num](cond, x, y, out, size, tile_size, asc2.ceildiv(num_tiles, core_num))
     return out
 
 
@@ -174,17 +171,17 @@ def where_scalar_source_launch(x: torch.Tensor, *, scalar_value: int, scalar_on_
                                tile_size: int = TILE_SIZE) -> torch.Tensor:
     out = torch.empty_like(x)
     size = out.numel()
-    num_tiles = asc.ceildiv(size, tile_size)
-    where_scalar_source_kernel[core_num](x, out, size, tile_size, asc.ceildiv(num_tiles, core_num), scalar_value,
+    num_tiles = asc2.ceildiv(size, tile_size)
+    where_scalar_source_kernel[core_num](x, out, size, tile_size, asc2.ceildiv(num_tiles, core_num), scalar_value,
                                          scalar_on_true)
     return out
 
 
 @pytest.mark.parametrize("dtype", SELECT_DTYPES, ids=str)
-def test_where_condition_dtypes(backend: config.Backend, platform: config.Platform, device_id: int, require_c310,
+def test_where_condition_dtypes(backend: asc2.Backend, platform: asc2.Platform, device_id: int, require_c310,
                                 dtype: torch.dtype):
     check_dtype(platform, dtype, require_c310)
-    config.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id)
     size = TILE_SIZE
     x, y = make_data(size, dtype)
     cond = make_condition(size, "alternating", dtype)
@@ -194,8 +191,8 @@ def test_where_condition_dtypes(backend: config.Backend, platform: config.Platfo
 
 
 @pytest.mark.parametrize("pattern", CONDITION_PATTERNS)
-def test_where_condition_patterns(backend: config.Backend, platform: config.Platform, device_id: int, pattern: str):
-    config.set_platform(backend, platform, device_id)
+def test_where_condition_patterns(backend: asc2.Backend, platform: asc2.Platform, device_id: int, pattern: str):
+    asc2.set_platform(backend, platform, device_id)
     size = TILE_SIZE
     x, y = make_data(size, torch.float32)
     cond = make_condition(size, pattern, torch.float32)
@@ -205,11 +202,11 @@ def test_where_condition_patterns(backend: config.Backend, platform: config.Plat
 
 
 @pytest.mark.parametrize("logical_size", [1, 2, 127, 128, 129, 255, 256])
-def test_where_logical_border_prefixes(backend: config.Backend, platform: config.Platform, device_id: int,
+def test_where_logical_border_prefixes(backend: asc2.Backend, platform: asc2.Platform, device_id: int,
                                        logical_size: int):
-    config.set_platform(backend, platform, device_id)
-    num_tiles = asc.ceildiv(logical_size, TILE_SIZE)
-    physical_size = TILE_SIZE * asc.ceildiv(num_tiles, SINGLE_CORE) * SINGLE_CORE
+    asc2.set_platform(backend, platform, device_id)
+    num_tiles = asc2.ceildiv(logical_size, TILE_SIZE)
+    physical_size = TILE_SIZE * asc2.ceildiv(num_tiles, SINGLE_CORE) * SINGLE_CORE
     x, y = make_data(physical_size, torch.float32)
     cond = make_condition(physical_size, "alternating", torch.float32)
     out = where_with_cond_launch(cond, x, y)
@@ -217,8 +214,8 @@ def test_where_logical_border_prefixes(backend: config.Backend, platform: config
     torch.testing.assert_close(out[:logical_size], expected)
 
 
-def test_where_multicore_unrolled(backend: config.Backend, platform: config.Platform, device_id: int):
-    config.set_platform(backend, platform, device_id)
+def test_where_multicore_unrolled(backend: asc2.Backend, platform: asc2.Platform, device_id: int):
+    asc2.set_platform(backend, platform, device_id)
     size = TILE_SIZE * MULTI_CORE * 2
     x, y = make_data(size, torch.float32)
     cond = make_condition(size, "alternating", torch.float32)
@@ -230,10 +227,10 @@ def test_where_multicore_unrolled(backend: config.Backend, platform: config.Plat
 @pytest.mark.parametrize("dtype", SELECT_SCALAR_SOURCE_DTYPES, ids=str)
 @pytest.mark.parametrize("scalar_on_true, scalar_value", [(False, -7), (True, 7)],
                          ids=["tensor_then_scalar", "scalar_then_tensor"])
-def test_where_scalar_source_layouts(backend: config.Backend, platform: config.Platform, device_id: int, require_c310,
+def test_where_scalar_source_layouts(backend: asc2.Backend, platform: asc2.Platform, device_id: int, require_c310,
                                      scalar_on_true: bool, scalar_value: int, dtype: torch.dtype):
     check_dtype(platform, dtype, require_c310)
-    config.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id)
     x, _ = make_data(TILE_SIZE, dtype)
     out = where_scalar_source_launch(x, scalar_value=scalar_value, scalar_on_true=scalar_on_true)
     scalar_tensor = torch.full_like(x, scalar_value)

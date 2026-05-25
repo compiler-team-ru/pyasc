@@ -1,5 +1,3 @@
-import asc
-from asc.runtime import config
 import asc2
 import pytest
 import torch
@@ -22,7 +20,7 @@ shape_ops = [
 def test_shape_op(backend, platform, device_id, require_c310, asc_op, torch_op, args, shape, dtype: torch.dtype):
     if asc_op is asc2.broadcast_to:
         require_c310(platform)
-    config.set_platform(backend, platform, device_id, check=False)
+    asc2.set_platform(backend, platform, device_id, check=False)
 
     def create_input(tensor_shape):
         if dtype.is_floating_point:
@@ -43,8 +41,8 @@ def test_shape_op(backend, platform, device_id, require_c310, asc_op, torch_op, 
     static_alloc = False if asc_op is asc2.broadcast_to else None
 
     @asc2.jit(always_compile=True, static_alloc=static_alloc)
-    def kernel(x_ptr, z_ptr, input_shape: asc.ConstExpr, output_shape: asc.ConstExpr, in_offsets: asc.ConstExpr,
-               out_offsets: asc.ConstExpr, op: asc.ConstExpr, op_param: asc.ConstExpr) -> None:
+    def kernel(x_ptr, z_ptr, input_shape: asc2.ConstExpr, output_shape: asc2.ConstExpr, in_offsets: asc2.ConstExpr,
+               out_offsets: asc2.ConstExpr, op: asc2.ConstExpr, op_param: asc2.ConstExpr) -> None:
         xt = asc2.load(asc2.tensor(x_ptr, input_shape), input_shape, offsets=in_offsets)
         zt = op(xt, *op_param)
         asc2.store(zt, asc2.tensor(z_ptr, output_shape), offsets=out_offsets)
@@ -56,10 +54,10 @@ def test_shape_op(backend, platform, device_id, require_c310, asc_op, torch_op, 
 @pytest.mark.parametrize("shape", ([32], [3, 32]))
 @pytest.mark.parametrize("dtype", (torch.float16, torch.float32, torch.int16, torch.int32))
 def test_broadcast_dup(backend, platform, device_id, shape, dtype):
-    config.set_platform(backend, platform, device_id, check=False)
+    asc2.set_platform(backend, platform, device_id, check=False)
 
     @asc2.jit(always_compile=True)
-    def kernel(out_ptr, shape: asc.ConstExpr, offsets: asc.ConstExpr):
+    def kernel(out_ptr, shape: asc2.ConstExpr, offsets: asc2.ConstExpr):
         out_tensor = asc2.tensor(out_ptr, shape)
         out = asc2.full([1], 777, out_tensor.dtype).broadcast_to(*out_tensor.shape)
         asc2.store(out, out_tensor, offsets=offsets)

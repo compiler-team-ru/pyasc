@@ -6,27 +6,24 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
+import asc2
 import pytest
 import torch
 
-import asc
-import asc2
-from asc.runtime import config
-
 
 @asc2.jit(static_alloc=True, reuse_ub=True)
-def reduce_sum_rows(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress, input_shape: asc.ConstExpr,
-                    output_shape: asc.ConstExpr, tile_shape: asc.ConstExpr, ROWS_PER_BLOCK: asc.ConstExpr,
-                    keep_dims: asc.ConstExpr, UNROLL_FACTOR: asc.ConstExpr):
+def reduce_sum_rows(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_shape: asc2.ConstExpr,
+                    output_shape: asc2.ConstExpr, tile_shape: asc2.ConstExpr, ROWS_PER_BLOCK: asc2.ConstExpr,
+                    keep_dims: asc2.ConstExpr, UNROLL_FACTOR: asc2.ConstExpr):
     x_gm = asc2.tensor(input_ptr, input_shape)
     out_gm = asc2.tensor(output_ptr, output_shape)
 
     start_offset = asc2.block_idx() * ROWS_PER_BLOCK
-    ROW_ITERS_PER_BLOCK = asc.ceildiv(ROWS_PER_BLOCK, tile_shape[0])
-    COLUMN_ITERS_PER_BLOCK = asc.ceildiv(input_shape[1], tile_shape[1])
+    ROW_ITERS_PER_BLOCK = asc2.ceildiv(ROWS_PER_BLOCK, tile_shape[0])
+    COLUMN_ITERS_PER_BLOCK = asc2.ceildiv(input_shape[1], tile_shape[1])
     for i in asc2.range(ROW_ITERS_PER_BLOCK, parallel=True, unroll_factor=UNROLL_FACTOR):
         row_start_offset = start_offset + i * tile_shape[0]
-        cache = asc2.zeros([tile_shape[0]], dtype=asc.float32)
+        cache = asc2.zeros([tile_shape[0]], dtype=asc2.float32)
         for j in asc2.range(COLUMN_ITERS_PER_BLOCK, parallel=False):
             tensor_part = asc2.load(x_gm, tile_shape, offsets=[row_start_offset, j * tile_shape[1]])
             output = asc2.reduce_sum(tensor_part, 1)
@@ -39,18 +36,18 @@ def reduce_sum_rows(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress,
 
 
 @asc2.jit(static_alloc=True, reuse_ub=True)
-def reduce_sum_cols(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress, input_shape: asc.ConstExpr,
-                    output_shape: asc.ConstExpr, tile_shape: asc.ConstExpr, COLS_PER_BLOCK: asc.ConstExpr,
-                    keep_dims: asc.ConstExpr, UNROLL_FACTOR: asc.ConstExpr):
+def reduce_sum_cols(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_shape: asc2.ConstExpr,
+                    output_shape: asc2.ConstExpr, tile_shape: asc2.ConstExpr, COLS_PER_BLOCK: asc2.ConstExpr,
+                    keep_dims: asc2.ConstExpr, UNROLL_FACTOR: asc2.ConstExpr):
     x_gm = asc2.tensor(input_ptr, input_shape)
     out_gm = asc2.tensor(output_ptr, output_shape)
 
     start_offset = asc2.block_idx() * COLS_PER_BLOCK
-    ROW_ITERS_PER_BLOCK = asc.ceildiv(input_shape[0], tile_shape[0])
-    COLUMN_ITERS_PER_BLOCK = asc.ceildiv(COLS_PER_BLOCK, tile_shape[1])
+    ROW_ITERS_PER_BLOCK = asc2.ceildiv(input_shape[0], tile_shape[0])
+    COLUMN_ITERS_PER_BLOCK = asc2.ceildiv(COLS_PER_BLOCK, tile_shape[1])
     for j in asc2.range(COLUMN_ITERS_PER_BLOCK, parallel=True, unroll_factor=UNROLL_FACTOR):
         col_start_offset = start_offset + j * tile_shape[1]
-        cache = asc2.zeros([tile_shape[1]], dtype=asc.float32)
+        cache = asc2.zeros([tile_shape[1]], dtype=asc2.float32)
         for i in asc2.range(ROW_ITERS_PER_BLOCK, parallel=False):
             tensor_part = asc2.load(x_gm, tile_shape, offsets=[i * tile_shape[0], col_start_offset])
             output = asc2.reduce_sum(tensor_part, 0)
@@ -197,7 +194,7 @@ def reduce_sum_cols(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress,
     ])
 def test_reduce_sum(backend, platform, device_id, profiler, runs, core_num, unroll_factor, input_shape, input_dtype,
                     output_shape, output_dtype, axis, tiling_key, tiling_values):
-    config.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id)
 
     keep_dims = (len(input_shape) == len(output_shape))
     if keep_dims:
@@ -227,21 +224,21 @@ def test_reduce_sum(backend, platform, device_id, profiler, runs, core_num, unro
     # Alignment
     num_rows, num_cols = input_shape_2d
     ALIGNMENT_ELEMENTS = 32 // input_dtype.itemsize
-    tile_shape = tile_shape[0], asc.ceildiv(tile_shape[1], ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS
+    tile_shape = tile_shape[0], asc2.ceildiv(tile_shape[1], ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS
     if axis == 1:
-        tile_shape = asc.ceildiv(tile_shape[0], ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS, tile_shape[1]
+        tile_shape = asc2.ceildiv(tile_shape[0], ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS, tile_shape[1]
 
     if axis == 1:
-        ROWS_PER_BLOCK = asc.ceildiv(num_rows, core_num)
+        ROWS_PER_BLOCK = asc2.ceildiv(num_rows, core_num)
         num_rows_padded = ROWS_PER_BLOCK * core_num
-        num_rows_padded = asc.ceildiv(num_rows_padded, tile_shape[0]) * tile_shape[0]
-        num_cols_padded = asc.ceildiv(num_cols, tile_shape[1]) * tile_shape[1]
+        num_rows_padded = asc2.ceildiv(num_rows_padded, tile_shape[0]) * tile_shape[0]
+        num_cols_padded = asc2.ceildiv(num_cols, tile_shape[1]) * tile_shape[1]
         WORK_PER_BLOCK = ROWS_PER_BLOCK
     else:
-        COLS_PER_BLOCK = asc.ceildiv(num_cols, core_num)
+        COLS_PER_BLOCK = asc2.ceildiv(num_cols, core_num)
         num_cols_padded = COLS_PER_BLOCK * core_num
-        num_cols_padded = asc.ceildiv(num_cols_padded, tile_shape[1]) * tile_shape[1]
-        num_rows_padded = asc.ceildiv(num_rows, tile_shape[0]) * tile_shape[0]
+        num_cols_padded = asc2.ceildiv(num_cols_padded, tile_shape[1]) * tile_shape[1]
+        num_rows_padded = asc2.ceildiv(num_rows, tile_shape[0]) * tile_shape[0]
         WORK_PER_BLOCK = COLS_PER_BLOCK
 
     padded_input_shape = [num_rows_padded, num_cols_padded]
@@ -256,7 +253,7 @@ def test_reduce_sum(backend, platform, device_id, profiler, runs, core_num, unro
 
     kernel_impl = reduce_sum_rows if axis == 1 else reduce_sum_cols
     with profiler.profile():
-        for run in range(runs):
+        for _ in range(runs):
             kernel_impl[core_num](in_tensor, out_tensor, padded_input_shape, padded_output_shape, tile_shape,
                                   WORK_PER_BLOCK, keep_dims, unroll_factor)
 

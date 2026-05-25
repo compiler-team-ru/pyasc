@@ -1,19 +1,16 @@
+import asc2
 import pytest
 import torch
 
-import asc
-from asc.runtime import config
-import asc2
-
 
 @pytest.fixture(autouse=True)
-def set_platform(backend: config.Backend, platform: config.Platform, device_id: int, require_c310):
+def set_platform(backend: asc2.Backend, platform: asc2.Platform, device_id: int, require_c310):
     require_c310(platform)
-    config.set_platform(backend, platform, device_id, check=False)
+    asc2.set_platform(backend, platform, device_id, check=False)
 
 
 @asc2.jit(always_compile=True)
-def softmax_1d_kernel(dst_ptr, src_ptr, length: asc.ConstExpr) -> None:
+def softmax_1d_kernel(dst_ptr, src_ptr, length: asc2.ConstExpr) -> None:
     dst = asc2.tensor(dst_ptr, [length])
     src = asc2.tensor(src_ptr, [length])
     src_tile = asc2.load(src, shape=[length], offsets=[0])
@@ -23,7 +20,7 @@ def softmax_1d_kernel(dst_ptr, src_ptr, length: asc.ConstExpr) -> None:
 
 
 @asc2.jit(always_compile=True)
-def softmax_2d_kernel(dst_ptr, src_ptr, shape: asc.ConstExpr) -> None:
+def softmax_2d_kernel(dst_ptr, src_ptr, shape: asc2.ConstExpr) -> None:
     dst = asc2.tensor(dst_ptr, shape)
     src = asc2.tensor(src_ptr, shape)
     src_tile = asc2.load(src, shape=shape, offsets=[0, 0])

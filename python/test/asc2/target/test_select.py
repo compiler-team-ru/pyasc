@@ -7,19 +7,17 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 import math
+
+import asc2
 import pytest
 import torch
 
-import asc
-import asc2
-from asc.runtime import config
-
 
 @asc2.jit(static_alloc=True, reuse_ub=True)
-def select_kernel_1D(cond_ptr: asc.GlobalAddress, input_x_ptr: asc.GlobalAddress, input_y_ptr: asc.GlobalAddress,
-                     output_ptr: asc.GlobalAddress, input_shape: asc.ConstExpr, output_shape: asc.ConstExpr,
-                     block_loop_num: asc.ConstExpr, block_loop_num_tail: asc.ConstExpr, tile_length: asc.ConstExpr,
-                     block_length: asc.ConstExpr, unroll_factor: asc.ConstExpr):
+def select_kernel_1D(cond_ptr: asc2.GlobalAddress, input_x_ptr: asc2.GlobalAddress, input_y_ptr: asc2.GlobalAddress,
+                     output_ptr: asc2.GlobalAddress, input_shape: asc2.ConstExpr, output_shape: asc2.ConstExpr,
+                     block_loop_num: asc2.ConstExpr, block_loop_num_tail: asc2.ConstExpr, tile_length: asc2.ConstExpr,
+                     block_length: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     c = asc2.tensor(cond_ptr, input_shape)
     x = asc2.tensor(input_x_ptr, input_shape)
     y = asc2.tensor(input_y_ptr, input_shape)
@@ -27,7 +25,7 @@ def select_kernel_1D(cond_ptr: asc.GlobalAddress, input_x_ptr: asc.GlobalAddress
 
     block_offset = asc2.block_idx() * block_length
     loop_count = block_loop_num
-    if asc2.block_idx() == (asc2.block_num() - 1):
+    if asc2.block_idx() == asc2.block_num() - 1:
         loop_count = block_loop_num_tail
 
     for i in asc2.range(loop_count, unroll_factor=unroll_factor, parallel=True):
@@ -53,17 +51,17 @@ def select_kernel_1D(cond_ptr: asc.GlobalAddress, input_x_ptr: asc.GlobalAddress
     ])
 def test_select(backend, platform, device_id, profiler, runs, core_num, unroll_factor, input_shape, input_dtype,
                 output_shape, output_dtype, tiling_key, tiling_values):
-    config.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id)
     _, _, tile_length, core_num = tiling_values
     input_shape_1d = [math.prod(input_shape)]
     length = input_shape_1d[0]
 
     ALIGNMENT_ELEMENTS = 32 // input_dtype.itemsize
-    tile_length = asc.ceildiv(tile_length, ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS
+    tile_length = asc2.ceildiv(tile_length, ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS
 
-    block_loop_num = asc.ceildiv(asc.ceildiv(length, core_num), tile_length)
+    block_loop_num = asc2.ceildiv(asc2.ceildiv(length, core_num), tile_length)
     block_length = tile_length * block_loop_num
-    block_loop_num_tail = asc.ceildiv(length - block_length * (core_num - 1), tile_length)
+    block_loop_num_tail = asc2.ceildiv(length - block_length * (core_num - 1), tile_length)
     padded_length = block_length * (core_num - 1) + tile_length * block_loop_num_tail
     padded_input_shape = [padded_length]
     padded_output_shape = padded_input_shape
@@ -77,7 +75,7 @@ def test_select(backend, platform, device_id, profiler, runs, core_num, unroll_f
     out_tensor = torch.zeros(padded_output_shape, dtype=output_dtype)
 
     with profiler.profile():
-        for run in range(runs):
+        for _ in range(runs):
             select_kernel_1D[core_num](in_tensor_c, in_tensor_x, in_tensor_y, out_tensor, padded_input_shape,
                                        padded_output_shape, block_loop_num, block_loop_num_tail, tile_length,
                                        block_length, unroll_factor)

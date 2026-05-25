@@ -6,17 +6,14 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
+import asc2
 import pytest
 import torch
 
-import asc
-import asc.runtime.config as config
-import asc2
-
 
 @asc2.jit(always_compile=True)
-def matmul_kernel(a_ptr: asc.GlobalAddress, b_ptr: asc.GlobalAddress, c_ptr: asc.GlobalAddress, a_shape: asc.ConstExpr,
-                  b_shape: asc.ConstExpr, c_shape: asc.ConstExpr, dtype: asc.ConstExpr):
+def matmul_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr: asc2.GlobalAddress,
+                  a_shape: asc2.ConstExpr, b_shape: asc2.ConstExpr, c_shape: asc2.ConstExpr, dtype: asc2.ConstExpr):
     a_gm = asc2.tensor(a_ptr, a_shape)
     b_gm = asc2.tensor(b_ptr, b_shape)
     c_gm = asc2.tensor(c_ptr, c_shape)
@@ -37,14 +34,14 @@ def matmul_launch(a: torch.Tensor, b: torch.Tensor, dtype) -> torch.Tensor:
 
 
 @pytest.mark.parametrize("m, k, n, torch_dtype, pyasc_dtype", [
-    (32, 64, 64, torch.float16, asc.float16),
-    (64, 64, 64, torch.bfloat16, asc.bfloat16),
+    (32, 64, 64, torch.float16, asc2.float16),
+    (64, 64, 64, torch.bfloat16, asc2.bfloat16),
 ])
-def test_matmul_l0c_to_l1(backend: config.Backend, platform: config.Platform, device_id: int, m, k, n, torch_dtype,
+def test_matmul_l0c_to_l1(backend: asc2.Backend, platform: asc2.Platform, device_id: int, m, k, n, torch_dtype,
                           pyasc_dtype):
-    config.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id)
     torch.manual_seed(0)
-    device = "npu" if config.Backend(backend) == config.Backend.NPU else "cpu"
+    device = "npu" if asc2.Backend(backend) == asc2.Backend.NPU else "cpu"
     a = (torch.rand((m, k), dtype=torch_dtype, device=device) - .5) * 10
     b = (torch.rand((k, n), dtype=torch_dtype, device=device) - .5) * 10
     c = matmul_launch(a, b, pyasc_dtype)

@@ -6,19 +6,16 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
+import asc2
 import pytest
 import torch
 
-import asc
-import asc2
-from asc.runtime import config
-
 
 @asc2.jit(static_alloc=True, reuse_ub=True)
-def gelu_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, input_length: asc.ConstExpr,
-                tile_length: asc.ConstExpr, block_loop_num: asc.ConstExpr, block_loop_num_tail: asc.ConstExpr,
-                block_length: asc.ConstExpr, TANH_APPROX_FACTOR: asc.ConstExpr, NEG_SQRT_EIGHT_OVER_PI: asc.ConstExpr,
-                UNROLL_FACTOR: asc.ConstExpr):
+def gelu_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, input_length: asc2.ConstExpr,
+                tile_length: asc2.ConstExpr, block_loop_num: asc2.ConstExpr, block_loop_num_tail: asc2.ConstExpr,
+                block_length: asc2.ConstExpr, TANH_APPROX_FACTOR: asc2.ConstExpr,
+                NEG_SQRT_EIGHT_OVER_PI: asc2.ConstExpr, UNROLL_FACTOR: asc2.ConstExpr):
     x_gm = asc2.tensor(x_ptr, [input_length])
     out_gm = asc2.tensor(out_ptr, [input_length])
 
@@ -59,9 +56,9 @@ def gelu_torch(x: torch.Tensor, TANH_APPROX_FACTOR, NEG_SQRT_EIGHT_OVER_PI):
         (72, 2, [101, 181, 53, 17, 1], torch.float16, [101, 181, 53, 17, 1], torch.float16, 3, [16471181, 72, 10496]),
         (72, 1, [101, 181, 53, 17, 1], torch.float32, [101, 181, 53, 17, 1], torch.float32, 7, [16471181, 72, 15872]),
     ])
-def test_gelu(backend: config.Backend, platform: config.Platform, device_id, profiler, runs, core_num, unroll_factor,
+def test_gelu(backend: asc2.Backend, platform: asc2.Platform, device_id, profiler, runs, core_num, unroll_factor,
               input_shape, input_dtype, output_shape, output_dtype, tiling_key, tiling_values):
-    config.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id)
     CACHE_LINE_BYTE_LENGTH = 512
     TANH_APPROX_FACTOR = 1.0 / 0.044715
     NEG_SQRT_EIGHT_OVER_PI = -1.595769121 * 0.044715
@@ -73,11 +70,11 @@ def test_gelu(backend: config.Backend, platform: config.Platform, device_id, pro
     tile_length = ub_former
     dim0 = input_shape_1d[0]
     length = input_shape_1d[0]
-    block_former = asc.ceildiv(asc.ceildiv(dim0, core_num), CACHE_LINE_BYTE_LENGTH) * CACHE_LINE_BYTE_LENGTH
-    block_num = asc.ceildiv(dim0, block_former)
+    block_former = asc2.ceildiv(asc2.ceildiv(dim0, core_num), CACHE_LINE_BYTE_LENGTH) * CACHE_LINE_BYTE_LENGTH
+    block_num = asc2.ceildiv(dim0, block_former)
     block_tail = dim0 - (block_num - 1) * block_former
-    former_block_loop = asc.ceildiv(block_former, ub_former)
-    tail_block_loop = asc.ceildiv(block_tail, ub_former)
+    former_block_loop = asc2.ceildiv(block_former, ub_former)
+    tail_block_loop = asc2.ceildiv(block_tail, ub_former)
     block_loop_num = former_block_loop
     if core_num == 1:
         block_loop_num_tail = 1
@@ -95,7 +92,7 @@ def test_gelu(backend: config.Backend, platform: config.Platform, device_id, pro
     out_tensor = torch.zeros(padded_output_shape, dtype=output_dtype)
 
     with profiler.profile():
-        for run in range(runs):
+        for _ in range(runs):
             gelu_kernel[core_num](in_tensor, out_tensor, padded_length, tile_length, block_loop_num,
                                   block_loop_num_tail, tile_length * block_loop_num, TANH_APPROX_FACTOR,
                                   NEG_SQRT_EIGHT_OVER_PI, unroll_factor)

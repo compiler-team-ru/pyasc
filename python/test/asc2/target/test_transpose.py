@@ -9,8 +9,6 @@
 from dataclasses import dataclass
 from typing import List, Literal, Union
 
-import asc
-import asc.runtime.config as config
 import asc2
 import pytest
 import torch
@@ -27,10 +25,10 @@ class TestCase:
 
 # Reads (h,w) sub tile
 @asc2.jit(static_alloc=True, reuse_ub=True)
-def transpose_block(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress, width: asc.ConstExpr[int],
-                    height: asc.ConstExpr[int], tilew: asc.ConstExpr[int], tileh: asc.ConstExpr[int],
-                    tilew2: asc.ConstExpr[int], tileh2: asc.ConstExpr[int], repeat: asc.ConstExpr[int]):
-    total_tiles_w = asc.ceildiv(width, tilew)
+def transpose_block(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, width: asc2.ConstExpr[int],
+                    height: asc2.ConstExpr[int], tilew: asc2.ConstExpr[int], tileh: asc2.ConstExpr[int],
+                    tilew2: asc2.ConstExpr[int], tileh2: asc2.ConstExpr[int], repeat: asc2.ConstExpr[int]):
+    total_tiles_w = asc2.ceildiv(width, tilew)
 
     global_tensor = asc2.tensor(input_ptr, [height, width])
     result_tensor = asc2.tensor(output_ptr, [width, height])
@@ -47,9 +45,9 @@ def transpose_block(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress,
 
 # Reads (height,n) at once
 @asc2.jit(static_alloc=True, reuse_ub=True)
-def transpose_column(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress, width: asc.ConstExpr[int],
-                     height: asc.ConstExpr[int], step: asc.ConstExpr[int], tilew: asc.ConstExpr[int],
-                     tileh: asc.ConstExpr[int], total_count: asc.ConstExpr[int]):
+def transpose_column(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, width: asc2.ConstExpr[int],
+                     height: asc2.ConstExpr[int], step: asc2.ConstExpr[int], tilew: asc2.ConstExpr[int],
+                     tileh: asc2.ConstExpr[int], total_count: asc2.ConstExpr[int]):
 
     global_tensor = asc2.tensor(input_ptr, [height, width])
     result_tensor = asc2.tensor(output_ptr, [width, height])
@@ -73,8 +71,8 @@ def transpose_column(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress
     TestCase([128, 6400], 1, torch.float16, [128, 16], 16),
     TestCase([4096, 1024], 2, torch.float32, [256, 176], [251, 164]),
 ])
-def test_transpose(backend: config.Backend, platform: config.Platform, device_id: int, profiler, runs, test_params):
-    config.set_platform(backend, platform, device_id)
+def test_transpose(backend: asc2.Backend, platform: asc2.Platform, device_id: int, profiler, runs, test_params):
+    asc2.set_platform(backend, platform, device_id)
 
     input = torch.randn(test_params.shape, dtype=test_params.dtype, device="cpu")
     width = test_params.shape[1]
@@ -82,7 +80,7 @@ def test_transpose(backend: config.Backend, platform: config.Platform, device_id
     out = torch.zeros_like(input, shape=[width, height])
     if test_params.mode == 1:
         # load n columns
-        total_tiles = asc.ceildiv(width, test_params.block_size)
+        total_tiles = asc2.ceildiv(width, test_params.block_size)
         cores = min(total_tiles, 64)
         with profiler.profile():
             for _ in range(runs):
@@ -90,8 +88,8 @@ def test_transpose(backend: config.Backend, platform: config.Platform, device_id
                                         test_params.tile_size[0], total_tiles)
     elif test_params.mode == 2:
         # load sub block (2d)
-        total_tiles_w = asc.ceildiv(width, test_params.block_size[1])
-        total_tiles_h = asc.ceildiv(height, test_params.block_size[0])
+        total_tiles_w = asc2.ceildiv(width, test_params.block_size[1])
+        total_tiles_h = asc2.ceildiv(height, test_params.block_size[0])
         cores = min(total_tiles_w * total_tiles_h, 64)
         with profiler.profile():
             for _ in range(runs):

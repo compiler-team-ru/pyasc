@@ -1,7 +1,6 @@
-import asc
-from asc.runtime import config
-import asc2
 import ctypes
+
+import asc2
 import pytest
 import torch
 
@@ -23,9 +22,9 @@ binary_ops = [
 
 
 @asc2.jit(always_compile=True)
-def kernel(x_ptr, y_ptr, z_ptr, block_length: asc.ConstExpr, fmt: asc.ConstExpr, op: asc.ConstExpr,
-           mask_type: asc.ConstExpr, count: asc.ConstExpr, other: asc.ConstExpr, hibits: asc.ConstExpr,
-           lowbits: asc.ConstExpr) -> None:
+def kernel(x_ptr, y_ptr, z_ptr, block_length: asc2.ConstExpr, fmt: asc2.ConstExpr, op: asc2.ConstExpr,
+           mask_type: asc2.ConstExpr, count: asc2.ConstExpr, other: asc2.ConstExpr, hibits: asc2.ConstExpr,
+           lowbits: asc2.ConstExpr) -> None:
     if fmt == VV:
         xt = asc2.load(asc2.tensor(x_ptr, [32]), [block_length], offsets=[0])
         yt = asc2.load(asc2.tensor(y_ptr, [32]), [block_length], offsets=[0])
@@ -87,7 +86,7 @@ def handle_mask(gold, mask_type, count, other, hibits, lowbits) -> torch.Tensor:
 def test_binary_operations(backend, platform, device_id, require_c310, asc_op, torch_op, fmt, dtype, mask_type):
     if dtype == torch.bfloat16:
         require_c310(platform)
-    config.set_platform(backend, platform, device_id, check=False)
+    asc2.set_platform(backend, platform, device_id, check=False)
 
     def create_input(input_dtype: torch.dtype, is_vector: bool):
         if is_vector:

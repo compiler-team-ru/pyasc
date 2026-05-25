@@ -20,6 +20,12 @@ class Backend(Enum):
 
 
 class Platform(Enum):
+    """Ascend NPU platform types.
+
+    This enum defines the supported Ascend chip variants for kernel compilation and execution. Each platform has
+    specific hardware characteristics that affect code generation and optimization.
+    """
+
     Ascend910B1 = "Ascend910B1"
     Ascend910B2 = "Ascend910B2"
     Ascend910B2C = "Ascend910B2C"
@@ -92,9 +98,9 @@ def set_platform(
         RuntimeError: If check is True and the runtime library is not available.
 
     Example:
-        >>> set_platform(Backend.Model, Platform.Ascend910B1)
-        >>> set_platform("NPU", device_id=0)
-        >>> set_platform(Backend.Model, "Ascend910B3", check=False)
+        >>> asc2.set_platform(asc2.Backend.Model, asc2.Platform.Ascend910B1)
+        >>> asc2.set_platform("NPU", device_id=0)
+        >>> asc2.set_platform(asc2.Backend.Model, "Ascend910B3", check=False)
     """
 
     backend = Backend(backend)

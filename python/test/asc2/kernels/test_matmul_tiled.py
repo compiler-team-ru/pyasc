@@ -6,21 +6,18 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
+import asc2
 import pytest
 import torch
 
-import asc
-import asc.runtime.config as config
-import asc2
-
 
 @asc2.jit(always_compile=True)
-def matmul_kernel(a_ptr: asc.GlobalAddress, b_ptr: asc.GlobalAddress, c_ptr: asc.GlobalAddress, a_shape: asc.ConstExpr,
-                  b_shape: asc.ConstExpr, c_shape: asc.ConstExpr, k_tiles: asc.ConstExpr):
+def matmul_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr: asc2.GlobalAddress,
+                  a_shape: asc2.ConstExpr, b_shape: asc2.ConstExpr, c_shape: asc2.ConstExpr, k_tiles: asc2.ConstExpr):
     a_gm = asc2.tensor(a_ptr, a_shape)
     b_gm = asc2.tensor(b_ptr, b_shape)
     c_gm = asc2.tensor(c_ptr, c_shape)
-    acc = asc2.zeros_acc(c_shape, dtype=asc.float32)
+    acc = asc2.zeros_acc(c_shape, dtype=asc2.float32)
     k_offset = a_shape[1] // k_tiles
     a_l1 = asc2.load(a_gm, a_shape, offsets=[0, 0], location=asc2.TileLocation.L1)
     b_l1 = asc2.load(b_gm, b_shape, offsets=[0, 0], location=asc2.TileLocation.L1)
@@ -38,9 +35,9 @@ def matmul_launch(a: torch.Tensor, b: torch.Tensor, k_tiles: int) -> torch.Tenso
 
 
 @pytest.mark.parametrize("k_tiles", [2, 4, 8])
-def test_matmul_tiled(backend: config.Backend, platform: config.Platform, device_id: int, k_tiles):
-    config.set_platform(backend, platform, device_id)
-    device = "npu" if config.Backend(backend) == config.Backend.NPU else "cpu"
+def test_matmul_tiled(backend: asc2.Backend, platform: asc2.Platform, device_id: int, k_tiles):
+    asc2.set_platform(backend, platform, device_id)
+    device = "npu" if asc2.Backend(backend) == asc2.Backend.NPU else "cpu"
     m, k, n = 64, 128, 256
     dtype = torch.float16
     a = torch.rand((m, k), dtype=dtype, device=device)

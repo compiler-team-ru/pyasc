@@ -6,19 +6,16 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
+import asc2
 import pytest
 import torch
 
-import asc
-import asc2
-from asc.runtime import config
-
 
 @asc2.jit(static_alloc=True, reuse_ub=True)
-def add_kernel_1D(input_x_ptr: asc.GlobalAddress, input_y_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress,
-                  input_shape: asc.ConstExpr, output_shape: asc.ConstExpr, block_loop_num: asc.ConstExpr,
-                  block_loop_num_tail: asc.ConstExpr, tile_length: asc.ConstExpr, block_length: asc.ConstExpr,
-                  UNROLL_FACTOR: asc.ConstExpr):
+def add_kernel_1D(input_x_ptr: asc2.GlobalAddress, input_y_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
+                  input_shape: asc2.ConstExpr, output_shape: asc2.ConstExpr, block_loop_num: asc2.ConstExpr,
+                  block_loop_num_tail: asc2.ConstExpr, tile_length: asc2.ConstExpr, block_length: asc2.ConstExpr,
+                  UNROLL_FACTOR: asc2.ConstExpr):
     x = asc2.tensor(input_x_ptr, input_shape)
     y = asc2.tensor(input_y_ptr, input_shape)
     z = asc2.tensor(output_ptr, output_shape)
@@ -49,7 +46,7 @@ def add_kernel_1D(input_x_ptr: asc.GlobalAddress, input_y_ptr: asc.GlobalAddress
     ])
 def test_add(backend, platform, device_id, profiler, runs, core_num, unroll_factor, input_shape, input_dtype,
              output_shape, output_dtype, tiling_key, tiling_values):
-    config.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id)
     _, _, tile_length, core_num = tiling_values
 
     # Convert any shape to 1D
@@ -59,11 +56,11 @@ def test_add(backend, platform, device_id, profiler, runs, core_num, unroll_fact
     length = input_shape_1d[0]
 
     ALIGNMENT_ELEMENTS = 32 // input_dtype.itemsize
-    tile_length = asc.ceildiv(tile_length, ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS
+    tile_length = asc2.ceildiv(tile_length, ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS
 
-    block_loop_num = asc.ceildiv(asc.ceildiv(length, core_num), tile_length)
+    block_loop_num = asc2.ceildiv(asc2.ceildiv(length, core_num), tile_length)
     block_length = tile_length * block_loop_num
-    block_loop_num_tail = asc.ceildiv(length - block_length * (core_num - 1), tile_length)
+    block_loop_num_tail = asc2.ceildiv(length - block_length * (core_num - 1), tile_length)
     padded_length = block_length * (core_num - 1) + tile_length * block_loop_num_tail
     padded_input_shape = [padded_length]
     padded_output_shape = padded_input_shape
@@ -75,7 +72,7 @@ def test_add(backend, platform, device_id, profiler, runs, core_num, unroll_fact
     out_tensor = torch.zeros(padded_output_shape, dtype=output_dtype)
 
     with profiler.profile():
-        for run in range(runs):
+        for _ in range(runs):
             add_kernel_1D[core_num](in_tensor_x, in_tensor_y, out_tensor, padded_input_shape, padded_output_shape,
                                     block_loop_num, block_loop_num_tail, tile_length, block_length, unroll_factor)
 

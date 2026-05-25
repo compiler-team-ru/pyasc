@@ -1,5 +1,3 @@
-import asc
-from asc.runtime import config
 import asc2
 import pytest
 import torch
@@ -61,13 +59,13 @@ tests = [
 
 
 @pytest.fixture(autouse=True)
-def set_platform(backend: config.Backend, platform: config.Platform, device_id: int):
-    config.set_platform(backend, platform, device_id, check=False)
+def set_platform(backend: asc2.Backend, platform: asc2.Platform, device_id: int):
+    asc2.set_platform(backend, platform, device_id, check=False)
 
 
 @asc2.jit(always_compile=True)
-def kernel_static(x_ptr, y_ptr, z_ptr, tensor_shape: asc.ConstExpr, tile_shape: asc.ConstExpr, tile_id: asc.ConstExpr,
-                  offsets: asc.ConstExpr) -> None:
+def kernel_static(x_ptr, y_ptr, z_ptr, tensor_shape: asc2.ConstExpr, tile_shape: asc2.ConstExpr,
+                  tile_id: asc2.ConstExpr, offsets: asc2.ConstExpr) -> None:
     xt = asc2.load(asc2.tensor(x_ptr, tensor_shape), tile_shape, tile_id=tile_id, offsets=offsets)
     yt = asc2.load(asc2.tensor(y_ptr, tensor_shape), tile_shape, tile_id=tile_id, offsets=offsets)
     zt = xt + yt
@@ -75,8 +73,8 @@ def kernel_static(x_ptr, y_ptr, z_ptr, tensor_shape: asc.ConstExpr, tile_shape: 
 
 
 @asc2.jit(always_compile=True)
-def kernel_dynamic_1D(x_ptr, y_ptr, z_ptr, ts0, tile_shape: asc.ConstExpr, tile_id: asc.ConstExpr,
-                      offsets: asc.ConstExpr) -> None:
+def kernel_dynamic_1D(x_ptr, y_ptr, z_ptr, ts0, tile_shape: asc2.ConstExpr, tile_id: asc2.ConstExpr,
+                      offsets: asc2.ConstExpr) -> None:
     xt = asc2.load(asc2.tensor(x_ptr, [ts0]), tile_shape, tile_id=tile_id, offsets=offsets)
     yt = asc2.load(asc2.tensor(y_ptr, [ts0]), tile_shape, tile_id=tile_id, offsets=offsets)
     zt = xt + yt
@@ -84,8 +82,8 @@ def kernel_dynamic_1D(x_ptr, y_ptr, z_ptr, ts0, tile_shape: asc.ConstExpr, tile_
 
 
 @asc2.jit(always_compile=True)
-def kernel_dynamic_2D(x_ptr, y_ptr, z_ptr, ts0, ts1, tile_shape: asc.ConstExpr, tile_id: asc.ConstExpr,
-                      offsets: asc.ConstExpr) -> None:
+def kernel_dynamic_2D(x_ptr, y_ptr, z_ptr, ts0, ts1, tile_shape: asc2.ConstExpr, tile_id: asc2.ConstExpr,
+                      offsets: asc2.ConstExpr) -> None:
     xt = asc2.load(asc2.tensor(x_ptr, [ts0, ts1]), tile_shape, tile_id=tile_id, offsets=offsets)
     yt = asc2.load(asc2.tensor(y_ptr, [ts0, ts1]), tile_shape, tile_id=tile_id, offsets=offsets)
     zt = xt + yt
@@ -93,7 +91,7 @@ def kernel_dynamic_2D(x_ptr, y_ptr, z_ptr, ts0, ts1, tile_shape: asc.ConstExpr, 
 
 
 @asc2.jit(always_compile=True)
-def kernel_scalar_load_store(x_ptr, y_ptr, z_ptr, tensor_shape: asc.ConstExpr, offsets: asc.ConstExpr) -> None:
+def kernel_scalar_load_store(x_ptr, y_ptr, z_ptr, tensor_shape: asc2.ConstExpr, offsets: asc2.ConstExpr) -> None:
     xt = asc2.load(asc2.tensor(x_ptr, tensor_shape), offsets=offsets)
     yt = asc2.load(asc2.tensor(y_ptr, tensor_shape), offsets=offsets)
     zt = xt + yt
@@ -141,7 +139,7 @@ def test_store_1elem_tile(tensor_shape, offsets):
     y = torch.zeros_like(x)
 
     @asc2.jit(always_compile=True)
-    def kernel(x_ptr, y_ptr, tensor_shape: asc.ConstExpr, offsets: asc.ConstExpr):
+    def kernel(x_ptr, y_ptr, tensor_shape: asc2.ConstExpr, offsets: asc2.ConstExpr):
         x = asc2.tensor(x_ptr, tensor_shape)
         s = asc2.load(x, offsets=offsets)
         y = asc2.tensor(y_ptr, tensor_shape)
@@ -154,8 +152,8 @@ def test_store_1elem_tile(tensor_shape, offsets):
 
 
 @asc2.jit(always_compile=True)
-def kernel_load_padding(x_ptr, out_ptr, input_shape: asc.ConstExpr, tile_shape: asc.ConstExpr, offsets: asc.ConstExpr,
-                        pad_value: asc.ConstExpr) -> None:
+def kernel_load_padding(x_ptr, out_ptr, input_shape: asc2.ConstExpr, tile_shape: asc2.ConstExpr,
+                        offsets: asc2.ConstExpr, pad_value: asc2.ConstExpr) -> None:
     x_gm = asc2.tensor(x_ptr, input_shape)
     out_gm = asc2.tensor(out_ptr, tile_shape)
     tile = asc2.load(x_gm, shape=tile_shape, offsets=offsets, pad_value=pad_value)

@@ -18,6 +18,8 @@ Tile API
     ~tile.Tile
     ~tensor.Tensor
 
+.. currentmodule:: asc2
+
 
 Programming model
 -----------------
@@ -26,29 +28,25 @@ Programming model
     :toctree: generated
     :nosignatures:
 
-    ~tensor.tensor
-    ~prog_model_ops.block_idx
-    ~prog_model_ops.block_num
-    ~prog_model_ops.num_tiles
+    tensor
+    block_idx
+    block_num
+    num_tiles
 
 
 Iterators
 ---------
 
-.. currentmodule:: asc.language
-
 .. autosummary::
     :toctree: generated
     :nosignatures:
 
-    ~tile.range.range
-    ~core.range.static_range
+    range
+    static_range
 
 
 Creation operations
 -------------------
-
-.. currentmodule:: asc.language.tile.creation_ops
 
 .. autosummary::
     :toctree: generated
@@ -65,8 +63,6 @@ Creation operations
 Memory operations
 -----------------
 
-.. currentmodule:: asc.language.tile.memory_ops
-
 .. autosummary::
     :toctree: generated
     :nosignatures:
@@ -78,8 +74,6 @@ Memory operations
 
 Arithmetic operations
 ---------------------
-
-.. currentmodule:: asc.language.tile.binary_ops
 
 .. autosummary::
     :toctree: generated
@@ -96,23 +90,14 @@ Arithmetic operations
     maximum
     minimum
     mul
+    negative
     not_equal
     right_shift
     sub
 
-.. currentmodule:: asc.language.tile.unary_ops
-
-.. autosummary::
-    :toctree: generated
-    :nosignatures:
-
-    negative
-
 
 Math operations
 ---------------
-
-.. currentmodule:: asc.language.tile.unary_ops
 
 .. autosummary::
     :toctree: generated
@@ -142,8 +127,6 @@ Math operations
 Matrix multiplication operations
 --------------------------------
 
-.. currentmodule:: asc.language.tile.binary_ops
-
 .. autosummary::
     :toctree: generated
     :nosignatures:
@@ -155,8 +138,6 @@ Matrix multiplication operations
 Indexing operations
 -------------------
 
-.. currentmodule:: asc.language.tile.indexing_ops
-
 .. autosummary::
     :toctree: generated
     :nosignatures:
@@ -167,8 +148,6 @@ Indexing operations
 
 Reduction operations
 --------------------
-
-.. currentmodule:: asc.language.tile.reduction_ops
 
 .. autosummary::
     :toctree: generated
@@ -182,8 +161,6 @@ Reduction operations
 
 Shape manipulation operations
 -----------------------------
-
-.. currentmodule:: asc.language.tile.shape_ops
 
 .. autosummary::
     :toctree: generated
@@ -199,8 +176,6 @@ Shape manipulation operations
 
 Atomic operations
 -----------------
-
-.. currentmodule:: asc.language.tile.atomic_ops
 
 .. autosummary::
     :toctree: generated

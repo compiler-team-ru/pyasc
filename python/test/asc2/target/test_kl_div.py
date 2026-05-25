@@ -8,25 +8,22 @@
 
 import math
 
+import asc2
 import pytest
 import torch
 
-import asc
-import asc.runtime.config as config
-import asc2
-
 
 @asc2.jit(reuse_ub=True, reuse_ub_in_out=True, vf_fusion=True)
-def kl_div(input_x_ptr: asc.GlobalAddress, input_target_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress,
-           input_size: asc.ConstExpr, tile_length: asc.ConstExpr, unroll_factor: asc.ConstExpr):
-    loop_count = asc.ceildiv(input_size, tile_length)
+def kl_div(input_x_ptr: asc2.GlobalAddress, input_target_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
+           input_size: asc2.ConstExpr, tile_length: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
+    loop_count = asc2.ceildiv(input_size, tile_length)
     x_gm = asc2.tensor(input_x_ptr, [input_size])
     target_gm = asc2.tensor(input_target_ptr, [input_size])
     output_gm = asc2.tensor(output_ptr, [input_size])
     # Epsilon values for numerical stability
     # For float16: machine epsilon ~1.18e-07
     # For float32: smallest normalized value ~1.18e-38
-    epsilon = 1.18e-07 if input_x_ptr.dtype == asc.float16 else 1.1799999457746311e-38
+    epsilon = 1.18e-07 if input_x_ptr.dtype == asc2.float16 else 1.1799999457746311e-38
     acc_block = asc2.zeros([tile_length], dtype=input_x_ptr.dtype)
     for i in asc2.range(loop_count, parallel=True, unroll_factor=unroll_factor):
         current_offset = i * tile_length
@@ -35,11 +32,11 @@ def kl_div(input_x_ptr: asc.GlobalAddress, input_target_ptr: asc.GlobalAddress, 
         target_block = asc2.load(target_gm, [tile_length], real_shape=[input_size - real_offset],
                                  offsets=[current_offset], pad_value=0)
         positive_target = asc2.maximum(target_block, 0)
-        if input_x_ptr.dtype == asc.float16:
-            positive_target = positive_target.to(asc.float32) * 1024
+        if input_x_ptr.dtype == asc2.float16:
+            positive_target = positive_target.to(asc2.float32) * 1024
         mask = positive_target // (positive_target + epsilon)
-        if input_x_ptr.dtype == asc.float16:
-            mask = mask.to(asc.float16)
+        if input_x_ptr.dtype == asc2.float16:
+            mask = mask.to(asc2.float16)
         log_target = asc2.log(asc2.maximum(target_block, epsilon))
         x_block = asc2.load(x_gm, [tile_length], real_shape=[input_size - real_offset], offsets=[current_offset],
                             pad_value=0)
@@ -64,7 +61,7 @@ def kl_div(input_x_ptr: asc.GlobalAddress, input_target_ptr: asc.GlobalAddress, 
     (2, [1000, 997, 1000, 2, 1], torch.float32, 3328),
 ])
 def test_kl_div(backend, platform, device_id, profiler, runs, unroll_factor, input_shape, input_dtype, tile_length):
-    config.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id)
     length = math.prod(input_shape)
     in_tensor_x = torch.rand(length, dtype=input_dtype)
     in_tensor_target = torch.rand_like(in_tensor_x)

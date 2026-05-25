@@ -6,25 +6,22 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
+import asc2
 import pytest
 import torch
-
-import asc
-import asc2
-from asc.runtime import config
 
 
 # static_alloc=False due to bug
 @asc2.jit(static_alloc=False, reuse_ub=True)
-def bcast_last_dim(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress, input_shape: asc.ConstExpr,
-                   output_shape: asc.ConstExpr, tile_shape: asc.ConstExpr, ROW_PER_BLOCK: asc.ConstExpr,
-                   UNROLL_FACTOR: asc.ConstExpr):
+def bcast_last_dim(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_shape: asc2.ConstExpr,
+                   output_shape: asc2.ConstExpr, tile_shape: asc2.ConstExpr, ROW_PER_BLOCK: asc2.ConstExpr,
+                   UNROLL_FACTOR: asc2.ConstExpr):
     input_gm = asc2.tensor(input_ptr, input_shape)
     output_gm = asc2.tensor(output_ptr, output_shape)
 
     start_offset = asc2.block_idx() * ROW_PER_BLOCK
-    ROW_ITERS_PER_BLOCK = asc.ceildiv(ROW_PER_BLOCK, tile_shape[0])
-    COL_ITERS_PER_BLOCK = asc.ceildiv(output_shape[1], tile_shape[1])
+    ROW_ITERS_PER_BLOCK = asc2.ceildiv(ROW_PER_BLOCK, tile_shape[0])
+    COL_ITERS_PER_BLOCK = asc2.ceildiv(output_shape[1], tile_shape[1])
     for i in asc2.range(ROW_ITERS_PER_BLOCK, parallel=True, unroll_factor=UNROLL_FACTOR):
         row_start_offset = start_offset + i * tile_shape[0]
         tensor_part = asc2.load(input_gm, [tile_shape[0]], offsets=[row_start_offset]).reshape(tile_shape[0], 1)
@@ -36,14 +33,14 @@ def bcast_last_dim(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress, 
 
 
 @asc2.jit(static_alloc=False, reuse_ub=True)
-def bcast_scalar(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress, input_shape: asc.ConstExpr,
-                 output_shape: asc.ConstExpr, tile_shape: asc.ConstExpr, COL_PER_BLOCK: asc.ConstExpr,
-                 UNROLL_FACTOR: asc.ConstExpr):
+def bcast_scalar(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_shape: asc2.ConstExpr,
+                 output_shape: asc2.ConstExpr, tile_shape: asc2.ConstExpr, COL_PER_BLOCK: asc2.ConstExpr,
+                 UNROLL_FACTOR: asc2.ConstExpr):
     input_gm = asc2.tensor(input_ptr, input_shape)
     output_gm = asc2.tensor(output_ptr, output_shape)
 
     start_offset = asc2.block_idx() * COL_PER_BLOCK
-    COL_ITERS_PER_BLOCK = asc.ceildiv(COL_PER_BLOCK, tile_shape[1])
+    COL_ITERS_PER_BLOCK = asc2.ceildiv(COL_PER_BLOCK, tile_shape[1])
     for i in asc2.range(COL_ITERS_PER_BLOCK, parallel=True, unroll_factor=UNROLL_FACTOR):
         scalar = asc2.load(input_gm, offsets=[0] * len(input_shape))
         res = asc2.full(tile_shape, scalar)
@@ -51,15 +48,15 @@ def bcast_scalar(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress, in
 
 
 @asc2.jit(static_alloc=False, reuse_ub=True)
-def bcast_first(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress, input_shape: asc.ConstExpr,
-                output_shape: asc.ConstExpr, tile_shape: asc.ConstExpr, ROW_PER_BLOCK: asc.ConstExpr,
-                UNROLL_FACTOR: asc.ConstExpr):
+def bcast_first(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_shape: asc2.ConstExpr,
+                output_shape: asc2.ConstExpr, tile_shape: asc2.ConstExpr, ROW_PER_BLOCK: asc2.ConstExpr,
+                UNROLL_FACTOR: asc2.ConstExpr):
     input_gm = asc2.tensor(input_ptr, input_shape)
     output_gm = asc2.tensor(output_ptr, output_shape)
 
     start_offset = asc2.block_idx() * ROW_PER_BLOCK
-    ROW_ITERS_PER_BLOCK = asc.ceildiv(ROW_PER_BLOCK, tile_shape[0])
-    COL_ITERS_PER_BLOCK = asc.ceildiv(output_shape[1], tile_shape[1])
+    ROW_ITERS_PER_BLOCK = asc2.ceildiv(ROW_PER_BLOCK, tile_shape[0])
+    COL_ITERS_PER_BLOCK = asc2.ceildiv(output_shape[1], tile_shape[1])
     for j in asc2.range(COL_ITERS_PER_BLOCK, parallel=True, unroll_factor=UNROLL_FACTOR):
         col_start_offset = j * tile_shape[1]
         tensor_part = asc2.load(input_gm, [tile_shape[1]], offsets=[col_start_offset])
@@ -152,7 +149,7 @@ def get_broadcast_axes(input_shape, output_shape):
      ])
 def test_reduce(backend, platform, device_id, profiler, runs, core_num, unroll_factor, input_shape, input_dtype,
                 output_shape, output_dtype, tiling_key, tiling_values):
-    config.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id)
     is_scalar_input = torch.prod(torch.tensor(input_shape)).item() == 1
     tilingKey, _, _, _, bufferCnt, _, _, _, _, _, _, _, _, _, _, uLpUnit, _, uOutOffset, _, _, _, _, _, _, _, _, _ = tiling_values
     tile_shape = [1, uLpUnit] if is_scalar_input else [uLpUnit, uOutOffset]
@@ -184,29 +181,29 @@ def test_reduce(backend, platform, device_id, profiler, runs, core_num, unroll_f
 
     if is_scalar_input:
         # Alignment
-        COL_PER_BLOCK = asc.ceildiv(num_cols, core_num)
+        COL_PER_BLOCK = asc2.ceildiv(num_cols, core_num)
         num_cols_padded = COL_PER_BLOCK * core_num
         padded_output_shape = [num_rows, num_cols_padded]
 
         in_tensor = torch.arange(1, dtype=input_dtype) + 1
         out_tensor = torch.ones(padded_output_shape, dtype=output_dtype)
         with profiler.profile():
-            for run in range(runs):
+            for _ in range(runs):
                 bcast_scalar[core_num](in_tensor, out_tensor, input_shape, padded_output_shape, tile_shape,
                                        COL_PER_BLOCK, unroll_factor)
         expected = torch.broadcast_to(in_tensor, padded_output_shape)
     else:
         # Alignment
         ALIGNMENT_ELEMENTS = 32 // input_dtype.itemsize
-        ROW_PER_BLOCK = asc.ceildiv(num_rows, core_num)
+        ROW_PER_BLOCK = asc2.ceildiv(num_rows, core_num)
 
         if input_shape == [1048576, 1]:
             # TODO: Why the original tile_shape doesn't work? no space left on UB after padding?
             tile_shape = [tile_shape[0] // 3, tile_shape[1]]
 
         num_rows_padded = max(ROW_PER_BLOCK, tile_shape[0]) * core_num
-        tile_shape = [tile_shape[0], asc.ceildiv(tile_shape[1], ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS]
-        COL_ITERS = asc.ceildiv(num_cols, tile_shape[1])
+        tile_shape = [tile_shape[0], asc2.ceildiv(tile_shape[1], ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS]
+        COL_ITERS = asc2.ceildiv(num_cols, tile_shape[1])
         num_cols_padded = COL_ITERS * tile_shape[1]
 
         input_shape_padded = num_cols_padded if axis == 0 else num_rows_padded
@@ -219,7 +216,7 @@ def test_reduce(backend, platform, device_id, profiler, runs, core_num, unroll_f
 
         kernel_impl = bcast_first if axis == 0 else bcast_last_dim
         with profiler.profile():
-            for run in range(runs):
+            for _ in range(runs):
                 kernel_impl[core_num](in_tensor, out_tensor, padded_input_shape, padded_output_shape, tile_shape,
                                       ROW_PER_BLOCK, unroll_factor)
         to_reshape = [1, padded_input_shape[0]] if axis == 0 else [padded_input_shape[0], 1]
