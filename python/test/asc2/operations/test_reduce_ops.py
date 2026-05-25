@@ -6,12 +6,9 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
+import asc2
 import pytest
 import torch
-
-import asc
-import asc2
-from asc.runtime import config
 
 tests = [
     [asc2.reduce_prod, torch.prod, [64, 32], torch.float32, False, 0],
@@ -31,9 +28,9 @@ tests = [
 
 
 @asc2.jit(always_compile=True)
-def kernel(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress, reduce_dim: asc.ConstExpr,
-           input_shape: asc.ConstExpr, input_offsets: asc.ConstExpr, output_shape: asc.ConstExpr,
-           output_offsets: asc.ConstExpr, op: asc.ConstExpr, keep_dims: asc.ConstExpr) -> None:
+def kernel(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, reduce_dim: asc2.ConstExpr,
+           input_shape: asc2.ConstExpr, input_offsets: asc2.ConstExpr, output_shape: asc2.ConstExpr,
+           output_offsets: asc2.ConstExpr, op: asc2.ConstExpr, keep_dims: asc2.ConstExpr) -> None:
     g_input = asc2.tensor(input_ptr, input_shape)
     g_output = asc2.tensor(output_ptr, output_shape)
     input = asc2.load(g_input, input_shape, offsets=input_offsets)
@@ -42,9 +39,9 @@ def kernel(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress, reduce_d
 
 
 @asc2.jit(always_compile=True)
-def kernel_all(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress, input_shape: asc.ConstExpr,
-               input_offsets: asc.ConstExpr, output_shape: asc.ConstExpr, output_offsets: asc.ConstExpr,
-               op: asc.ConstExpr) -> None:
+def kernel_all(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_shape: asc2.ConstExpr,
+               input_offsets: asc2.ConstExpr, output_shape: asc2.ConstExpr, output_offsets: asc2.ConstExpr,
+               op: asc2.ConstExpr) -> None:
     g_input = asc2.tensor(input_ptr, input_shape)
     g_output = asc2.tensor(output_ptr, output_shape)
     input = asc2.load(g_input, input_shape, offsets=input_offsets)
@@ -57,7 +54,7 @@ def kernel_all(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress, inpu
 def test_reduce(backend, platform, device_id, require_c310, op, torch_op, shape, dtype, keep_dims, dim):
     if dim:
         require_c310(platform)
-    config.set_platform(backend, platform, device_id, check=False)
+    asc2.set_platform(backend, platform, device_id, check=False)
 
     input = torch.randn(shape, dtype=dtype) * 2.0
 
@@ -84,7 +81,8 @@ def test_reduce(backend, platform, device_id, require_c310, op, torch_op, shape,
 
 
 @asc2.jit(always_compile=True)
-def reduce_tile_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, size: int, tile_size: asc.ConstExpr[int]):
+def reduce_tile_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, size: int,
+                       tile_size: asc2.ConstExpr[int]):
     x_gm = asc2.tensor(x_ptr, [size])
     out_gm = asc2.tensor(out_ptr, [1])
     tile = asc2.load(x_gm, [tile_size], offsets=[0])
@@ -96,7 +94,7 @@ def reduce_tile_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, siz
 @pytest.mark.parametrize("tile_size", [1, 7, 17])
 def test_reduce_partial_tile(backend, platform, device_id, tile_size):
     torch.manual_seed(0)
-    config.set_platform(backend, platform, device_id, check=False)
+    asc2.set_platform(backend, platform, device_id, check=False)
     tensor_size = 32
     x = torch.rand(tensor_size, dtype=torch.float32) * -10.0
     x[tile_size:] = 1000.0

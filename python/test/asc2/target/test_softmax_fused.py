@@ -6,28 +6,25 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
+import asc2
 import pytest
 import torch
-
-import asc
-import asc2
-from asc.runtime import config
 
 
 # The current implementation works for columns as long as the shape specified in asc2.load fits in UB.
 @asc2.jit(static_alloc=True, reuse_ub=True)
-def softmax_fused(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress, input_shape: asc.ConstExpr,
-                  output_shape: asc.ConstExpr, total_rows: asc.ConstExpr, rows_per_iter: asc.ConstExpr,
-                  rows_per_core: asc.ConstExpr, UNROLL_FACTOR: asc.ConstExpr):
+def softmax_fused(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_shape: asc2.ConstExpr,
+                  output_shape: asc2.ConstExpr, total_rows: asc2.ConstExpr, rows_per_iter: asc2.ConstExpr,
+                  rows_per_core: asc2.ConstExpr, UNROLL_FACTOR: asc2.ConstExpr):
     x_gm = asc2.tensor(input_ptr, input_shape)
     out_gm = asc2.tensor(output_ptr, output_shape)
 
-    block_a = asc.number(rows_per_core, asc.int_)
-    if (asc2.block_idx() == asc2.block_num() - 1):
+    block_a = asc2.number(rows_per_core, asc2.int_)
+    if asc2.block_idx() == asc2.block_num() - 1:
         block_a = total_rows - rows_per_core * (asc2.block_num() - 1)
 
     start_offset = asc2.block_idx() * rows_per_core
-    ub_loop = asc.number(asc.ceildiv(block_a, rows_per_iter), asc.int_)
+    ub_loop = asc2.number(asc2.ceildiv(block_a, rows_per_iter), asc2.int_)
     for i in asc2.range(ub_loop, unroll_factor=UNROLL_FACTOR, parallel=True):
         row_start_offset = start_offset + i * rows_per_iter
         rows = asc2.load(x_gm, [rows_per_iter, input_shape[-1]], offsets=[row_start_offset, 0])
@@ -56,7 +53,7 @@ def softmax_fused(input_ptr: asc.GlobalAddress, output_ptr: asc.GlobalAddress, i
     ])
 def test_softmax_fused(backend, platform, device_id, profiler, runs, core_num, unroll_factor, input_shape, input_dtype,
                        output_shape, output_dtype, axis, tiling_key, tiling_values):
-    config.set_platform(backend, platform, device_id)
+    asc2.set_platform(backend, platform, device_id)
 
     total_rows = rows_per_core = rows_per_iter = None
     if tiling_key == 500:
@@ -75,8 +72,8 @@ def test_softmax_fused(backend, platform, device_id, profiler, runs, core_num, u
     # Alignment
     num_rows, num_cols = input_shape_2d
     ALIGNMENT_ELEMENTS = 32 // input_dtype.itemsize
-    num_cols_padded = asc.ceildiv(num_cols, ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS
-    num_rows_padded = asc.ceildiv(num_rows, rows_per_iter) * rows_per_iter
+    num_cols_padded = asc2.ceildiv(num_cols, ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS
+    num_rows_padded = asc2.ceildiv(num_rows, rows_per_iter) * rows_per_iter
     padded_input_shape = [num_rows_padded, num_cols_padded]
     padded_output_shape = padded_input_shape
 
@@ -85,7 +82,7 @@ def test_softmax_fused(backend, platform, device_id, profiler, runs, core_num, u
     out_tensor = torch.zeros(padded_output_shape, dtype=output_dtype)
 
     with profiler.profile():
-        for run in range(runs):
+        for _ in range(runs):
             softmax_fused[core_num](in_tensor, out_tensor, padded_input_shape, padded_output_shape, total_rows,
                                     rows_per_iter, rows_per_core, unroll_factor)
 

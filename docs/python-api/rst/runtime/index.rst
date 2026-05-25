@@ -43,3 +43,17 @@ Attributes from the following classes can be used as keyword arguments in :py:ob
 .. autoclass:: asc.LaunchOptions
    :members:
    :member-order: bysource
+
+
+Platform configuration
+----------------------
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   asc2.Backend
+   asc2.Platform
+
+
+.. autofunction:: asc2.set_platform

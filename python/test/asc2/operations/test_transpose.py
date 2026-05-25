@@ -1,16 +1,14 @@
 import math
 
-import asc
-from asc.runtime import config
 import asc2
 import pytest
 import torch
 
 
 @pytest.fixture(autouse=True)
-def set_platform(backend: config.Backend, platform: config.Platform, device_id: int, require_c310):
+def set_platform(backend: asc2.Backend, platform: asc2.Platform, device_id: int, require_c310):
     require_c310(platform)
-    config.set_platform(backend, platform, device_id, check=False)
+    asc2.set_platform(backend, platform, device_id, check=False)
 
 
 @pytest.mark.parametrize("data_shape, load_shape, ub_shape, offsets", [
@@ -28,8 +26,8 @@ def test_transpose(data_shape, load_shape, ub_shape, offsets):
     result = torch.zeros([ub_shape[1], ub_shape[0]], dtype=torch.float32, device="cpu")
 
     @asc2.jit(always_compile=True)
-    def kernel(input_ptr, result_ptr, data_shape: asc.ConstExpr, load_shape: asc.ConstExpr, ub_shape: asc.ConstExpr,
-               offsets: asc.ConstExpr):
+    def kernel(input_ptr, result_ptr, data_shape: asc2.ConstExpr, load_shape: asc2.ConstExpr, ub_shape: asc2.ConstExpr,
+               offsets: asc2.ConstExpr):
         g_input = asc2.tensor(input_ptr, data_shape)
         tile = asc2.load(g_input, offsets=offsets, shape=ub_shape, real_shape=load_shape)
         g_output = asc2.tensor(result_ptr, [ub_shape[1], ub_shape[0]])

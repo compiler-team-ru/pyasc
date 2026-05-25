@@ -1,5 +1,3 @@
-import asc
-from asc.runtime import config
 import asc2
 import pytest
 import torch
@@ -9,7 +7,7 @@ SIZE = 128
 
 
 @asc2.jit(always_compile=True)
-def cast_kernel(x_ptr, z_ptr, size: asc.ConstExpr, dst_dtype: asc.ConstExpr) -> None:
+def cast_kernel(x_ptr, z_ptr, size: asc2.ConstExpr, dst_dtype: asc2.ConstExpr) -> None:
     x_gm = asc2.tensor(x_ptr, [size])
     z_gm = asc2.tensor(z_ptr, [size])
     tile = asc2.load(x_gm, [size], offsets=[0])
@@ -19,34 +17,34 @@ def cast_kernel(x_ptr, z_ptr, size: asc.ConstExpr, dst_dtype: asc.ConstExpr) -> 
 
 @pytest.mark.parametrize("dst_dtype, torch_src, torch_dst", [
     # float -> float
-    (asc.float16, torch.bfloat16, torch.float16),
-    (asc.float32, torch.bfloat16, torch.float32),
-    (asc.bfloat16, torch.float16, torch.bfloat16),
-    (asc.float32, torch.float16, torch.float32),
-    (asc.bfloat16, torch.float32, torch.bfloat16),
-    (asc.float16, torch.float32, torch.float16),
+    (asc2.float16, torch.bfloat16, torch.float16),
+    (asc2.float32, torch.bfloat16, torch.float32),
+    (asc2.bfloat16, torch.float16, torch.bfloat16),
+    (asc2.float32, torch.float16, torch.float32),
+    (asc2.bfloat16, torch.float32, torch.bfloat16),
+    (asc2.float16, torch.float32, torch.float16),
     # int -> float
-    (asc.float16, torch.int8, torch.float16),
-    (asc.float16, torch.int16, torch.float16),
-    (asc.float32, torch.int16, torch.float32),
-    (asc.float32, torch.int32, torch.float32),
-    (asc.float16, torch.int32, torch.float16),
-    (asc.float32, torch.int64, torch.float32),
+    (asc2.float16, torch.int8, torch.float16),
+    (asc2.float16, torch.int16, torch.float16),
+    (asc2.float32, torch.int16, torch.float32),
+    (asc2.float32, torch.int32, torch.float32),
+    (asc2.float16, torch.int32, torch.float16),
+    (asc2.float32, torch.int64, torch.float32),
     # float -> int
-    (asc.int32, torch.bfloat16, torch.int32),
-    (asc.int8, torch.float16, torch.int8),
-    (asc.int16, torch.float16, torch.int16),
-    (asc.int32, torch.float16, torch.int32),
-    (asc.int16, torch.float32, torch.int16),
-    (asc.int32, torch.float32, torch.int32),
-    (asc.int64, torch.float32, torch.int64),
+    (asc2.int32, torch.bfloat16, torch.int32),
+    (asc2.int8, torch.float16, torch.int8),
+    (asc2.int16, torch.float16, torch.int16),
+    (asc2.int32, torch.float16, torch.int32),
+    (asc2.int16, torch.float32, torch.int16),
+    (asc2.int32, torch.float32, torch.int32),
+    (asc2.int64, torch.float32, torch.int64),
     # int -> int
-    (asc.int16, torch.int8, torch.int16),
-    (asc.int32, torch.int8, torch.int32),
-    (asc.int32, torch.int16, torch.int32),
-    (asc.int16, torch.int32, torch.int16),
-    (asc.int64, torch.int32, torch.int64),
-    (asc.int32, torch.int64, torch.int32),
+    (asc2.int16, torch.int8, torch.int16),
+    (asc2.int32, torch.int8, torch.int32),
+    (asc2.int32, torch.int16, torch.int32),
+    (asc2.int16, torch.int32, torch.int16),
+    (asc2.int64, torch.int32, torch.int64),
+    (asc2.int32, torch.int64, torch.int32),
 ])
 def test_cast(backend, platform, device_id, require_c310, dst_dtype, torch_src, torch_dst):
     if ((torch_src == torch.bfloat16 and torch_dst == torch.float16)
@@ -56,7 +54,7 @@ def test_cast(backend, platform, device_id, require_c310, dst_dtype, torch_src, 
             or (torch_src == torch.int16 and torch_dst == torch.int32)
             or (torch_src == torch.int32 and torch_dst == torch.float16)):
         require_c310(platform)
-    config.set_platform(backend, platform, device_id, check=False)
+    asc2.set_platform(backend, platform, device_id, check=False)
     device = "cpu"
 
     def create_input(dtype: torch.dtype):

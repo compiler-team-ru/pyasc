@@ -6,18 +6,15 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-import torch
-
-import asc
-import asc.runtime.config as config
 import asc2
+import torch
 
 
 # Available parameters for @asc2.jit decorator can be seen in the documentation:
 # https://compiler-team-ru.github.io/pyasc/python-api/rst/runtime/index.html
 @asc2.jit
-def vadd_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, size: int,
-                tile_size: asc.ConstExpr[int], tile_per_block: asc.ConstExpr[int]):
+def vadd_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, size: int,
+                tile_size: asc2.ConstExpr[int], tile_per_block: asc2.ConstExpr[int]):
     x_gm = asc2.tensor(x_ptr, [size])
     y_gm = asc2.tensor(y_ptr, [size])
     out_gm = asc2.tensor(out_ptr, [size])
@@ -35,13 +32,13 @@ def vadd_launch(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     size = out.numel()
     core_num = 16
     tile_size = 128
-    num_tiles = asc.ceildiv(size, tile_size)
-    vadd_kernel[core_num](x, y, out, size, tile_size, asc.ceildiv(num_tiles, core_num))
+    num_tiles = asc2.ceildiv(size, tile_size)
+    vadd_kernel[core_num](x, y, out, size, tile_size, asc2.ceildiv(num_tiles, core_num))
     return out
 
 
 if __name__ == "__main__":
-    config.set_platform(backend="Model", soc_version=config.Platform.Ascend950PR_9599, device_id=0)
+    asc2.set_platform(backend="Model", soc_version="Ascend950PR_9599", device_id=0)
     size = 8192
     x = torch.randn(size, dtype=torch.float32, device="cpu") * 10
     y = torch.randn(size, dtype=torch.float32, device="cpu") * 10

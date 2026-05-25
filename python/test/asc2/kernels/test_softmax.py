@@ -6,16 +6,13 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-import torch
-
-import asc
-import asc.runtime.config as config
 import asc2
+import torch
 
 
 @asc2.jit(always_compile=True, vf_fusion=True)
-def softmax_kernel(x_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, num_rows: int, num_cols: int,
-                   tile_size: asc.ConstExpr[int]):
+def softmax_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, num_rows: int, num_cols: int,
+                   tile_size: asc2.ConstExpr[int]):
     x_gm = asc2.tensor(x_ptr, [num_rows, num_cols])
     out_gm = asc2.tensor(out_ptr, [num_rows, num_cols])
     for i in range(asc2.block_idx(), num_rows, asc2.block_num(), parallel=True):
@@ -35,9 +32,9 @@ def softmax_launch(x: torch.Tensor) -> torch.Tensor:
     return out
 
 
-def test_softmax(backend: config.Backend, platform: config.Platform, device_id: int):
-    config.set_platform(backend, platform, device_id)
-    device = "npu" if config.Backend(backend) == config.Backend.NPU else "cpu"
+def test_softmax(backend: asc2.Backend, platform: asc2.Platform, device_id: int):
+    asc2.set_platform(backend, platform, device_id)
+    device = "npu" if asc2.Backend(backend) == asc2.Backend.NPU else "cpu"
     x = torch.rand((64, 1024), dtype=torch.float32, device=device)
     out = softmax_launch(x)
     torch.testing.assert_close(out, torch.softmax(x, dim=1))

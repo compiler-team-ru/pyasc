@@ -1,7 +1,5 @@
 import math
 
-import asc
-from asc.runtime import config
 import asc2
 import pytest
 import torch
@@ -26,14 +24,14 @@ atomic_ops = [
 
 
 @pytest.fixture(autouse=True)
-def set_platform(backend: config.Backend, platform: config.Platform, device_id: int):
-    config.set_platform(backend, platform, device_id, check=False)
+def set_platform(backend: asc2.Backend, platform: asc2.Platform, device_id: int):
+    asc2.set_platform(backend, platform, device_id, check=False)
 
 
 @asc2.jit(always_compile=True)
-def kernel(x_ptr: asc.GlobalAddress, z_ptr: asc.GlobalAddress, tensor_shape: asc.ConstExpr, tile_length: asc.ConstExpr,
-           op: asc.ConstExpr):
-    offset_x = asc.get_block_idx() * tile_length
+def kernel(x_ptr: asc2.GlobalAddress, z_ptr: asc2.GlobalAddress, tensor_shape: asc2.ConstExpr,
+           tile_length: asc2.ConstExpr, op: asc2.ConstExpr):
+    offset_x = asc2.block_idx() * tile_length
     xt = asc2.load(asc2.tensor(x_ptr, tensor_shape), [tile_length], offsets=[offset_x])
     xt += asc2.full_like(xt, 10)  # temporary tile to keep TQue synchronization valid
     op(xt, asc2.tensor(z_ptr, [tile_length]), offsets=[0])

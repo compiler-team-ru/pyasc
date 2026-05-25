@@ -1,5 +1,3 @@
-import asc
-from asc.runtime import config
 import asc2
 import pytest
 import torch
@@ -29,12 +27,13 @@ unary_ops = [
 
 
 @pytest.fixture(autouse=True)
-def set_platform(backend: config.Backend, platform: config.Platform, device_id: int):
-    config.set_platform(backend, platform, device_id, check=False)
+def set_platform(backend: asc2.Backend, platform: asc2.Platform, device_id: int):
+    asc2.set_platform(backend, platform, device_id, check=False)
 
 
 @asc2.jit(always_compile=True)
-def kernel(x_ptr: asc.GlobalAddress, z_ptr: asc.GlobalAddress, block_length: asc.ConstExpr, op: asc.ConstExpr) -> None:
+def kernel(x_ptr: asc2.GlobalAddress, z_ptr: asc2.GlobalAddress, block_length: asc2.ConstExpr,
+           op: asc2.ConstExpr) -> None:
     xt = asc2.load(asc2.tensor(x_ptr, [32]), [block_length], offsets=[0])
     zt = op(xt)
     asc2.store(zt, asc2.tensor(z_ptr, [32]), offsets=[0])

@@ -22,17 +22,17 @@ python3 python/tutorials/asc2/01-vector-add.py
 ### Kernel function
 
 The functions which are executed on Ascend NPU must be marked with `@asc2.jit` decorator. In this case:
-- Pointers to input and output tensors should have `asc.GlobalAddress` type.
+- Pointers to input and output tensors should have `asc2.GlobalAddress` type.
 - Scalar parameters are passed as Python types (e.g. `int`, `float`).
-- For optimization purposes it is recommended to pass scalar parameter as constants (e.g. `asc.ConstExpr[int]`).
+- For optimization purposes it is recommended to pass scalar parameter as constants (e.g. `asc2.ConstExpr[int]`).
 
 ```python
 @asc2.jit
-def vadd_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, size: int,
-                tile_size: asc.ConstExpr[int], tile_per_block: asc.ConstExpr[int]):
+def vadd_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, size: int,
+                tile_size: asc2.ConstExpr[int], tile_per_block: asc2.ConstExpr[int]):
 ```
 
-Tensor descriptor is created from `asc.GlobalAddress` to represent entire tensor.
+Tensor descriptor is created from `asc2.GlobalAddress` to represent entire tensor.
 
 ```python
 x_gm = asc2.tensor(x_ptr, [size])
@@ -86,23 +86,23 @@ out = np.empty_like(x)
 size = out.size
 core_num = 16
 tile_size = 128
-num_tiles = asc.ceildiv(size, tile_size)
+num_tiles = asc2.ceildiv(size, tile_size)
 ```
 
 For the kernel invocation, number of AICOREs should be provided in brackets:
 
 ```python
-vadd_kernel[core_num](x, y, out, size, tile_size, asc.ceildiv(num_tiles, core_num))
+vadd_kernel[core_num](x, y, out, size, tile_size, asc2.ceildiv(num_tiles, core_num))
 return out
 ```
 
 Example:
 
 ```python
-backend = "Model" # can be "Model" for simulator or "NPU" for device
-soc_version = config.Platform.Ascend950PR_9599 # Device version
+backend = asc2.Backend.Model # can be "Model" for simulator or "NPU" for device
+soc_version = asc2.Platform.Ascend950PR_9599 # Device version
 device_id = 0 # might be necessary to provide if more than one NPU device is present in the system
-config.set_platform(backend, soc_version, device_id)
+asc2.set_platform(backend, soc_version, device_id)
 rng = np.random.default_rng(seed=2026)
 size = 8192
 x = rng.random(size, dtype=np.float32) * 10
@@ -132,7 +132,7 @@ dumps/
 
 ```
 
-Note: it is necessary to set `always_compile=True` JIT option to avoid caching and trigger the compilation each time.
+> Note: it is necessary to set `always_compile=True` JIT option to avoid caching and trigger the compilation each time.
 
 ### Tune generated Ascend C code
 
@@ -141,9 +141,9 @@ The Ascend C code generated from PyAsc2 can be injected back in PyAsc2 python co
 - comment out `TPipe` definition in the code (see an example below).
 
 ```python
-@asc2.jit(kernel_type=config.KernelType.AIV_ONLY)
-def vadd_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress, size: int,
-                tile_size: asc.ConstExpr[int], tile_per_block: asc.ConstExpr[int]):
+@asc2.jit(kernel_type=asc2.KernelType.AIV_ONLY)
+def vadd_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, size: int,
+                tile_size: asc2.ConstExpr[int], tile_per_block: asc2.ConstExpr[int]):
     asc.inline('''
 constexpr int32_t c32_i32 = 32;
 constexpr int64_t c128_i64 = 128;
