@@ -26,11 +26,6 @@ unary_ops = [
 ]
 
 
-@pytest.fixture(autouse=True)
-def set_platform(backend: asc2.Backend, platform: asc2.Platform, device_id: int):
-    asc2.set_platform(backend, platform, device_id, check=False)
-
-
 @asc2.jit(always_compile=True)
 def kernel(x_ptr: asc2.GlobalAddress, z_ptr: asc2.GlobalAddress, block_length: asc2.ConstExpr,
            op: asc2.ConstExpr) -> None:
@@ -45,17 +40,16 @@ def test_unary_operations(asc_op, torch_op, dtypes):
 
     def create_input(input_dtype):
         if input_dtype == torch.float32:
-            res = torch.randn((size, ), dtype=input_dtype, device=device)
+            res = torch.randn((size, ), dtype=input_dtype)
             res = torch.clamp(res, 1, 100)
         else:
-            res = torch.randint(1, 100, (size, ), dtype=input_dtype, device=device)
+            res = torch.randint(1, 100, (size, ), dtype=input_dtype)
 
         return res
 
     dtype_z, dtype_x = dtypes
     size = 32
     block_length = size // USE_CORE_NUM
-    device = "cpu"
 
     x = create_input(dtype_x)
     z = torch.zeros(size, dtype=dtype_z)

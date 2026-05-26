@@ -72,10 +72,8 @@ def transpose_column(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddre
     TestCase([128, 6400], 1, torch.float16, [128, 16], 16),
     TestCase([4096, 1024], 2, torch.float32, [256, 176], [251, 164]),
 ])
-def test_transpose(backend: asc2.Backend, platform: asc2.Platform, device_id: int, profiler, runs, test_params):
-    asc2.set_platform(backend, platform, device_id, check=False)
-
-    input = torch.randn(test_params.shape, dtype=test_params.dtype, device="cpu")
+def test_transpose(profiler, runs, test_params):
+    input = torch.randn(test_params.shape, dtype=test_params.dtype)
     width = test_params.shape[1]
     height = test_params.shape[0]
     out = torch.zeros([width, height], dtype=input.dtype)

@@ -49,9 +49,8 @@ def select_kernel_1D(cond_ptr: asc2.GlobalAddress, input_x_ptr: asc2.GlobalAddre
         (50, 2, [2, 1, 256, 256, 16], torch.float32, [2, 1, 256, 256, 16], torch.float32, 8, [2097152, 0, 7040, 50]),
         (50, 1, [2, 1, 256, 256, 16], torch.float16, [2, 1, 256, 256, 16], torch.float16, 8, [2097152, 0, 14080, 50]),
     ])
-def test_select(backend, platform, device_id, profiler, runs, core_num, unroll_factor, input_shape, input_dtype,
-                output_shape, output_dtype, tiling_key, tiling_values):
-    asc2.set_platform(backend, platform, device_id, check=False)
+def test_select(profiler, runs, core_num, unroll_factor, input_shape, input_dtype, output_shape, output_dtype,
+                tiling_key, tiling_values):
     _, _, tile_length, core_num = tiling_values
     input_shape_1d = [math.prod(input_shape)]
     length = input_shape_1d[0]

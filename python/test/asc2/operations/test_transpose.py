@@ -6,9 +6,8 @@ import torch
 
 
 @pytest.fixture(autouse=True)
-def set_platform(backend: asc2.Backend, platform: asc2.Platform, device_id: int, require_c310):
-    require_c310(platform)
-    asc2.set_platform(backend, platform, device_id, check=False)
+def require_c310_auto(require_c310):
+    require_c310()
 
 
 @pytest.mark.parametrize("data_shape, load_shape, ub_shape, offsets", [
@@ -20,10 +19,10 @@ def set_platform(backend: asc2.Backend, platform: asc2.Platform, device_id: int,
 ])
 def test_transpose(data_shape, load_shape, ub_shape, offsets):
     count = math.prod(data_shape)
-    input = torch.arange(0, count, dtype=torch.float32, device="cpu").reshape(data_shape)
+    input = torch.arange(0, count, dtype=torch.float32).reshape(data_shape)
     if not load_shape:
         load_shape = ub_shape
-    result = torch.zeros([ub_shape[1], ub_shape[0]], dtype=torch.float32, device="cpu")
+    result = torch.zeros([ub_shape[1], ub_shape[0]], dtype=torch.float32)
 
     @asc2.jit(always_compile=True)
     def kernel(input_ptr, result_ptr, data_shape: asc2.ConstExpr, load_shape: asc2.ConstExpr, ub_shape: asc2.ConstExpr,

@@ -14,11 +14,6 @@ STATIC = "static"
 DYNAMIC = "dynamic"
 
 
-@pytest.fixture(autouse=True)
-def set_platform(backend: asc2.Backend, platform: asc2.Platform, device_id: int):
-    asc2.set_platform(backend, platform, device_id, check=False)
-
-
 @asc2.jit(always_compile=True)
 def load_real_shape_1d_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, size: int,
                               tile_size: asc2.ConstExpr, real_size: int, offset: asc2.ConstExpr):
@@ -39,7 +34,6 @@ def load_real_shape_1d_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAdd
     (42, 8, 5, 17),
 ])
 def test_load_real_shape_1d(kernel_type, size, tile_size, real_size, offset):
-    torch.manual_seed(42)
     x = torch.arange(1, size + 1, dtype=torch.float32)
     valid_end = offset + real_size
     tile_end = offset + tile_size
@@ -78,9 +72,8 @@ def load_real_shape_2d_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAdd
     ([4, 42], [2, 8], [2, 5], [1, 17]),
     ([32, 32], [32, 40], [32, 1], [3, 5]),
 ])
-def test_load_real_shape_2d(platform, require_c310, kernel_type, shape, tile_shape, real_shape, offsets):
-    require_c310(platform)
-    torch.manual_seed(42)
+def test_load_real_shape_2d(require_c310, kernel_type, shape, tile_shape, real_shape, offsets):
+    require_c310()
     rows, cols = shape
     offset_row, offset_col = offsets
     real_rows, real_cols = real_shape
@@ -121,10 +114,8 @@ def store_real_shape_2d_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddr
     ([4, 16], [4, 16], [4, 16], [3, 9], [0, 0]),
     ([5, 16], [5, 16], [2, 8], [2, 5], [2, 3]),
 ])
-def test_store_real_shape_2d(platform, require_c310, kernel_type, input_shape, output_shape, tile_shape, real_shape,
-                             offsets):
-    require_c310(platform)
-    torch.manual_seed(42)
+def test_store_real_shape_2d(require_c310, kernel_type, input_shape, output_shape, tile_shape, real_shape, offsets):
+    require_c310()
     in_rows, in_cols = input_shape
     out_rows, out_cols = output_shape
     real_rows, real_cols = real_shape

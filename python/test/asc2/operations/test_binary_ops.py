@@ -83,23 +83,21 @@ def handle_mask(gold, mask_type, count, other, hibits, lowbits) -> torch.Tensor:
                           for f in fmts
                           for d in dtypes
                           for m in mask_types])
-def test_binary_operations(backend, platform, device_id, require_c310, asc_op, torch_op, fmt, dtype, mask_type):
+def test_binary_operations(require_c310, asc_op, torch_op, fmt, dtype, mask_type):
     if dtype == torch.bfloat16:
-        require_c310(platform)
-    asc2.set_platform(backend, platform, device_id, check=False)
+        require_c310()
 
     def create_input(input_dtype: torch.dtype, is_vector: bool):
         if is_vector:
             if input_dtype.is_floating_point:
-                return torch.randn((size, ), dtype=input_dtype, device=device).clamp(1, 100)
+                return torch.randn((size, ), dtype=input_dtype).clamp(1, 100)
             elif input_dtype.is_signed:
-                return torch.randint(1, 100, (size, ), dtype=input_dtype, device=device)
+                return torch.randint(1, 100, (size, ), dtype=input_dtype)
         else:
             return torch.tensor(2, dtype=input_dtype)
 
     size = 32
     block_length = size // USE_CORE_NUM
-    device = "cpu"
 
     if fmt == VV:
         x = create_input(dtype, True)

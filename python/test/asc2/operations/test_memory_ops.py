@@ -58,11 +58,6 @@ tests = [
 ]
 
 
-@pytest.fixture(autouse=True)
-def set_platform(backend: asc2.Backend, platform: asc2.Platform, device_id: int):
-    asc2.set_platform(backend, platform, device_id, check=False)
-
-
 @asc2.jit(always_compile=True)
 def kernel_static(x_ptr, y_ptr, z_ptr, tensor_shape: asc2.ConstExpr, tile_shape: asc2.ConstExpr,
                   tile_id: asc2.ConstExpr, offsets: asc2.ConstExpr) -> None:
@@ -99,12 +94,11 @@ def kernel_scalar_load_store(x_ptr, y_ptr, z_ptr, tensor_shape: asc2.ConstExpr, 
 
 
 @pytest.mark.parametrize("dim, tensor_shape, tile_shape, tile_id, offsets, is_static", tests)
-def test_load_store(platform, require_c310, dim, tensor_shape, tile_shape, tile_id, offsets, is_static):
+def test_load_store(require_c310, dim, tensor_shape, tile_shape, tile_id, offsets, is_static):
     if dim == 2 and not is_static:
-        require_c310(platform)
+        require_c310()
     x, y = [torch.randn(tensor_shape) for _ in range(2)]
-    device = "cpu"
-    z = torch.zeros(tensor_shape, dtype=torch.float32, device=device)
+    z = torch.zeros(tensor_shape, dtype=torch.float32)
     if is_static:
         if tile_shape is None:
             kernel_scalar_load_store[1](x, y, z, tensor_shape, offsets)
@@ -135,7 +129,7 @@ def test_load_store(platform, require_c310, dim, tensor_shape, tile_shape, tile_
     ((16, 16), (7, 7)),
 ))
 def test_store_1elem_tile(tensor_shape, offsets):
-    x = torch.randn(tensor_shape, dtype=torch.float32, device="cpu")
+    x = torch.randn(tensor_shape, dtype=torch.float32)
     y = torch.zeros_like(x)
 
     @asc2.jit(always_compile=True)
@@ -169,13 +163,13 @@ def kernel_load_padding(x_ptr, out_ptr, input_shape: asc2.ConstExpr, tile_shape:
         ([9, 9], [8, 8], [5, 4]),
     ),
 )
-def test_load_padding(platform, require_c310, input_shape, tile_shape, offsets):
-    require_c310(platform)
+def test_load_padding(require_c310, input_shape, tile_shape, offsets):
+    require_c310()
     pad_value = -1000.0
-    x = torch.arange(1, input_shape[0] * input_shape[1] + 1, dtype=torch.float32, device="cpu").reshape(input_shape)
-    out = torch.full(tile_shape, pad_value, dtype=torch.float32, device="cpu")
+    x = torch.arange(1, input_shape[0] * input_shape[1] + 1, dtype=torch.float32).reshape(input_shape)
+    out = torch.full(tile_shape, pad_value, dtype=torch.float32)
     kernel_load_padding[1](x, out, input_shape, tile_shape, offsets, pad_value)
-    out_expected = torch.full(tile_shape, pad_value, dtype=torch.float32, device="cpu")
+    out_expected = torch.full(tile_shape, pad_value, dtype=torch.float32)
     row_start, col_start = offsets
     tile_rows, tile_cols = tile_shape
     src_rows, src_cols = input_shape

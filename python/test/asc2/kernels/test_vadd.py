@@ -35,9 +35,8 @@ def vadd_launch(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     return out
 
 
-def test_vadd(backend: asc2.Backend, platform: asc2.Platform, device_id: int):
-    asc2.set_platform(backend, platform, device_id, check=False)
-    rng = np.random.default_rng(seed=2026)
+def test_vadd(torch_seed: int):
+    rng = np.random.default_rng(torch_seed)
     size = 8192
     x = rng.random(size, dtype=np.float32) * 10
     y = rng.random(size, dtype=np.float32) * 10

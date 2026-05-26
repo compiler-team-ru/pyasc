@@ -51,10 +51,8 @@ def softmax_fused(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
         (56, 1, [2, 12, 512, 512], torch.float32, [2, 12, 512, 512
                                                    ], torch.float32, -1, 1000, [12288, 512, 512, 24, 220, 8]),
     ])
-def test_softmax_fused(backend, platform, device_id, profiler, runs, core_num, unroll_factor, input_shape, input_dtype,
-                       output_shape, output_dtype, axis, tiling_key, tiling_values):
-    asc2.set_platform(backend, platform, device_id, check=False)
-
+def test_softmax_fused(profiler, runs, core_num, unroll_factor, input_shape, input_dtype, output_shape, output_dtype,
+                       axis, tiling_key, tiling_values):
     total_rows = rows_per_core = rows_per_iter = None
     if tiling_key == 500:
         total_rows, _, _, rows_per_core, rows_per_iter, _, _, _ = tiling_values

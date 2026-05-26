@@ -41,11 +41,9 @@ def matmul_launch(a: torch.Tensor, b: torch.Tensor, tile_a, tile_b) -> torch.Ten
     (15, 67, 27, torch.bfloat16, [15, 67], [67, 27]),
     (19, 1, 19, torch.bfloat16, [19, 1], [1, 19]),
 ])
-def test_matmul_fixpipe(backend: asc2.Backend, platform: asc2.Platform, device_id: int, m, k, n, dtype, tile_a, tile_b):
-    asc2.set_platform(backend, platform, device_id, check=False)
-    device = "npu" if asc2.Backend(backend) == asc2.Backend.NPU else "cpu"
-    a = (torch.rand((m, k), dtype=dtype, device=device) - .5) * 10
-    b = (torch.rand((k, n), dtype=dtype, device=device) - .5) * 10
+def test_matmul_fixpipe(m, k, n, dtype, tile_a, tile_b):
+    a = (torch.rand((m, k), dtype=dtype) - .5) * 10
+    b = (torch.rand((k, n), dtype=dtype) - .5) * 10
     c = matmul_launch(a, b, tile_a, tile_b)
     c_ref = (a.to(torch.float32) @ b.to(torch.float32)).relu().to(torch.float16)
     torch.testing.assert_close(c, c_ref, atol=1e-3, rtol=1e-3)

@@ -46,22 +46,20 @@ def cast_kernel(x_ptr, z_ptr, size: asc2.ConstExpr, dst_dtype: asc2.ConstExpr) -
     (asc2.int64, torch.int32, torch.int64),
     (asc2.int32, torch.int64, torch.int32),
 ])
-def test_cast(backend, platform, device_id, require_c310, dst_dtype, torch_src, torch_dst):
+def test_cast(require_c310, dst_dtype, torch_src, torch_dst):
     if ((torch_src == torch.bfloat16 and torch_dst == torch.float16)
             or (torch_src == torch.float16 and torch_dst == torch.bfloat16)
             or (torch_src == torch.int8 and torch_dst == torch.int16)
             or (torch_src == torch.int8 and torch_dst == torch.int32)
             or (torch_src == torch.int16 and torch_dst == torch.int32)
             or (torch_src == torch.int32 and torch_dst == torch.float16)):
-        require_c310(platform)
-    asc2.set_platform(backend, platform, device_id, check=False)
-    device = "cpu"
+        require_c310()
 
     def create_input(dtype: torch.dtype):
         if dtype.is_floating_point:
-            return torch.randn(SIZE, dtype=dtype, device=device)
+            return torch.randn(SIZE, dtype=dtype)
         if dtype.is_signed:
-            return torch.randint(-100, 100, (SIZE, ), dtype=dtype, device=device)
+            return torch.randint(-100, 100, (SIZE, ), dtype=dtype)
 
     def get_expected(x, src_dtype: torch.dtype, dst_dtype: torch.dtype):
         if dst_dtype.is_floating_point:
@@ -95,7 +93,7 @@ def test_cast(backend, platform, device_id, require_c310, dst_dtype, torch_src, 
         return x.to(dst_dtype)
 
     x = create_input(torch_src)
-    z = torch.zeros(SIZE, dtype=torch_dst, device=device)
+    z = torch.zeros(SIZE, dtype=torch_dst)
     cast_kernel[USE_CORE_NUM](x, z, SIZE, dst_dtype)
     expected = get_expected(x, torch_src, torch_dst)
     if torch_dst.is_floating_point:
