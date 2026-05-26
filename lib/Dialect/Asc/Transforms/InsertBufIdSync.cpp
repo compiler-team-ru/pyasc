@@ -45,20 +45,20 @@ class InsertBufIdSync {
 
     ascendc::Pipe getPipe(Operation* op)
     {
-        if (isa<ascendc::LoadDataG2LOp, ascendc::LoadDataL0V2Op, ascendc::LoadDataWithTransposeOp>(op)) {
+        if (isa<ascendc::CopyToL0Op>(op)) {
             return ascendc::Pipe::PIPE_MTE1;
-        }
-        if (auto copyOp = dyn_cast<ascendc::DataCopyOp>(op)) {
-            auto direction = copyOp.getDirection();
-            if (direction == ascendc::CopyDirection::gm_ubuf) {
-                return ascendc::Pipe::PIPE_MTE2;
-            }
-            if (direction == ascendc::CopyDirection::ubuf_gm) {
-                return ascendc::Pipe::PIPE_MTE3;
-            }
         }
         if (isa<ascendc::FixpipeOp>(op)) {
             return ascendc::Pipe::PIPE_FIX;
+        }
+        if (auto copyOp = dyn_cast<ascendc::DataCopyOp>(op)) {
+            auto direction = copyOp.getDirection();
+            if (direction == ascendc::CopyDirection::GlobalToLocal) {
+                return ascendc::Pipe::PIPE_MTE2;
+            }
+            if (direction == ascendc::CopyDirection::LocalToGlobal) {
+                return ascendc::Pipe::PIPE_MTE3;
+            }
         }
         if (isa<ascendc::LocalTensorGetValueOp, ascendc::LocalTensorSetValueOp>(op)) {
             return ascendc::Pipe::PIPE_S;
@@ -195,7 +195,7 @@ public:
     void process(Operation* op)
     {
         auto copyOp = dyn_cast<ascendc::DataCopyOp>(op);
-        if (copyOp && copyOp.getDirection() == ascendc::CopyDirection::ubuf_gm) {
+        if (copyOp && copyOp.getDirection() == ascendc::CopyDirection::LocalToGlobal) {
             insertSync(op, copyOp.getSrc());
             return;
         }

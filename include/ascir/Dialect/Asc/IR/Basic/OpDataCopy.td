@@ -157,11 +157,16 @@ def AscendC_NdDmaParamsOp: AscendC_Op<"nd_dma_params", [AttrSizedOperandSegments
   }];
 }
 
-def DataCopyNdDmaOp: DataCopyOp<"data_copy_nd_dma", "DataCopy", [AscFunc]> {
+def DataCopyNdDmaOp : DataCopyOp<"data_copy_nd_dma", "DataCopy", [
+  AscFunc, OpWithSrcInterface
+]> {
   let description = "DataCopy with NdDmaParams arguments";
   let arguments = (ins AscendC_BaseTensorTypeInterface:$dst,
                        AscendC_BaseTensorTypeInterface:$src,
                        AscendC_NdDmaParams:$params, I32Attr:$dims);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+  }];
 }
 
 def AscendC_LoadImageToLocalOp : APIOp<"load_image_to_local", "LoadImageToLocal", [AscFunc]> {

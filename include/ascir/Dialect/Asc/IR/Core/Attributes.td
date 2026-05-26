@@ -133,6 +133,17 @@ def AscendC_CacheLineAttr : I32EnumAttr<"CacheLine", "", [
   let underlyingType = "uint8_t";
 }
 
+def AscendC_CopyDirectionAttr : I32EnumAttr<"CopyDirection", "", [
+  I32EnumAttrCase<"Unknown", 0>,
+  I32EnumAttrCase<"GlobalToLocal", 1>,
+  I32EnumAttrCase<"LocalToGlobal", 2>,
+  I32EnumAttrCase<"LocalToLocal", 3>,
+  I32EnumAttrCase<"GlobalToGlobal", 4>,
+]> {
+  let cppNamespace = "::mlir::ascendc";
+  let description = "Copy direction";
+}
+
 def AscendC_CubeFormatAttr : I32EnumAttr<"CubeFormat", "matmul tensor format", [
   I32EnumAttrCase<"ND", 0, "nd">,
   I32EnumAttrCase<"NZ", 1, "nz">,

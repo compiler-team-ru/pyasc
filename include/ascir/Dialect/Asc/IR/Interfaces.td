@@ -117,10 +117,29 @@ def VectorOpInterface : AscendC_OpInterface<"VectorOp", [APIOpInterface]> {
   let description = "Base interface for vector operations";
 }
 
-class SimpleDirMethod<string src, string dst> : InterfaceMethod<
-  "Check if " # src # "-to-" # dst # " copy", "bool", "is" # src # "To" # dst,
-  (ins), "", "return isa<" # src # "TensorType>($_op.getSrc().getType()) && "
-  "isa<" # dst # "TensorType>($_op.getDst().getType());">;
+def DataCopyOpInterface
+    : AscendC_OpInterface<"DataCopyOp", [APIOpInterface, OpWithDstInterface]> {
+  InterfaceMethod getDirection = InterfaceMethod<"Get copy direction",
+    "::mlir::ascendc::CopyDirection", "getDirection", (ins), "", [{
+    auto dstType = $_op.getDst().getType();
+    auto srcType = $_op.getSrc().getType();
+    if (isa<GlobalTensorType>(srcType)) {
+      if (isa<GlobalTensorType>(dstType))
+        return CopyDirection::GlobalToGlobal;
+      if (isa<LocalTensorType>(dstType))
+        return CopyDirection::GlobalToLocal;
+    } else if (isa<LocalTensorType>(srcType)) {
+      if (isa<GlobalTensorType>(dstType))
+        return CopyDirection::LocalToGlobal;
+      if (isa<LocalTensorType>(dstType))
+        return CopyDirection::LocalToLocal;
+    }
+    return CopyDirection::Unknown;
+  }]>;
+  InterfaceMethod setSrc = InterfaceMethod<"Set src operand", "void", "setSrc",
+                                           (ins "Value":$src), "", [{
+    $_op.getSrcMutable().assign(src);
+  }]>;
 
 def DataCopyOpInterface
     : AscendC_OpInterface<"DataCopyOp", [APIOpInterface, OpWithDstInterface]> {
@@ -162,6 +181,12 @@ def CopyToL0OpInterface : AscendC_OpInterface<"CopyToL0Op", [
 
 def RegOpInterface : AscendC_OpInterface<"RegOp", [APIOpInterface]> {
   let description = "Base interface for operations representing register API";
+}
+
+def CopyToL0OpInterface : AscendC_OpInterface<"CopyToL0Op", [
+  APIOpInterface, DataCopyOpInterface, OpWithSrcInterface
+]> {
+  let description = "Copy from GM or L1 (TPosition A1/B1) to L0 (A2/B2)";
 }
 
 def MicroAPIOpInterface : AscendC_OpInterface<"MicroAPIOp", [APIOpInterface]> {
