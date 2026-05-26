@@ -320,9 +320,17 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
         auto dstShapeCols = consts.i32(dstShape[1]);
         if (isMatrixA || isa<Float16Type, BFloat16Type>(opType.getElementType()) || isTransposeB) {
             auto dstShapeRows = consts.i32(dstShape[0]);
+            Value nValue = dstShapeRows;
+            Value dValue = dstShapeCols;
+            if (auto realShape = op.getRealShape(); !realShape.empty()) {
+                Value realRows = rewriter.getRemappedValue(realShape[0]);
+                Value realCols = rewriter.getRemappedValue(realShape[1]);
+                nValue = rewriter.create<arith::MinSIOp>(loc, dstShapeRows, realRows);
+                dValue = rewriter.create<arith::MinSIOp>(loc, dstShapeCols, realCols);
+            }
             auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
                 loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
-                ValueRange{const1, dstShapeRows, dstShapeCols, const0, srcInfo.shape[1], dstShapeRows, const1, const0});
+                ValueRange{const1, nValue, dValue, const0, srcInfo.shape[1], dstShapeRows, const1, const0});
             rewriter.create<ascendc::DataCopyL2Op>(loc, dst, srcInfo.tensor, nd2NzParams);
         } else {
             auto ndNum = consts.i32(llvm::divideCeilSigned(dstShape[0], ascendc::cubeBlockSize));
