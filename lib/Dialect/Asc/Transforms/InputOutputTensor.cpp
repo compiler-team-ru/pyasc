@@ -35,7 +35,7 @@ void createDataCopyIfNeeded(ControlFlowOp op)
 {
     for (auto& use : op->getUses()) {
         auto copyOp = dyn_cast<ascendc::DataCopyOp>(use.getOwner());
-        if (!copyOp || !copyOp.isLocalToGlobal())
+        if (!copyOp || copyOp.getDirection() != ascendc::CopyDirection::LocalToGlobal)
             return;
         OpBuilder builder(op);
         ascir::ConstantOpBuilder consts(builder);
@@ -66,13 +66,14 @@ TensorOp findTensorOrigin(Value tensor)
 void setInOutTensors(func::FuncOp funcOp)
 {
     funcOp.walk([](ascendc::DataCopyOp op) {
+        auto dir = op.getDirection();
         auto src = findTensorOrigin(op.getSrc());
-        if (src && op.isLocalToGlobal())
+        if (src && dir == ascendc::CopyDirection::LocalToGlobal)
             src.setOutput(true);
         auto dst = findTensorOrigin(op.getDst());
-        if (dst && op.isGlobalToLocal())
+        if (dst && dir == ascendc::CopyDirection::GlobalToLocal)
             dst.setInput(true);
-        if (!op.isLocalToLocal())
+        if (dir != ascendc::CopyDirection::LocalToLocal)
             return;
         if (isa<ascendc::CopyToL0Op, ascendc::FixpipeOp>(*op)) {
             if (src)
@@ -98,13 +99,12 @@ void fixInOutTensor(func::FuncOp& funcOp)
         for (auto& use : inTensor->getUses()) {
             auto* owner = use.getOwner();
             auto copyOp = dyn_cast<ascendc::DataCopyOp>(owner);
-            if (!copyOp || !copyOp.isLocalToGlobal())
+            if (!copyOp || copyOp.getDirection() != ascendc::CopyDirection::LocalToGlobal)
                 return builder.setInsertionPoint(owner);
             ascir::ConstantOpBuilder consts(builder);
             Value calCount = consts.i64(tensorType.getNumElements());
             auto outTensor = builder.create<TensorOp>(loc, tensorType, /*input*/ false, /*output*/ true, ValueRange{});
-            auto extraOp = builder.create<ascendc::DataCopyL2Op>(loc, outTensor, inTensor, calCount);
-            extraOp.setDirection(ascendc::TPosition::VECCALC, ascendc::TPosition::VECCALC);
+            builder.create<ascendc::DataCopyL2Op>(loc, outTensor, inTensor, calCount);
             owner->setOperand(use.getOperandNumber(), outTensor);
         }
     });

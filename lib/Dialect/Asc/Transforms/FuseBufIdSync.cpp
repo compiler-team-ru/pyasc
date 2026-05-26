@@ -107,9 +107,9 @@ void fuseBufIdSync(func::FuncOp funcOp)
         } else if (auto copyOp = dyn_cast<ascendc::DataCopyOp>(op)) {
             ascendc::Pipe pipe = ascendc::Pipe::PIPE_V;
             auto direction = copyOp.getDirection();
-            if (direction == ascendc::CopyDirection::gm_ubuf) {
+            if (direction == ascendc::CopyDirection::GlobalToLocal) {
                 pipe = ascendc::Pipe::PIPE_MTE2;
-            } else if (direction == ascendc::CopyDirection::ubuf_gm) {
+            } else if (direction == ascendc::CopyDirection::LocalToGlobal) {
                 pipe = ascendc::Pipe::PIPE_MTE3;
             }
             processOp(copyOp, fuseGroup, state, pipe);

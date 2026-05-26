@@ -20,9 +20,9 @@ include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/OpBase.td"
 
-def AscendC_FixpipeOp : APIOp<"fixpipe", "Fixpipe", [OpWithDstInterface, OpWithSrcInterface]> {
+def AscendC_FixpipeOp : DataCopyOp<"fixpipe", "Fixpipe", [OpWithDstInterface, OpWithSrcInterface]> {
   let summary = "Call `AscendC::Fixpipe` function without cbufWorkspace";
-  let arguments = (ins AnyType:$dst, AscendC_LocalTensor:$src, 
+  let arguments = (ins AscendC_BaseTensorTypeInterface:$dst, AscendC_LocalTensor:$src,
                     AnyTypeOf<[AscendC_FixpipeParamsV220, AscendC_FixpipeParamsC310]>:$intriParams,
                     AscendC_FixpipeConfig:$fixpipeConfig);
   let extraClassDeclaration = extraClassDeclarationBase # [{

@@ -52,9 +52,7 @@ def AscendC_LoadDataL0Op : CopyToL0Op<"load_data_l0", "LoadData", [AscFunc]> {
   }];
 }
 
-def AscendC_LoadDataG2LOp : DataCopyOp<"load_data_g2l", "LoadData", [
-  AscFunc, OpWithDstInterface, OpWithSrcInterface
-]> {
+def AscendC_LoadDataG2LOp : CopyToL0Op<"load_data_g2l", "LoadData", [AscFunc]> {
   let description = "Perform 2D LoadData from GlobalTensor to LocalTensor";
   let arguments = (ins AscendC_LocalTensor:$dst,
                        AscendC_BaseTensorTypeInterface:$src,
@@ -64,9 +62,8 @@ def AscendC_LoadDataG2LOp : DataCopyOp<"load_data_g2l", "LoadData", [
   }];
 }
 
-def AscendC_LoadDataL0V2Op : DataCopyOp<"load_data_l0_v2", "LoadData", [
-  AscFunc, OpWithDstInterface, OpWithSrcInterface
-]> {
+def AscendC_LoadDataL0V2Op
+    : CopyToL0Op<"load_data_l0_v2", "LoadData", [AscFunc]> {
   let description = "Perform 2D LoadData V2 between LocalTensor and LocalTensor";
   let arguments = (ins AscendC_LocalTensor:$dst,
                        AscendC_BaseTensorTypeInterface:$src,
@@ -76,9 +73,8 @@ def AscendC_LoadDataL0V2Op : DataCopyOp<"load_data_l0_v2", "LoadData", [
   }];
 }
 
-def AscendC_LoadDataG2LV2Op : DataCopyOp<"load_data_g2l_v2", "LoadData", [
-  AscFunc, OpWithDstInterface, OpWithSrcInterface
-]> {
+def AscendC_LoadDataG2LV2Op
+    : CopyToL0Op<"load_data_g2l_v2", "LoadData", [AscFunc]> {
   let description = "Perform 2D LoadData V2 from GlobalTensor to LocalTensor";
   let arguments = (ins AscendC_LocalTensor:$dst,
                        AscendC_BaseTensorTypeInterface:$src,
@@ -129,9 +125,7 @@ def AscendC_LoadDataWithSparseOp
 }
 
 def AscendC_LoadDataWithTransposeOp
-    : APIOp<"load_data_with_transpose", "LoadDataWithTranspose", [
-  AscFunc, OpWithDstInterface, OpWithSrcInterface
-]> {
+    : CopyToL0Op<"load_data_with_transpose", "LoadDataWithTranspose", [AscFunc]> {
   let description = "Perform 2D LoadData with transpose between tensors";
   let arguments = (ins AscendC_LocalTensor:$dst, AscendC_LocalTensor:$src,
                        AscendC_LoadData2dTransposeParams:$loadDataParams);
@@ -162,8 +156,7 @@ def AscendC_MmadOp
   }];
 }
 
-def AscendC_MmadWithBiasOp
-    : APIOp<"mmad_with_bias", "Mmad", [AscFunc, OpWithDstInterface, OpWithSrcInterface, OpWithReusableSrcInterface]> {
+def AscendC_MmadWithBiasOp : APIOp<"mmad_with_bias", "Mmad", [AscFunc]> {
   let description = "Matrix multiply-accumulate with bias (dst += fm * filter + bias)";
   let arguments = (ins AscendC_BaseTensorTypeInterface:$dst,
                        AscendC_BaseTensorTypeInterface:$fm,
