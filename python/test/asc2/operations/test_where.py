@@ -16,9 +16,9 @@ CONDITION_PATTERNS = ["all_true", "all_false", "alternating", "first_true", "las
 
 def create_tensor(dtype: torch.dtype) -> torch.Tensor:
     if dtype.is_floating_point:
-        return torch.rand(SIZE, dtype=dtype, device="cpu")
+        return torch.rand(SIZE, dtype=dtype)
     if dtype.is_signed:
-        return torch.randint(-100, 100, (SIZE, ), dtype=dtype, device="cpu")
+        return torch.randint(-100, 100, (SIZE, ), dtype=dtype)
 
 
 @asc2.jit(always_compile=True)
@@ -41,10 +41,9 @@ def where_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, z_ptr: as
     (asc2.less, torch.lt),
     (asc2.less_equal, torch.le),
 ])
-def test_where_ops(backend, platform, device_id, require_c310, asc_op, torch_op, dtype):
+def test_where_ops(require_c310, asc_op, torch_op, dtype):
     if dtype not in (torch.float16, torch.float32):
-        require_c310(platform)
-    asc2.set_platform(backend, platform, device_id, check=False)
+        require_c310()
     x = create_tensor(dtype)
     y = create_tensor(dtype)
     result = torch.zeros_like(x)
@@ -71,10 +70,9 @@ def where_scalar_kernel(x_ptr: asc2.GlobalAddress, scalar, z_ptr: asc2.GlobalAdd
     (asc2.less, torch.lt),
     (asc2.less_equal, torch.le),
 ])
-def test_where_scalar_ops(backend, platform, device_id, require_c310, asc_op, torch_op, dtype):
+def test_where_scalar_ops(require_c310, asc_op, torch_op, dtype):
     if dtype not in (torch.float16, torch.float32):
-        require_c310(platform)
-    asc2.set_platform(backend, platform, device_id, check=False)
+        require_c310()
     x = create_tensor(dtype)
     y = torch.tensor(0 if dtype.is_signed else 0.5, dtype=dtype)
     result = torch.zeros_like(x)
@@ -119,15 +117,14 @@ def where_scalar_source_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAd
         asc2.store(out, out_gm, offsets=[tile_offset])
 
 
-def check_dtype(platform: asc2.Platform, dtype: torch.dtype, require_c310):
+def check_dtype(dtype: torch.dtype, require_c310):
     if dtype not in (torch.float16, torch.float32):
-        require_c310(platform)
+        require_c310()
 
 
 def make_data(size: int, dtype: torch.dtype) -> Tuple[torch.Tensor, torch.Tensor]:
-    generator = torch.Generator(device="cpu").manual_seed(0)
-    x_i = torch.randint(-8, 9, (size, ), generator=generator, dtype=torch.int32)
-    y_i = torch.randint(-9, 10, (size, ), generator=generator, dtype=torch.int32)
+    x_i = torch.randint(-8, 9, (size, ), dtype=torch.int32)
+    y_i = torch.randint(-9, 10, (size, ), dtype=torch.int32)
     # Force x == y at every 7th position so the test also exercises the case
     # where both arms agree: the kernel output must equal that shared value
     # regardless of the condition tile.
@@ -140,16 +137,16 @@ def make_data(size: int, dtype: torch.dtype) -> Tuple[torch.Tensor, torch.Tensor
 
 def make_condition(size: int, pattern: str, dtype: torch.dtype) -> torch.Tensor:
     if pattern == "all_true":
-        cond = torch.ones(size, dtype=torch.int32, device="cpu")
+        cond = torch.ones(size, dtype=torch.int32)
     elif pattern == "all_false":
-        cond = torch.zeros(size, dtype=torch.int32, device="cpu")
+        cond = torch.zeros(size, dtype=torch.int32)
     elif pattern == "alternating":
-        cond = torch.arange(size, dtype=torch.int32, device="cpu") % 2
+        cond = torch.arange(size, dtype=torch.int32) % 2
     elif pattern == "first_true":
-        cond = torch.zeros(size, dtype=torch.int32, device="cpu")
+        cond = torch.zeros(size, dtype=torch.int32)
         cond[0] = 1
     elif pattern == "last_true":
-        cond = torch.zeros(size, dtype=torch.int32, device="cpu")
+        cond = torch.zeros(size, dtype=torch.int32)
         cond[size - 1] = 1
     else:
         raise ValueError(f"Unknown condition pattern: {pattern}")
@@ -178,10 +175,8 @@ def where_scalar_source_launch(x: torch.Tensor, *, scalar_value: int, scalar_on_
 
 
 @pytest.mark.parametrize("dtype", SELECT_DTYPES, ids=str)
-def test_where_condition_dtypes(backend: asc2.Backend, platform: asc2.Platform, device_id: int, require_c310,
-                                dtype: torch.dtype):
-    check_dtype(platform, dtype, require_c310)
-    asc2.set_platform(backend, platform, device_id, check=False)
+def test_where_condition_dtypes(require_c310, dtype: torch.dtype):
+    check_dtype(dtype, require_c310)
     size = TILE_SIZE
     x, y = make_data(size, dtype)
     cond = make_condition(size, "alternating", dtype)
@@ -191,8 +186,7 @@ def test_where_condition_dtypes(backend: asc2.Backend, platform: asc2.Platform, 
 
 
 @pytest.mark.parametrize("pattern", CONDITION_PATTERNS)
-def test_where_condition_patterns(backend: asc2.Backend, platform: asc2.Platform, device_id: int, pattern: str):
-    asc2.set_platform(backend, platform, device_id, check=False)
+def test_where_condition_patterns(pattern: str):
     size = TILE_SIZE
     x, y = make_data(size, torch.float32)
     cond = make_condition(size, pattern, torch.float32)
@@ -202,9 +196,7 @@ def test_where_condition_patterns(backend: asc2.Backend, platform: asc2.Platform
 
 
 @pytest.mark.parametrize("logical_size", [1, 2, 127, 128, 129, 255, 256])
-def test_where_logical_border_prefixes(backend: asc2.Backend, platform: asc2.Platform, device_id: int,
-                                       logical_size: int):
-    asc2.set_platform(backend, platform, device_id, check=False)
+def test_where_logical_border_prefixes(logical_size: int):
     num_tiles = asc2.ceildiv(logical_size, TILE_SIZE)
     physical_size = TILE_SIZE * asc2.ceildiv(num_tiles, SINGLE_CORE) * SINGLE_CORE
     x, y = make_data(physical_size, torch.float32)
@@ -214,8 +206,7 @@ def test_where_logical_border_prefixes(backend: asc2.Backend, platform: asc2.Pla
     torch.testing.assert_close(out[:logical_size], expected)
 
 
-def test_where_multicore_unrolled(backend: asc2.Backend, platform: asc2.Platform, device_id: int):
-    asc2.set_platform(backend, platform, device_id, check=False)
+def test_where_multicore_unrolled():
     size = TILE_SIZE * MULTI_CORE * 2
     x, y = make_data(size, torch.float32)
     cond = make_condition(size, "alternating", torch.float32)
@@ -227,10 +218,8 @@ def test_where_multicore_unrolled(backend: asc2.Backend, platform: asc2.Platform
 @pytest.mark.parametrize("dtype", SELECT_SCALAR_SOURCE_DTYPES, ids=str)
 @pytest.mark.parametrize("scalar_on_true, scalar_value", [(False, -7), (True, 7)],
                          ids=["tensor_then_scalar", "scalar_then_tensor"])
-def test_where_scalar_source_layouts(backend: asc2.Backend, platform: asc2.Platform, device_id: int, require_c310,
-                                     scalar_on_true: bool, scalar_value: int, dtype: torch.dtype):
-    check_dtype(platform, dtype, require_c310)
-    asc2.set_platform(backend, platform, device_id, check=False)
+def test_where_scalar_source_layouts(require_c310, scalar_on_true: bool, scalar_value: int, dtype: torch.dtype):
+    check_dtype(dtype, require_c310)
     x, _ = make_data(TILE_SIZE, dtype)
     out = where_scalar_source_launch(x, scalar_value=scalar_value, scalar_on_true=scalar_on_true)
     scalar_tensor = torch.full_like(x, scalar_value)

@@ -17,16 +17,15 @@ shape_ops = [
 @pytest.mark.parametrize("asc_op, torch_op, args, shape, dtype", [(asc_op, torch_op, args, shape, d)
                                                                   for asc_op, torch_op, args, shape, dtypes in shape_ops
                                                                   for d in dtypes])
-def test_shape_op(backend, platform, device_id, require_c310, asc_op, torch_op, args, shape, dtype: torch.dtype):
+def test_shape_op(require_c310, asc_op, torch_op, args, shape, dtype: torch.dtype):
     if asc_op is asc2.broadcast_to:
-        require_c310(platform)
-    asc2.set_platform(backend, platform, device_id, check=False)
+        require_c310()
 
     def create_input(tensor_shape):
         if dtype.is_floating_point:
-            return torch.randn(tensor_shape, dtype=dtype, device="cpu").clamp(1, 100)
+            return torch.randn(tensor_shape, dtype=dtype).clamp(1, 100)
         elif dtype.is_signed:
-            return torch.randint(1, 100, tensor_shape, dtype=dtype, device="cpu")
+            return torch.randint(1, 100, tensor_shape, dtype=dtype)
 
     x = create_input(shape)
     if asc_op in (asc2.expand_dims, asc2.squeeze):
@@ -53,8 +52,7 @@ def test_shape_op(backend, platform, device_id, require_c310, asc_op, torch_op, 
 
 @pytest.mark.parametrize("shape", ([32], [3, 32]))
 @pytest.mark.parametrize("dtype", (torch.float16, torch.float32, torch.int16, torch.int32))
-def test_broadcast_dup(backend, platform, device_id, shape, dtype):
-    asc2.set_platform(backend, platform, device_id, check=False)
+def test_broadcast_dup(shape, dtype):
 
     @asc2.jit(always_compile=True)
     def kernel(out_ptr, shape: asc2.ConstExpr, offsets: asc2.ConstExpr):

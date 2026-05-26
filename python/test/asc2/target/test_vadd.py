@@ -44,9 +44,8 @@ def add_kernel_1D(input_x_ptr: asc2.GlobalAddress, input_y_ptr: asc2.GlobalAddre
         (54, 1, [6691304], torch.float32, [6691304], torch.float32, 8, [6691304, 0, 10496, 54]),
         (56, 1, [5224328], torch.float32, [5224328], torch.float32, 8, [5224328, 0, 10496, 56]),
     ])
-def test_add(backend, platform, device_id, profiler, runs, core_num, unroll_factor, input_shape, input_dtype,
-             output_shape, output_dtype, tiling_key, tiling_values):
-    asc2.set_platform(backend, platform, device_id, check=False)
+def test_add(profiler, runs, core_num, unroll_factor, input_shape, input_dtype, output_shape, output_dtype, tiling_key,
+             tiling_values):
     _, _, tile_length, core_num = tiling_values
 
     # Convert any shape to 1D

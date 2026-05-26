@@ -7,7 +7,8 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 from contextlib import ExitStack
-from importlib import import_module
+import importlib
+import importlib.util
 import os
 from unittest.mock import patch
 
@@ -36,6 +37,7 @@ def pytest_addoption(parser: pytest.Parser):
     parser.addoption("--profile", action="store_true", help="Enable NPU profiling (if available)")
     parser.addoption("--runs", type=int, default=1, help="Number of kernel launches")
     parser.addoption("--compile-only", action="store_true", help="Stop after the kernel compilation (do not launch)")
+    parser.addoption("--torch-seed", type=int, default=0, help="Define the seed value for torch.manual_seed(...)")
 
 
 def pytest_configure(config):
@@ -71,13 +73,20 @@ def device_id(request: pytest.FixtureRequest):
     return request.config.getoption("--device", default=None)
 
 
-def require_c310_impl(platform: config.Platform):
-    if config.platform_to_arch(platform) != config.CompilationArch.C310:
-        pytest.skip(f"{platform.value} platform is not supported")
+@pytest.fixture(autouse=True)
+def set_platform(request: pytest.FixtureRequest, backend: config.Backend, platform: config.Platform, device_id: int):
+    if not request.node.get_closest_marker("no_set_platform"):
+        config.set_platform(backend, platform, device_id, check=False)
+    yield
 
 
 @pytest.fixture
-def require_c310():
+def require_c310(platform: config.Platform):
+
+    def require_c310_impl():
+        if config.platform_to_arch(platform) != config.CompilationArch.C310:
+            pytest.skip(f"{platform.value} platform is not supported")
+
     return require_c310_impl
 
 
@@ -107,15 +116,35 @@ def compile_only(request: pytest.FixtureRequest):
     os.environ["PYASC_DRY_RUN"] = "1"
     with ExitStack() as stack:
         try:
-            import_module("numpy")
+            importlib.import_module("numpy")
             stack.enter_context(patch("numpy.testing.assert_allclose"))
         except ModuleNotFoundError:
             pass
         try:
-            import_module("torch")
+            importlib.import_module("torch")
             stack.enter_context(patch("torch.testing.assert_close"))
             for fn in ("torch.allclose", "torch.equal"):
                 stack.enter_context(patch(fn)).return_value = True
         except ModuleNotFoundError:
             pass
         yield True
+
+
+@pytest.fixture
+def torch_seed(request: pytest.FixtureRequest):
+    return request.config.getoption("--torch-seed")
+
+
+@pytest.fixture(autouse=True)
+def configure_torch(backend: config.Backend, device_id: int, torch_seed: int):
+    try:
+        import torch
+        if backend == config.Backend.NPU and importlib.util.find_spec("torch_npu") is not None:
+            device = "npu" if device_id is None else f"npu:{device_id}"
+        else:
+            device = "cpu"
+        with torch.device(device):
+            torch.manual_seed(torch_seed)
+            yield
+    except ModuleNotFoundError:
+        yield

@@ -77,13 +77,10 @@ def matmul_launch(a: torch.Tensor, b: torch.Tensor, core_num: int, m_tile: int, 
     (32, 16, 32, 4, 16, 16, 1),
     (480, 224, 1344, 30, 48, 32, 7),
 ])
-def test_matmul_mnblock(backend: asc2.Backend, platform: asc2.Platform, device_id: int, m: int, k: int, n: int,
-                        core_num: int, m_tile: int, n_tile: int, n_tiles_per_block: int):
-    asc2.set_platform(backend, platform, device_id, check=False)
-    device = "npu" if asc2.Backend(backend) == asc2.Backend.NPU else "cpu"
+def test_matmul_mnblock(m: int, k: int, n: int, core_num: int, m_tile: int, n_tile: int, n_tiles_per_block: int):
     dtype = torch.float16
-    a = torch.rand((m, k), dtype=dtype, device=device)
-    b = torch.rand((k, n), dtype=dtype, device=device)
+    a = torch.rand((m, k), dtype=dtype)
+    b = torch.rand((k, n), dtype=dtype)
     c = matmul_launch(a, b, core_num, m_tile, n_tile, n_tiles_per_block)
     c_ref = a.to(torch.float32) @ b.to(torch.float32)
     torch.testing.assert_close(c, c_ref)

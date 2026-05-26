@@ -56,9 +56,8 @@ def gelu_torch(x: torch.Tensor, TANH_APPROX_FACTOR, NEG_SQRT_EIGHT_OVER_PI):
         (72, 2, [101, 181, 53, 17, 1], torch.float16, [101, 181, 53, 17, 1], torch.float16, 3, [16471181, 72, 10496]),
         (72, 1, [101, 181, 53, 17, 1], torch.float32, [101, 181, 53, 17, 1], torch.float32, 7, [16471181, 72, 15872]),
     ])
-def test_gelu(backend: asc2.Backend, platform: asc2.Platform, device_id, profiler, runs, core_num, unroll_factor,
-              input_shape, input_dtype, output_shape, output_dtype, tiling_key, tiling_values):
-    asc2.set_platform(backend, platform, device_id, check=False)
+def test_gelu(profiler, runs, core_num, unroll_factor, input_shape, input_dtype, output_shape, output_dtype, tiling_key,
+              tiling_values):
     CACHE_LINE_BYTE_LENGTH = 512
     TANH_APPROX_FACTOR = 1.0 / 0.044715
     NEG_SQRT_EIGHT_OVER_PI = -1.595769121 * 0.044715

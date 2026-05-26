@@ -23,11 +23,6 @@ atomic_ops = [
 ]
 
 
-@pytest.fixture(autouse=True)
-def set_platform(backend: asc2.Backend, platform: asc2.Platform, device_id: int):
-    asc2.set_platform(backend, platform, device_id, check=False)
-
-
 @asc2.jit(always_compile=True)
 def kernel(x_ptr: asc2.GlobalAddress, z_ptr: asc2.GlobalAddress, tensor_shape: asc2.ConstExpr,
            tile_length: asc2.ConstExpr, op: asc2.ConstExpr):
@@ -44,15 +39,14 @@ def test_atomic_op(asc_op, torch_op, tensor_shape, dtype):
 
     def create_input(shape):
         if dtype == torch.float32:
-            res = torch.randn(tuple(shape), dtype=dtype, device=device)
+            res = torch.randn(tuple(shape), dtype=dtype)
             res = torch.clamp(res, 1, 100)
         else:
-            res = torch.randint(1, 100, tuple(shape), dtype=dtype, device=device)
+            res = torch.randint(1, 100, tuple(shape), dtype=dtype)
         return res
 
     size = math.prod(tensor_shape)
     tile_length = size // USE_CORE_NUM
-    device = "cpu"
     x = create_input(tensor_shape)
     z = create_input([tile_length])
     torch_z = z.clone()

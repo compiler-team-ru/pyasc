@@ -37,13 +37,9 @@ def matmul_launch(a: torch.Tensor, b: torch.Tensor, dtype) -> torch.Tensor:
     (32, 64, 64, torch.float16, asc2.float16),
     (64, 64, 64, torch.bfloat16, asc2.bfloat16),
 ])
-def test_matmul_l0c_to_l1(backend: asc2.Backend, platform: asc2.Platform, device_id: int, m, k, n, torch_dtype,
-                          pyasc_dtype):
-    asc2.set_platform(backend, platform, device_id, check=False)
-    torch.manual_seed(0)
-    device = "npu" if asc2.Backend(backend) == asc2.Backend.NPU else "cpu"
-    a = (torch.rand((m, k), dtype=torch_dtype, device=device) - .5) * 10
-    b = (torch.rand((k, n), dtype=torch_dtype, device=device) - .5) * 10
+def test_matmul_l0c_to_l1(m, k, n, torch_dtype, pyasc_dtype):
+    a = (torch.rand((m, k), dtype=torch_dtype) - .5) * 10
+    b = (torch.rand((k, n), dtype=torch_dtype) - .5) * 10
     c = matmul_launch(a, b, pyasc_dtype)
     c_ref = (a.to(torch.float32) @ b.to(torch.float32)).to(torch_dtype)
     c_ref = (c_ref.to(torch.float32) @ b.to(torch.float32))

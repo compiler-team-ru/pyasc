@@ -4,9 +4,8 @@ import torch
 
 
 @pytest.fixture(autouse=True)
-def set_platform(backend: asc2.Backend, platform: asc2.Platform, device_id: int, require_c310):
-    require_c310(platform)
-    asc2.set_platform(backend, platform, device_id, check=False)
+def require_c310_auto(require_c310):
+    require_c310()
 
 
 @asc2.jit(always_compile=True)

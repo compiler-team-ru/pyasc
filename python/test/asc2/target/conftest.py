@@ -10,5 +10,5 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def require_c310_auto(platform, require_c310):
-    require_c310(platform)
+def require_c310_auto(require_c310):
+    require_c310()
