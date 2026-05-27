@@ -147,6 +147,7 @@ void defineAscTilePasses(py::module& mod)
     auto m = mod.def_submodule("asctile");
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_cube_transpose_to_load", createCubeTransposeToLoadPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_densify_unroll_groups", createDensifyUnrollGroupsPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_fold_cast", createFoldCastPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_legalize_matmul", createLegalizeMatmulPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_promote_pure_operations", createPromotePureOpsPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_split_cube_load", createSplitCubeLoadPass);

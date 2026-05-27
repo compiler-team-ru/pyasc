@@ -80,6 +80,27 @@ def DensifyUnrollGroups : Pass<"asctile-densify-unroll-groups", "func::FuncOp"> 
   }];
 }
 
+def FoldCast : Pass<"asctile-fold-cast", "func::FuncOp"> {
+  let summary = "Fold chains of cast operations and verify supported type conversions";
+  let constructor = "mlir::asctile::createFoldCastPass()";
+  let description = [{
+    This pass folds chains of consecutive `asctile.cast` operations and validates that all remaining
+    cast operations perform type conversions that are supported by the hardware.
+
+    **Folding**: When two cast operations are chained (e.g., `cast(i8→i16)` followed by `cast(i16→i32)`),
+    they are folded into a single direct cast (e.g., `cast(i8→i32)`), if the resulting conversion is
+    supported.
+
+    **Validation**: After folding, the pass checks that all cast operations use supported type conversions:
+    - Integer to integer: i8→i16, i8→i32, i16→i32, i32→i16, i32→i64, i64→i32
+    - Integer to float: i8/i16/i32→f16, i16/i32/i64→f32
+    - Float to integer: bf16→i32, f16→i8/i16/i32, f32→i16/i32/i64
+    - Float to float: bf16→f16/f32, f16→bf16/f32, f32→bf16/f16/f32
+
+    If any cast operation violates these constraints, the pass emits an error and signals failure.
+  }];
+}
+
 def LegalizeMatmul : Pass<"asctile-legalize-matmul", "func::FuncOp"> {
   let summary = "Verify that matmul accumulator operations use valid accumulator operands";
   let constructor = "mlir::asctile::createLegalizeMatmulPass()";
