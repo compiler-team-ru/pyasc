@@ -208,6 +208,7 @@ class Compiler:
             passes.asctile.add_cube_transpose_to_load(pm)
             passes.asctile.add_legalize_matmul(pm)
             passes.common.add_canonicalizer(pm)
+            passes.asctile.add_fold_cast(pm)
             passes.asctile.add_transform_math_ops(pm)
             passes.asctile.add_transform_store_fixpipe(pm)
             if arch_c310:

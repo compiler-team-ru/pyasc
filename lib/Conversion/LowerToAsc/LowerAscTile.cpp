@@ -114,53 +114,8 @@ struct ConvertCast : ConvertOp<asctile::CastOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    static bool isCastSupported(Type srcType, Type dstType)
-    {
-        if (srcType == dstType)
-            return true;
-        auto getIntegerWidth = [](Type type) -> std::optional<unsigned> {
-            if (auto intType = dyn_cast<IntegerType>(type))
-                return intType.getWidth();
-            return std::nullopt;
-        };
-        auto srcIntWidth = getIntegerWidth(srcType);
-        auto dstIntWidth = getIntegerWidth(dstType);
-        if (srcIntWidth && dstIntWidth) {
-            unsigned sw = *srcIntWidth;
-            unsigned dw = *dstIntWidth;
-            return (sw == 8 && dw == 16) || (sw == 8 && dw == 32) || (sw == 16 && dw == 32) || (sw == 32 && dw == 16) ||
-                   (sw == 32 && dw == 64) || (sw == 64 && dw == 32);
-        }
-        if (srcIntWidth && isa<FloatType>(dstType)) {
-            unsigned sw = *srcIntWidth;
-            if (isa<Float16Type>(dstType) && (sw == 8 || sw == 16 || sw == 32))
-                return true;
-            if (isa<Float32Type>(dstType) && (sw == 16 || sw == 32 || sw == 64))
-                return true;
-            return false;
-        }
-        if (isa<FloatType>(srcType) && dstIntWidth) {
-            unsigned dw = *dstIntWidth;
-            if (isa<BFloat16Type>(srcType) && dw == 32)
-                return true;
-            if (isa<Float16Type>(srcType) && (dw == 8 || dw == 16 || dw == 32))
-                return true;
-            if (isa<Float32Type>(srcType) && (dw == 16 || dw == 32 || dw == 64))
-                return true;
-            return false;
-        }
-        if (isa<FloatType>(srcType) && isa<FloatType>(dstType)) {
-            return (isa<BFloat16Type>(srcType) && isa<Float16Type, Float32Type>(dstType)) ||
-                   (isa<Float16Type>(srcType) && isa<BFloat16Type, Float32Type>(dstType)) ||
-                   (isa<Float32Type>(srcType) && isa<BFloat16Type, Float16Type, Float32Type>(dstType));
-        }
-        return false;
-    }
-
     static FailureOr<ascendc::RoundMode> inferRoundMode(Type srcType, Type dstType)
     {
-        if (!isCastSupported(srcType, dstType))
-            return failure();
         bool srcIsInt = isa<IntegerType>(srcType);
         bool dstIsFloat = isa<FloatType>(dstType);
         bool srcIsFloat = isa<FloatType>(srcType);
@@ -196,8 +151,6 @@ struct ConvertCast : ConvertOp<asctile::CastOp> {
         Type srcType = getElementTypeOrSelf(src);
         Type dstType = getElementTypeOrSelf(dst);
         FailureOr<ascendc::RoundMode> roundMode = inferRoundMode(srcType, dstType);
-        if (failed(roundMode))
-            return op.emitError() << "tile cast from " << srcType << " to " << dstType << " is not supported";
         rewriter.create<ascendc::CastL2Op>(loc, dst, src, *roundMode, consts.i64(calCount(dst)));
         rewriter.replaceOp(op, dst);
         return success();

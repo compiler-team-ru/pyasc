@@ -27,7 +27,7 @@ using namespace mlir::asctile;
 namespace {
 
 template <typename OpT>
-OpFoldResult foldCastLike(OpT op)
+OpFoldResult foldCastLike(OpT op, bool allowTransitCast = true)
 {
     Value in = op.getIn();
     Type resultType = op.getResult().getType();
@@ -37,6 +37,8 @@ OpFoldResult foldCastLike(OpT op)
         Value defIn = defOp.getIn();
         if (resultType == defIn.getType())
             return defIn;
+        if (!allowTransitCast)
+            return {};
         op.setOperand(defIn);
         return op.getResult();
     }
@@ -227,7 +229,7 @@ bool CastOp::areCastCompatible(TypeRange inputs, TypeRange outputs)
            inType.getElementType().isIntOrFloat() && outType.getElementType().isIntOrFloat();
 }
 
-OpFoldResult CastOp::fold(FoldAdaptor) { return foldCastLike(*this); }
+OpFoldResult CastOp::fold(FoldAdaptor) { return foldCastLike(*this, false); }
 
 //===----------------------------------------------------------------------===//
 // ReshapeOp
