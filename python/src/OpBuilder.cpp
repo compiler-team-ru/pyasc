@@ -1135,6 +1135,11 @@ void bindCreateAscTileOperations(py::class_<PyOpBuilder>& clss)
                 return self.create<asctile::BitwiseMaskOp>(highBits, lowBits, otherVal);
             },
             py::arg("highBits"), py::arg("lowBits"), py::arg("other") = py::none())
+        .def(
+            "create_asctile_ReluOp",
+            [](PyOpBuilder& self, Value operand) -> Value {
+                return self.create<asctile::ReluOp>(operand.getType(), operand);
+            })
 #include "ascir/Dialect/AscTile/IR/AscTileOpBindings.h.inc"
         ;
 }

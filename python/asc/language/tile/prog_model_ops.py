@@ -10,10 +10,12 @@ from typing import Iterable
 
 from ..basic.sys_var import get_block_idx, get_block_num
 from ..core.ir_value import PlainValue, RuntimeInt
+from ..core.utils import require_jit
 from .tensor import Tensor
-from .utils import verify_shape
+from .validation import check_runtime_int, check_type, verify_shape
 
 
+@require_jit
 def block_idx() -> PlainValue:
     """
     Returns the current block (NPU core) index.
@@ -27,6 +29,7 @@ def block_idx() -> PlainValue:
     return get_block_idx()
 
 
+@require_jit
 def block_num() -> PlainValue:
     """
     Returns the total number of blocks (NPU cores) allocated for the kernel.
@@ -40,6 +43,7 @@ def block_num() -> PlainValue:
     return get_block_num()
 
 
+@require_jit
 def num_tiles(tensor: Tensor, axis: RuntimeInt, shape: Iterable[int]) -> RuntimeInt:
     """
     Returns the number of tiles that fit along a given axis of the tensor.
@@ -63,6 +67,8 @@ def num_tiles(tensor: Tensor, axis: RuntimeInt, shape: Iterable[int]) -> Runtime
         If the tensor dimension is not evenly divisible by the tile dimension,
         the last tile will be a partial tile that requires masking.
     """
+    check_type("tensor", tensor, Tensor)
+    check_runtime_int("axis", axis)
     shape = verify_shape(shape)
     tensor_shape = tensor.shape
     if len(tensor_shape) != len(shape):

@@ -17,7 +17,8 @@ from typing_extensions import Self, TypeAlias
 from ..._C import ir
 from ..core.dtype import DataType
 from ..core.ir_value import IRHandle, IRValue, PlainValue, RuntimeInt, RuntimeNumeric
-from ..core.utils import global_builder
+from ..core.utils import global_builder, require_jit
+from .validation import check_type
 
 T = TypeVar("T")
 
@@ -58,8 +59,10 @@ class Tile(IRValue):
     def to_ir(self) -> IRHandle:
         return self.handle
 
+    @require_jit
     def to(self: Tile, dtype: DataType) -> Tile:
         """Cast tile elements to the provided dtype."""
+        check_type("dtype", dtype, DataType)
         if self.dtype == dtype:
             return self
         ir_type = ir.clone_shaped_type(self.to_ir().get_type(), dtype.to_ir())

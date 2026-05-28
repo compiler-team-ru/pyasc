@@ -7,18 +7,17 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 from numbers import Real
-from typing import Iterable, Tuple, Union
+from typing import Tuple, Union
 
 from ..._C import ir
 from ..core.dtype import DataType, KnownTypes as KT
 from ..core.ir_value import PlainValue, RuntimeNumeric
 from ..core.tensor import TensorShape
-from ..core.utils import check_type, global_builder
+from ..core.utils import global_builder
 from .tile import BinaryOperandTypeError, Tile
 
 
 def constant_tile(value: Real, shape: TensorShape, dtype: DataType, loc: ir.TileLocation = ir.TileLocation.UB) -> Tile:
-    check_type("value", value, Real)
     builder = global_builder.get_ir_builder()
     attr_builders = {
         "int8": builder.get_i8_attr,
@@ -102,38 +101,3 @@ def infer_common_shape(lhs: Union[Tile, RuntimeNumeric], rhs: Union[Tile, Runtim
             return lhs.shape
         raise RuntimeError(f"Shape mismatch: {lhs.shape} vs. {rhs.shape}")
     return lhs.shape if lhs_is_tile else rhs.shape
-
-
-def verify_shape(shape: Iterable[int], name: str = "shape") -> Tuple[int]:
-    if not isinstance(shape, tuple):
-        shape = tuple(shape)
-    if len(shape) < 1:
-        raise RuntimeError(f"'{name}' must have at least one value")
-    if not all(isinstance(dim, int) for dim in shape):
-        raise RuntimeError(f"All values in '{name}' must be integers")
-    if any(dim <= 0 for dim in shape):
-        raise RuntimeError(f"All values in '{name}' must be positive")
-    return shape
-
-
-def check_data_alignment(shape: Tuple[int, ...], dtype: DataType) -> None:
-    try:
-        dtype_size = dtype.sizeof()
-    except ValueError:  # sizeof might be not supported
-        return
-    if len(shape) > 1 and shape[-1] % (ir.ub_block_size // dtype_size) != 0:
-        raise RuntimeError(f"Last dimension of tile must be aligned by {ir.ub_block_size} bytes, "
-                           f"got {shape[-1]} x {dtype_size} bytes")
-
-
-def verify_matmul_arguments(input: Tile, other: Tile) -> None:
-    if not isinstance(input, Tile) or not isinstance(other, Tile):
-        raise BinaryOperandTypeError(f"Input operands must be tiles, got {type(input)} and {type(other)}")
-    if input.dtype != other.dtype:
-        raise RuntimeError(f"Input tiles must have the same types, got {input.dtype} and {other.dtype}")
-    if input.dtype not in (KT.float32, KT.float16, KT.bfloat16):
-        raise RuntimeError(f"Input tiles have unsupported types: {input.dtype}")
-    if len(input.shape) != 2 or len(other.shape) != 2:
-        raise RuntimeError(f"Input tiles must have two dims, got {len(input.shape)} and {len(other.shape)}")
-    if input.shape[1] != other.shape[0]:
-        raise RuntimeError(f"Input tiles have incompatible shapes: {input.shape}, {other.shape}")

@@ -10,8 +10,9 @@ from typing import List, Tuple, Union, overload
 
 from ..._C import ir
 from ..core.ir_value import PlainValue
-from ..core.utils import global_builder
+from ..core.utils import global_builder, require_jit
 from .tile import Tile, bind_tile_method
+from .validation import check_type
 
 
 def get_reduction_shape(tensor_shape: Tuple[int], keep_dims: bool, dims: Tuple[int]) -> List[int]:
@@ -32,6 +33,8 @@ def get_reduction_shape(tensor_shape: Tuple[int], keep_dims: bool, dims: Tuple[i
 
 def op_reduce_impl(input: Tile, keep_dims: bool, dims: Tuple[int], kind: ir.ReduceKind,
                    support_as_1d: bool) -> Union[Tile, PlainValue]:
+    check_type("input", input, Tile)
+    check_type("keep_dims", keep_dims, bool)
     builder = global_builder.get_ir_builder()
     if len(dims) == 0:
         if not support_as_1d:
@@ -39,7 +42,7 @@ def op_reduce_impl(input: Tile, keep_dims: bool, dims: Tuple[int], kind: ir.Redu
         handle = builder.create_asctile_ReduceAs1dOp(input.dtype.to_ir(), input.to_ir(), kind)
         return PlainValue(handle)
     if not all(isinstance(dim, int) for dim in dims):
-        raise RuntimeError("All reduction dimensions must be integers")
+        raise TypeError("All reduction dimensions must be int")
     dims_ir = global_builder.get_ir_builder().get_i32_array_attr(dims)
     target_shape = get_reduction_shape(input.shape, keep_dims, dims)
     ir_type = ir.clone_shaped_type(input.to_ir().get_type(), target_shape)
@@ -58,6 +61,7 @@ def reduce_sum(input: Tile) -> PlainValue:
 
 
 @bind_tile_method(name="sum")
+@require_jit
 def reduce_sum(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, PlainValue]:
     """
     Returns the sum of each row of the :code:`input` tile in the given dimensions :code:`dims`.
@@ -97,6 +101,7 @@ def reduce_max(input: Tile) -> PlainValue:
 
 
 @bind_tile_method(name="max")
+@require_jit
 def reduce_max(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, PlainValue]:
     """
     Returns the maximum value of each row of the :code:`input` tile in the given dimensions :code:`dims`.
@@ -136,6 +141,7 @@ def reduce_min(input: Tile) -> PlainValue:
 
 
 @bind_tile_method(name="min")
+@require_jit
 def reduce_min(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, PlainValue]:
     """
     Returns the minimum value of each row of the :code:`input` tile in the given dimensions :code:`dims`.
@@ -165,6 +171,7 @@ def reduce_min(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, 
 
 
 @bind_tile_method(name="prod")
+@require_jit
 def reduce_prod(input: Tile, *dims: int, keep_dims: bool = False) -> Tile:
     """
     Returns the product of each row of the :code:`input` tile in the given dimensions :code:`dims`.
