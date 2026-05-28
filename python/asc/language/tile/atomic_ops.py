@@ -11,16 +11,20 @@ from typing import Iterable
 from ..._C import ir
 from ..core.dtype import KnownTypes as KT
 from ..core.ir_value import RuntimeInt, materialize_ir_value as _mat
-from ..core.utils import global_builder
+from ..core.utils import global_builder, require_jit
 from .tensor import Tensor
 from .tile import Tile
+from .validation import check_type, verify_runtime_ints
 
 
 def op_atomic_impl(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt], kind: ir.AtomicKind):
-    offsets = [_mat(v, KT.int32).to_ir() for v in offsets]
+    check_type("tile", tile, Tile)
+    check_type("tensor", tensor, Tensor)
+    offsets = [_mat(v, KT.int32).to_ir() for v in verify_runtime_ints(offsets, "offsets")]
     global_builder.get_ir_builder().create_asctile_AtomicRMWOp(tile.to_ir(), tensor.to_ir(), offsets, kind)
 
 
+@require_jit
 def atomic_add(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt]) -> None:
     """
     Atomically add tile elements to a tensor at specified offsets.
@@ -36,6 +40,7 @@ def atomic_add(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt]) -> Non
     return op_atomic_impl(tile, tensor, offsets, ir.AtomicKind.Add)
 
 
+@require_jit
 def atomic_max(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt]) -> None:
     """
     Atomically compute the maximum between tile elements and tensor elements at specified offsets.
@@ -51,6 +56,7 @@ def atomic_max(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt]) -> Non
     return op_atomic_impl(tile, tensor, offsets, ir.AtomicKind.Max)
 
 
+@require_jit
 def atomic_min(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt]) -> None:
     """
     Atomically compute the minimum between tile elements and tensor elements at specified offsets.

@@ -15,7 +15,8 @@ from ..._C import ir
 from ..core.dtype import DataType, int32
 from ..core.tensor import GlobalAddress
 from ..core.ir_value import IRHandle, IRValue, PlainValue, RuntimeInt, materialize_ir_value as mat
-from ..core.utils import check_type, global_builder
+from ..core.utils import global_builder, require_jit
+from .validation import check_type, verify_runtime_ints
 
 
 class RuntimeShape:
@@ -90,6 +91,7 @@ class Tensor(IRValue):
         return self.handle
 
 
+@require_jit
 def tensor(base: GlobalAddress, shape: Iterable[RuntimeInt]) -> Tensor:
     """
     Define a new tensor. Tensors are used to transfer data between local and global memory.
@@ -101,16 +103,16 @@ def tensor(base: GlobalAddress, shape: Iterable[RuntimeInt]) -> Tensor:
     Returns:
         Tensor: A new tensor descriptor
     """
+    check_type("base", base, GlobalAddress)
+    shape = verify_runtime_ints(shape, "shape")
     static_sizes = []
     dynamic_sizes = []
     for dim in shape:
         if isinstance(dim, int):
             static_sizes.append(dim)
-        elif isinstance(dim, PlainValue):
+        else:
             static_sizes.append(ir.dynshape)
             dynamic_sizes.append(mat(dim, int32).to_ir())
-        else:
-            raise TypeError(f"Tensor dimension should be RuntimeInt, got {dim.__class__.__name__}")
     ir_type = ir.get_asctile_TensorType(static_sizes, base.dtype.to_ir())
     handle = global_builder.get_ir_builder().create_asctile_TensorOp(ir_type, base.to_ir(), dynamic_sizes)
     return Tensor.from_ir(handle=handle)

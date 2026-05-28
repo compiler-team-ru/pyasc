@@ -10,7 +10,8 @@ from typing import Optional, overload
 
 from ..._C import ir
 from ..core.range import BaseRange
-from ..core.utils import check_type, global_builder
+from ..core.utils import global_builder
+from .validation import check_type
 
 
 class range(BaseRange):

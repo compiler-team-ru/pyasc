@@ -12,13 +12,15 @@ from typing import Iterable, Optional
 from ..._C import ir
 from ..core.dtype import DataType, KnownTypes as KT
 from ..core.ir_value import RuntimeNumeric
-from ..core.utils import check_type, global_builder
-from .tile import Tile
-from .utils import constant_tile, splat_tile, verify_shape
+from ..core.utils import global_builder, require_jit
+from .tile import Tile, TileLocation
+from .utils import constant_tile, splat_tile
+from .validation import check_type, verify_shape
 
 
+@require_jit
 def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] = None,
-         location: Optional[ir.TileLocation] = ir.TileLocation.UB) -> Tile:
+         location: Optional[TileLocation] = TileLocation.UB) -> Tile:
     """
     Create a tile filled with a scalar value.
 
@@ -34,9 +36,10 @@ def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] 
     Raises:
         RuntimeError: If shape contains non-integer values
     """
-    if not all(isinstance(dim, int) for dim in shape):
-        raise RuntimeError("shape must be integers")
-    shape = tuple(shape)
+    check_type("value", value, RuntimeNumeric)
+    check_type("dtype", dtype, Optional[DataType])
+    check_type("location", location, Optional[TileLocation])
+    shape = verify_shape(shape)
     if isinstance(value, Real):
         if dtype is None:
             dtype = KT.int32 if isinstance(value, int) else KT.float32
@@ -46,7 +49,8 @@ def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] 
     return splat_tile(value, shape, dtype, location)
 
 
-def full_like(input: Tile, value: RuntimeNumeric, location: Optional[ir.TileLocation] = ir.TileLocation.UB) -> Tile:
+@require_jit
+def full_like(input: Tile, value: RuntimeNumeric, location: Optional[TileLocation] = TileLocation.UB) -> Tile:
     """
     Create a tile filled with a scalar value, with the same shape and dtype as the input tile.
 
@@ -62,8 +66,8 @@ def full_like(input: Tile, value: RuntimeNumeric, location: Optional[ir.TileLoca
     return full(input.shape, value, input.dtype, location)
 
 
-def zeros(shape: Iterable[int], dtype: DataType = KT.int32,
-          location: Optional[ir.TileLocation] = ir.TileLocation.UB) -> Tile:
+@require_jit
+def zeros(shape: Iterable[int], dtype: DataType = KT.int32, location: Optional[TileLocation] = TileLocation.UB) -> Tile:
     """
     Create a tile filled with zeros.
 
@@ -78,7 +82,8 @@ def zeros(shape: Iterable[int], dtype: DataType = KT.int32,
     return full(shape, 0, dtype, location)
 
 
-def zeros_like(input: Tile, location: Optional[ir.TileLocation] = ir.TileLocation.UB) -> Tile:
+@require_jit
+def zeros_like(input: Tile, location: Optional[TileLocation] = TileLocation.UB) -> Tile:
     """
     Create a tile filled with zeros, with the same shape and dtype as the input tile.
 
@@ -93,6 +98,7 @@ def zeros_like(input: Tile, location: Optional[ir.TileLocation] = ir.TileLocatio
     return zeros(input.shape, input.dtype, location)
 
 
+@require_jit
 def zeros_acc(shape: Iterable[int], dtype: DataType) -> Tile:
     """
     Create a zero-initialized accumulator tile in L0C memory for matrix multiplication.
@@ -111,11 +117,12 @@ def zeros_acc(shape: Iterable[int], dtype: DataType) -> Tile:
         RuntimeError: If shape is invalid
     """
     shape = verify_shape(shape)
-    ir_type = ir.get_asctile_TileType(shape, dtype.to_ir(), ir.TileLocation.L0C)
+    ir_type = ir.get_asctile_TileType(shape, dtype.to_ir(), TileLocation.L0C)
     handle = global_builder.get_ir_builder().create_asctile_AccumulatorOp(ir_type)
     return Tile.from_ir(handle)
 
 
+@require_jit
 def concat(*inputs: Tile) -> Tile:
     """
     Concatenate tiles along the first dimension.
@@ -132,7 +139,7 @@ def concat(*inputs: Tile) -> Tile:
         RuntimeError: If no inputs are provided, inputs are not tiles, shapes are incompatible, or dtypes don't match
     """
     if not inputs or not all(isinstance(inp, Tile) for inp in inputs):
-        raise RuntimeError("All input arguments must be tiles")
+        raise TypeError("All input arguments must be tiles")
     same_shape = inputs[0].shape[1:]
     if not all(inp.shape[1:] == same_shape for inp in inputs):
         raise RuntimeError("All tiles must have the same shape except their first dimension")
@@ -144,6 +151,6 @@ def concat(*inputs: Tile) -> Tile:
     except ValueError:
         raise RuntimeError("Tile dtype size must fit an integer number of bytes")
     result_shape = [sum(inp.shape[0] for inp in inputs), *same_shape]
-    ir_type = ir.get_asctile_TileType(result_shape, dtype.to_ir(), ir.TileLocation.UB)
+    ir_type = ir.get_asctile_TileType(result_shape, dtype.to_ir(), TileLocation.UB)
     handle = global_builder.get_ir_builder().create_asctile_ConcatOp(ir_type, [inp.to_ir() for inp in inputs])
     return Tile.from_ir(handle)

@@ -10,9 +10,9 @@ import math
 from typing import Tuple
 
 from ..._C import ir
-from ..core.utils import global_builder
+from ..core.utils import global_builder, require_jit
 from .tile import Tile, bind_tile_method
-from .utils import verify_shape
+from .validation import check_type, verify_shape
 
 
 def shapes_match(shape: Tuple[int, ...], target_shape: Tuple[int, ...]) -> bool:
@@ -27,6 +27,7 @@ def shapes_match(shape: Tuple[int, ...], target_shape: Tuple[int, ...]) -> bool:
 
 
 @bind_tile_method
+@require_jit
 def broadcast_to(input: Tile, *shape: int) -> Tile:
     """
     Creates new tile of a given shape broadcasting data from the input tensor.
@@ -70,6 +71,7 @@ def broadcast_to(input: Tile, *shape: int) -> Tile:
         __aicore__ inline void Broadcast(const LocalTensor<T>& dst, const LocalTensor<T>& src, const uint32_t* dstShape,
         const uint32_t* srcShape, BroadcastTiling* tiling);
     """
+    check_type("input", input, Tile)
     shape = verify_shape(shape)
     if not shapes_match(input.shape, shape):
         raise RuntimeError(f"Cannot broadcast tile with shape {input.shape} to {shape}")
@@ -79,6 +81,7 @@ def broadcast_to(input: Tile, *shape: int) -> Tile:
 
 
 @bind_tile_method
+@require_jit
 def reshape(input: Tile, *shape: int) -> Tile:
     """
     Reshape a tile to a new shape without changing its data.
@@ -95,6 +98,7 @@ def reshape(input: Tile, *shape: int) -> Tile:
     Raises:
         RuntimeError: If the total number of elements doesn't match
     """
+    check_type("input", input, Tile)
     shape = verify_shape(shape)
     if math.prod(input.shape) != math.prod(shape):
         raise RuntimeError("Result tile must have the same number of elements as input tile")
@@ -105,6 +109,7 @@ def reshape(input: Tile, *shape: int) -> Tile:
 
 
 @bind_tile_method
+@require_jit
 def ravel(input: Tile) -> Tile:
     """
     Flatten a tile into a 1D tile.
@@ -121,6 +126,7 @@ def ravel(input: Tile) -> Tile:
 
 
 @bind_tile_method
+@require_jit
 def expand_dims(input: Tile, *axis: int) -> Tile:
     """
     Insert new dimensions of size 1 at the specified positions.
@@ -135,6 +141,7 @@ def expand_dims(input: Tile, *axis: int) -> Tile:
     Note:
         Multiple axes can be specified. Axes are processed in sorted order.
     """
+    check_type("input", input, Tile)
     shape = list(input.shape)
     axis = sorted(set(axis))
     for ax in axis:
@@ -143,6 +150,7 @@ def expand_dims(input: Tile, *axis: int) -> Tile:
 
 
 @bind_tile_method
+@require_jit
 def squeeze(input: Tile, *axis: int) -> Tile:
     """
     Remove dimensions of size 1 from the tile.
@@ -157,6 +165,7 @@ def squeeze(input: Tile, *axis: int) -> Tile:
     Raises:
         RuntimeError: If attempting to squeeze a dimension that is not of size 1
     """
+    check_type("input", input, Tile)
     shape = []
     axis = set(axis if axis else (i for i, dim in enumerate(input.shape) if dim == 1))
     for i, dim in enumerate(input.shape):
@@ -169,6 +178,7 @@ def squeeze(input: Tile, *axis: int) -> Tile:
 
 
 @bind_tile_method
+@require_jit
 def transpose(input: Tile) -> Tile:
     """
     Transpose a 2D tile by swapping its dimensions.
@@ -179,6 +189,7 @@ def transpose(input: Tile) -> Tile:
     Returns:
         Tile: The transposed tile with swapped dimensions
     """
+    check_type("input", input, Tile)
     ir_type = ir.clone_shaped_type(input.to_ir().get_type(), [input.shape[1], input.shape[0]])
     handle = global_builder.get_ir_builder().create_asctile_TransposeOp(ir_type, input.to_ir())
     return Tile(handle)

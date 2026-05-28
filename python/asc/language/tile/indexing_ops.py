@@ -11,11 +11,13 @@ from typing import Any, Generator, Iterable, Optional, Union, overload
 
 from ..core.dtype import KnownTypes as KT
 from ..core.ir_value import RuntimeInt, RuntimeNumeric, materialize_ir_value as _mat
-from ..core.utils import check_type, global_builder
+from ..core.utils import global_builder, require_jit
 from .tile import Tile
 from .utils import create_tile, infer_common_dtype
+from .validation import check_runtime_int, check_type, verify_runtime_ints
 
 
+@require_jit
 def where(mask: Tile, src0: Union[Tile, RuntimeNumeric], src1: Union[Tile, RuntimeNumeric]) -> Tile:
     """
     Select elements from two sources based on a mask.
@@ -36,6 +38,8 @@ def where(mask: Tile, src0: Union[Tile, RuntimeNumeric], src1: Union[Tile, Runti
         Scalars are broadcast to the mask shape.
     """
     check_type("mask", mask, Tile)
+    check_type("src0", src0, (Tile, RuntimeNumeric))
+    check_type("src1", src1, (Tile, RuntimeNumeric))
     src_dtype = infer_common_dtype(src0, src1)
     src0 = create_tile(src0, src_dtype, mask.shape)
     src1 = create_tile(src1, src_dtype, mask.shape)
@@ -54,6 +58,7 @@ def mask(*, bits: Iterable[RuntimeInt], other: Optional[RuntimeNumeric] = None) 
     ...
 
 
+@require_jit
 @contextmanager
 def mask(*, count: Optional[RuntimeInt] = None, bits: Optional[Iterable[RuntimeInt]] = None,
          other: Optional[RuntimeNumeric] = None) -> Generator[None, Any, None]:
@@ -96,11 +101,14 @@ def mask(*, count: Optional[RuntimeInt] = None, bits: Optional[Iterable[RuntimeI
                 result = asc2.exp(tile)
     """
     builder = global_builder.get_ir_builder()
-    other = _mat(other).to_ir() if other is not None else None
+    if other is not None:
+        check_type("other", other, RuntimeNumeric)
+        other = _mat(other).to_ir()
     if count is not None:
+        check_runtime_int("count", count)
         mask_op = builder.create_asctile_CountMaskOp(_mat(count, KT.int64).to_ir(), other)
     elif bits is not None:
-        bits = tuple(bits)
+        bits = verify_runtime_ints(bits, "bits")
         if len(bits) != 2:
             raise RuntimeError(f"Expected two integers in 'bits', got {len(bits)}")
         mask_op = builder.create_asctile_BitwiseMaskOp(
