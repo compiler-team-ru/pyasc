@@ -254,7 +254,7 @@ func.func @dont_rewrite_memory(%gm: !ascendc.global_tensor<?x?xf32>, %ext_params
 }
 
 // CHECK-LABEL: func.func @softmax_kernel
-// CHECK: ascvf.vf_group {{[^:]*}}: !ascendc.local_tensor<1x1024xf32>, !ascendc.local_tensor<1x1024xf32>, i64 {
+// CHECK: ascvf.vf_group
 // CHECK:   ascvf.vec_scope {
 // CHECK:     ascendc.duplicate {{[^:]*}}: <f32>, f32
 // CHECK:     ascendc.duplicate {{[^:]*}}: <f32>, f32

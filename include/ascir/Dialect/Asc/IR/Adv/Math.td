@@ -64,7 +64,13 @@ def AxpyOp : MathLibraryOp<"axpy", "Axpy"> {
   let arguments = (ins AscendC_LocalTensor:$dst, AscendC_LocalTensor:$src, AnyType:$scalar,
                    Optional<AnyType>:$sharedTmpBuffer, AnyType:$calCount, AnyType:$isReuseSource);
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+    SmallVector<Value> getSrcTensors()
+    {
+        SmallVector<Value> srcTensors{getSrc()};
+        if (auto tensor = getSharedTmpBuffer())
+            srcTensors.emplace_back(tensor);
+        return srcTensors;
+    }
   }];
 }
 
@@ -72,7 +78,13 @@ def ClampMaxOp : MathLibraryOp<"clamp_max", "ClampMax"> {
   let arguments = (ins AscendC_LocalTensor:$dst, AnyType:$src, Optional<AnyType>:$sharedTmpBuffer,
                    AnyType:$scalar, AnyType:$calCount, AnyType:$isReuseSource);
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+    SmallVector<Value> getSrcTensors()
+    {
+        SmallVector<Value> srcTensors{getSrc()};
+        if (auto tensor = getSharedTmpBuffer())
+            srcTensors.emplace_back(tensor);
+        return srcTensors;
+    }
   }];
 }
 
@@ -80,7 +92,13 @@ def ClampMinOp : MathLibraryOp<"clamp_min", "ClampMin"> {
   let arguments = (ins AscendC_LocalTensor:$dst, AnyType:$src, Optional<AnyType>:$sharedTmpBuffer,
                    AnyType:$scalar, AnyType:$calCount, AnyType:$isReuseSource);
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+    SmallVector<Value> getSrcTensors()
+    {
+        SmallVector<Value> srcTensors{getSrc()};
+        if (auto tensor = getSharedTmpBuffer())
+            srcTensors.emplace_back(tensor);
+        return srcTensors;
+    }
   }];
 }
 
@@ -89,7 +107,13 @@ def CumSumOp : MathLibraryOp<"cumsum", "CumSum"> {
                     Optional<AnyType>:$sharedTmpBuffer, AnyType:$lastAxis,
                     AnyType:$reuseSource, AnyType:$outputLastRow);
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+    SmallVector<Value> getSrcTensors()
+    {
+      SmallVector<Value> srcTensors{getSrc()};
+      if (auto tensor = getSharedTmpBuffer())
+          srcTensors.emplace_back(tensor);
+      return srcTensors;
+    }
   }];
 }
 
@@ -97,7 +121,13 @@ def ExpOp : MathLibraryOp<"exp", "Exp"> {
   let arguments = (ins AscendC_LocalTensor:$dst, AscendC_LocalTensor:$src, AnyType:$calCount,
                    AnyType:$taylorExpandLevel, Optional<AnyType>:$sharedTmpBuffer, AnyType:$isReuseSource);
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+    SmallVector<Value> getSrcTensors()
+    {
+        SmallVector<Value> srcTensors{getSrc()};
+        if (auto tensor = getSharedTmpBuffer())
+            srcTensors.emplace_back(tensor);
+        return srcTensors;
+    }
   }];
 }
 

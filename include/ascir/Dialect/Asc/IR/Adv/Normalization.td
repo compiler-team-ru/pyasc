@@ -28,7 +28,13 @@ def AscendC_RmsNormOp : VectorOp<"rms_norm", "RmsNorm", [
                    AnyType:$epsilon, AscendC_RmsNormTiling:$tiling,
                    Optional<AscendC_LocalTensor>:$sharedTmpBuffer);
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getSrcTensors() { return {getSrc(), getGamma()}; }
+    SmallVector<Value> getSrcTensors()
+    {
+        SmallVector<Value> srcTensors{getSrc(), getGamma()};
+        if (auto tensor = getSharedTmpBuffer())
+            srcTensors.emplace_back(tensor);
+        return srcTensors;
+    }
   }];
 }
 #endif //ASC_ADV_NORMALIZATION_TD

@@ -325,7 +325,13 @@ class UnaryMathOp<string mnemonic, string apiName, list<Trait> traits = []>
   let arguments = (ins AscendC_LocalTensor:$dst, AnyType:$src, Optional<AnyType>:$sharedTmpBuffer,
                    Optional<AnyType>:$calCount, AnyType:$isReuseSource);
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+    SmallVector<Value> getSrcTensors()
+    {
+        SmallVector<Value> srcTensors{getSrc()};
+        if (auto tensor = getSharedTmpBuffer())
+            srcTensors.emplace_back(tensor);
+        return srcTensors;
+    }
   }];
 }
 
@@ -335,7 +341,13 @@ class BinaryMathOp<string mnemonic, string apiName, list<Trait> traits = []>
   let arguments = (ins AscendC_LocalTensor:$dst, AnyType:$src0, AnyType:$src1,
                    Optional<AnyType>:$sharedTmpBuffer, Optional<AnyType>:$calCount, AnyType:$isReuseSource);
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getSrcTensors() { return {getSrc0(), getSrc1()}; }
+    SmallVector<Value> getSrcTensors()
+    {
+        SmallVector<Value> srcTensors{getSrc0(), getSrc1()};
+        if (auto tensor = getSharedTmpBuffer())
+            srcTensors.emplace_back(tensor);
+        return srcTensors;
+    }
   }];
 }
 
