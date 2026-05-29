@@ -62,7 +62,7 @@ class CodegenOptions:
     Usually, it must always be enabled, but may be disabled for the IR debugging purposes.
     """
 
-    custom_builtins: Dict[str, Any] = field(default_factory=dict)
+    custom_builtins: CustomBuiltins = field(default_factory=dict)
 
 
 @dataclass

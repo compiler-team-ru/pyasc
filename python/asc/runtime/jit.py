@@ -140,7 +140,7 @@ class JITFunction(Function[P, T]):
         if cached_keywords is not None:
             return cached_keywords
         keywords = []
-        for datacls in cls.codegen.options_cls, cls.compiler.options_cls, cls.launcher.options_cls:
+        for datacls in CodegenOptions, CompileOptions, LaunchOptions:
             keywords.extend(f.name for f in fields(datacls))
         setattr(cls, attr, keywords)
         return keywords
@@ -163,34 +163,37 @@ class JITFunction(Function[P, T]):
         cache_factors = separator.join(cache_factors)
         return cache_factors
 
-    def _cache_kernel(self, runtime_args, constexprs, codegen_options,
-                      compile_options) -> Tuple[CompiledKernel, Optional[str]]:
-        arg_types = {name: self.get_arg_type(value) for name, value in runtime_args.items()}
-        cache_factors = self._gen_cache_factors(arg_types, constexprs, codegen_options, compile_options)
+    def _compile_and_cache(self, prereqs: CompilePrereqs) -> Tuple[CompiledKernel, Optional[str]]:
+        if prereqs.compile_options.always_compile:
+            kernel = self._compile_kernel(prereqs)
+            return kernel, None
+        return self._cache_kernel(prereqs)
+
+    def _compile_kernel(self, prereqs: CompilePrereqs) -> CompiledKernel:
+        mod = self._run_codegen(Specialization(prereqs.arg_types, prereqs.constexprs), prereqs.codegen_options)
+        return self._run_compiler(mod, prereqs.compile_options)
+
+    def _cache_kernel(self, prereqs: CompilePrereqs) -> Tuple[CompiledKernel, str]:
+        cache_factors = self._gen_cache_factors(prereqs)
         mem_cache_key = get_mem_cache_key(cache_factors)
         kernel = self.kernel_cache.get(mem_cache_key, None)
-        enable_cache = not compile_options.always_compile
-        if enable_cache and kernel is not None:
+        if kernel is not None:
             return kernel, mem_cache_key
-
         file_cache_key = get_file_cache_key(self.cache_key, cache_factors)
         file_cache_manager = get_cache_manager(file_cache_key)
         kernel_file_name = self.fn.__name__ + ".o"
         cached_kernel_file = file_cache_manager.get_file(kernel_file_name)
-
-        if enable_cache and cached_kernel_file is not None:
+        if cached_kernel_file is not None:
             dst = Path(cached_kernel_file)
             with open(dst, 'rb') as file:
                 kernel = pickle.load(file)
         else:
             kernel = self._compile_kernel(prereqs)
             kernel_bin = pickle.dumps(kernel)
-
-        if enable_cache and cached_kernel_file is None:
+        if cached_kernel_file is None:
             file_cache_manager.put(kernel_bin, kernel_file_name)
             self.kernel_cache[mem_cache_key] = kernel
-
-        return kernel, mem_cache_key if enable_cache else None
+        return kernel, mem_cache_key
 
     def _run_codegen(self, spec: Specialization, options: CodegenOptions) -> ir.ModuleOp:
         self.context = self.create_context()
@@ -233,7 +236,9 @@ class JITFunction(Function[P, T]):
         call_args = inspect.signature(self.fn).bind(*args, **kwargs).arguments
         annotations = get_annotations(self.fn)
         runtime_args, constexprs = self.split_args(call_args, annotations)
-        kernel, mem_cache_key = self._cache_kernel(runtime_args, constexprs, codegen_options, compile_options)
+        arg_types = {name: self.get_arg_type(value) for name, value in runtime_args.items()}
+        prereqs = CompilePrereqs(arg_types, constexprs, codegen_options, compile_options)
+        kernel, mem_cache_key = self._compile_and_cache(prereqs)
         self._run_launcher(kernel, self.launch_options, tuple(runtime_args.values()), mem_cache_key)
 
 
@@ -251,7 +256,7 @@ def jit(**options) -> Callable[[Callable[P, T]], JITFunction[P, T]]:
 
 
 def jit(fn: Optional[Callable[P, T]] = None, **options):
-    options.setdefault("custom_builtins", {"range": asc_range})
+    options.setdefault("custom_builtins", CustomBuiltins(range=asc_range))
 
     def decorator(fn: Callable[P, T]) -> JITFunction[P, T]:
         return JITFunction(fn, **options)
