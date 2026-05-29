@@ -32,7 +32,13 @@ def AscendC_SimpleSoftMaxOp : VectorOp<"simple_softmax", "SimpleSoftMax", [
                    AscendC_SoftMaxTiling:$tiling,
                    Optional<AnyType>:$softmaxShapeInfo);
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+    SmallVector<Value> getSrcTensors()
+    {
+        SmallVector<Value> srcTensors{getSrc(), getSumTensor(), getMaxTensor()};
+        if (auto tensor = getSharedTmpBuffer())
+            srcTensors.emplace_back(tensor);
+        return srcTensors;
+    }
   }];
 }
 
@@ -48,7 +54,17 @@ def AscendC_SoftMaxOp : VectorOp<"softmax", "SoftMax", [
                    AscendC_SoftMaxTiling:$tiling,
                    Optional<AnyType>:$softmaxShapeInfo);
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+    SmallVector<Value> getSrcTensors()
+    {
+        SmallVector<Value> srcTensors{getSrc()};
+        if (auto tensor = getSumTensor())
+            srcTensors.emplace_back(tensor);
+        if (auto tensor = getMaxTensor())
+            srcTensors.emplace_back(tensor);
+        if (auto tensor = getSharedTmpBuffer())
+            srcTensors.emplace_back(tensor);
+        return srcTensors;
+    }
   }];
 }
 def AscendC_SwiGLUOp : APIOp<"swiglu", "SwiGLU", [AttrSizedOperandSegments, OpWithDstInterface]> {
