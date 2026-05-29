@@ -313,12 +313,14 @@ def MatmulOp : AscTile_Op<"matmul", [
 ]> {
   let summary = "Compute matrix multiplication on 2D tiles";
   Type inputTileType = TileOfRankAndType<[2], [AscTile_Float]>;
-  let arguments = (ins inputTileType:$matrixA, inputTileType:$matrixB);
+  let arguments = (ins inputTileType:$matrixA, inputTileType:$matrixB,
+                   UnitAttr:$hf32);
   let results = (outs TileOfRankAndType<[2], [F32]>:$result);
   let assemblyFormat = [{
     $matrixA `,` $matrixB attr-dict `:` type($matrixA) `,` type($matrixB) `->`
     type($result)
   }];
+  let hasVerifier = 1;
 }
 
 def MatmulAccOp : AscTile_Op<"matmul_acc", [
@@ -328,11 +330,12 @@ def MatmulAccOp : AscTile_Op<"matmul_acc", [
   Type inputTileType = TileOfRankAndType<[2], [AscTile_Float]>;
   let arguments = (ins inputTileType:$matrixA, inputTileType:$matrixB,
                    Arg<TileOfRankAndType<[2], [F32]>, "tile to store to",
-                   [MemWrite]>:$acc);
+                   [MemWrite]>:$acc, UnitAttr:$hf32);
   let assemblyFormat = [{
     $matrixA `,` $matrixB `,` $acc attr-dict `:`
     type($matrixA) `,` type($matrixB) `,` type($acc)
   }];
+  let hasVerifier = 1;
 }
 
 def BroadcastOp : AscTile_Op<"broadcast", [
