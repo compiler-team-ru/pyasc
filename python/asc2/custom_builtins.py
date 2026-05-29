@@ -10,8 +10,9 @@ from dataclasses import dataclass
 import functools
 import itertools
 import operator
-from typing import Any, Callable, Dict, Iterable, List, Tuple, Union
+from typing import Any, Callable, Iterable, List, Tuple, Union
 
+from asc.codegen.function_visitor import CustomBuiltins
 from asc.language.core.ir_value import PlainValue, RuntimeNumeric
 from asc.language.tile.binary_ops import maximum, minimum
 from asc.language.tile.range import range as custom_range
@@ -94,10 +95,10 @@ def custom_sum(iterable: Iterable, /, start: Union[Tile, RuntimeNumeric] = 0) ->
                               builtin_fn=operator.add)
 
 
-def get_custom_builtins() -> Dict[str, Any]:
-    return {
+def get_custom_builtins() -> CustomBuiltins:
+    return CustomBuiltins({
         "max": custom_max,
         "min": custom_min,
         "range": custom_range,
         "sum": custom_sum,
-    }
+    })
