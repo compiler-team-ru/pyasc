@@ -42,11 +42,11 @@ def matmul_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr: a
     asc2.store(acc, c_gm, offsets=[m_off, n_off])
 
 
-@pytest.mark.parametrize("core_num, unroll_factor, input_type, output_type, tiling_data", [
+@pytest.mark.parametrize("block_num, unroll_factor, input_type, output_type, tiling_data", [
     (16, 2, torch.float16, torch.float16, (128, 784, 832, 32, 208, 16, 784, 16)),
     (16, 2, torch.float32, torch.float32, (1024, 64, 16, 64, 16, 16, 64, 16)),
 ])
-def test_matmul_k_tiled(profiler, runs, core_num, unroll_factor, input_type, output_type, tiling_data):
+def test_matmul_k_tiled(profiler, runs, block_num, unroll_factor, input_type, output_type, tiling_data):
     quant_type = asc2.float32
     if output_type == torch.float16:
         quant_type = asc2.float16
@@ -58,7 +58,7 @@ def test_matmul_k_tiled(profiler, runs, core_num, unroll_factor, input_type, out
     c = torch.zeros((m, n), dtype=output_type)
     with profiler.profile():
         for _ in range(runs):
-            matmul_kernel[core_num](a, b, c, a.shape, b.shape, single_core_m, single_core_n, step_ka, step_kb, base_k,
-                                    quant_type, unroll_factor)
+            matmul_kernel[block_num](a, b, c, a.shape, b.shape, single_core_m, single_core_n, step_ka, step_kb, base_k,
+                                     quant_type, unroll_factor)
     c_ref = (a.to(torch.float32) @ b.to(torch.float32)).to(output_type)
     torch.testing.assert_close(c, c_ref, atol=1e-3, rtol=1e-3)
