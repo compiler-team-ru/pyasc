@@ -281,6 +281,42 @@ LogicalResult CopyFixpipeOp::verify()
 }
 
 //===----------------------------------------------------------------------===//
+// MatmulOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult MatmulOp::verify()
+{
+    if (getMatrixA().getType().getLoc() != TileLocation::L0A) {
+        return emitOpError("matrixA must have L0A tile location");
+    }
+    if (getMatrixB().getType().getLoc() != TileLocation::L0B) {
+        return emitOpError("matrixB must have L0B tile location");
+    }
+    if (getResult().getType().getLoc() != TileLocation::L0C) {
+        return emitOpError("result must have L0C tile location");
+    }
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
+// MatmulAccOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult MatmulAccOp::verify()
+{
+    if (getMatrixA().getType().getLoc() != TileLocation::L0A) {
+        return emitOpError("matrixA must have L0A tile location");
+    }
+    if (getMatrixB().getType().getLoc() != TileLocation::L0B) {
+        return emitOpError("matrixB must have L0B tile location");
+    }
+    if (getAcc().getType().getLoc() != TileLocation::L0C) {
+        return emitOpError("acc must have L0C tile location");
+    }
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
 // AscTileDialect
 //===----------------------------------------------------------------------===//
 

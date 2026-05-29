@@ -189,7 +189,7 @@ def right_shift(input: Tile, other: RuntimeInt) -> Tile:
     return Tile(handle)
 
 
-def verify_matmul_arguments(input: Tile, other: Tile) -> None:
+def verify_matmul_arguments(input: Tile, other: Tile, hf32: bool) -> None:
     if not isinstance(input, Tile) or not isinstance(other, Tile):
         raise BinaryOperandTypeError(f"Input operands must be tiles, got {type(input)} and {type(other)}")
     if input.dtype != other.dtype:
@@ -200,17 +200,19 @@ def verify_matmul_arguments(input: Tile, other: Tile) -> None:
         raise RuntimeError(f"Input tiles must have two dims, got {len(input.shape)} and {len(other.shape)}")
     if input.shape[1] != other.shape[0]:
         raise RuntimeError(f"Input tiles have incompatible shapes: {input.shape}, {other.shape}")
+    if hf32 and input.dtype != KT.float32:
+        raise RuntimeError("HF32 mode can only be set when input tile dtype is float32")
 
 
 @bind_tile_method(name="__matmul__", binary_op=True)
-@require_jit
-def matmul(input: Tile, other: Tile) -> Tile:
+def matmul(input: Tile, other: Tile, *, hf32: bool = False) -> Tile:
     """
     Computes the matrix multiplication of :code:`input` and :code:`other`.
 
     Args:
         input: The left operand (2D tile)
         other: The right operand (2D tile)
+        hf32: Enable the rounding to HF32 for input tiles with float32 dtype
 
     Returns:
         Tile: The result of the matrix multiplication
@@ -222,15 +224,14 @@ def matmul(input: Tile, other: Tile) -> Tile:
         Input tiles must have either :code:`float16` or :code:`float32` data type and compatible shapes.
         Result tile type is always :code:`float32`.
     """
-    verify_matmul_arguments(input, other)
+    verify_matmul_arguments(input, other, hf32)
     builder = global_builder.get_ir_builder()
     ir_type = ir.get_asctile_TileType([input.shape[0], other.shape[1]], KT.float32.to_ir(), TileLocation.L0C)
-    handle = builder.create_asctile_MatmulOp(ir_type, input.to_ir(), other.to_ir())
+    handle = builder.create_asctile_MatmulOp(ir_type, input.to_ir(), other.to_ir(), hf32)
     return Tile(handle)
 
 
-@require_jit
-def matmul_acc(input: Tile, other: Tile, acc: Tile) -> None:
+def matmul_acc(input: Tile, other: Tile, acc: Tile, *, hf32: bool = False) -> None:
     """
     Computes the matrix multiplication of :code:`input` and :code:`other` with accumulator :code:`acc`.
 
@@ -238,6 +239,7 @@ def matmul_acc(input: Tile, other: Tile, acc: Tile) -> None:
         input: The left operand (2D tile).
         other: The right operand (2D tile).
         acc: Accumulator of matmul result (2D tile). Must be created with :py:func:`asc2.zeros_acc`.
+        hf32: Enable the rounding to HF32 for input tiles with float32 dtype.
 
     Raises:
         RuntimeError: If input tiles are not 2D, have incompatible shapes, unsupported dtype,
@@ -248,9 +250,9 @@ def matmul_acc(input: Tile, other: Tile, acc: Tile) -> None:
         Accumulator tile type is always :code:`float32`.
     """
     check_type("acc", acc, Tile)
-    verify_matmul_arguments(input, other)
+    verify_matmul_arguments(input, other, hf32)
     if len(acc.shape) != 2:
         raise RuntimeError(f"Accumulation tile must have two dims, got {len(acc.shape)}")
     if acc.dtype != KT.float32:
         raise RuntimeError(f"Accumulation tile have unsupported types: {acc.dtype}")
-    global_builder.get_ir_builder().create_asctile_MatmulAccOp(input.to_ir(), other.to_ir(), acc.to_ir())
+    global_builder.get_ir_builder().create_asctile_MatmulAccOp(input.to_ir(), other.to_ir(), acc.to_ir(), hf32)
