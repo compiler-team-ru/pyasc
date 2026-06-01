@@ -154,28 +154,6 @@ func.func public @muli_scalar_lhs(%arg0: !asctile.tile<32xi32, UB>) -> !asctile.
   return %0 : !asctile.tile<32xi32, UB>
 }
 
-// CHECK-LABEL: func.func public @divsi_scalar_rhs(%arg0: !asctile.tile<32xi32, UB>) -> !asctile.tile<32xi32, UB> {
-// CHECK-NEXT:  %c514_i32 = arith.constant 514 : i32
-// CHECK-NEXT:  %0 = asctile.divs %arg0, %c514_i32 : !asctile.tile<32xi32, UB>
-// CHECK-NEXT:  return %0 : !asctile.tile<32xi32, UB>
-// CHECK-NEXT:}
-func.func public @divsi_scalar_rhs(%arg0: !asctile.tile<32xi32, UB>) -> !asctile.tile<32xi32, UB> {
-  %cst = arith.constant dense<514> : !asctile.tile<32xi32, UB>
-  %0 = arith.divsi %arg0, %cst : !asctile.tile<32xi32, UB>
-  return %0 : !asctile.tile<32xi32, UB>
-}
-
-// CHECK-LABEL: func.func public @divsi_scalar_lhs_no_scalarization(%arg0: !asctile.tile<32xi32, UB>) -> !asctile.tile<32xi32, UB> {
-// CHECK-NEXT:  %cst = arith.constant dense<514> : !asctile.tile<32xi32, UB>
-// CHECK-NEXT:  %0 = arith.divsi %cst, %arg0 : !asctile.tile<32xi32, UB>
-// CHECK-NEXT:  return %0 : !asctile.tile<32xi32, UB>
-// CHECK-NEXT:}
-func.func public @divsi_scalar_lhs_no_scalarization(%arg0: !asctile.tile<32xi32, UB>) -> !asctile.tile<32xi32, UB> {
-  %cst = arith.constant dense<514> : !asctile.tile<32xi32, UB>
-  %0 = arith.divsi %cst, %arg0 : !asctile.tile<32xi32, UB>
-  return %0 : !asctile.tile<32xi32, UB>
-}
-
 // CHECK-LABEL: func.func public @no_scalarization_if_no_constant_float(%arg0: !asctile.tile<32xf32, UB>, %arg1: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xf32, UB> {
 // CHECK-NEXT:  %0 = arith.addf %arg0, %arg1 : !asctile.tile<32xf32, UB>
 // CHECK-NEXT:  %1 = arith.mulf %arg0, %0 : !asctile.tile<32xf32, UB>

@@ -10,8 +10,6 @@ SINGLE_CORE = 1
 MULTI_CORE = 16
 
 SELECT_DTYPES = [torch.float16, torch.bfloat16, torch.float32, torch.int16, torch.int32]
-SELECT_SCALAR_SOURCE_DTYPES = [torch.float16, torch.bfloat16, torch.float32]
-CONDITION_PATTERNS = ["all_true", "all_false", "alternating", "first_true", "last_true"]
 
 
 def create_tensor(dtype: torch.dtype) -> torch.Tensor:
@@ -32,7 +30,7 @@ def where_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, z_ptr: as
     asc2.store(zt, z, offsets=[0])
 
 
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32, torch.int16, torch.int32])
+@pytest.mark.parametrize("dtype", SELECT_DTYPES)
 @pytest.mark.parametrize("asc_op, torch_op", [
     (asc2.equal, torch.eq),
     (asc2.not_equal, torch.ne),
@@ -61,7 +59,7 @@ def where_scalar_kernel(x_ptr: asc2.GlobalAddress, scalar, z_ptr: asc2.GlobalAdd
     asc2.store(zt, z, offsets=[0])
 
 
-@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32, torch.int16, torch.int32])
+@pytest.mark.parametrize("dtype", SELECT_DTYPES)
 @pytest.mark.parametrize("asc_op, torch_op", [
     (asc2.equal, torch.eq),
     (asc2.not_equal, torch.ne),
@@ -174,7 +172,7 @@ def where_scalar_source_launch(x: torch.Tensor, *, scalar_value: int, scalar_on_
     return out
 
 
-@pytest.mark.parametrize("dtype", SELECT_DTYPES, ids=str)
+@pytest.mark.parametrize("dtype", SELECT_DTYPES)
 def test_where_condition_dtypes(require_c310, dtype: torch.dtype):
     check_dtype(dtype, require_c310)
     size = TILE_SIZE
@@ -185,7 +183,7 @@ def test_where_condition_dtypes(require_c310, dtype: torch.dtype):
     torch.testing.assert_close(out, expected)
 
 
-@pytest.mark.parametrize("pattern", CONDITION_PATTERNS)
+@pytest.mark.parametrize("pattern", ["all_true", "all_false", "alternating", "first_true", "last_true"])
 def test_where_condition_patterns(pattern: str):
     size = TILE_SIZE
     x, y = make_data(size, torch.float32)
@@ -215,7 +213,7 @@ def test_where_multicore_unrolled():
     torch.testing.assert_close(out, expected)
 
 
-@pytest.mark.parametrize("dtype", SELECT_SCALAR_SOURCE_DTYPES, ids=str)
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32])
 @pytest.mark.parametrize("scalar_on_true, scalar_value", [(False, -7), (True, 7)],
                          ids=["tensor_then_scalar", "scalar_then_tensor"])
 def test_where_scalar_source_layouts(require_c310, scalar_on_true: bool, scalar_value: int, dtype: torch.dtype):

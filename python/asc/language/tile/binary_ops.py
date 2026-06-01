@@ -6,24 +6,38 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-from typing import Callable, TypeVar, Union
+from typing import Any, Callable, Tuple, TypeVar, Union
 
 from ..._C import ir
 from ...common.compat import isinstance
-from ..core.dtype import KnownTypes as KT
+from ..core.dtype import DataType, KnownTypes as KT
 from ..core.ir_value import IRHandle, RuntimeInt, RuntimeNumeric
 from ..core.utils import global_builder, require_jit
 from .tile import BinaryOperandTypeError, Tile, TileLocation, bind_tile_method
 from .utils import create_tile, infer_common_dtype, infer_common_shape
-from .validation import check_runtime_int, check_type
+from .validation import check_dtype, check_runtime_int, check_type
 
 T = TypeVar("T")
 
+common_support_dtypes = (KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32)
+compare_support_dtypes = (KT.int16, KT.int32, KT.float16, KT.bfloat16, KT.float32)
 
-def op_binary_impl(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric],
-                   build_int: Callable[..., IRHandle], build_float: Callable[..., IRHandle]) -> Tile:
-    check_type("input", input, (Tile, RuntimeNumeric), BinaryOperandTypeError)
-    check_type("other", other, (Tile, RuntimeNumeric), BinaryOperandTypeError)
+
+def check_numeric_tile_like(name: str, value: Any, support_dtypes: Tuple[DataType, ...]) -> None:
+    check_type(name, value, (Tile, RuntimeNumeric), BinaryOperandTypeError)
+    if isinstance(value, Tile):
+        check_dtype(name, value, support_dtypes)
+
+
+def op_binary_impl(
+    input: Union[Tile, RuntimeNumeric],
+    other: Union[Tile, RuntimeNumeric],
+    build_int: Callable[..., IRHandle],
+    build_float: Callable[..., IRHandle],
+    support_dtypes: Tuple[DataType, ...],
+) -> Tile:
+    check_numeric_tile_like("input", input, support_dtypes)
+    check_numeric_tile_like("other", other, support_dtypes)
     if not isinstance(input, Tile) and not isinstance(other, Tile):
         raise BinaryOperandTypeError(f"At least one operand must be tile, got {type(input)} and {type(other)}")
     result_dtype = infer_common_dtype(input, other)
@@ -39,9 +53,10 @@ def op_binary_impl(input: Union[Tile, RuntimeNumeric], other: Union[Tile, Runtim
     return Tile(handle)
 
 
-def op_compare_impl(input: Tile, other: Union[Tile, RuntimeNumeric], mode: ir.CompareMode) -> Tile:
-    check_type("input", input, Tile, BinaryOperandTypeError)
-    check_type("other", other, (Tile, RuntimeNumeric), BinaryOperandTypeError)
+def op_compare_impl(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric],
+                    mode: ir.CompareMode) -> Tile:
+    check_numeric_tile_like("input", input, compare_support_dtypes)
+    check_numeric_tile_like("other", other, compare_support_dtypes)
     if not isinstance(input, Tile) and not isinstance(other, Tile):
         raise BinaryOperandTypeError(f"At least one operand must be tile, got {type(input)} and {type(other)}")
     result_dtype = infer_common_dtype(input, other)
@@ -54,15 +69,33 @@ def op_compare_impl(input: Tile, other: Union[Tile, RuntimeNumeric], mode: ir.Co
     return Tile(handle)
 
 
-def set_docstring(name: str) -> Callable[[T], T]:
+def set_docstring(name: str, support_dtypes: Tuple[DataType, ...], rhs_scalar_only: bool = False) -> Callable[[T], T]:
+    dtypes_str = ", ".join(f":code:`{dtype}`" for dtype in support_dtypes)
+    other_type = "scalar" if rhs_scalar_only else "tile or scalar"
+    examples = "" if rhs_scalar_only else f"""
+        Compute the {name} between elements of two tiles: ::
+
+            input = asc2.load(tensor_a, [32, 16], offsets=[1, 4])
+            other = asc2.load(tensor_b, [32, 16], offsets=[2, 8])
+            result = asc2.{{fn_name}}(input, other)
+
+    """
+    examples += f"""
+        Compute the {name} of tile elements and a given scalar value: ::
+
+            input = asc2.load(tensor, [32, 16], offsets=[0, 0])
+            result = asc2.{{fn_name}}(input, 2)
+    """
 
     def decorator(fn: T) -> T:
-        doc = """
+        doc = f"""
     Computes the element-wise {name} of :code:`input` and :code:`other`.
+
+    The supported data types for the inputs are: {dtypes_str}.
 
     Args:
         input: The left operand (tile or scalar)
-        other: The right operand (tile or scalar)
+        other: The right operand ({other_type})
 
     Returns:
         Tile: The result of {name}
@@ -72,8 +105,11 @@ def set_docstring(name: str) -> Callable[[T], T]:
 
     Note:
         At least one of input operands must be :code:`Tile`.
+
+    Examples:
+        {examples}
         """
-        fn.__doc__ = doc.format(name=name)
+        fn.__doc__ = doc.format(fn_name=fn.__name__)
         return fn
 
     return decorator
@@ -81,98 +117,102 @@ def set_docstring(name: str) -> Callable[[T], T]:
 
 @bind_tile_method(name="__eq__", binary_op="==")
 @require_jit
-@set_docstring("'equality' comparison")
+@set_docstring("'equality' comparison", compare_support_dtypes)
 def equal(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
     return op_compare_impl(input, other, ir.CompareMode.EQ)
 
 
 @bind_tile_method(name="__ne__", binary_op="!=")
 @require_jit
-@set_docstring("'inequality' comparison")
+@set_docstring("'inequality' comparison", compare_support_dtypes)
 def not_equal(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
     return op_compare_impl(input, other, ir.CompareMode.NE)
 
 
 @bind_tile_method(name="__gt__", binary_op=">")
 @require_jit
-@set_docstring("'greater' comparison")
+@set_docstring("'greater' comparison", compare_support_dtypes)
 def greater(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
     return op_compare_impl(input, other, ir.CompareMode.GT)
 
 
 @bind_tile_method(name="__ge__", binary_op=">=")
 @require_jit
-@set_docstring("'greater or equal' comparison")
+@set_docstring("'greater or equal' comparison", compare_support_dtypes)
 def greater_equal(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
     return op_compare_impl(input, other, ir.CompareMode.GE)
 
 
 @bind_tile_method(name="__lt__", binary_op="<")
 @require_jit
-@set_docstring("'less' comparison")
+@set_docstring("'less' comparison", compare_support_dtypes)
 def less(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
     return op_compare_impl(input, other, ir.CompareMode.LT)
 
 
 @bind_tile_method(name="__le__", binary_op="<=")
 @require_jit
-@set_docstring("'less or equal' comparison")
+@set_docstring("'less or equal' comparison", compare_support_dtypes)
 def less_equal(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
     return op_compare_impl(input, other, ir.CompareMode.LE)
 
 
 @bind_tile_method(name="__add__", binary_op="+")
 @require_jit
-@set_docstring("addition")
+@set_docstring("addition", common_support_dtypes)
 def add(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
     builder = global_builder.get_ir_builder()
-    return op_binary_impl(input, other, builder.create_arith_AddIOp, builder.create_arith_AddFOp)
+    return op_binary_impl(input, other, builder.create_arith_AddIOp, builder.create_arith_AddFOp, common_support_dtypes)
 
 
 @bind_tile_method(name="__sub__", binary_op="-")
 @require_jit
-@set_docstring("subtraction")
+@set_docstring("subtraction", common_support_dtypes)
 def sub(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
     builder = global_builder.get_ir_builder()
-    return op_binary_impl(input, other, builder.create_arith_SubIOp, builder.create_arith_SubFOp)
+    return op_binary_impl(input, other, builder.create_arith_SubIOp, builder.create_arith_SubFOp, common_support_dtypes)
 
 
 @bind_tile_method(name="__mul__", binary_op="*")
 @require_jit
-@set_docstring("multiplication")
+@set_docstring("multiplication", common_support_dtypes)
 def mul(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
     builder = global_builder.get_ir_builder()
-    return op_binary_impl(input, other, builder.create_arith_MulIOp, builder.create_arith_MulFOp)
+    return op_binary_impl(input, other, builder.create_arith_MulIOp, builder.create_arith_MulFOp, common_support_dtypes)
 
 
 @bind_tile_method(name="__truediv__", binary_op="/")
 @require_jit
-@set_docstring("division")
+@set_docstring("division", (KT.int16, KT.int32, KT.int64, KT.float16, KT.float32))
 def div(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
     builder = global_builder.get_ir_builder()
-    return op_binary_impl(input, other, builder.create_arith_DivSIOp, builder.create_arith_DivFOp)
+    return op_binary_impl(input, other, builder.create_arith_DivSIOp, builder.create_arith_DivFOp,
+                          (KT.int16, KT.int32, KT.int64, KT.float16, KT.float32))
 
 
 @require_jit
-@set_docstring("maximum")
+@set_docstring("maximum", common_support_dtypes)
 def maximum(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
     builder = global_builder.get_ir_builder()
-    return op_binary_impl(input, other, builder.create_arith_MaxSIOp, builder.create_arith_MaximumFOp)
+    return op_binary_impl(input, other, builder.create_arith_MaxSIOp, builder.create_arith_MaximumFOp,
+                          common_support_dtypes)
 
 
 @require_jit
-@set_docstring("minimum")
+@set_docstring("minimum", common_support_dtypes)
 def minimum(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
     builder = global_builder.get_ir_builder()
-    return op_binary_impl(input, other, builder.create_arith_MinSIOp, builder.create_arith_MinimumFOp)
+    return op_binary_impl(input, other, builder.create_arith_MinSIOp, builder.create_arith_MinimumFOp,
+                          common_support_dtypes)
 
 
 @bind_tile_method(name="__lshift__", binary_op="<<")
 @require_jit
-@set_docstring("left shift (bitwise)")
+@set_docstring("left shift (bitwise)", (KT.int16, KT.int32, KT.int64), rhs_scalar_only=True)
 def left_shift(input: Tile, other: RuntimeInt) -> Tile:
     check_type("input", input, Tile, BinaryOperandTypeError)
     check_runtime_int("other", other, BinaryOperandTypeError)
+    check_dtype("input", input, (KT.int16, KT.int32, KT.int64))
     other = create_tile(other, input.dtype, input.shape)
     handle = global_builder.get_ir_builder().create_arith_ShLIOp(input.to_ir(), other.to_ir())
     return Tile(handle)
@@ -180,10 +220,11 @@ def left_shift(input: Tile, other: RuntimeInt) -> Tile:
 
 @bind_tile_method(name="__rshift__", binary_op=">>")
 @require_jit
-@set_docstring("right shift (bitwise)")
+@set_docstring("right shift (bitwise)", (KT.int16, KT.int32, KT.int64), rhs_scalar_only=True)
 def right_shift(input: Tile, other: RuntimeInt) -> Tile:
     check_type("input", input, Tile, BinaryOperandTypeError)
     check_runtime_int("other", other, BinaryOperandTypeError)
+    check_dtype("input", input, (KT.int16, KT.int32, KT.int64))
     other = create_tile(other, input.dtype, input.shape)
     handle = global_builder.get_ir_builder().create_arith_ShRSIOp(input.to_ir(), other.to_ir())
     return Tile(handle)

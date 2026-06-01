@@ -7,17 +7,22 @@ import torch
 # vector_vector, vector_scalar, scalar_vector
 VV, VS, SV = "VV", "VS", "SV"
 NO_MASK, COUNT_MASK, BIT_MASK = "NO_MASK", "COUNT_MASK", "BIT_MASK"
-USE_CORE_NUM = 1
+all_formats = [VV, VS, SV]
 
 binary_ops = [
-    (asc2.add, torch.add, [VV, VS, SV], [torch.bfloat16, torch.float32, torch.int32], [NO_MASK, COUNT_MASK]),
-    (asc2.div, torch.div, [VV, VS, SV], [torch.float32], [NO_MASK, COUNT_MASK]),
-    (asc2.mul, torch.mul, [VV, VS, SV], [torch.bfloat16, torch.float32, torch.int32], [NO_MASK, COUNT_MASK]),
-    (asc2.sub, torch.sub, [VV, VS, SV], [torch.bfloat16, torch.float32, torch.int32], [NO_MASK, COUNT_MASK]),
-    (asc2.left_shift, torch.bitwise_left_shift, [VS], [torch.int32], [NO_MASK, COUNT_MASK]),
-    (asc2.right_shift, torch.bitwise_right_shift, [VS], [torch.int32], [NO_MASK, COUNT_MASK]),
-    (asc2.maximum, torch.maximum, [VV, VS, SV], [torch.bfloat16, torch.float32, torch.int32], [NO_MASK, COUNT_MASK]),
-    (asc2.minimum, torch.minimum, [VV, VS, SV], [torch.bfloat16, torch.float32, torch.int32], [NO_MASK, COUNT_MASK]),
+    (asc2.add, torch.add, all_formats,
+     [torch.int16, torch.int32, torch.int64, torch.float16, torch.bfloat16, torch.float32]),
+    (asc2.div, torch.div, all_formats, [torch.int16, torch.int32, torch.int64, torch.float16, torch.float32]),
+    (asc2.mul, torch.mul, all_formats,
+     [torch.int16, torch.int32, torch.int64, torch.float16, torch.bfloat16, torch.float32]),
+    (asc2.sub, torch.sub, all_formats,
+     [torch.int16, torch.int32, torch.int64, torch.float16, torch.bfloat16, torch.float32]),
+    (asc2.left_shift, torch.bitwise_left_shift, [VS], [torch.int16, torch.int32, torch.int64]),
+    (asc2.right_shift, torch.bitwise_right_shift, [VS], [torch.int16, torch.int32, torch.int64]),
+    (asc2.maximum, torch.maximum, all_formats,
+     [torch.int16, torch.int32, torch.int64, torch.float16, torch.bfloat16, torch.float32]),
+    (asc2.minimum, torch.minimum, all_formats,
+     [torch.int16, torch.int32, torch.int64, torch.float16, torch.bfloat16, torch.float32]),
 ]
 
 
@@ -49,6 +54,8 @@ def kernel(x_ptr, y_ptr, z_ptr, block_length: asc2.ConstExpr, fmt: asc2.ConstExp
 
 
 def handle_mask(gold, mask_type, count, other, hibits, lowbits) -> torch.Tensor:
+    if mask_type == NO_MASK:
+        return gold
 
     def uint64_to_binary_tensor(value) -> torch.Tensor:
         binary_tensor = [bit == '1' for bit in bin(value)[2:]]
@@ -61,31 +68,30 @@ def handle_mask(gold, mask_type, count, other, hibits, lowbits) -> torch.Tensor:
     # In bytes
     REPEAT_BLOCK_SIZE = 256
     max_elem_count = REPEAT_BLOCK_SIZE // dtype.itemsize
-
-    if mask_type == NO_MASK:
-        return gold
-    elif mask_type == COUNT_MASK:
+    if mask_type == COUNT_MASK:
         mask = torch.arange(max_elem_count) < count
     elif mask_type == BIT_MASK:
         hi = uint64_to_binary_tensor(hibits)
         lo = uint64_to_binary_tensor(lowbits)
         mask = torch.cat((hi, lo), dim=0)
-
     repeats = (size + max_elem_count - 1) // max_elem_count
     total_mask = torch.tile(mask, (repeats, ))[0:size]
-    others = torch.full((size, ), other)
+    others = torch.full((size, ), other, dtype=dtype)
     return torch.where(total_mask, gold, others)
 
 
-@pytest.mark.parametrize("asc_op, torch_op, fmt, dtype, mask_type",
-                         [(asc_op, torch_op, f, d, m)
-                          for asc_op, torch_op, fmts, dtypes, mask_types in binary_ops
-                          for f in fmts
-                          for d in dtypes
-                          for m in mask_types])
+@pytest.mark.parametrize("mask_type", [NO_MASK, COUNT_MASK])
+@pytest.mark.parametrize("asc_op, torch_op, fmt, dtype", [(asc_op, torch_op, f, d)
+                                                          for asc_op, torch_op, fmts, dtypes in binary_ops
+                                                          for f in fmts
+                                                          for d in dtypes])
 def test_binary_operations(require_c310, asc_op, torch_op, fmt, dtype, mask_type):
-    if dtype == torch.bfloat16:
+    if dtype in (torch.bfloat16, torch.int8, torch.int64) or (asc_op is asc2.div and not dtype.is_floating_point):
         require_c310()
+    if mask_type == COUNT_MASK and dtype in (torch.int8, torch.int64):
+        pytest.skip("L0 API has incorrect assertion")
+
+    size = 32
 
     def create_input(input_dtype: torch.dtype, is_vector: bool):
         if is_vector:
@@ -96,9 +102,6 @@ def test_binary_operations(require_c310, asc_op, torch_op, fmt, dtype, mask_type
         else:
             return torch.tensor(2, dtype=input_dtype)
 
-    size = 32
-    block_length = size // USE_CORE_NUM
-
     if fmt == VV:
         x = create_input(dtype, True)
         y = create_input(dtype, True)
@@ -108,7 +111,6 @@ def test_binary_operations(require_c310, asc_op, torch_op, fmt, dtype, mask_type
     elif fmt == SV:
         x = create_input(dtype, False)
         y = create_input(dtype, True)
-
     count, other, hibits, lowbits = 0, 0, 0x0000000000000000, 0x0000000000000000
     if mask_type == NO_MASK:
         pass
@@ -117,21 +119,14 @@ def test_binary_operations(require_c310, asc_op, torch_op, fmt, dtype, mask_type
     elif mask_type == BIT_MASK:
         hibits, lowbits = 0x0000000000000000, 0xFFFE000000000000
         other = 7
-
     z = torch.zeros(size, dtype=dtype)
-
     hi_number = ctypes.c_uint64(hibits).value
     low_number = ctypes.c_uint64(lowbits).value
-    kernel[1](x, y, z, block_length, fmt, asc_op, mask_type, count, other, hi_number, low_number)
+    kernel[1](x, y, z, size, fmt, asc_op, mask_type, count, other, hi_number, low_number)
     if isinstance(x, (int, float)):
         x = torch.tensor(x, dtype=dtype)
     if isinstance(y, (int, float)):
         y = torch.tensor(y, dtype=dtype)
-
-    gold = torch_op(x, y)
+    gold = torch_op(x, y).to(dtype)
     gold = handle_mask(gold, mask_type, count, other, hibits, lowbits)
-
-    if dtype == torch.float32:
-        assert torch.allclose(z, gold, atol=1e-3), f"Failed {asc_op.__name__}"
-    else:
-        assert torch.equal(z, gold), f"Failed {asc_op.__name__}"
+    torch.testing.assert_close(z, gold)

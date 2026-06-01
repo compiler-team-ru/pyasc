@@ -36,7 +36,7 @@ def check_type(name: str, value: Any, constraint: Union[Type, Tuple[Type, ...]],
     raise exc_type(f"'{name}' argument must be {get_type_name(constraint)}, got {value.__class__.__name__}")
 
 
-def check_dtype(name: str, value: DataTyped, dtypes: Tuple[DataType]) -> None:
+def check_dtype(name: str, value: DataTyped, dtypes: Tuple[DataType, ...]) -> None:
     if value.dtype not in dtypes:
         dtypes_str = ", ".join(map(str, dtypes))
         raise RuntimeError(f"'{name}' dtype must be one of {dtypes_str}, got {value.dtype}")
