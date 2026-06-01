@@ -248,7 +248,7 @@ def relu(input: Tile) -> Tile:
                          global_builder.get_ir_builder().create_asctile_ReluOp, support_dtypes=(KT.float16, KT.float32))
 
 
-@bind_tile_method(name="__neg__")
+@bind_tile_method(name="__neg__", unary_op="-")
 @require_jit
 @set_docstring("negation", support_dtypes=(KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32))
 def negative(input: Tile) -> Tile:

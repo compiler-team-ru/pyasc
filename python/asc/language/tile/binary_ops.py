@@ -79,49 +79,49 @@ def set_docstring(name: str) -> Callable[[T], T]:
     return decorator
 
 
-@bind_tile_method(name="__eq__", binary_op=True)
+@bind_tile_method(name="__eq__", binary_op="==")
 @require_jit
 @set_docstring("'equality' comparison")
 def equal(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
     return op_compare_impl(input, other, ir.CompareMode.EQ)
 
 
-@bind_tile_method(name="__ne__", binary_op=True)
+@bind_tile_method(name="__ne__", binary_op="!=")
 @require_jit
 @set_docstring("'inequality' comparison")
 def not_equal(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
     return op_compare_impl(input, other, ir.CompareMode.NE)
 
 
-@bind_tile_method(name="__gt__", binary_op=True)
+@bind_tile_method(name="__gt__", binary_op=">")
 @require_jit
 @set_docstring("'greater' comparison")
 def greater(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
     return op_compare_impl(input, other, ir.CompareMode.GT)
 
 
-@bind_tile_method(name="__ge__", binary_op=True)
+@bind_tile_method(name="__ge__", binary_op=">=")
 @require_jit
 @set_docstring("'greater or equal' comparison")
 def greater_equal(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
     return op_compare_impl(input, other, ir.CompareMode.GE)
 
 
-@bind_tile_method(name="__lt__", binary_op=True)
+@bind_tile_method(name="__lt__", binary_op="<")
 @require_jit
 @set_docstring("'less' comparison")
 def less(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
     return op_compare_impl(input, other, ir.CompareMode.LT)
 
 
-@bind_tile_method(name="__le__", binary_op=True)
+@bind_tile_method(name="__le__", binary_op="<=")
 @require_jit
 @set_docstring("'less or equal' comparison")
 def less_equal(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
     return op_compare_impl(input, other, ir.CompareMode.LE)
 
 
-@bind_tile_method(name="__add__", binary_op=True)
+@bind_tile_method(name="__add__", binary_op="+")
 @require_jit
 @set_docstring("addition")
 def add(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
@@ -129,7 +129,7 @@ def add(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) 
     return op_binary_impl(input, other, builder.create_arith_AddIOp, builder.create_arith_AddFOp)
 
 
-@bind_tile_method(name="__sub__", binary_op=True)
+@bind_tile_method(name="__sub__", binary_op="-")
 @require_jit
 @set_docstring("subtraction")
 def sub(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
@@ -137,7 +137,7 @@ def sub(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) 
     return op_binary_impl(input, other, builder.create_arith_SubIOp, builder.create_arith_SubFOp)
 
 
-@bind_tile_method(name="__mul__", binary_op=True)
+@bind_tile_method(name="__mul__", binary_op="*")
 @require_jit
 @set_docstring("multiplication")
 def mul(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
@@ -145,7 +145,7 @@ def mul(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) 
     return op_binary_impl(input, other, builder.create_arith_MulIOp, builder.create_arith_MulFOp)
 
 
-@bind_tile_method(name="__truediv__", binary_op=True)
+@bind_tile_method(name="__truediv__", binary_op="/")
 @require_jit
 @set_docstring("division")
 def div(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeric]) -> Tile:
@@ -167,7 +167,7 @@ def minimum(input: Union[Tile, RuntimeNumeric], other: Union[Tile, RuntimeNumeri
     return op_binary_impl(input, other, builder.create_arith_MinSIOp, builder.create_arith_MinimumFOp)
 
 
-@bind_tile_method(name="__lshift__", binary_op=True)
+@bind_tile_method(name="__lshift__", binary_op="<<")
 @require_jit
 @set_docstring("left shift (bitwise)")
 def left_shift(input: Tile, other: RuntimeInt) -> Tile:
@@ -178,7 +178,7 @@ def left_shift(input: Tile, other: RuntimeInt) -> Tile:
     return Tile(handle)
 
 
-@bind_tile_method(name="__rshift__", binary_op=True)
+@bind_tile_method(name="__rshift__", binary_op=">>")
 @require_jit
 @set_docstring("right shift (bitwise)")
 def right_shift(input: Tile, other: RuntimeInt) -> Tile:
@@ -204,7 +204,7 @@ def verify_matmul_arguments(input: Tile, other: Tile, hf32: bool) -> None:
         raise RuntimeError("HF32 mode can only be set when input tile dtype is float32")
 
 
-@bind_tile_method(name="__matmul__", binary_op=True)
+@bind_tile_method(name="__matmul__", binary_op="@")
 def matmul(input: Tile, other: Tile, *, hf32: bool = False) -> Tile:
     """
     Computes the matrix multiplication of :code:`input` and :code:`other`.
