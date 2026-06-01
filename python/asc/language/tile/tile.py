@@ -235,21 +235,35 @@ class BinaryOperandTypeError(TypeError):
 
 class Binder:
 
-    def __init__(self, name: Optional[str] = None, binary_op: bool = False) -> None:
+    def __init__(self, name: Optional[str] = None, binary_op: Optional[str] = None, unary_op: Optional[str] = None):
         self.name = name
         self.binary_op = binary_op
+        self.unary_op = unary_op
 
     def __call__(self, fn: T) -> T:
-        name = self.name or fn.__name__
+        fn_name = fn.__name__
+        name = self.name or fn_name
         sig = inspect.signature(fn)
         params = list(sig.parameters.values())
         if len(params) < 1:
             raise ValueError("Bound function must have at least one parameter")
         if not fn.__doc__:
             fn.__doc__ = ""
+        if self.binary_op:
+            call_kind = "via a binary operator"
+            call_func = f"{fn_name}(input, other)"
+            call_alias = f"input {self.binary_op} other"
+        elif self.unary_op:
+            call_kind = "via an unary operator"
+            call_func = f"{fn_name}(input)"
+            call_alias = f"{self.unary_op}input"
+        else:
+            call_kind = "as a member function"
+            call_func = f"{fn_name}(input, ...)"
+            call_alias = f"input.{name}(...)"
         fn.__doc__ += f"""
-    This function can also be called as a member function on :py:class:`Tile`,
-    as :code:`x.{name}(...)` instead of :code:`{fn.__name__}(x, ...)`.
+    This function can also be called {call_kind} on :py:class:`Tile`,
+    as :code:`{call_alias}` instead of :code:`{call_func}`.
         """
         params[0] = params[0].replace(name="self")
         new_sig = sig.replace(parameters=params)
@@ -280,12 +294,13 @@ def bind_tile_method(fn: T) -> T:
 
 
 @overload
-def bind_tile_method(name: str, binary_op: bool = False) -> Callable[[T], T]:
+def bind_tile_method(name: str, binary_op: Optional[str] = None, unary_op: Optional[str] = None) -> Callable[[T], T]:
     ...
 
 
-def bind_tile_method(fn: Optional[T] = None, *, name: Optional[str] = None, binary_op: bool = False):
-    binder = Binder(name, binary_op)
+def bind_tile_method(fn: Optional[T] = None, *, name: Optional[str] = None, binary_op: Optional[str] = None,
+                     unary_op: Optional[str] = None):
+    binder = Binder(name, binary_op, unary_op)
     if fn is None:
         return binder
     return binder(fn)
