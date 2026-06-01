@@ -46,7 +46,7 @@ constexpr int64_t src1RepStride = 8;
 int64_t getRepeatTimes(ShapedType type)
 {
     auto sizeType = ascendc::getElementTypeSize(type);
-    assert((sizeType == 2 || sizeType == 4) && "Unsupported element type");
+    assert((sizeType == 1 || sizeType == 2 || sizeType == 4 || sizeType == 8) && "Unsupported element type");
     auto numElemsPerRepeat = ascendc::repeatBlockSize / sizeType;
     return llvm::divideCeilSigned(type.getNumElements(), numElemsPerRepeat);
 }

@@ -88,7 +88,8 @@ struct LowerMathPass : public asclower::impl::LowerMathBase<LowerMathPass> {
             ConvertUnaryToLib<math::CeilOp, ascendc::CeilOp>, ConvertUnaryToLib<math::FloorOp, ascendc::FloorOp>,
             ConvertUnaryToLib<math::RoundOp, ascendc::RoundOp>, ConvertUnaryToL2<math::AbsFOp, ascendc::AbsL2Op>,
             ConvertUnaryToL2<math::ExpOp, ascendc::ExpL2Op>, ConvertUnaryToL2<math::SqrtOp, ascendc::SqrtL2Op>,
-            ConvertUnaryToL2<math::RsqrtOp, ascendc::RsqrtL2Op>, ConvertUnaryToLib<math::Log2Op, ascendc::Log2Op>
+            ConvertUnaryToL2<math::RsqrtOp, ascendc::RsqrtL2Op>, ConvertUnaryToLib<math::Log2Op, ascendc::Log2Op>,
+            ConvertUnaryToL2<math::AbsIOp, ascendc::AbsL2Op>
             //
             >(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())

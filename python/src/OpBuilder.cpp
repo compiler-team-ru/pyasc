@@ -427,7 +427,7 @@ void bindGetAttributes(py::class_<PyOpBuilder>& clss)
         .def("get_i8_attr", [](PyOpBuilder& self, int8_t value) -> Attribute { return self->getI8IntegerAttr(value); })
         .def(
             "get_i16_attr",
-            [](PyOpBuilder& self, int16_t value) -> Attribute { return self->getI16IntegerAttr(value); })
+            [](PyOpBuilder& self, int16_t val) -> Attribute { return self->getIntegerAttr(self->getI16Type(), val); })
         .def(
             "get_i32_attr",
             [](PyOpBuilder& self, int32_t value) -> Attribute { return self->getI32IntegerAttr(value); })
