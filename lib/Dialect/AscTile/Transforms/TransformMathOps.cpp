@@ -225,10 +225,10 @@ public:
             ScalarizeArithOp<arith::AddFOp, asctile::AddSOp>, ScalarizeArithOp<arith::AddIOp, asctile::AddSOp>,
             ScalarizeArithRhsOp<arith::SubFOp, asctile::SubSOp>, ScalarizeArithRhsOp<arith::SubIOp, asctile::SubSOp>,
             ScalarizeArithOp<arith::MulFOp, asctile::MulSOp>, ScalarizeArithOp<arith::MulIOp, asctile::MulSOp>,
-            ScalarizeArithRhsOp<arith::DivFOp, asctile::DivSOp>, ScalarizeArithRhsOp<arith::DivSIOp, asctile::DivSOp>,
-            ScalarizeShL, ScalarizeShR, ScalarizeArithOp<arith::MaximumFOp, asctile::MaxSOp>,
-            ScalarizeArithOp<arith::MaxSIOp, asctile::MaxSOp>, ScalarizeArithOp<arith::MinimumFOp, asctile::MinSOp>,
-            ScalarizeArithOp<arith::MinSIOp, asctile::MinSOp>, ScalarizeCompare
+            ScalarizeArithRhsOp<arith::DivFOp, asctile::DivSOp>, ScalarizeShL, ScalarizeShR,
+            ScalarizeArithOp<arith::MaximumFOp, asctile::MaxSOp>, ScalarizeArithOp<arith::MaxSIOp, asctile::MaxSOp>,
+            ScalarizeArithOp<arith::MinimumFOp, asctile::MinSOp>, ScalarizeArithOp<arith::MinSIOp, asctile::MinSOp>,
+            ScalarizeCompare
             //
             >(context, /*benefit=*/1);
         if (applyPatternsAndFoldGreedily(op, std::move(patterns)).failed())

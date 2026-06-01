@@ -96,8 +96,8 @@ struct LowerArithBinaryPass : public asclower::impl::LowerArithBinaryBase<LowerA
         target.addDynamicallyLegalOp<
             //
             arith::AddFOp, arith::AddIOp, arith::SubFOp, arith::SubIOp, arith::MulFOp, arith::MulIOp, arith::DivFOp,
-            arith::MaxSIOp, arith::MinSIOp, arith::MaximumFOp, arith::MinimumFOp, arith::MaxNumFOp, arith::MinNumFOp,
-            arith::AndIOp, arith::OrIOp
+            arith::DivSIOp, arith::MaxSIOp, arith::MinSIOp, arith::MaximumFOp, arith::MinimumFOp, arith::MaxNumFOp,
+            arith::MinNumFOp, arith::AndIOp, arith::OrIOp
             //
             >([&converter](Operation* op) { return converter.isLegal(op); });
         target.addLegalOp<UnrealizedConversionCastOp>();
@@ -107,11 +107,11 @@ struct LowerArithBinaryPass : public asclower::impl::LowerArithBinaryBase<LowerA
             ConvertToL2<arith::AddFOp, ascendc::AddL2Op>, ConvertToL2<arith::AddIOp, ascendc::AddL2Op>,
             ConvertToL2<arith::SubFOp, ascendc::SubL2Op>, ConvertToL2<arith::SubIOp, ascendc::SubL2Op>,
             ConvertToL2<arith::MulFOp, ascendc::MulL2Op>, ConvertToL2<arith::MulIOp, ascendc::MulL2Op>,
-            ConvertToL2<arith::DivFOp, ascendc::DivL2Op>, ConvertToL2<arith::MaximumFOp, ascendc::MaxL2Op>,
+            ConvertToL2<arith::DivFOp, ascendc::DivL2Op>, ConvertToL2<arith::DivSIOp, ascendc::DivL2Op>,
+            ConvertToL2<arith::MaximumFOp, ascendc::MaxL2Op>, ConvertToL2<arith::MinimumFOp, ascendc::MinL2Op>,
             ConvertToL2<arith::MaxSIOp, ascendc::MaxL2Op>, ConvertToL2<arith::MinSIOp, ascendc::MinL2Op>,
-            ConvertToL2<arith::MinimumFOp, ascendc::MinL2Op>, ConvertToL2<arith::MaxNumFOp, ascendc::MaxL2Op>,
-            ConvertToL2<arith::MinNumFOp, ascendc::MinL2Op>, ConvertBitwiseToL2<arith::AndIOp, ascendc::AndL2Op>,
-            ConvertBitwiseToL2<arith::OrIOp, ascendc::OrL2Op>
+            ConvertToL2<arith::MaxNumFOp, ascendc::MaxL2Op>, ConvertToL2<arith::MinNumFOp, ascendc::MinL2Op>,
+            ConvertBitwiseToL2<arith::AndIOp, ascendc::AndL2Op>, ConvertBitwiseToL2<arith::OrIOp, ascendc::OrL2Op>
             //
             >(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())
