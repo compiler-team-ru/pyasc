@@ -6,13 +6,17 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-from typing import Any, Iterable, Tuple, Type, TypeGuard, Union
+from typing import Any, Iterable, Protocol, Tuple, Type, TypeGuard, Union
 
 from ..._C import ir
 from ...common.compat import isinstance
 from ..core.dtype import DataType
 from ..core.ir_value import PlainValue, RuntimeInt
 from ..core.utils import get_type_name
+
+
+class DataTyped(Protocol):
+    dtype: DataType
 
 
 def check_data_alignment(shape: Tuple[int, ...], dtype: DataType) -> None:
@@ -30,6 +34,12 @@ def check_type(name: str, value: Any, constraint: Union[Type, Tuple[Type, ...]],
     if isinstance(value, constraint):
         return
     raise exc_type(f"'{name}' argument must be {get_type_name(constraint)}, got {value.__class__.__name__}")
+
+
+def check_dtype(name: str, value: DataTyped, dtypes: Tuple[DataType]) -> None:
+    if value.dtype not in dtypes:
+        dtypes_str = ", ".join(map(str, dtypes))
+        raise RuntimeError(f"'{name}' dtype must be one of {dtypes_str}, got {value.dtype}")
 
 
 def is_runtime_int(value: Any) -> TypeGuard[RuntimeInt]:
