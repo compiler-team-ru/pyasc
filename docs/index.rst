@@ -30,6 +30,7 @@ PyAsc documentation
 
    development/codestyle
    development/tools
+   development/cannbot-skills
 
 
 .. toctree::
