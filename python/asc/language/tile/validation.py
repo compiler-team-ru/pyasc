@@ -39,7 +39,9 @@ def check_type(name: str, value: Any, constraint: Union[Type, Tuple[Type, ...]],
 def check_dtype(name: str, value: DataTyped, dtypes: Tuple[DataType, ...]) -> None:
     if value.dtype not in dtypes:
         dtypes_str = ", ".join(map(str, dtypes))
-        raise RuntimeError(f"'{name}' dtype must be one of {dtypes_str}, got {value.dtype}")
+        if len(dtypes) > 1:
+            dtypes_str = f"one of {dtypes_str}"
+        raise RuntimeError(f"'{name}' dtype must be {dtypes_str}, got {value.dtype}")
 
 
 def is_runtime_int(value: Any) -> TypeGuard[RuntimeInt]:
