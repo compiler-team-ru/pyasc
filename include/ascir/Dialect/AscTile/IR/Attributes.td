@@ -34,6 +34,7 @@ def AscTile_TileLocationAttr : I32EnumAttr<"TileLocation", "tile location", [
   I32EnumAttrCase<"UB", 26>,
   I32EnumAttrCase<"L1", 27>,
   I32EnumAttrCase<"FIX", 28>,
+  I32EnumAttrCase<"BT", 29>,
 ]> {
   let cppNamespace = "::mlir::asctile";
   let description = "Tile memory location";

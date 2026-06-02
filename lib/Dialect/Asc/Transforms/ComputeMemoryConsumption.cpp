@@ -40,6 +40,8 @@ StringLiteral positionToStr(TPosition position)
             return "L0C";
         case ascendc::TPosition::VECCALC:
             return "UB";
+        case ascendc::TPosition::C2:
+            return "BT";
         default:
             llvm_unreachable("unexpected TPosition value");
     }

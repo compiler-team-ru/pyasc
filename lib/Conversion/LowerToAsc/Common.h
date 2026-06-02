@@ -136,6 +136,8 @@ struct ConvertOp : public OpConversionPattern<OpType> {
                 return ascendc::TPosition::CO1;
             case asctile::TileLocation::UB:
                 return ascendc::TPosition::VECCALC;
+            case asctile::TileLocation::BT:
+                return ascendc::TPosition::C2;
         }
         llvm_unreachable("unexpected TileLocation value");
     }

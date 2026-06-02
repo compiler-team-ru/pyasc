@@ -210,6 +210,7 @@ void bindEnums(py::module& m)
             "symbolize", [](uint8_t selMode) -> ascendc::SELMODE { return static_cast<ascendc::SELMODE>(selMode); });
 
     py::enum_<asctile::TileLocation>(m, "TileLocation", py::module_local())
+        .value("BT", asctile::TileLocation::BT)
         .value("L0A", asctile::TileLocation::L0A)
         .value("L0B", asctile::TileLocation::L0B)
         .value("L0C", asctile::TileLocation::L0C)

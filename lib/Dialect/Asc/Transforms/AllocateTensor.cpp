@@ -36,9 +36,11 @@ TPosition normalizePosition(TPosition position)
         case TPosition::A2:
         case TPosition::B2:
         case TPosition::CO1:
+        case TPosition::C2:
         case TPosition::VECCALC:
             return position;
         case TPosition::B1:
+        case TPosition::C1:
             return TPosition::A1;
         case TPosition::VECIN:
         case TPosition::VECOUT:
