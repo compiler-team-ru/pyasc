@@ -36,12 +36,17 @@ def check_type(name: str, value: Any, constraint: Union[Type, Tuple[Type, ...]],
     raise exc_type(f"'{name}' argument must be {get_type_name(constraint)}, got {value.__class__.__name__}")
 
 
-def check_dtype(name: str, value: DataTyped, dtypes: Tuple[DataType, ...]) -> None:
-    if value.dtype not in dtypes:
+def check_dtype(name: str, value: Union[DataType, DataTyped], dtypes: Union[DataType, Tuple[DataType, ...]],
+                exc_type: Type[Exception] = RuntimeError, *, optional: bool = False) -> None:
+    if optional and value is None:
+        return
+    dtype = value if isinstance(value, DataType) else value.dtype
+    dtypes = (dtypes, ) if isinstance(dtypes, DataType) else dtypes
+    if dtype not in dtypes:
         dtypes_str = ", ".join(map(str, dtypes))
         if len(dtypes) > 1:
             dtypes_str = f"one of {dtypes_str}"
-        raise RuntimeError(f"'{name}' dtype must be {dtypes_str}, got {value.dtype}")
+        raise exc_type(f"'{name}' dtype must be {dtypes_str}, got {dtype}")
 
 
 def is_runtime_int(value: Any) -> TypeGuard[RuntimeInt]:
