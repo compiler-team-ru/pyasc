@@ -315,6 +315,11 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
         ascir::ConstantOpBuilder consts(rewriter);
         auto const0 = consts.i32(0);
         auto const1 = consts.i32(1);
+        auto ui16Type = rewriter.getIntegerType(16, false);
+        auto ui32Type = rewriter.getIntegerType(32, false);
+        auto ui64Type = rewriter.getIntegerType(64, false);
+        auto argTypes = rewriter.getTypeArrayAttr(
+            TypeRange{ui16Type, ui16Type, ui32Type, ui64Type, ui32Type, ui16Type, ui16Type, ui64Type});
         bool isMatrixA = op->hasAttr(asctile::attr::isMatrixA);
         bool isTransposeB = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeB);
         auto dstShapeCols = consts.i32(dstShape[1]);
@@ -330,7 +335,7 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
             }
             auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
                 loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
-                ValueRange{const1, nValue, dValue, const0, srcInfo.shape[1], dstShapeRows, const1, const0});
+                ValueRange{const1, nValue, dValue, const0, srcInfo.shape[1], dstShapeRows, const1, const0}, argTypes);
             rewriter.create<ascendc::DataCopyL2Op>(loc, dst, srcInfo.tensor, nd2NzParams);
         } else {
             auto ndNum = consts.i32(llvm::divideCeilSigned(dstShape[0], ascendc::cubeBlockSize));
@@ -343,7 +348,8 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
                 loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
                 ValueRange{
                     ndNum, nValue, dstShapeCols, srcNdMatrixStride, srcInfo.shape[1], nValue, const1,
-                    dstNzMatrixStride});
+                    dstNzMatrixStride},
+                argTypes);
             rewriter.create<ascendc::DataCopyL2Op>(loc, dst, srcInfo.tensor, nd2NzParams);
         }
         rewriter.replaceOp(op, dst);
