@@ -41,7 +41,6 @@ def matmul_relu_quant_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddres
     (19, 1, 19, torch.bfloat16, [19, 1], [1, 19], asc2.float16, torch.float16),
 ])
 def test_matmul_relu_quant(m, k, n, dtype, tile_a, tile_b, quant_type, quant_type_torch):
-    torch.manual_seed(0)
     a = (torch.rand((m, k), dtype=dtype) - .5) * 10
     b = (torch.rand((k, n), dtype=dtype) - .5) * 10
     c = torch.zeros((a.shape[0], b.shape[1]), dtype=quant_type_torch)
@@ -64,7 +63,6 @@ def matmul_hf32_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_p
 
 
 def test_matmul_hf32():
-    torch.manual_seed(0)
     a = torch.rand((32, 64), dtype=torch.float32)
     b = torch.rand((64, 64), dtype=torch.float32)
     c = torch.zeros((a.shape[0], b.shape[1]), dtype=torch.float32)
@@ -95,7 +93,6 @@ def matmul_l0c_l1_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c
     (64, 64, 64, torch.bfloat16, asc2.bfloat16),
 ])
 def test_matmul_l0c_l1(m, k, n, torch_dtype, pyasc_dtype):
-    torch.manual_seed(0)
     a = (torch.rand((m, k), dtype=torch_dtype) - .5) * 10
     b = (torch.rand((k, n), dtype=torch_dtype) - .5) * 10
     c = torch.zeros((a.shape[0], b.shape[1]), dtype=torch.float32)
@@ -130,10 +127,40 @@ def matmul_transpose_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress
     (64, 32, 128, torch.float32, [32, 64], [128, 32]),
 ])
 def test_matmul_transpose(m, k, n, dtype, tile_a, tile_b):
-    torch.manual_seed(0)
     a = (torch.rand((k, m), dtype=dtype) - .5) * 10
     b = (torch.rand((n, k), dtype=dtype) - .5) * 10
     c = torch.zeros((a.shape[1], b.shape[0]), dtype=torch.float32)
     matmul_transpose_kernel[1](a, b, c, a.shape, b.shape, c.shape, tile_a, tile_b)
     c_ref = a.T.to(torch.float32) @ b.T.to(torch.float32)
+    torch.testing.assert_close(c, c_ref, atol=1e-3, rtol=1e-3)
+
+
+@asc2.jit(always_compile=True)
+def matmul_bias_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, bias_ptr: asc2.GlobalAddress,
+                       c_ptr: asc2.GlobalAddress, a_shape: asc2.ConstExpr, b_shape: asc2.ConstExpr,
+                       bias_shape: asc2.ConstExpr, c_shape: asc2.ConstExpr):
+    a_gm = asc2.tensor(a_ptr, a_shape)
+    b_gm = asc2.tensor(b_ptr, b_shape)
+    bias_gm = asc2.tensor(bias_ptr, bias_shape)
+    c_gm = asc2.tensor(c_ptr, c_shape)
+    a = asc2.load(a_gm, a_shape, offsets=[0, 0], location=asc2.TileLocation.L0A)
+    b = asc2.load(b_gm, b_shape, offsets=[0, 0], location=asc2.TileLocation.L0B)
+    bias_c1 = asc2.load(bias_gm, bias_shape, offsets=[0], location=asc2.TileLocation.L1)
+    bias = asc2.copy(bias_c1, bias_shape, offsets=[0], location=asc2.TileLocation.BT)
+    c = asc2.matmul(a, b, bias)
+    asc2.store(c, c_gm, offsets=[0, 0])
+
+
+@pytest.mark.parametrize("m, k, n, dtype", [
+    (64, 64, 64, torch.float16),
+    (64, 64, 64, torch.bfloat16),
+    (32, 32, 32, torch.float32),
+])
+def test_matmul_with_bias(m, k, n, dtype):
+    a = (torch.rand((m, k), dtype=dtype) - .5) * 10
+    b = (torch.rand((k, n), dtype=dtype) - .5) * 10
+    bias = (torch.rand((n, ), dtype=torch.float32) - .5) * 10
+    c = torch.zeros((a.shape[0], b.shape[1]), dtype=torch.float32)
+    matmul_bias_kernel[1](a, b, bias, c, a.shape, b.shape, bias.shape, c.shape)
+    c_ref = a.to(torch.float32) @ b.to(torch.float32) + bias
     torch.testing.assert_close(c, c_ref, atol=1e-3, rtol=1e-3)

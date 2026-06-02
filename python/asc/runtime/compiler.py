@@ -211,6 +211,7 @@ class Compiler:
             passes.asctile.add_fold_cast(pm)
             passes.asctile.add_transform_math_ops(pm)
             passes.asctile.add_transform_store_fixpipe(pm)
+            passes.asctile.add_detect_bias_load(pm)
             if arch_c310:
                 passes.asctile.add_vector_transpose_to_load(pm)
                 passes.asctile.add_unscalarize_reduction(pm)

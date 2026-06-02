@@ -311,14 +311,14 @@ def RmsNormOp : AscTile_Op<"rms_norm", [
 def MatmulOp : AscTile_Op<"matmul", [
   Pure, AllElementTypesMatch<["matrixA", "matrixB"]>
 ]> {
-  let summary = "Compute matrix multiplication on 2D tiles";
+  let summary = "Compute matrix multiplication on 2D tiles with optional bias";
   Type inputTileType = TileOfRankAndType<[2], [AscTile_Float]>;
   let arguments = (ins inputTileType:$matrixA, inputTileType:$matrixB,
-                   UnitAttr:$hf32);
+                   Optional<TileOfRankAndType<[1], [F32]>>:$bias, UnitAttr:$hf32);
   let results = (outs TileOfRankAndType<[2], [F32]>:$result);
   let assemblyFormat = [{
-    $matrixA `,` $matrixB attr-dict `:` type($matrixA) `,` type($matrixB) `->`
-    type($result)
+    $matrixA `,` $matrixB (`,` $bias^)? attr-dict `:` type($matrixA) `,`
+    type($matrixB) (`,` type($bias)^)? `->` type($result)
   }];
   let hasVerifier = 1;
 }

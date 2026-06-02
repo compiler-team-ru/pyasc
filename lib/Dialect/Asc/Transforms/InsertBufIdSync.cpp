@@ -63,7 +63,7 @@ class InsertBufIdSync {
         if (isa<ascendc::LocalTensorGetValueOp, ascendc::LocalTensorSetValueOp>(op)) {
             return ascendc::Pipe::PIPE_S;
         }
-        if (isa<ascendc::MmadOp>(op)) {
+        if (isa<ascendc::MmadOp, ascendc::MmadWithBiasOp>(op)) {
             return ascendc::Pipe::PIPE_M;
         }
         return ascendc::Pipe::PIPE_V;

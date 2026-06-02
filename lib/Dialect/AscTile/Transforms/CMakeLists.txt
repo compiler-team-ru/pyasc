@@ -9,6 +9,7 @@
 add_mlir_dialect_library(MLIRAscTileTransforms
   CubeTransposeToLoad.cpp
   DensifyUnrollGroups.cpp
+  DetectBiasLoad.cpp
   FoldCast.cpp
   LegalizeMatmul.cpp
   PromotePureOps.cpp

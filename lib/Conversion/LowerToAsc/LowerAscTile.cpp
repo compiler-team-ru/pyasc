@@ -311,12 +311,19 @@ struct ConvertMatmul : ConvertOp<asctile::MatmulOp> {
             rewriter.create<ascendc::SetHF32ModeOp>(loc, consts.i1(true));
             rewriter.create<ascendc::SetHF32TransModeOp>(loc, consts.i1(true));
         }
-        auto mmadParams = emitasc::InitStructBuilder(rewriter.getType<ascendc::MmadParamsType>())
-                              .addField("m", consts.i32(matrixATensorShape[0]))
-                              .addField("n", consts.i32(matrixBTensorShape[1]))
-                              .addField("k", consts.i32(matrixBTensorShape[0]))
-                              .create(rewriter, loc);
-        rewriter.create<ascendc::MmadOp>(loc, dst, matrixA, matrixB, mmadParams);
+        auto initMmadParams = emitasc::InitStructBuilder(rewriter.getType<ascendc::MmadParamsType>())
+                                  .addField("m", consts.i32(matrixATensorShape[0]))
+                                  .addField("n", consts.i32(matrixBTensorShape[1]))
+                                  .addField("k", consts.i32(matrixBTensorShape[0]));
+        if (auto bias = op.getBias()) {
+            initMmadParams.addField("cmatrixInitVal", consts.i1(false)).addField("cmatrixSource", consts.i1(true));
+            Value mmadParams = initMmadParams.create(rewriter, loc);
+            rewriter.create<ascendc::MmadWithBiasOp>(
+                loc, dst, matrixA, matrixB, rewriter.getRemappedValue(bias), mmadParams);
+        } else {
+            Value mmadParams = initMmadParams.create(rewriter, loc);
+            rewriter.create<ascendc::MmadOp>(loc, dst, matrixA, matrixB, mmadParams);
+        }
         rewriter.replaceOp(op, dst);
         if (op.getHf32())
             rewriter.create<ascendc::SetHF32ModeOp>(loc, consts.i1(false));

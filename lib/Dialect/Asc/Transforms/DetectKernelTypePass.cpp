@@ -40,7 +40,7 @@ public:
         moduleOp.walk([&hasVectorOps, &hasCubeOps](Operation* op) {
             if (!hasVectorOps && isa<ascendc::VectorOp>(op))
                 hasVectorOps = true;
-            if (!hasCubeOps && isa<ascendc::MmadOp, ascendc::RegistMatmulObjOp>(op))
+            if (!hasCubeOps && isa<ascendc::MmadOp, ascendc::MmadWithBiasOp, ascendc::RegistMatmulObjOp>(op))
                 hasCubeOps = true;
             if (hasVectorOps && hasCubeOps)
                 return WalkResult::interrupt();

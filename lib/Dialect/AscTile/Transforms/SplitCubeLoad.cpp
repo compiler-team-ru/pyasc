@@ -35,12 +35,14 @@ struct ConvertLoadGMToL0 : OpRewritePattern<asctile::LoadOp> {
     {
         auto opType = op.getType();
         auto tileLoc = opType.getLoc();
-        if (tileLoc != TileLocation::L0A && tileLoc != TileLocation::L0B) {
+        if (tileLoc != TileLocation::L0A && tileLoc != TileLocation::L0B && tileLoc != TileLocation::BT) {
             return failure();
         }
         auto l1Type = TileType::get(opType.getShape(), opType.getElementType(), TileLocation::L1);
         Value l1Tile = rewriter.create<asctile::LoadOp>(
             op.getLoc(), l1Type, op.getBase(), op.getOffsets(), op.getPadValue(), op.getRealShape());
+        if (tileLoc == TileLocation::BT)
+            l1Tile.getDefiningOp()->setAttr(attr::isBias, rewriter.getUnitAttr());
         Value zero = rewriter.create<arith::ConstantOp>(op.getLoc(), rewriter.getI32IntegerAttr(0));
         SmallVector<Value> offsets(opType.getShape().size(), zero);
         rewriter.replaceOpWithNewOp<asctile::CopyOp>(op, op.getType(), l1Tile, offsets);
@@ -67,8 +69,8 @@ struct MarkTileOperandInMmad : OpRewritePattern<asctile::LoadOp> {
                 return failure();
             }
             auto l0TileLoc = copyOp.getType().getLoc();
-            if (l0TileLoc != TileLocation::L0A && l0TileLoc != TileLocation::L0B) {
-                auto diag = op.emitError() << "L1 tile copy to L0A/L0B location is expected only.";
+            if (l0TileLoc != TileLocation::L0A && l0TileLoc != TileLocation::L0B && l0TileLoc != TileLocation::BT) {
+                auto diag = op.emitError() << "L1 tile copy to L0A/L0B/BT location is expected only.";
                 diag.attachNote(copyOp->getLoc()) << "used here unexpectedly";
                 return failure();
             }
