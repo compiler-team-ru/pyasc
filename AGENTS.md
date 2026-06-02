@@ -1,4 +1,17 @@
-# Agent Guidelines for PyAsc2
+# Agent Guidelines for PyAsc
+
+PyAsc is a Python programming model for writing compute kernels that run on Huawei Ascend NPUs.
+Two APIs: `asc` (1:1 Ascend C mapping, `@asc.jit`) for low-level control, `asc2` (tile-based, NumPy-like, `@asc2.jit`) for high-level kernels.
+Requires CANN toolkit (Bisheng compiler + NPU runtime).
+
+## External File Loading
+
+CRITICAL: When you encounter a file reference (e.g., @docs/development/codestyle.rst), use your Read tool to load it on a need-to-know basis.
+
+Instructions:
+- Do NOT preemptively load all references - use lazy loading based on actual need
+- When loaded, treat content as mandatory instructions that override defaults
+- Follow references recursively when needed
 
 ## Build, Lint, and Test Commands
 
@@ -6,7 +19,7 @@
 - Install in development mode (recommended): `pip install -e .`
 - Build wheel: `pip wheel . --no-deps -w dist/`
 - Clean build artifacts: `rm -rf build/ dist/`
-Other options are in `docs/installation/build-from-source.rst`.
+Other options in @docs/installation/build-from-source.rst.
 
 ### Linting and Formatting
 - Run ruff linter: `ruff check python/`
@@ -17,13 +30,26 @@ Other options are in `docs/installation/build-from-source.rst`.
 
 ### Testing
 - Run all Python tests: `pytest python/test/`
-- Run asc2 kernel tests: `pytest python/test/kernels/asc2/`
-- Run asc2 unit tests: `pytest python/test/unit/language/tile/`
-- Run specific test file: `pytest python/test/kernels/asc2/test_vadd.py`
-- Run specific test function: `pytest python/test/kernels/asc2/test_vadd.py::test_vadd`
+- Run asc2 kernel tests: `pytest python/test/asc2/kernels/`
+- Run asc2 operation tests: `pytest python/test/asc2/operations/`
+- Run asc2 target tests: `pytest python/test/asc2/target/`
+- Run asc kernel tests: `pytest python/test/kernels/`
+- Run asc unit tests: `pytest python/test/unit/`
+- Run specific test file: `pytest python/test/asc2/kernels/test_vadd.py`
+- Run specific test function: `pytest python/test/asc2/kernels/test_vadd.py::test_vadd`
 - Run tests in parallel: `pytest -n auto python/test/`
-- Run with coverage: `pytest --cov=asc2 python/test/`
+- Run with coverage: `pytest --cov=asc python/test/`
 - Run backend/MLIR tests: `lit -v test/`
+- Compile-only mode (no NPU required): `pytest --compile-only python/test/asc2/`
+- Select backend/platform: `pytest --backend Model --platform Ascend910B1`
+- Skip FileCheck tests: `pytest --skip-filecheck python/test/unit/`
+
+## Development Guidelines
+
+For detailed code style rules (Python/C++/MLIR): @docs/development/codestyle.rst
+For development tools and IDE setup: @docs/development/tools.rst
+For build instructions and dependencies: @docs/installation/build-from-source.rst
+For runtime environment setup: @docs/installation/setup-runtime-env.rst
 
 ## Code Style Guidelines
 
@@ -72,9 +98,11 @@ Other options are in `docs/installation/build-from-source.rst`.
 
 ### Testing Guidelines
 - Use pytest for Python tests, lit for backend/MLIR tests
-- Place kernel tests in `python/test/kernels/asc2/`, unit tests in `python/test/unit/language/tile/`
+- asc2 tests: `python/test/asc2/kernels/` (end-to-end), `python/test/asc2/operations/` (op-level), `python/test/asc2/target/` (target-specific)
+- asc tests: `python/test/kernels/` (end-to-end), `python/test/unit/` (unit with FileCheck)
 - Use descriptive test names, group related tests in test classes
 - Use fixtures for common setup/teardown, `pytest.skip()` for conditional test execution
+- Unit tests use `FileCheck` fixture to verify generated MLIR (see `@python/test/unit/conftest.py`)
 
 ## PyAsc2 Programming Model
 
@@ -95,7 +123,7 @@ asc2.store(tile, tensor, offsets=[base])
 
 # Arithmetic: add, sub, mul, div, maximum, minimum, left_shift, right_shift
 # Comparison: equal, not_equal, greater, greater_equal, less, less_equal
-# Unary: abs, ceil, floor, negative, relu, relu, sqrt, rsqrt, exp, log, sin, cos, tanh, erf, softmax
+# Unary: abs, ceil, floor, negative, relu, sqrt, rsqrt, exp, log, sin, cos, tanh, erf, softmax
 # Operator overloads: +, -, *, /, >, ==, etc.
 # Reductions: reduce_sum, reduce_max, reduce_min, reduce_prod (with axes, keep_dims)
 # Methods: tile.sum(), tile.max(), etc.
@@ -121,15 +149,15 @@ with asc2.mask(count=8, other=0):
 
 ### JIT Compilation
 ```python
-@asc2.jit # or with options: @asc.jit(always_compile=True, ...)
+@asc2.jit  # or with options: @asc2.jit(always_compile=True, ...)
 def kernel(x_ptr, y_ptr, out_ptr, size: int, TILE: asc.ConstExpr[int]):
     x_gm = asc2.tensor(x_ptr, [size])
     y_gm = asc2.tensor(y_ptr, [size])
     out_gm = asc2.tensor(out_ptr, [size])
     # ... kernel implementation
 
-x = torch.rand_like(..., device="cpu") # Initialize tensors with numpy or torch
-kernel[8](x, y, out, size, TILE=256)   # Launch with 8 cores
+x = torch.rand_like(..., device="cpu")  # Initialize tensors with numpy or torch
+kernel[8](x, y, out, size, TILE=256)    # Launch with 8 cores
 ```
 
 ### JIT Compile Options
@@ -138,43 +166,50 @@ kernel[8](x, y, out, size, TILE=256)   # Launch with 8 cores
 - `reuse_ub=False`: Reuse freed UB regions
 - `always_compile=False`: Bypass cache, recompile every call
 - `opt_level=3`: Bisheng optimization level (1-3)
-Other options are in `python/asc/runtime/compiler.py`.
+Other options in @python/asc/runtime/compiler.py (CompileOptions dataclass).
 
 ### Architecture Notes
-- `python/asc2/`: PyAsc2 frontend API and JIT decorator
-- `python/asc/language/tile/`: Tile operations implementation (tensor.py, tile.py, binary_ops.py, unary_ops.py, reduction_ops.py, memory_ops.py, shape_ops.py, creation_ops.py, atomic_ops.py, indexing_ops.py, prog_model_ops.py, range.py)
-- `lib/Dialect/AscTile/`: asctile MLIR dialect definition
-- `lib/Dialect/AscTile/Transforms/`: AscTile optimization passes
-- `lib/Dialect/AscLower/`: Lowering passes (asctile → ascendc)
+- `python/asc/`: Core Python package (codegen, language APIs, runtime, lib bindings)
+- `python/asc2/`: PyAsc2 frontend API and JIT decorator (thin wrapper over asc)
+- `python/asc/codegen/`: Python AST → ASC-IR (MLIR) translation (FunctionVisitor)
+- `python/asc/language/`: Language APIs (`basic/`, `adv/`, `core/`, `fwk/`, `tile/`)
+- `python/asc/runtime/`: JIT compilation, caching, kernel launching
+- `python/asc/_C/`: pybind11 bindings to C++ backend (`libpyasc`)
+- `include/ascir/`: C++ header files and TableGen definitions for all dialects
+- `lib/Dialect/Asc/`: Asc dialect IR and optimization passes
+- `lib/Dialect/AscTile/`: AscTile dialect IR and optimization passes
+- `lib/Dialect/AscTile/Transforms/`: AscTile passes (UnrollLoop, PromotePureOps, TransformMathOps, etc.)
+- `lib/Dialect/AscVF/`: AscVF dialect (vector fusion)
+- `lib/Dialect/EmitAsc/`: EmitAsc dialect (code emission)
+- `lib/Conversion/LowerToAsc/`: Lowering passes (AscTile → Asc dialect)
+- `lib/Target/AscendC/`: Code emitter (Asc MLIR → Ascend C source)
+- `bin/`: CLI tools (`ascir-opt`, `ascir-translate`, `ascir-lsp`)
 
 ### Compilation Pipeline
-1. Python AST → asctile MLIR (FunctionVisitor)
+1. Python AST → asctile MLIR (FunctionVisitor in `python/asc/codegen/`)
 2. AscTile passes (unrolling, loop transforms, math specialization)
-3. AscLower passes (asctile → ascendc dialect)
-4. ascendc passes (UB allocation, sync insertion, boilerplate)
-5. CodeEmitter (ascendc/asc → Ascend C source)
+3. LowerToAsc conversion passes (asctile → asc dialect)
+4. Asc passes (UB allocation, sync insertion, boilerplate generation)
+5. CodeEmitter (asc MLIR → Ascend C source)
 6. Bisheng compiler (Ascend C → .o binary)
 
 ### Key MLIR Passes
-- **UnrollLoop**: Unroll loops by factor in `asctile.unroll_factor` attribute
-- **PromotePureOps**: Hoist pure ops out of loops
-- **TransformMathOps**: Specialize math ops for tiles
-- **LowerAscTile**: Main lowering to ascendc dialect
-- **ReuseUBAllocation**: Reuse freed UB regions
-- **ComputeMemoryConsumption**: Check UB limits (asc2 only)
+- **AscTile**: UnrollLoop, PromotePureOps, TransformMathOps, LegalizeMatmul, FoldCast, DensifyUnrollGroups
+- **LowerToAsc**: LowerAscTile, LowerAscTileDataTransfer, LowerArith, LowerMath, LowerSCF, LowerAtomic
+- **Asc**: InsertSync, InsertBufIdSync, HoistUBAllocation, ReuseUBAllocation, ComputeMemoryConsumption, GenerateBoilerplatePass
 
 ### Hardware Targets
-- Ascend 910B, Ascend 910_93; Ascend 910_95 (a.k.a. Ascend950PR_95)
+- Ascend 910B series (C220 architecture): Ascend910B1, B2, B2C, B3, B4, B4-1
+- Ascend 910_93 series (C220): Ascend910_9362, 9372, 9381, 9382, 9391, 9392
+- Ascend 910_95 series (C310): Ascend910_9579, 9589, 9599
+- Ascend 950PR series (C310): Ascend950PR_950z, 9579, 957b, 957c, 957d, 9589, 958b, 9599
 - Automatic sync insertion per hardware variant
-- BufID-based sync for 910_95 (InsertBufIdSync)
-
-### Development Workflow
-1. Run linters: `ruff check --fix python/`
-2. Format code: `git diff | yapf-diff -i`
-3. Format C++: `clang-format -i <files>`
-4. Run tests: `pytest -n auto python/test/kernels/asc2/ python/test/unit/language/tile/`
+- BufID-based sync for C310 platforms (InsertBufIdSync)
 
 ### Debugging
 - Use `print_ir_before_all=True` to print IR in-between passes to stderr
 - Use `always_compile=True` to bypass cache
+- Set `PYASC_DUMP_PATH=<dir>` to inspect intermediate IR and generated Ascend C
+- Set `CAMODEL_LOG_PATH=<dir>` to capture simulator logs when running on Model backend
 - Check MLIR with `lit` tests
+- Use `--compile-only` pytest flag to test compilation without NPU hardware
