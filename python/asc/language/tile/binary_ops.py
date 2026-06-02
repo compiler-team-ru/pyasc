@@ -231,16 +231,16 @@ def right_shift(input: Tile, other: RuntimeInt) -> Tile:
 
 
 def check_matmul_arguments(input: Tile, other: Tile, hf32: bool) -> None:
-    if not isinstance(input, Tile) or not isinstance(other, Tile):
-        raise BinaryOperandTypeError(f"Input operands must be tiles, got {type(input)} and {type(other)}")
+    for name, value in ("input", input), ("other", other):
+        check_type(name, value, Tile, BinaryOperandTypeError)
+        check_dtype(name, value, (KT.float16, KT.bfloat16, KT.float32))
     if input.dtype != other.dtype:
         raise RuntimeError(f"Input tiles must have the same types, got {input.dtype} and {other.dtype}")
-    if input.dtype not in (KT.float32, KT.float16, KT.bfloat16):
-        raise RuntimeError(f"Input tiles have unsupported types: {input.dtype}")
     if len(input.shape) != 2 or len(other.shape) != 2:
         raise RuntimeError(f"Input tiles must have two dims, got {len(input.shape)} and {len(other.shape)}")
     if input.shape[1] != other.shape[0]:
         raise RuntimeError(f"Input tiles have incompatible shapes: {input.shape}, {other.shape}")
+    check_type("hf32", hf32, bool)
     if hf32 and input.dtype != KT.float32:
         raise RuntimeError("HF32 mode can only be set when input tile dtype is float32")
 
