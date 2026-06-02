@@ -82,11 +82,12 @@ class PlatformInfo:
     l0a_size: int
     l0b_size: int
     l0c_size: int
+    bt_size: int
 
 
 def get_platform_info(platform: Platform) -> PlatformInfo:
     info_910b = PlatformInfo(ub_size=192 * 1024, l1_size=512 * 1024, l0a_size=64 * 1024, l0b_size=64 * 1024,
-                             l0c_size=128 * 1024)
+                             l0c_size=128 * 1024, bt_size=1024)
     if platform in (Platform.Ascend910B1, Platform.Ascend910B2, Platform.Ascend910B2C, Platform.Ascend910B3,
                     Platform.Ascend910B4, Platform.Ascend910B4_1):
         return info_910b
@@ -98,7 +99,7 @@ def get_platform_info(platform: Platform) -> PlatformInfo:
                     Platform.Ascend950PR_950z, Platform.Ascend950PR_9579, Platform.Ascend950PR_957b,
                     Platform.Ascend950PR_957c, Platform.Ascend950PR_957d, Platform.Ascend950PR_9589,
                     Platform.Ascend950PR_958b, Platform.Ascend950PR_9599):
-        return dataclass_replace(info_910_93, ub_size=248 * 1024)
+        return dataclass_replace(info_910_93, ub_size=248 * 1024, bt_size=4 * 1024)
     raise ValueError(f"Unknown platform: {platform}")
 
 
@@ -203,6 +204,7 @@ class Launcher:
             ("L0A", "l0a_size"),
             ("L0B", "l0b_size"),
             ("L0C", "l0c_size"),
+            ("BT", "bt_size"),
         )
         for key, attr in key_to_attr:
             consumed = memory_consumed.get(key, 0)
