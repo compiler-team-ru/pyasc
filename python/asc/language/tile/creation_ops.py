@@ -182,6 +182,7 @@ def zeros_acc(shape: Iterable[int], dtype: DataType) -> Tile:
             acc = asc2.zeros_acc([16, 16], dtype=asc2.float32)
             result = asc2.matmul(a_tile, b_tile, acc)
     """
+    check_type("dtype", dtype, DataType)
     check_dtype("dtype", dtype, KT.float32)
     shape = verify_shape(shape)
     ir_type = ir.get_asctile_TileType(shape, dtype.to_ir(), TileLocation.L0C)

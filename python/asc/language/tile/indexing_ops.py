@@ -14,7 +14,7 @@ from ..core.ir_value import RuntimeInt, RuntimeNumeric, materialize_ir_value as 
 from ..core.utils import global_builder, require_jit
 from .tile import Tile
 from .utils import create_tile, infer_common_dtype
-from .validation import check_runtime_int, check_type, verify_runtime_ints
+from .validation import check_dtype, check_runtime_int, check_type, verify_runtime_ints
 
 
 @require_jit
@@ -25,6 +25,8 @@ def where(mask: Tile, src0: Union[Tile, RuntimeNumeric], src1: Union[Tile, Runti
     For each element, returns the corresponding element from :code:`src0` if the mask element is true (non-zero),
     otherwise returns the element from :code:`src1`.
 
+    The supported data types for ``src0`` and ``src1``: ``int16``, ``int32``, ``float16``, ``bfloat16``, ``float32``.
+
     Args:
         mask: A boolean tile specifying which elements to select
         src0: The source for elements where mask is true (tile or scalar)
@@ -33,13 +35,30 @@ def where(mask: Tile, src0: Union[Tile, RuntimeNumeric], src1: Union[Tile, Runti
     Returns:
         Tile: A tile with elements selected from :code:`src0` or :code:`src1` based on the mask
 
+    Raises:
+        TypeError: If mask is not a :code:`Tile`, or if :code:`src0` or :code:`src1` is not a :code:`Tile` or scalar
+        RuntimeError: If mask dtype is not ``int1``, or if :code:`src0` or :code:`src1` dtype is not supported
+
     Note:
         At least one of :code:`src0` or :code:`src1` must be a tile with the same shape as the mask.
         Scalars are broadcast to the mask shape.
+
+    Examples:
+        Select elements from two tiles based on a mask: ::
+
+            mask = tile_a > tile_b
+            result = asc2.where(mask, tile_a, tile_b)
+
+        Select elements from a tile or a scalar based on a mask: ::
+
+            mask = tile > 0
+            result = asc2.where(mask, tile, 0)
     """
     check_type("mask", mask, Tile)
-    check_type("src0", src0, (Tile, RuntimeNumeric))
-    check_type("src1", src1, (Tile, RuntimeNumeric))
+    check_dtype("mask", mask, KT.int1)
+    for name, value in ("src0", src0), ("src1", src1):
+        check_type(name, value, (Tile, RuntimeNumeric))
+        check_dtype(name, value, (KT.int16, KT.int32, KT.float16, KT.bfloat16, KT.float32))
     src_dtype = infer_common_dtype(src0, src1)
     src0 = create_tile(src0, src_dtype, mask.shape)
     src1 = create_tile(src1, src_dtype, mask.shape)
@@ -63,7 +82,7 @@ def mask(*, bits: Iterable[RuntimeInt], other: Optional[RuntimeNumeric] = None) 
 def mask(*, count: Optional[RuntimeInt] = None, bits: Optional[Iterable[RuntimeInt]] = None,
          other: Optional[RuntimeNumeric] = None) -> Generator[None, Any, None]:
     """
-    A context manager for masked operations on tiles.
+    [Experimental] A context manager for masked operations on tiles.
 
     Within the mask context, operations are applied only to the specified elements, with other elements optionally set
     to a different value.
@@ -82,8 +101,14 @@ def mask(*, count: Optional[RuntimeInt] = None, bits: Optional[Iterable[RuntimeI
         other: The value to use for elements outside the mask. Default is 0.
 
     Raises:
-        ValueError: If neither or both of :code:`count` and :code:`bits` are provided,
-                    or if :code:`bits` doesn't contain exactly two integers.
+        TypeError: If :code:`other` is not a scalar, :code:`count` is not an integer,
+                   or :code:`bits` does not contain integers
+        RuntimeError: If :code:`bits` does not contain exactly two integers
+        ValueError: If neither or both of :code:`count` and :code:`bits` are provided
+
+    Warning:
+        This is an experimental API which is not guaranteed to work for every relevant vector operation.
+        Its interface, availability, and functional coverage may change in the future.
 
     Note:
         Exactly one of :code:`count` or :code:`bits` must be provided.

@@ -25,6 +25,13 @@ def block_idx() -> PlainValue:
 
     Returns:
         PlainValue: The current block index (0-based)
+
+    Examples:
+        Get the current block index to compute the data offset: ::
+
+            idx = asc2.block_idx()
+            offset = idx * TILE_SIZE
+            tile = asc2.load(x_gm, [TILE_SIZE], offsets=[offset])
     """
     return get_block_idx()
 
@@ -39,6 +46,13 @@ def block_num() -> PlainValue:
 
     Returns:
         PlainValue: The total number of blocks
+
+    Examples:
+        Use block count to compute a stride across blocks: ::
+
+            idx = asc2.block_idx()
+            n_blocks = asc2.block_num()
+            stride = n_blocks * TILE_SIZE
     """
     return get_block_num()
 
@@ -60,12 +74,28 @@ def num_tiles(tensor: Tensor, axis: RuntimeInt, shape: Iterable[int]) -> Runtime
         RuntimeInt: The number of tiles that fit along the specified axis
 
     Raises:
-        RuntimeError: If the rank of tensor shape doesn't match the rank of tile shape
+        TypeError: If tensor is not a :code:`Tensor`, axis is not an integer,
+                   or shape does not contain integers
+        RuntimeError: If the rank of tensor shape doesn't match the rank of tile shape,
+                      or if shape contains non-positive values
         ValueError: If axis exceeds the number of dimensions
 
     Note:
         If the tensor dimension is not evenly divisible by the tile dimension,
         the last tile will be a partial tile that requires masking.
+
+    Examples:
+        Count tiles along the first axis of a 1D tensor: ::
+
+            n = asc2.num_tiles(x_gm, axis=0, shape=[128])
+
+        Use as a loop bound to iterate over all tiles of a tensor: ::
+
+            n = asc2.num_tiles(x_gm, axis=0, shape=[128])
+            for i in asc2.range(n):
+                tile = asc2.load(x_gm, [128], tile_id=[i])
+                result = tile * 2
+                asc2.store(result, out_gm, tile_id=[i])
     """
     check_type("tensor", tensor, Tensor)
     check_runtime_int("axis", axis)
