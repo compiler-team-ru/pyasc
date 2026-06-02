@@ -6,7 +6,7 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-from typing import Any, Callable, Tuple, TypeVar, Union
+from typing import Any, Callable, Optional, Tuple, TypeVar, Union
 
 from ..._C import ir
 from ...common.compat import isinstance
@@ -230,7 +230,7 @@ def right_shift(input: Tile, other: RuntimeInt) -> Tile:
     return Tile(handle)
 
 
-def verify_matmul_arguments(input: Tile, other: Tile, hf32: bool) -> None:
+def check_matmul_arguments(input: Tile, other: Tile, hf32: bool) -> None:
     if not isinstance(input, Tile) or not isinstance(other, Tile):
         raise BinaryOperandTypeError(f"Input operands must be tiles, got {type(input)} and {type(other)}")
     if input.dtype != other.dtype:
@@ -245,14 +245,26 @@ def verify_matmul_arguments(input: Tile, other: Tile, hf32: bool) -> None:
         raise RuntimeError("HF32 mode can only be set when input tile dtype is float32")
 
 
+def check_matmul_bias(bias: Optional[Tile], size: int) -> None:
+    if bias is None:
+        return
+    check_type("bias", bias, Tile)
+    check_dtype("bias", bias, KT.float32)
+    if len(bias.shape) != 1:
+        raise RuntimeError(f"Bias must be 1D tile, got shape {bias.shape}")
+    if bias.shape[0] != size:
+        raise RuntimeError(f"Bias shape {bias.shape[0]} must match last output dimension {size}")
+
+
 @bind_tile_method(name="__matmul__", binary_op="@")
-def matmul(input: Tile, other: Tile, *, hf32: bool = False) -> Tile:
+def matmul(input: Tile, other: Tile, bias: Optional[Tile] = None, *, hf32: bool = False) -> Tile:
     """
-    Computes the matrix multiplication of :code:`input` and :code:`other`.
+    Computes the matrix multiplication of :code:`input` and :code:`other` with optional :code:`bias`.
 
     Args:
         input: The left operand (2D tile)
         other: The right operand (2D tile)
+        bias: Optional bias tile (1D tile of float32)
         hf32: Enable the rounding to HF32 for input tiles with float32 dtype
 
     Returns:
@@ -264,11 +276,14 @@ def matmul(input: Tile, other: Tile, *, hf32: bool = False) -> Tile:
     Note:
         Input tiles must have either :code:`float16` or :code:`float32` data type and compatible shapes.
         Result tile type is always :code:`float32`.
+        Bias must be a 1D tile of :code:`float32` with shape matching the last dimension of the output.
     """
-    verify_matmul_arguments(input, other, hf32)
+    check_matmul_arguments(input, other, hf32)
+    check_matmul_bias(bias, other.shape[1])
     builder = global_builder.get_ir_builder()
     ir_type = ir.get_asctile_TileType([input.shape[0], other.shape[1]], KT.float32.to_ir(), TileLocation.L0C)
-    handle = builder.create_asctile_MatmulOp(ir_type, input.to_ir(), other.to_ir(), hf32)
+    bias_ir = bias.to_ir() if bias is not None else None
+    handle = builder.create_asctile_MatmulOp(ir_type, input.to_ir(), other.to_ir(), bias_ir, hf32)
     return Tile(handle)
 
 
@@ -291,7 +306,7 @@ def matmul_acc(input: Tile, other: Tile, acc: Tile, *, hf32: bool = False) -> No
         Accumulator tile type is always :code:`float32`.
     """
     check_type("acc", acc, Tile)
-    verify_matmul_arguments(input, other, hf32)
+    check_matmul_arguments(input, other, hf32)
     if len(acc.shape) != 2:
         raise RuntimeError(f"Accumulation tile must have two dims, got {len(acc.shape)}")
     if acc.dtype != KT.float32:

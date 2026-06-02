@@ -295,6 +295,11 @@ LogicalResult MatmulOp::verify()
     if (getResult().getType().getLoc() != TileLocation::L0C) {
         return emitOpError("result must have L0C tile location");
     }
+    if (getBias()) {
+        if (getBias().getType().getLoc() != TileLocation::BT) {
+            return emitOpError("bias must have BT tile location");
+        }
+    }
     return success();
 }
 

@@ -80,6 +80,29 @@ def DensifyUnrollGroups : Pass<"asctile-densify-unroll-groups", "func::FuncOp"> 
   }];
 }
 
+def DetectBiasLoad : Pass<"asctile-detect-bias-load", "func::FuncOp"> {
+  let summary = "Detect load operation from GM to L1 for bias";
+  let constructor = "mlir::asctile::createDetectBiasLoadPass()";
+  let description = [{
+    This pass identifies load operations that feed bias data for matrix multiplication and marks them
+    with the `isBias` attribute. This enables subsequent passes to optimize bias handling in matmul operations.
+
+    The pass identifies bias loads by checking if the loaded tile is copied to `TileLocation::BT` (bias table),
+    which is the dedicated memory location for bias values in matmul operations.
+
+    Example transformation:
+    ```mlir
+    // Before: load without bias marking
+    %0 = load %tensor[%offset] : tensor, tile<128xf16, L1>
+    %1 = copy %0[%base] : tile<128xf16, L1> to tile<128xf16, BT>
+
+    // After: load marked as bias
+    %0 = load %tensor[%offset] {isBias} : tensor, tile<128xf16, L1>
+    %1 = copy %0[%base] : tile<128xf16, L1> to tile<128xf16, BT>
+    ```
+  }];
+}
+
 def FoldCast : Pass<"asctile-fold-cast", "func::FuncOp"> {
   let summary = "Fold chains of cast operations and verify supported type conversions";
   let constructor = "mlir::asctile::createFoldCastPass()";

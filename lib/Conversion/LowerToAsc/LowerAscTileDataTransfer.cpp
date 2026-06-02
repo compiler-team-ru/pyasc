@@ -315,6 +315,14 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
         ascir::ConstantOpBuilder consts(rewriter);
         auto const0 = consts.i32(0);
         auto const1 = consts.i32(1);
+        if (op->hasAttrOfType<UnitAttr>(asctile::attr::isBias)) {
+            if (dstShape.size() != 1)
+                return op.emitError() << "L1 load must be 1D for bias";
+            auto calCount = consts.i32(dstShape[0]);
+            rewriter.create<ascendc::DataCopyL2Op>(loc, dst, srcInfo.tensor, calCount);
+            rewriter.replaceOp(op, dst);
+            return success();
+        }
         auto ui16Type = rewriter.getIntegerType(16, false);
         auto ui32Type = rewriter.getIntegerType(32, false);
         auto ui64Type = rewriter.getIntegerType(64, false);
@@ -529,7 +537,8 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
     {
         auto opType = op.getType();
         auto dstPos = opType.getLoc();
-        if (dstPos != asctile::TileLocation::L0A && dstPos != asctile::TileLocation::L0B) {
+        if (dstPos != asctile::TileLocation::L0A && dstPos != asctile::TileLocation::L0B &&
+            dstPos != asctile::TileLocation::BT) {
             op.emitError() << "invalid destination location of the tile";
             return failure();
         }
@@ -539,9 +548,27 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
         auto srcType = src.getType();
         auto srcShape = base.getType().getShape();
         auto offsets = op.getOffsets();
+        ascir::ConstantOpBuilder consts(rewriter);
+        if (dstPos == asctile::TileLocation::BT) {
+            auto srcLoc = base.getType().getLoc();
+            if (srcLoc != asctile::TileLocation::L1) {
+                op.emitError() << "BT destination requires L1 source for bias copy";
+                return failure();
+            }
+            auto dst = createTensorOp(rewriter, loc, opType).getResult();
+            if (srcShape.size() != 1)
+                return op.emitError() << "bias must have 1D shape";
+            int64_t typeSize = ascendc::getElementTypeSize(opType);
+            int64_t blockLen = (srcShape[0] * typeSize) / ascendc::ubBlockSize;
+            auto dataCopyParams = rewriter.create<ascendc::ConstructOp>(
+                loc, rewriter.getType<ascendc::DataCopyParamsType>(),
+                ValueRange{consts.i32(1), consts.i32(blockLen), consts.i32(0), consts.i32(0)});
+            rewriter.create<ascendc::DataCopyL0Op>(loc, dst, src, dataCopyParams);
+            rewriter.replaceOp(op, dst);
+            return success();
+        }
         assert(srcShape.size() == 2 && "supported only tensorShape with 2 dims");
         assert(offsets.size() == srcShape.size() && "must be one offset for each dimension");
-        ascir::ConstantOpBuilder consts(rewriter);
         bool isTensorA = dstPos == asctile::TileLocation::L0A;
         bool isTransposeA = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeA);
         bool isTransposeB = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeB);

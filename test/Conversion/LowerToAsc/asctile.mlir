@@ -49,6 +49,21 @@ func.func @lower_matmul(%arg0: !asctile.tile<8x16xf32, L0A>, %arg1: !asctile.til
   return %0 : !asctile.tile<8x8xf32, L0C>
 }
 
+// CHECK-LABEL: func.func @lower_matmul_bias(%arg0: !asctile.tile<8x16xf32, L0A>, %arg1: !asctile.tile<16x8xf32, L0B>, %arg2: !asctile.tile<8xf32, BT>) -> !asctile.tile<8x8xf32, L0C> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg2 : !asctile.tile<8xf32, BT> to !ascendc.local_tensor<8xf32>
+// CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %arg1 : !asctile.tile<16x8xf32, L0B> to !ascendc.local_tensor<16x8xf32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<8x16xf32, L0A> to !ascendc.local_tensor<8x16xf32>
+// CHECK-NEXT:  %3 = ascendc.local_tensor_auto co1() : <8x8xf32>
+// CHECK-NEXT:  %4 = builtin.unrealized_conversion_cast %3 : !ascendc.local_tensor<8x8xf32> to !asctile.tile<8x8xf32, L0C>
+// CHECK-NEXT:  %5 = emitasc.init_struct !ascendc.mmad_params("m" = %c8_i32 : i32, "n" = %c8_i32 : i32, "k" = %c16_i32 : i32, "cmatrixInitVal" = %false : i1, "cmatrixSource" = %true : i1)
+// CHECK-NEXT:  ascendc.mmad_with_bias %3, %2, %1, %0, %5 : !ascendc.local_tensor<8x8xf32>, !ascendc.local_tensor<8x16xf32>, !ascendc.local_tensor<16x8xf32>, !ascendc.local_tensor<8xf32>, !ascendc.mmad_params
+// CHECK-NEXT:  return %4 : !asctile.tile<8x8xf32, L0C>
+// CHECK-NEXT:}
+func.func @lower_matmul_bias(%arg0: !asctile.tile<8x16xf32, L0A>, %arg1: !asctile.tile<16x8xf32, L0B>, %arg2: !asctile.tile<8xf32, BT>) -> !asctile.tile<8x8xf32, L0C> {
+  %0 = asctile.matmul %arg0, %arg1, %arg2 : !asctile.tile<8x16xf32, L0A>, !asctile.tile<16x8xf32, L0B>, !asctile.tile<8xf32, BT> -> !asctile.tile<8x8xf32, L0C>
+  return %0 : !asctile.tile<8x8xf32, L0C>
+}
+
 // CHECK-LABEL: func.func @lower_matmul_hf32(%arg0: !asctile.tile<8x16xf32, L0A>, %arg1: !asctile.tile<16x8xf32, L0B>) -> !asctile.tile<8x8xf32, L0C> {
 // CHECK:       %0 = builtin.unrealized_conversion_cast %arg1 : !asctile.tile<16x8xf32, L0B> to !ascendc.local_tensor<16x8xf32>
 // CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<8x16xf32, L0A> to !ascendc.local_tensor<8x16xf32>
