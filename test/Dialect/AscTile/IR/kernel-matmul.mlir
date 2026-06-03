@@ -18,7 +18,7 @@ module {
       %6 = arith.muli %arg3, %c64_i32 : i32
       %7 = asctile.copy %4[%c0_i32, %6] : !asctile.tile<64x128xf16, L1>, !asctile.tile<64x64xf16, L0A>
       %8 = asctile.copy %5[%6, %c0_i32] : !asctile.tile<128x256xf16, L1>, !asctile.tile<64x256xf16, L0B>
-      asctile.matmul_acc %7, %8, %3 : <64x64xf16, L0A>, <64x256xf16, L0B>, <64x256xf32, L0C>
+      asctile.matmul_acc %3, %7, %8 : <64x256xf32, L0C>, <64x64xf16, L0A>, <64x256xf16, L0B>
     } {asctile.parallel, asctile.unroll_factor = 2 : index}
     asctile.store %3, %2[%c0_i32, %c0_i32] : !asctile.tile<64x256xf32, L0C>, !asctile.tensor<64x256xf32>
     return

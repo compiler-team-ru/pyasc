@@ -332,12 +332,12 @@ def TransformStoreFixpipe : Pass<"asctile-transform-store-fixpipe", "func::FuncO
     Example transformations:
     ```mlir
     // Before: separate store and relu
-    %result = matmul_acc %a, %b, %acc : tile<16x16xf32, L0C>
+    %result = matmul_acc %acc, %a, %b : tile<16x16xf32, L0C>
     %activated = relu %result : tile<16x16xf32, L0C>
     store %activated, %tensor[%offset] : tile<16x16xf32, L0C>, tensor
 
     // After: fused store_fixpipe with relu flag
-    %result = matmul_acc %a, %b, %acc : tile<16x16xf32, L0C>
+    %result = matmul_acc %acc, %a, %b : tile<16x16xf32, L0C>
     store_fixpipe relu=true %result, %tensor[%offset] : tile<16x16xf32, L0C>, tensor
 
     // Before: separate copy and cast

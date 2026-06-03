@@ -328,12 +328,12 @@ def MatmulAccOp : AscTile_Op<"matmul_acc", [
 ]> {
   let summary = "Compute matrix multiplication with accumulator on 2D tiles";
   Type inputTileType = TileOfRankAndType<[2], [AscTile_Float]>;
-  let arguments = (ins inputTileType:$matrixA, inputTileType:$matrixB,
-                   Arg<TileOfRankAndType<[2], [F32]>, "tile to store to",
-                   [MemWrite]>:$acc, UnitAttr:$hf32);
+  let arguments = (ins Arg<TileOfRankAndType<[2], [F32]>, "tile to store to",
+                   [MemWrite]>:$acc, inputTileType:$matrixA, inputTileType:$matrixB,
+                   UnitAttr:$hf32);
   let assemblyFormat = [{
-    $matrixA `,` $matrixB `,` $acc attr-dict `:`
-    type($matrixA) `,` type($matrixB) `,` type($acc)
+    $acc `,` $matrixA `,` $matrixB attr-dict `:` type($acc) `,` type($matrixA)
+    `,` type($matrixB)
   }];
   let hasVerifier = 1;
 }

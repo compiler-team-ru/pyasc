@@ -24,7 +24,7 @@ def matmul_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr: a
     for i in range(k_tiles, unroll_factor=2, parallel=True):
         a_i = asc2.copy(a_l1, [a_shape[0], k_offset], offsets=[0, i * k_offset], location=asc2.TileLocation.L0A)
         b_i = asc2.copy(b_l1, [k_offset, b_shape[1]], offsets=[i * k_offset, 0], location=asc2.TileLocation.L0B)
-        asc2.matmul_acc(a_i, b_i, acc)
+        asc2.matmul_acc(acc, a_i, b_i)
     asc2.store(acc, c_gm, offsets=[0, 0])
 
 
