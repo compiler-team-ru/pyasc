@@ -10,9 +10,10 @@ import math
 from typing import Tuple
 
 from ..._C import ir
+from ..core.dtype import KnownTypes as KT
 from ..core.utils import global_builder, require_jit
 from .tile import Tile, bind_tile_method
-from .validation import check_type, verify_shape
+from .validation import check_dtype, check_type, verify_shape
 
 
 def shapes_match(shape: Tuple[int, ...], target_shape: Tuple[int, ...]) -> bool:
@@ -31,7 +32,8 @@ def shapes_match(shape: Tuple[int, ...], target_shape: Tuple[int, ...]) -> bool:
 def broadcast_to(input: Tile, *shape: int) -> Tile:
     """
     Creates new tile of a given shape broadcasting data from the input tensor.
-    This function works similar to :code:`torch.broadcast_to`.
+
+    The supported data types are: ``int8``, ``int16``, ``int32``, ``int64``, ``float16``, ``bfloat16``, ``float32``.
 
     Args:
         input: The input tensor
@@ -41,7 +43,8 @@ def broadcast_to(input: Tile, *shape: int) -> Tile:
         Tile: A new tile with the broadcasted shape
 
     Raises:
-        RuntimeError: If the input tile shape cannot be broadcasted to the target shape
+        TypeError: If input is not a Tile or shape contains non-integer values
+        RuntimeError: If the input tile shape cannot be broadcasted to the target shape or shape values are not positive
 
     Examples:
         Broadcast tile to the provided shape: ::
@@ -53,25 +56,9 @@ def broadcast_to(input: Tile, *shape: int) -> Tile:
 
             input:   [0,1,2,3,4, ... 255]
             result:  [[0,1,2,...255], [0,1,2,...255] ... [0,1,2,..255]]
-
-    When lowering to Ascend C, it first it fills the BroadcastTiling structure calling GetBroadcastTilingInfo:
-
-    .. code-block:: c++
-
-        template <typename T, int constRank = -1, uint32_t* constDstShape = nullptr, uint32_t* constSrcShape = nullptr>
-        __aicore__ inline void GetBroadcastTilingInfo(
-        uint32_t rank, const uint32_t* dstShape, const uint32_t* srcShape, bool srcInnerPad, BroadcastTiling& tiling);
-
-    Then it perform Broadcast to fill the destination tensor:
-
-    .. code-block:: c++
-
-        template <typename T, int constRank = -1, uint32_t* constDstShape = nullptr, uint32_t* constSrcShape = nullptr,
-        bool constSrcInnerPad = false>
-        __aicore__ inline void Broadcast(const LocalTensor<T>& dst, const LocalTensor<T>& src, const uint32_t* dstShape,
-        const uint32_t* srcShape, BroadcastTiling* tiling);
     """
     check_type("input", input, Tile)
+    check_dtype("input", input, (KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32))
     shape = verify_shape(shape)
     if not shapes_match(input.shape, shape):
         raise RuntimeError(f"Cannot broadcast tile with shape {input.shape} to {shape}")
@@ -88,6 +75,9 @@ def reshape(input: Tile, *shape: int) -> Tile:
 
     The total number of elements in the new shape must match the total number of elements in the input tile.
 
+    The supported data types are: ``int8``, ``int16``, ``int32``, ``int64``, ``float16``, ``bfloat16``, ``float32``,
+    ``float64``.
+
     Args:
         input: The input tile
         shape: The target shape
@@ -96,9 +86,23 @@ def reshape(input: Tile, *shape: int) -> Tile:
         Tile: A tile with the new shape
 
     Raises:
-        RuntimeError: If the total number of elements doesn't match
+        TypeError: If input is not a Tile or shape contains non-integer values
+        RuntimeError: If the total number of elements doesn't match or shape values are not positive
+
+    Examples:
+        Reshape a 1D tile to 2D: ::
+
+            input = asc2.load(x, [256], offsets=[0])
+            result = input.reshape([16, 16])
+
+        Reshape a 2D tile to 1D: ::
+
+            input = asc2.load(x, [32, 16], offsets=[0, 0])
+            result = input.reshape([512])
     """
     check_type("input", input, Tile)
+    check_dtype("input", input,
+                (KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32, KT.float64))
     shape = verify_shape(shape)
     if math.prod(input.shape) != math.prod(shape):
         raise RuntimeError("Result tile must have the same number of elements as input tile")
@@ -116,11 +120,23 @@ def ravel(input: Tile) -> Tile:
 
     This is equivalent to :code:`reshape(input, input.size)`.
 
+    The supported data types are: ``int8``, ``int16``, ``int32``, ``int64``, ``float16``, ``bfloat16``, ``float32``,
+    ``float64``.
+
     Args:
         input: The input tile
 
     Returns:
         Tile: A 1D tile with all elements from the input
+
+    Raises:
+        TypeError: If input is not a Tile
+
+    Examples:
+        Flatten a 2D tile to 1D: ::
+
+            input = asc2.load(x, [32, 16], offsets=[0, 0])
+            result = input.ravel()
     """
     return reshape(input, math.prod(input.shape))
 
@@ -131,6 +147,9 @@ def expand_dims(input: Tile, *axis: int) -> Tile:
     """
     Insert new dimensions of size 1 at the specified positions.
 
+    The supported data types are: ``int8``, ``int16``, ``int32``, ``int64``, ``float16``, ``bfloat16``, ``float32``,
+    ``float64``.
+
     Args:
         input: The input tile
         axis: The positions where new dimensions should be inserted (0-based)
@@ -138,8 +157,22 @@ def expand_dims(input: Tile, *axis: int) -> Tile:
     Returns:
         Tile: A tile with the new dimensions inserted
 
+    Raises:
+        TypeError: If input is not a Tile
+
     Note:
         Multiple axes can be specified. Axes are processed in sorted order.
+
+    Examples:
+        Insert a dimension at axis 0: ::
+
+            input = asc2.load(x, [256], offsets=[0])
+            result = input.expand_dims(0)  # shape becomes [1, 256]
+
+        Insert multiple dimensions: ::
+
+            input = asc2.load(x, [32, 16], offsets=[0, 0])
+            result = input.expand_dims(0, 2)  # shape becomes [1, 32, 1, 16]
     """
     check_type("input", input, Tile)
     shape = list(input.shape)
@@ -155,6 +188,9 @@ def squeeze(input: Tile, *axis: int) -> Tile:
     """
     Remove dimensions of size 1 from the tile.
 
+    The supported data types are: ``int8``, ``int16``, ``int32``, ``int64``, ``float16``, ``bfloat16``, ``float32``,
+    ``float64``.
+
     Args:
         input: The input tile.
         axis: The positions of dimensions to remove (0-based). If not provided, all dimensions of size 1 are removed.
@@ -163,7 +199,19 @@ def squeeze(input: Tile, *axis: int) -> Tile:
         Tile: A tile with the specified dimensions removed
 
     Raises:
+        TypeError: If input is not a Tile
         RuntimeError: If attempting to squeeze a dimension that is not of size 1
+
+    Examples:
+        Remove all dimensions of size 1: ::
+
+            input = asc2.load(x, [1, 32, 1, 16], offsets=[0, 0, 0, 0])
+            result = input.squeeze()  # shape becomes [32, 16]
+
+        Remove a specific dimension: ::
+
+            input = asc2.load(x, [1, 32, 16], offsets=[0, 0, 0])
+            result = input.squeeze(0)  # shape becomes [32, 16]
     """
     check_type("input", input, Tile)
     shape = []
@@ -183,13 +231,28 @@ def transpose(input: Tile) -> Tile:
     """
     Transpose a 2D tile by swapping its dimensions.
 
+    The supported data types are: ``int8``, ``int16``, ``int32``, ``int64``, ``float16``, ``bfloat16``, ``float32``,
+    ``float64``.
+
     Args:
         input: The input tile (must be 2D)
 
     Returns:
         Tile: The transposed tile with swapped dimensions
+
+    Raises:
+        TypeError: If input is not a Tile
+        RuntimeError: If the input tile dtype is not supported
+
+    Examples:
+        Transpose a 2D tile: ::
+
+            input = asc2.load(x, [32, 16], offsets=[0, 0])
+            result = input.transpose()  # shape becomes [16, 32]
     """
     check_type("input", input, Tile)
+    check_dtype("input", input,
+                (KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32, KT.float64))
     ir_type = ir.clone_shaped_type(input.to_ir().get_type(), [input.shape[1], input.shape[0]])
     handle = global_builder.get_ir_builder().create_asctile_TransposeOp(ir_type, input.to_ir())
     return Tile(handle)
