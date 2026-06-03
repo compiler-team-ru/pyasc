@@ -1,0 +1,171 @@
+# Performance tips
+
+```{contents} Table of Contents
+:local:
+```
+
+## Key Performance Principles
+
+### 1. More Cores = More Performance
+
+Ascend NPUs expose dozens of AI Cores (up to 56+ on C310). **Distribute work across as many cores as possible.** Under-utilizing cores is the single biggest performance mistake.
+
+```python
+# Good: spread rows across all available cores
+rows_per_block = asc2.ceildiv(input_num_rows, asc2.block_num())
+block_offset = asc2.block_idx() * rows_per_block
+
+# Bad: only use a few cores, leaving most idle
+if asc2.block_idx() < 4:
+    ...
+```
+
+Launch with the maximum core count the problem allows:
+```python
+kernel[56](...)  # use all 56 cores when workload is large enough
+```
+
+Each core processes its own slice of data in parallel — doubling active cores roughly doubles throughput.
+
+### 2. Bigger Tiles = Better Performance, Less Transfer Overhead
+
+Every `asc2.load` / `asc2.store` is a DMA transfer between global memory (HBM) and on-chip UB. **Larger tiles amortize transfer latency and reduce the total number of transfers.**
+
+```python
+# Good: large tile, fewer transfers
+tile_length = 10496  # ~40 KB for fp32 — fills UB well
+for i in asc2.range(loop_count, ...):
+    xt = asc2.load(in_gm, [tile_length], ...)
+
+# Bad: small tile, many transfers, high overhead
+tile_length = 128  # only 512 bytes — mostly waiting on DMA
+for i in asc2.range(huge_loop_count, ...):
+    xt = asc2.load(in_gm, [tile_length], ...)
+```
+
+**Rule of thumb**: make tiles as large as UB memory allows (typically ~256 KB total, shared among all live tiles). The test suite uses tiles of 10496–18752 elements for fp32 kernels (40–75 KB per tile).
+
+### 3. Use `ConstExpr` for Static Code Generation
+
+**All tiling parameters, shapes, and loop bounds must be typed as `asc2.ConstExpr`.** This tells the JIT compiler to treat them as compile-time constants, enabling:
+- Full loop unrolling (`unroll_factor` baked into generated code)
+- Static UB allocation (`static_alloc=True`) — no runtime memory management overhead
+- Dead-code elimination and constant folding in the MLIR pipeline
+
+```python
+# Good: all tiling params are ConstExpr → static, optimized code
+@asc2.jit(static_alloc=True, reuse_ub=True)
+def kernel(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
+           input_length: asc2.ConstExpr, tile_length: asc2.ConstExpr,
+           unroll_factor: asc2.ConstExpr):
+    ...
+
+# Bad: plain int → dynamic code, no unrolling, runtime overhead
+def kernel(input_ptr, output_ptr, input_length: int, tile_length: int):
+    ...
+```
+
+`ConstExpr` values are fixed at JIT compile time. Changing them triggers recompilation, but the resulting binary is significantly faster.
+
+---
+
+## JIT Options and Loop Control
+
+### JIT Decorator Options
+
+| Option | Purpose | Recommended Usage |
+|--------|---------|-------------------|
+| `static_alloc` | Static UB allocation at compile time | Enabling recommended for most kernels. Leads to faster execution, no runtime memory management. Requires all tile shapes to be `ConstExpr`. When disabled provides TPipe-managed dynamic UB allocation. Use only for complex control flow with variable tile sizes. Slower but more flexible. |
+| `reuse_ub` | Reuse freed UB regions across iterations | Enabling recommended for most kernels. Reduces peak UB consumption by reusing memory. |
+| `reuse_ub_in_out` | Reuse input/output UB slots | Enable when input/output tiles can share memory (e.g., in-place operations). |
+| `vf_fusion` | Enable vector fusion (experimental) | Advanced option, when enabled lowering generated code to register level API. Experimental feature. May improve performance for element-wise chains. |
+| `always_compile` | Cached kernels usage | When enabled ignores cached kernels, provides recompilation. |
+
+### Loop Control: `unroll_factor` and `parallel`
+
+These parameters control how loops are compiled and executed:
+
+**`unroll_factor=N`** (passed to `asc2.range()` or `range()`):
+- Unrolls the loop N times at compile time
+- Reduces loop overhead and enables instruction-level parallelism
+- **Recommended**: `unroll_factor=2` for most kernels, `unroll_factor=1` for very large tiles or memory-bound operations
+- Must be `ConstExpr` for static unrolling
+
+**`parallel=True`** (passed to `asc2.range()` or `range()`):
+- Enables parallel load/store optimization across loop iterations
+- Allows overlapping DMA transfers with computation
+- **Recommended**: Enable for outer loops that perform independent tile operations
+- Works best with `unroll_factor >= 2`
+
+```python
+# Recommended pattern: unroll + parallel for outer tile loop
+for i in asc2.range(loop_count, unroll_factor=2, parallel=True):
+    xt = asc2.load(in_gm, [tile_length], ...)
+    zt = xt + yt
+    asc2.store(zt, out_gm, ...)
+
+# For nested loops: parallel on outer, sequential on inner
+for i in asc2.range(row_iters, unroll_factor=2, parallel=True):
+    for j in asc2.range(col_iters, parallel=False):
+        # inner loop operations
+```
+
+---
+
+## Measuring Performance with the Profiler
+
+The test suite provides a built-in `profiler` fixture that wraps kernel launches with NPU hardware profiling.
+
+### Enabling Profiling
+
+Profiling only activates on real NPU hardware with the `--profile` flag:
+
+```bash
+# Profile on NPU backend (requires physical Ascend NPU)
+pytest --backend NPU --profile python/test/asc2/target/test_vadd.py
+
+# Profile with multiple runs per test (more stable median)
+pytest --backend NPU --profile --runs 10 python/test/asc2/target/test_vadd.py
+
+# Select specific platform
+pytest --backend NPU --profile --platform Ascend950PR_9599 python/test/asc2/target/
+```
+
+Without `--profile` or when not using the NPU backend, a `StubProfiler` is used (no-op).
+
+### Using the Profiler in Tests
+
+Wrap the kernel launch loop with `profiler.profile()`:
+
+```python
+def test_my_kernel(profiler, runs, block_num, ...):
+    in_tensor = torch.randn(...)
+    out_tensor = torch.zeros(...)
+
+    with profiler.profile():
+        for _ in range(runs):
+            my_kernel[block_num](in_tensor, out_tensor, ...)
+
+    expected = torch_ref(in_tensor)
+    torch.testing.assert_close(out_tensor, expected, atol=1e-3, rtol=1e-3)
+```
+
+The `runs` fixture (controlled by `--runs`, default=1) determines how many kernel launches are timed. Multiple runs produce a more stable median duration.
+
+### Output
+
+After the test session, profiling results are printed in a summary table:
+
+```
+============================== Profiling results ==============================
+python/test/asc2/target/test_vadd.py::test_add[...]: 12.34 μs
+python/test/asc2/target/test_softmax.py::test_softmax[...]: 45.67 μs
+```
+
+The reported duration is the **median task time** across all runs (first run is skipped as warmup via `skip=1` in `task_time_median`).
+
+### Profiling Tips
+
+- **Use `--runs 10` or more** for stable measurements — single runs have high variance.
+- **Vary core number and tile sizes**: run the same test with different `tile_length` values to see transfer overhead impact. Vary `block_num` to find the sweet spot (more cores = more parallelism, but decrease if work per core is too small).
+- **Use `always_compile=False` for fast iterations**: by default, compiled kernels are cached. Set `always_compile=True` only when actively debugging compilation issues. Use `--compile-only` to verify tiling decisions compile without UB overflow before running on hardware.
