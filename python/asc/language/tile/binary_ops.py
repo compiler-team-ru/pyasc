@@ -262,21 +262,48 @@ def matmul(input: Tile, other: Tile, bias: Optional[Tile] = None, *, hf32: bool 
     Computes the matrix multiplication of :code:`input` and :code:`other` with optional :code:`bias`.
 
     Args:
-        input: The left operand (2D tile)
-        other: The right operand (2D tile)
-        bias: Optional bias tile (1D tile of float32)
-        hf32: Enable the rounding to HF32 for input tiles with float32 dtype
+        input: The left operand (2D tile in :code:`L0A`)
+        other: The right operand (2D tile in :code:`L0B`)
+        bias: Optional bias tile (1D tile of :code:`float32` in :code:`BT`)
+        hf32: Enable the rounding to HF32 for input tiles with :code:`float32` dtype
 
     Returns:
-        Tile: The result of the matrix multiplication
+        Tile: The result of the matrix multiplication (2D tile in :code:`L0C`)
 
     Raises:
-        RuntimeError: If input tiles are not 2D, have incompatible shapes, or unsupported dtype
+        TypeError: If input or other is not a Tile
+        RuntimeError: If input tiles are not 2D, have incompatible shapes, unsupported dtype,
+            or bias has wrong shape/dtype
 
     Note:
-        Input tiles must have either :code:`float16` or :code:`float32` data type and compatible shapes.
-        Result tile type is always :code:`float32`.
+        Input tiles must have either :code:`float16`, :code:`bfloat16`, or :code:`float32` data type
+        and compatible shapes. Result tile type is always :code:`float32`.
         Bias must be a 1D tile of :code:`float32` with shape matching the last dimension of the output.
+
+    Examples:
+        Basic matrix multiplication using operator syntax: ::
+
+            a = asc2.load(a_gm, [64, 128], offsets=[0, 0], location=asc2.TileLocation.L0A)
+            b = asc2.load(b_gm, [128, 256], offsets=[0, 0], location=asc2.TileLocation.L0B)
+            c = a @ b  # result shape: [64, 256], location: L0C
+
+        Matrix multiplication with bias: ::
+
+            a = asc2.load(a_gm, [64, 128], offsets=[0, 0], location=asc2.TileLocation.L0A)
+            b = asc2.load(b_gm, [128, 256], offsets=[0, 0], location=asc2.TileLocation.L0B)
+            bias = asc2.load(bias_gm, [256], offsets=[0], location=asc2.TileLocation.BT)
+            c = asc2.matmul(a, b, bias)
+
+        Matrix multiplication with HF32 mode (for float32 inputs): ::
+
+            a = asc2.load(a_gm, [32, 64], offsets=[0, 0], location=asc2.TileLocation.L0A)
+            b = asc2.load(b_gm, [64, 64], offsets=[0, 0], location=asc2.TileLocation.L0B)
+            c = asc2.matmul(a, b, hf32=True)
+
+        Store result to global memory: ::
+
+            c = a @ b
+            asc2.store(c, c_gm, offsets=[0, 0])
     """
     check_matmul_arguments(input, other, hf32)
     check_matmul_bias(bias, other.shape[1])
@@ -289,21 +316,49 @@ def matmul(input: Tile, other: Tile, bias: Optional[Tile] = None, *, hf32: bool 
 
 def matmul_acc(acc: Tile, input: Tile, other: Tile, *, hf32: bool = False) -> None:
     """
-    Computes the matrix multiplication of :code:`input` and :code:`other` with accumulator :code:`acc`.
+    Computes the matrix multiplication of :code:`input` and :code:`other` and accumulates the result into :code:`acc`.
+
+    This function performs in-place accumulation, adding the result of :code:`input @ other` to the existing
+    accumulator values. Use :py:func:`asc2.zeros_acc` to create a zero-initialized accumulator. For simple matrix
+    multiplication without accumulation, use :py:func:`matmul` which returns a new tile.
+
+    **Rationale:** Ascend's Cube units operate on a dedicated L0C accumulator register where the accumulator and matmul
+    destination are the same physical entity—the hardware accumulates in-place as part of the matmul operation itself.
+    Unlike general-purpose memory (UB, L1), L0C is a specialized register file designed for this exact use case. This
+    destination-passing style makes the hardware behavior explicit: you create an accumulator with :code:`zeros_acc`,
+    reuse it across multiple matmul operations, then read the final result. While other frameworks may use functional
+    style (e.g. :code:`acc = matmul(acc, a, b)`), that approach would either require implicit copies from L0C (defeating
+    the purpose of the dedicated accumulator) or obscure the fact that accumulation happens in specialized hardware.
 
     Args:
-        acc: Accumulator of matmul result (2D tile). Must be created with :py:func:`asc2.zeros_acc`.
-        input: The left operand (2D tile).
-        other: The right operand (2D tile).
-        hf32: Enable the rounding to HF32 for input tiles with float32 dtype.
+        acc: Accumulator tile (2D tile in :code:`L0C`). Must be created with :py:func:`asc2.zeros_acc`.
+        input: The left operand (2D tile in :code:`L0A`)
+        other: The right operand (2D tile in :code:`L0B`)
+        hf32: Enable the rounding to HF32 for input tiles with :code:`float32` dtype
 
     Raises:
+        TypeError: If acc, input, or other is not a Tile
         RuntimeError: If input tiles are not 2D, have incompatible shapes, unsupported dtype,
-                      or accumulator has wrong shape/dtype
+            or accumulator has wrong shape/dtype
 
     Note:
-        Input tiles must have either :code:`float16` or :code:`float32` data type and compatible shapes.
-        Accumulator tile type is always :code:`float32`.
+        Input tiles must have either :code:`float16`, :code:`bfloat16`, or :code:`float32` data type
+        and compatible shapes. Accumulator tile type is always :code:`float32`.
+
+    Examples:
+        Accumulate multiple matrix multiplications (e.g., for K-tiled matmul): ::
+
+            acc = asc2.zeros_acc([64, 256], dtype=asc2.float32)
+            for k in range(k_tiles):
+                a_k = asc2.copy(a_l1, [64, 32], offsets=[0, k * 32], location=asc2.TileLocation.L0A)
+                b_k = asc2.copy(b_l1, [32, 256], offsets=[k * 32, 0], location=asc2.TileLocation.L0B)
+                asc2.matmul_acc(acc, a_k, b_k)
+            asc2.store(acc, c_gm, offsets=[0, 0])
+
+        Accumulate with HF32 mode (for float32 inputs): ::
+
+            acc = asc2.zeros_acc([32, 64], dtype=asc2.float32)
+            asc2.matmul_acc(acc, a_l0a, b_l0b, hf32=True)
     """
     check_type("acc", acc, Tile)
     check_dtype("acc", acc, KT.float32)

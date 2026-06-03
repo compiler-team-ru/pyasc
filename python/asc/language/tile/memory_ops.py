@@ -56,6 +56,7 @@ def copy(tile: Tile, shape: Optional[Iterable[int]] = None, *, offsets: Optional
     Args:
         tile: The source tile to copy.
         shape: The shape of the resulting tile. If None, uses the source tile's shape.
+            Must contain static values (e.g., :code:`ConstExpr` or compile-time constants).
         offsets: The offsets into the source tile for each dimension. Default is zeros.
         location: The memory location for the destination tile. Default is :code:`TileLocation.UB`.
             Supported location transfers: ``L1`` to ``L0A``, ``L1`` to ``L0B``, ``L1`` to ``BT``, ``L0C`` to ``L1``.
@@ -146,6 +147,7 @@ def load(tensor: Tensor, shape: Optional[Iterable[int]] = None, *, real_shape: O
     Args:
         tensor: The source tensor in global memory.
         shape: The shape of the tile to load. If None, loads a scalar value.
+            Must contain static values (e.g., :code:`ConstExpr` or compile-time constants).
         real_shape: Explicitly specify how many elements to load from the tensor.
             The tile will have the given :code:`shape`, but only :code:`real_shape` elements are loaded;
             remaining elements are filled with :code:`pad_value`. Must match the rank of :code:`shape`
