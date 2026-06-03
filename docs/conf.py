@@ -13,6 +13,8 @@ import re
 import tempfile
 from pathlib import Path
 
+from sphinx_gallery.sorting import FileNameSortKey
+
 package_root = Path(os.pardir).resolve()
 
 
@@ -109,6 +111,7 @@ author = 'Huawei Technologies Co., Ltd.'
 
 extensions = [
     "myst_parser",
+    "sphinx_gallery.gen_gallery",
     "sphinx_rtd_theme",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
@@ -131,6 +134,16 @@ html_css_files = [
 suppress_warnings = [
     "myst.xref_missing",
 ]
+
+# -- Options for Gallery
+# https://sphinx-gallery.github.io/stable/getting_started.html#configure-and-use-sphinx-gallery
+
+sphinx_gallery_conf = {
+    "download_all_examples": False,
+    "examples_dirs": [str(package_root / "python" / "tutorials" / "asc2")],
+    "gallery_dirs": ["programming-guide/tutorials"],
+    "within_subsection_order": FileNameSortKey,
+}
 
 
 def setup(app):
