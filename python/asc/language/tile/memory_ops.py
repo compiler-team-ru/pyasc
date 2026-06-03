@@ -46,17 +46,49 @@ def copy(tile: Tile, shape: Optional[Iterable[int]] = None, *, offsets: Optional
     """
     Copy a tile to a new tile, optionally reshaping and relocating.
 
+    **Rationale:** Unlike frameworks with simpler memory hierarchies (e.g., CUDA's global/shared/registers), Ascend NPUs
+    expose multiple local memory levels (L1, L0A, L0B, L0C, UB) where local-to-local transfers are common. :code:`load`
+    and :code:`store` have clear directional semantics when one endpoint is global memory ("load from global", "store to
+    global"), but this breaks down for local-to-local transfers: the same L0C→L1 operation is a "store" from L0C's
+    perspective yet a "load" from L1's. :code:`copy` eliminates this ambiguity by providing a direction-agnostic
+    operation that clearly expresses intent regardless of which memory level you're reasoning from.
+
     Args:
         tile: The source tile to copy.
         shape: The shape of the resulting tile. If None, uses the source tile's shape.
         offsets: The offsets into the source tile for each dimension. Default is zeros.
         location: The memory location for the destination tile. Default is :code:`TileLocation.UB`.
+            Supported location transfers: ``L1`` to ``L0A``, ``L1`` to ``L0B``, ``L1`` to ``BT``, ``L0C`` to ``L1``.
 
     Returns:
         Tile: A new tile that is a copy of the source tile
 
     Raises:
+        TypeError: If tile is not a Tile or location is not a TileLocation
         RuntimeError: If shape is invalid, data alignment check fails, or offsets rank mismatch
+
+    Examples:
+        Copy a tile with the same shape: ::
+
+            tile = asc2.load(x_gm, [128], offsets=[0])
+            tile_copy = asc2.copy(tile)
+
+        Copy a sub-tile from a larger tile with explicit shape and offsets: ::
+
+            tile = asc2.load(x_gm, [64, 64], offsets=[0, 0])
+            sub_tile = asc2.copy(tile, [32, 32], offsets=[16, 16])
+
+        Copy a tile to a different memory location (e.g., L0A for matrix multiplication): ::
+
+            a_l1 = asc2.load(a_gm, [64, 128], offsets=[0, 0], location=asc2.TileLocation.L1)
+            a_l0a = asc2.copy(a_l1, [64, 32], offsets=[0, 0], location=asc2.TileLocation.L0A)
+            b_l0b = asc2.copy(b_l1, [32, 64], offsets=[0, 0], location=asc2.TileLocation.L0B)
+
+        Copy accumulator result from L0C to L1: ::
+
+            acc = asc2.zeros_acc([64, 64], dtype=asc2.float32)
+            asc2.matmul_acc(acc, a_l0a, b_l0b)
+            result_l1 = asc2.copy(acc, location=asc2.TileLocation.L1)
     """
     check_type("tile", tile, Tile)
     check_type("location", location, TileLocation)
@@ -114,13 +146,15 @@ def load(tensor: Tensor, shape: Optional[Iterable[int]] = None, *, real_shape: O
     Args:
         tensor: The source tensor in global memory.
         shape: The shape of the tile to load. If None, loads a scalar value.
-        real_shape: The actual shape of data when loading from a partial tile.
-            Used when the tile shape is larger than the available data.
-            Must match the rank of :code:`shape` and each dimension must not exceed the corresponding tile dimension.
+        real_shape: Explicitly specify how many elements to load from the tensor.
+            The tile will have the given :code:`shape`, but only :code:`real_shape` elements are loaded;
+            remaining elements are filled with :code:`pad_value`. Must match the rank of :code:`shape`
+            and each dimension must not exceed the corresponding tile dimension.
         offsets: The offsets into the tensor for each dimension. Mutually exclusive with :code:`tile_id`.
         tile_id: The tile index for each dimension, where offset is computed as :code:`tile_id * shape`.
             Mutually exclusive with :code:`offsets`.
         location: The memory location for the tile. Default is :code:`TileLocation.UB`.
+            Available locations: :code:`UB`, :code:`L1`, :code:`L0A`, :code:`L0B`, :code:`BT`.
         pad_value: The value to use for padding when :code:`real_shape` is provided. Default is 0.
 
     Returns:
@@ -128,10 +162,45 @@ def load(tensor: Tensor, shape: Optional[Iterable[int]] = None, *, real_shape: O
         PlainValue: A scalar value loaded from the tensor (when :code:`shape` is None)
 
     Raises:
+        TypeError: If tensor is not a Tensor or location is not a TileLocation
         ValueError: If neither or both of :code:`offsets` and :code:`tile_id` are provided
+        RuntimeError: If shape is invalid, data alignment check fails, offsets rank mismatch,
+            or real_shape exceeds tile shape
 
     Note:
         Exactly one of :code:`offsets` or :code:`tile_id` must be provided.
+
+    Examples:
+        Load a 1D tile using explicit offsets: ::
+
+            x_gm = asc2.tensor(x_ptr, [1024])
+            tile = asc2.load(x_gm, [128], offsets=[256])
+
+        Load a 1D tile using tile_id (offset = tile_id * shape): ::
+
+            x_gm = asc2.tensor(x_ptr, [1024])
+            tile = asc2.load(x_gm, [128], tile_id=[2])  # loads from offset 256
+
+        Load a 2D tile from a 2D tensor: ::
+
+            x_gm = asc2.tensor(x_ptr, [64, 128])
+            tile = asc2.load(x_gm, [16, 32], offsets=[8, 16])
+
+        Load a scalar value: ::
+
+            x_gm = asc2.tensor(x_ptr, [1024])
+            scalar = asc2.load(x_gm, offsets=[42])
+
+        Load a 1D tile with padding (load fewer elements than tile shape): ::
+
+            x_gm = asc2.tensor(x_ptr, [256])
+            tile = asc2.load(x_gm, [128], offsets=[200], pad_value=2.0)
+
+        Load a 2D tile with real_shape and padding (load fewer elements than tile shape): ::
+
+            x_gm = asc2.tensor(x_ptr, [100, 100])
+            tile = asc2.load(x_gm, [16, 16], offsets=[0, 0], real_shape=[12, 12], pad_value=-1.0)
+            # tile has shape [16, 16], but only 12x12 elements loaded from tensor, rest padded with -1.0
     """
     check_type("tensor", tensor, Tensor)
     check_type("location", location, TileLocation)
@@ -186,12 +255,13 @@ def store(value: Union[Tile, RuntimeNumeric], tensor: Tensor, *, real_shape: Opt
     2. **Store a tile with tile_id**: Store a tile where the offset is computed as :code:`tile_id * tile_shape` for each
        dimension.
 
-    3. **Store a scalar**: Store a single scalar value (or a tile with one element) at the specified offsets.
+    3. **Store a scalar**: Store a single scalar value (or a tile with exactly one element) at the specified offsets.
 
     Args:
         value: The source value to store. Can be a tile, a scalar value, or a tile with exactly one element.
         tensor: The destination tensor in global memory.
-        real_shape: The actual shape of data when storing a partial tile.
+        real_shape: Explicitly specify how many elements to store to the tensor.
+            The tile has its full shape, but only :code:`real_shape` elements are written to the tensor.
             Must match the rank of the tile and each dimension must not exceed the corresponding tile dimension.
             Cannot be used for scalar stores.
         offsets: The offsets into the tensor for each dimension. Mutually exclusive with :code:`tile_id`.
@@ -200,12 +270,49 @@ def store(value: Union[Tile, RuntimeNumeric], tensor: Tensor, *, real_shape: Opt
             Mutually exclusive with :code:`offsets`. Cannot be used for scalar stores.
 
     Raises:
+        TypeError: If value is not a Tile or numeric, or tensor is not a Tensor
         ValueError: If neither or both of :code:`offsets` and :code:`tile_id` are provided (for tile stores), or if
-                    :code:`tile_id` or :code:`real_shape` is used with scalar stores.
+            :code:`tile_id` or :code:`real_shape` is used with scalar stores
+        RuntimeError: If data alignment check fails, offsets rank mismatch, or real_shape exceeds tile shape
 
     Note:
         For tile stores, exactly one of :code:`offsets` or :code:`tile_id` must be provided.
         For scalar stores, :code:`offsets` must be provided and :code:`tile_id` and :code:`real_shape` cannot be used.
+        Tiles from :code:`UB` and :code:`L0C` memory locations can be stored to global memory.
+
+    Examples:
+        Store a 1D tile using explicit offsets: ::
+
+            out_gm = asc2.tensor(out_ptr, [1024])
+            asc2.store(tile, out_gm, offsets=[256])
+
+        Store a 1D tile using tile_id (offset = tile_id * tile_shape): ::
+
+            out_gm = asc2.tensor(out_ptr, [1024])
+            asc2.store(tile, out_gm, tile_id=[2])  # stores at offset 2 * tile.shape[0]
+
+        Store a 2D tile to a 2D tensor: ::
+
+            out_gm = asc2.tensor(out_ptr, [64, 128])
+            asc2.store(tile, out_gm, offsets=[8, 16])
+
+        Store a scalar value: ::
+
+            out_gm = asc2.tensor(out_ptr, [1024])
+            asc2.store(42.0, out_gm, offsets=[0])
+
+        Store a 2D tile with explicit real_shape (store fewer elements than tile shape): ::
+
+            out_gm = asc2.tensor(out_ptr, [100, 100])
+            asc2.store(tile, out_gm, offsets=[0, 0], real_shape=[12, 12])
+            # tile has shape [16, 16], but only 12x12 elements stored to tensor
+
+        Store an accumulator tile (from L0C) directly to global memory: ::
+
+            acc = asc2.zeros_acc([64, 128], dtype=asc2.float32)
+            asc2.matmul_acc(acc, a_l0a, b_l0b)
+            out_gm = asc2.tensor(out_ptr, [64, 128])
+            asc2.store(acc, out_gm, offsets=[0, 0])
     """
     check_type("value", value, (Tile, RuntimeNumeric))
     check_type("tensor", tensor, Tensor)
