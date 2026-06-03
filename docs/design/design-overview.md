@@ -213,7 +213,7 @@ Operator overloads on `Tile` (`+`, `-`, `*`, `/`, `>`, `==`, …) call the same 
 
 **Matrix multiply**:
 - `matmul(a, b)` — 2-D float tiles; result is always `float32`.
-- `matmul_acc(a, b, acc)` — fused matmul that accumulates into an existing `acc` tile (typically created with `zeros_acc`).
+- `matmul_acc(acc, a, b)` — fused matmul that accumulates into an existing `acc` tile (typically created with `zeros_acc`).
 
 **Conditional / masking**:
 - `where(mask, src0, src1)` — element-wise select.

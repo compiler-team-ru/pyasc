@@ -180,7 +180,7 @@ def zeros_acc(shape: Iterable[int], dtype: DataType) -> Tile:
         Create an accumulator tile for matrix multiplication: ::
 
             acc = asc2.zeros_acc([16, 16], dtype=asc2.float32)
-            result = asc2.matmul(a_tile, b_tile, acc)
+            result = asc2.matmul(acc, a_tile, b_tile)
     """
     check_type("dtype", dtype, DataType)
     check_dtype("dtype", dtype, KT.float32)

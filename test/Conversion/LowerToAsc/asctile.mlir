@@ -82,31 +82,31 @@ func.func @lower_matmul_hf32(%arg0: !asctile.tile<8x16xf32, L0A>, %arg1: !asctil
 }
 
 // CHECK-LABEL: func.func @lower_matmul_acc(%arg0: !asctile.tile<8x16xf32, L0A>, %arg1: !asctile.tile<16x8xf32, L0B>, %arg2: !asctile.tile<8x8xf32, L0C>) -> !asctile.tile<8x8xf32, L0C> {
-// CHECK:       %0 = builtin.unrealized_conversion_cast %arg2 : !asctile.tile<8x8xf32, L0C> to !ascendc.local_tensor<8x8xf32>
-// CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %arg1 : !asctile.tile<16x8xf32, L0B> to !ascendc.local_tensor<16x8xf32>
-// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<8x16xf32, L0A> to !ascendc.local_tensor<8x16xf32>
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg1 : !asctile.tile<16x8xf32, L0B> to !ascendc.local_tensor<16x8xf32>
+// CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<8x16xf32, L0A> to !ascendc.local_tensor<8x16xf32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %arg2 : !asctile.tile<8x8xf32, L0C> to !ascendc.local_tensor<8x8xf32>
 // CHECK-NEXT:  %3 = emitasc.init_struct !ascendc.mmad_params("m" = %c8_i32 : i32, "n" = %c8_i32 : i32, "k" = %c16_i32 : i32, "cmatrixInitVal" = %c1_i32 : i32)
-// CHECK-NEXT:  ascendc.mmad %0, %2, %1, %3 : !ascendc.local_tensor<8x8xf32>, !ascendc.local_tensor<8x16xf32>, !ascendc.local_tensor<16x8xf32>, !ascendc.mmad_params
+// CHECK-NEXT:  ascendc.mmad %2, %1, %0, %3 : !ascendc.local_tensor<8x8xf32>, !ascendc.local_tensor<8x16xf32>, !ascendc.local_tensor<16x8xf32>, !ascendc.mmad_params
 // CHECK-NEXT:  return %arg2 : !asctile.tile<8x8xf32, L0C>
 // CHECK-NEXT:}
 func.func @lower_matmul_acc(%arg0: !asctile.tile<8x16xf32, L0A>, %arg1: !asctile.tile<16x8xf32, L0B>, %arg2: !asctile.tile<8x8xf32, L0C>) -> !asctile.tile<8x8xf32, L0C> {
-  asctile.matmul_acc %arg0, %arg1, %arg2 : !asctile.tile<8x16xf32, L0A>, !asctile.tile<16x8xf32, L0B>, !asctile.tile<8x8xf32, L0C>
+  asctile.matmul_acc %arg2, %arg0, %arg1 : !asctile.tile<8x8xf32, L0C>, !asctile.tile<8x16xf32, L0A>, !asctile.tile<16x8xf32, L0B>
   return %arg2 : !asctile.tile<8x8xf32, L0C>
 }
 
 // CHECK-LABEL: func.func @lower_matmul_acc_hf32(%arg0: !asctile.tile<8x16xf32, L0A>, %arg1: !asctile.tile<16x8xf32, L0B>, %arg2: !asctile.tile<8x8xf32, L0C>) -> !asctile.tile<8x8xf32, L0C> {
-// CHECK:       %0 = builtin.unrealized_conversion_cast %arg2 : !asctile.tile<8x8xf32, L0C> to !ascendc.local_tensor<8x8xf32>
-// CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %arg1 : !asctile.tile<16x8xf32, L0B> to !ascendc.local_tensor<16x8xf32>
-// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<8x16xf32, L0A> to !ascendc.local_tensor<8x16xf32>
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg1 : !asctile.tile<16x8xf32, L0B> to !ascendc.local_tensor<16x8xf32>
+// CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<8x16xf32, L0A> to !ascendc.local_tensor<8x16xf32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %arg2 : !asctile.tile<8x8xf32, L0C> to !ascendc.local_tensor<8x8xf32>
 // CHECK-NEXT:  ascendc.set_hf32_mode %true : i1
 // CHECK-NEXT:  ascendc.set_hf32_trans_mode %true : i1
 // CHECK-NEXT:  %3 = emitasc.init_struct !ascendc.mmad_params("m" = %c8_i32 : i32, "n" = %c8_i32 : i32, "k" = %c16_i32 : i32, "cmatrixInitVal" = %c1_i32 : i32)
-// CHECK-NEXT:  ascendc.mmad %0, %2, %1, %3 : !ascendc.local_tensor<8x8xf32>, !ascendc.local_tensor<8x16xf32>, !ascendc.local_tensor<16x8xf32>, !ascendc.mmad_params
+// CHECK-NEXT:  ascendc.mmad %2, %1, %0, %3 : !ascendc.local_tensor<8x8xf32>, !ascendc.local_tensor<8x16xf32>, !ascendc.local_tensor<16x8xf32>, !ascendc.mmad_params
 // CHECK-NEXT:  ascendc.set_hf32_mode %false : i1
 // CHECK-NEXT:  return %arg2 : !asctile.tile<8x8xf32, L0C>
 // CHECK-NEXT:}
 func.func @lower_matmul_acc_hf32(%arg0: !asctile.tile<8x16xf32, L0A>, %arg1: !asctile.tile<16x8xf32, L0B>, %arg2: !asctile.tile<8x8xf32, L0C>) -> !asctile.tile<8x8xf32, L0C> {
-  asctile.matmul_acc %arg0, %arg1, %arg2 {hf32} : !asctile.tile<8x16xf32, L0A>, !asctile.tile<16x8xf32, L0B>, !asctile.tile<8x8xf32, L0C>
+  asctile.matmul_acc %arg2, %arg0, %arg1 {hf32} : !asctile.tile<8x8xf32, L0C>, !asctile.tile<8x16xf32, L0A>, !asctile.tile<16x8xf32, L0B>
   return %arg2 : !asctile.tile<8x8xf32, L0C>
 }
 

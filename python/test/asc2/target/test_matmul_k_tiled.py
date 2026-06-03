@@ -37,7 +37,7 @@ def matmul_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr: a
                                  location=asc2.TileLocation.L0A)
                 b_l0 = asc2.copy(b_l1, [base_k, single_core_n], offsets=[k_mid * step_ka + k_l0 * base_k, 0],
                                  location=asc2.TileLocation.L0B)
-                asc2.matmul_acc(a_l0, b_l0, acc)
+                asc2.matmul_acc(acc, a_l0, b_l0)
     acc = acc.to(quant_type)
     asc2.store(acc, c_gm, offsets=[m_off, n_off])
 

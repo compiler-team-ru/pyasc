@@ -287,14 +287,14 @@ def matmul(input: Tile, other: Tile, bias: Optional[Tile] = None, *, hf32: bool 
     return Tile(handle)
 
 
-def matmul_acc(input: Tile, other: Tile, acc: Tile, *, hf32: bool = False) -> None:
+def matmul_acc(acc: Tile, input: Tile, other: Tile, *, hf32: bool = False) -> None:
     """
     Computes the matrix multiplication of :code:`input` and :code:`other` with accumulator :code:`acc`.
 
     Args:
+        acc: Accumulator of matmul result (2D tile). Must be created with :py:func:`asc2.zeros_acc`.
         input: The left operand (2D tile).
         other: The right operand (2D tile).
-        acc: Accumulator of matmul result (2D tile). Must be created with :py:func:`asc2.zeros_acc`.
         hf32: Enable the rounding to HF32 for input tiles with float32 dtype.
 
     Raises:
@@ -306,9 +306,8 @@ def matmul_acc(input: Tile, other: Tile, acc: Tile, *, hf32: bool = False) -> No
         Accumulator tile type is always :code:`float32`.
     """
     check_type("acc", acc, Tile)
+    check_dtype("acc", acc, KT.float32)
     check_matmul_arguments(input, other, hf32)
     if len(acc.shape) != 2:
         raise RuntimeError(f"Accumulation tile must have two dims, got {len(acc.shape)}")
-    if acc.dtype != KT.float32:
-        raise RuntimeError(f"Accumulation tile have unsupported types: {acc.dtype}")
-    global_builder.get_ir_builder().create_asctile_MatmulAccOp(input.to_ir(), other.to_ir(), acc.to_ir(), hf32)
+    global_builder.get_ir_builder().create_asctile_MatmulAccOp(acc.to_ir(), input.to_ir(), other.to_ir(), hf32)
