@@ -9,16 +9,14 @@
 from typing import List, Tuple, Union, overload
 
 from ..._C import ir
+from ..core.dtype import DataType, KnownTypes as KT
 from ..core.ir_value import PlainValue
 from ..core.utils import global_builder, require_jit
 from .tile import Tile, bind_tile_method
-from .validation import check_type
+from .validation import check_dtype, check_type
 
 
 def get_reduction_shape(tensor_shape: Tuple[int], keep_dims: bool, dims: Tuple[int]) -> List[int]:
-    """
-    Get tensor shape after reducing dimensions *dims*
-    """
     reduce_dims = [False] * len(tensor_shape)
     for dim in dims:
         reduce_dims[dim] = True
@@ -31,22 +29,26 @@ def get_reduction_shape(tensor_shape: Tuple[int], keep_dims: bool, dims: Tuple[i
     return result
 
 
-def op_reduce_impl(input: Tile, keep_dims: bool, dims: Tuple[int], kind: ir.ReduceKind,
-                   support_as_1d: bool) -> Union[Tile, PlainValue]:
+def op_reduce_impl(input: Tile, keep_dims: bool, dims: Tuple[int], kind: ir.ReduceKind, support_dtypes: Tuple[DataType],
+                   support_dtypes_as_1d: Tuple[DataType]) -> Union[Tile, PlainValue]:
     check_type("input", input, Tile)
     check_type("keep_dims", keep_dims, bool)
     builder = global_builder.get_ir_builder()
     if len(dims) == 0:
-        if not support_as_1d:
+        if not support_dtypes_as_1d:
             raise RuntimeError("Reduction to scalar not supported")
+        check_dtype("input", input, support_dtypes_as_1d)
         handle = builder.create_asctile_ReduceAs1dOp(input.dtype.to_ir(), input.to_ir(), kind)
         return PlainValue(handle)
     if not all(isinstance(dim, int) for dim in dims):
         raise TypeError("All reduction dimensions must be int")
-    dims_ir = global_builder.get_ir_builder().get_i32_array_attr(dims)
+    check_dtype("input", input, support_dtypes)
     target_shape = get_reduction_shape(input.shape, keep_dims, dims)
+    if not target_shape:
+        raise RuntimeError("Reduction along all dimensions is not supported")
     ir_type = ir.clone_shaped_type(input.to_ir().get_type(), target_shape)
-    handle = builder.create_asctile_ReduceOp(ir_type, input.to_ir(), dims_ir, kind)
+    dims_attr = global_builder.get_ir_builder().get_i32_array_attr(dims)
+    handle = builder.create_asctile_ReduceOp(ir_type, input.to_ir(), dims_attr, kind)
     return Tile(handle)
 
 
@@ -70,10 +72,17 @@ def reduce_sum(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, 
     unless :code:`keep_dims=True` is provided.
     When dimension is not specified, the entire tile is reduced to a single scalar value.
 
+    The supported data types for the input are: ``int32``, ``int64``, ``float32``.
+    When reducing to a single scalar value, the supported data types are: ``int64``, ``float16``, ``float32``.
+
     Args:
         input: The input tile
         dims: Optional, dimensions to reduce, should be in range of [0..len(input.shape)-1]
         keep_dims: If set to True, then reduced dimensions are kept in the result shape with size of 1
+
+    Raises:
+        TypeError: If input is not a :code:`Tile`, keep_dims is not a bool, or dims contains non-integer values
+        RuntimeError: If input dtype is not supported, or if :code:`dims` explicitly lists all dimensions
 
     Examples:
         Reduce tile by first (outermost) dimension, resulting tile having the shape [256],
@@ -87,7 +96,8 @@ def reduce_sum(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, 
             input = asc2.load(x, [256, 256], offsets=[0, 0])
             result = asc2.reduce_sum(input)
     """
-    return op_reduce_impl(input, keep_dims, dims, ir.ReduceKind.Sum, support_as_1d=True)
+    return op_reduce_impl(input, keep_dims, dims, ir.ReduceKind.Sum, support_dtypes=(KT.int32, KT.int64, KT.float32),
+                          support_dtypes_as_1d=(KT.int64, KT.float16, KT.float32))
 
 
 @overload
@@ -110,10 +120,19 @@ def reduce_max(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, 
     unless :code:`keep_dims=True` is provided.
     When dimension is not specified, the entire tile is reduced to a single scalar value.
 
+    The supported data types for the input are:
+    ``int8``, ``int16``, ``int32``, ``int64``, ``float16``, ``bfloat16``, ``float32``.
+    When reducing to a single scalar value, the supported data types are:
+    ``int16``, ``int32``, ``int64``, ``float16``, ``float32``.
+
     Args:
         input: The input tile
         dims: Optional, dimensions to reduce, should be in range of [0..len(input.shape)-1]
         keep_dims: If set to True, then reduced dimensions are kept in the result shape with size of 1
+
+    Raises:
+        TypeError: If input is not a :code:`Tile`, keep_dims is not a bool, or dims contains non-integer values
+        RuntimeError: If input dtype is not supported, or if :code:`dims` explicitly lists all dimensions
 
     Examples:
         Reduce tile by first (outermost) dimension, resulting tile having the shape [256],
@@ -127,7 +146,9 @@ def reduce_max(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, 
             input = asc2.load(x, [256, 256], offsets=[0, 0])
             result = asc2.reduce_max(input)
     """
-    return op_reduce_impl(input, keep_dims, dims, ir.ReduceKind.Max, support_as_1d=True)
+    return op_reduce_impl(input, keep_dims, dims, ir.ReduceKind.Max,
+                          support_dtypes=(KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32),
+                          support_dtypes_as_1d=(KT.int16, KT.int32, KT.int64, KT.float16, KT.float32))
 
 
 @overload
@@ -150,10 +171,19 @@ def reduce_min(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, 
     unless :code:`keep_dims=True` is provided.
     When dimension is not specified, the entire tile is reduced to a single scalar value.
 
+    The supported data types for the input are:
+    ``int8``, ``int16``, ``int32``, ``int64``, ``float16``, ``bfloat16``, ``float32``.
+    When reducing to a single scalar value, the supported data types are:
+    ``int16``, ``int32``, ``int64``, ``float16``, ``float32``.
+
     Args:
         input: The input tile
         dims: Optional, dimensions to reduce, should be in range of [0..len(input.shape)-1]
         keep_dims: If set to True, then reduced dimensions are kept in the result shape with size of 1
+
+    Raises:
+        TypeError: If input is not a :code:`Tile`, keep_dims is not a bool, or dims contains non-integer values
+        RuntimeError: If input dtype is not supported, or if :code:`dims` explicitly lists all dimensions
 
     Examples:
         Reduce tile by first (outermost) dimension, resulting tile having the shape [256],
@@ -167,7 +197,9 @@ def reduce_min(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, 
             input = asc2.load(x, [256, 256], offsets=[0, 0])
             result = asc2.reduce_min(input)
     """
-    return op_reduce_impl(input, keep_dims, dims, ir.ReduceKind.Min, support_as_1d=True)
+    return op_reduce_impl(input, keep_dims, dims, ir.ReduceKind.Min,
+                          support_dtypes=(KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32),
+                          support_dtypes_as_1d=(KT.int16, KT.int32, KT.int64, KT.float16, KT.float32))
 
 
 @bind_tile_method(name="prod")
@@ -179,10 +211,18 @@ def reduce_prod(input: Tile, *dims: int, keep_dims: bool = False) -> Tile:
     Dimensions :code:`dims` are squeezed, resulting the output tile having fewer dimensions than input,
     unless :code:`keep_dims=True` is provided.
 
+    The supported data types for the input are: ``float32``.
+    Reduction to a single scalar value is not supported.
+
     Args:
         input: The input tile
         dims: Dimensions to reduce, should be in range of [0..len(input.shape)-1]
         keep_dims: If set to True, then reduced dimensions are kept in the result shape with size of 1
+
+    Raises:
+        TypeError: If input is not a :code:`Tile`, keep_dims is not a bool, or dims contains non-integer values
+        RuntimeError: If input dtype is not supported, if :code:`dims` explicitly lists all dimensions,
+                      or if reducing to a scalar (no dims provided)
 
     Examples:
         Reduce tile by first (outermost) dimension, resulting tile having the shape [256],
@@ -191,4 +231,5 @@ def reduce_prod(input: Tile, *dims: int, keep_dims: bool = False) -> Tile:
             input = asc2.load(x, [128, 256], offsets=[0, 0])
             result = asc2.reduce_prod(0)
     """
-    return op_reduce_impl(input, keep_dims, dims, ir.ReduceKind.Prod, support_as_1d=False)
+    return op_reduce_impl(input, keep_dims, dims, ir.ReduceKind.Prod, support_dtypes=(KT.float32, ),
+                          support_dtypes_as_1d=())

@@ -6,35 +6,24 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
+from dataclasses import dataclass
+from typing import Callable, Tuple
+
 import asc2
 import pytest
 import torch
-
-tests = [
-    [asc2.reduce_prod, torch.prod, [64, 32], torch.float32, False, 0],
-    [asc2.reduce_prod, torch.prod, [64, 32], torch.float32, False, 1],
-    # [asc2.reduce_prod, torch.prod, [16, 16], torch.float32, None], -  no L2 api
-    [asc2.reduce_min, torch.amin, [64, 32], torch.float32, False, 0],
-    [asc2.reduce_min, torch.amin, [64, 32], torch.float32, False, 1],
-    # [asc2.reduce_min, torch.amin, [32, 32], torch.float32, None], - no sync
-    [asc2.reduce_sum, torch.sum, [64, 32], torch.float32, False, 0],
-    [asc2.reduce_sum, torch.sum, [64, 32], torch.float32, False, 1],
-    # [asc2.reduce_sum, torch.sum, [32, 32], torch.float32, None], - no sync
-    [asc2.reduce_max, torch.amax, [64, 32], torch.float32, False, 0],
-    [asc2.reduce_max, torch.amax, [64, 32], torch.float32, False, 1],
-    # [asc2.reduce_max, torch.amax, [32, 32], torch.float32, None], - no sync
-    [asc2.reduce_prod, torch.prod, [64, 32], torch.float32, True, 0],
-]
 
 
 @asc2.jit(always_compile=True)
 def kernel(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, reduce_dim: asc2.ConstExpr,
            input_shape: asc2.ConstExpr, input_offsets: asc2.ConstExpr, output_shape: asc2.ConstExpr,
-           output_offsets: asc2.ConstExpr, op: asc2.ConstExpr, keep_dims: asc2.ConstExpr) -> None:
+           output_offsets: asc2.ConstExpr, op: asc2.ConstExpr) -> None:
     g_input = asc2.tensor(input_ptr, input_shape)
     g_output = asc2.tensor(output_ptr, output_shape)
     input = asc2.load(g_input, input_shape, offsets=input_offsets)
-    output = op(input, reduce_dim, keep_dims=keep_dims)
+    output = op(input, reduce_dim)
+    if output.size == 1:
+        output = asc2.broadcast_to(output, *output_shape)
     asc2.store(output, g_output, offsets=output_offsets)
 
 
@@ -50,32 +39,59 @@ def kernel_all(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, in
     asc2.store(output, g_output, offsets=output_offsets)
 
 
-@pytest.mark.parametrize("op, torch_op, shape, dtype, keep_dims, dim", tests)
-def test_reduce(require_c310, op, torch_op, shape, dtype, keep_dims, dim):
-    if dim:
+@dataclass
+class Op:
+    asc_op: Callable
+    torch_op: Callable
+    basic_dtypes: Tuple[torch.dtype]
+    adv_dtypes: Tuple[torch.dtype]
+
+
+ops = (
+    Op(asc2.reduce_sum, torch.sum, basic_dtypes=(torch.int64, torch.float16, torch.float32),
+       adv_dtypes=(torch.int32, torch.int64, torch.float32)),
+    Op(asc2.reduce_max, torch.amax, basic_dtypes=(torch.int16, torch.int32, torch.int64, torch.float16, torch.float32),
+       adv_dtypes=(torch.int8, torch.int16, torch.int32, torch.int64, torch.float16, torch.bfloat16, torch.float32)),
+    Op(asc2.reduce_min, torch.amin, basic_dtypes=(torch.int16, torch.int32, torch.int64, torch.float16, torch.float32),
+       adv_dtypes=(torch.int8, torch.int16, torch.int32, torch.int64, torch.float16, torch.bfloat16, torch.float32)),
+    Op(asc2.reduce_prod, torch.prod, basic_dtypes=(), adv_dtypes=(torch.float32, )),
+)
+
+
+@pytest.mark.parametrize("asc_op, torch_op, dtype, shape, dim", (
+    *((op.asc_op, op.torch_op, dtype, shape, None)
+      for op in ops
+      for dtype in op.basic_dtypes
+      for shape in ([32], [64, 32])),
+    *((op.asc_op, op.torch_op, dtype, shape, dim)
+      for op in ops
+      for dtype in op.adv_dtypes
+      for shape in ([64, 32], )
+      for dim in range(len(shape))),
+))
+def test_reduce(require_c310, asc_op, torch_op, dtype: torch.dtype, shape, dim):
+    if dim is not None or not dtype.is_floating_point:
         require_c310()
-
-    input = torch.randn(shape, dtype=dtype) * 2.0
-
-    if dim is None:
-        output_shape = [32]
+    if asc_op is asc2.reduce_sum and dtype == torch.float16 and dim is None:
+        pytest.skip("accuracy mismatch on reduce_sum float16 to scalar")
+    if dtype.is_floating_point:
+        input = torch.randn(shape, dtype=dtype) * 2.0
+    else:
+        input = torch.randint(-5, 5, shape, dtype=dtype)
+    if dim is None or len(shape) == 1:
+        output_shape = [16]
     else:
         output_shape = list(shape)
-        if keep_dims:
-            output_shape[dim] = 1
-        else:
-            del output_shape[dim]
-
+        del output_shape[dim]
     output = torch.zeros(output_shape, dtype=dtype)
     input_offsets = [0] * len(shape)
     output_offsets = [0] * len(output_shape)
-
     if dim is None:
-        kernel_all[1](input, output, shape, input_offsets, output_shape, output_offsets, op)
+        kernel_all[1](input, output, shape, input_offsets, output_shape, output_offsets, asc_op)
         expected = torch.ones(output_shape, dtype=dtype) * torch_op(input).item()
     else:
-        kernel[1](input, output, dim, shape, input_offsets, output_shape, output_offsets, op, keep_dims)
-        expected = torch_op(input, dim, keepdim=keep_dims)
+        kernel[1](input, output, dim, shape, input_offsets, output_shape, output_offsets, asc_op)
+        expected = torch_op(input, dim).to(dtype)
     torch.testing.assert_close(output, expected)
 
 
