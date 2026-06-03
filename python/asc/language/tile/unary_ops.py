@@ -258,8 +258,32 @@ def negative(input: Tile) -> Tile:
 
 @bind_tile_method
 @require_jit
-@set_docstring("softmax", support_dtypes=(KT.float16, KT.float32))
 def softmax(input: Tile) -> Tile:
+    """
+    Computes the element-wise softmax of :code:`input`.
+
+    The supported data types for the input are: :code:`float16`, :code:`float32`.
+
+    Args:
+        input: The input value (tile)
+
+    Returns:
+        Tile: The result tile
+
+    Raises:
+        RuntimeError: If the input dtype is not supported for this operation
+
+    Examples:
+        Compute the element-wise softmax of all tile elements: ::
+
+            input = asc2.load(tensor, [128, 256], offsets=[0, 0])
+            result = asc2.softmax(input)
+
+        Compute softmax for a 1D tile: ::
+
+            input = asc2.load(tensor, [1024], offsets=[0])
+            result = asc2.softmax(input)
+    """
     check_type("input", input, Tile)
     check_dtype("input", input, (KT.float16, KT.float32))
     if len(input.shape) > 2:
