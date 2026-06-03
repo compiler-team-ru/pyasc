@@ -22,6 +22,7 @@ PyAsc documentation
    :caption: Programming guide
 
    programming-guide/quick-start.md
+   programming-guide/tutorials/index
 
 
 .. toctree::

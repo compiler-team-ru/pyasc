@@ -15,7 +15,9 @@ __pycache__/
 /docs/_build/
 /docs/mlir/dialects/*.md
 /docs/mlir/passes/*.md
+/docs/programming-guide/tutorials/
 /docs/python-api/rst/**/generated/
+/docs/sg_execution_times.rst
 
 # python
 /python/asc/_C/libpyasc/*
