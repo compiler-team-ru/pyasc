@@ -56,8 +56,8 @@ __all__ += [
     "static_range",
 ]
 
-from asc.language.tile.tensor import tensor
-from asc.language.tile.tile import TileLocation
+from asc.language.tile.tensor import Tensor, tensor
+from asc.language.tile.tile import Tile, TileLocation
 from asc.language.tile.range import range
 
 # Tile operations
@@ -85,6 +85,7 @@ from asc.language.tile.binary_ops import (
     sub,
 )
 from asc.language.tile.creation_ops import (
+    cast,
     concat,
     full,
     full_like,
@@ -147,8 +148,10 @@ from .jit import jit
 
 __all__ += [
     # tensor
+    "Tensor",
     "tensor",
     # tile
+    "Tile",
     "TileLocation",
     # range
     "range",
@@ -174,6 +177,7 @@ __all__ += [
     "right_shift",
     "sub",
     # creation_ops
+    "cast",
     "concat",
     "full",
     "full_like",

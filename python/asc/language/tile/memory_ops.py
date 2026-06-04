@@ -148,6 +148,8 @@ def load(tensor: Tensor, shape: Optional[Iterable[int]] = None, *, real_shape: O
         tensor: The source tensor in global memory.
         shape: The shape of the tile to load. If None, loads a scalar value.
             Must contain static values (e.g., :code:`ConstExpr` or compile-time constants).
+            For 1D tiles, any shape is supported. For 2D+ tiles in :code:`UB`, the last dimension
+            must be aligned to 32 bytes (e.g., 8 elements for float32, 16 elements for float16).
         real_shape: Explicitly specify how many elements to load from the tensor.
             The tile will have the given :code:`shape`, but only :code:`real_shape` elements are loaded;
             remaining elements are filled with :code:`pad_value`. Must match the rank of :code:`shape`
@@ -171,6 +173,7 @@ def load(tensor: Tensor, shape: Optional[Iterable[int]] = None, *, real_shape: O
 
     Note:
         Exactly one of :code:`offsets` or :code:`tile_id` must be provided.
+        Only 1D and 2D tiles are fully supported and stable; higher-dimensional support is experimental.
 
     Examples:
         Load a 1D tile using explicit offsets: ::
@@ -261,6 +264,8 @@ def store(value: Union[Tile, RuntimeNumeric], tensor: Tensor, *, real_shape: Opt
 
     Args:
         value: The source value to store. Can be a tile, a scalar value, or a tile with exactly one element.
+            For 1D tiles, any shape is supported. For 2D+ tiles in :code:`UB`, the last dimension
+            must be aligned to 32 bytes (e.g., 8 elements for float32, 16 elements for float16).
         tensor: The destination tensor in global memory.
         real_shape: Explicitly specify how many elements to store to the tensor.
             The tile has its full shape, but only :code:`real_shape` elements are written to the tensor.
@@ -281,6 +286,7 @@ def store(value: Union[Tile, RuntimeNumeric], tensor: Tensor, *, real_shape: Opt
         For tile stores, exactly one of :code:`offsets` or :code:`tile_id` must be provided.
         For scalar stores, :code:`offsets` must be provided and :code:`tile_id` and :code:`real_shape` cannot be used.
         Tiles from :code:`UB` and :code:`L0C` memory locations can be stored to global memory.
+        Only 1D and 2D tiles are fully supported and stable; higher-dimensional support is experimental.
 
     Examples:
         Store a 1D tile using explicit offsets: ::

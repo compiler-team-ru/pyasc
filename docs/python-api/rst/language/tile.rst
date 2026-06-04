@@ -9,16 +9,14 @@
 Tile API
 ========
 
-.. currentmodule:: asc.language.tile
+.. currentmodule:: asc2
 
 .. autosummary::
     :toctree: generated
     :nosignatures:
 
-    ~tile.Tile
-    ~tensor.Tensor
-
-.. currentmodule:: asc2
+    Tile
+    Tensor
 
 
 Programming model
@@ -52,6 +50,7 @@ Creation operations
     :toctree: generated
     :nosignatures:
 
+    cast
     concat
     full
     full_like

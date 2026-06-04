@@ -45,7 +45,7 @@ def set_docstring(name: str, support_dtypes: Tuple[DataType], support_scalar: bo
         Compute the element-wise {name} of all tile elements: ::
 
             input = asc2.load(tensor, [128, 256], offsets=[0, 0])
-            result = asc2.{{fn_name}}(input, 0)
+            result = asc2.{{fn_name}}(input)
         """
     if support_scalar:
         examples += f"""
@@ -260,29 +260,32 @@ def negative(input: Tile) -> Tile:
 @require_jit
 def softmax(input: Tile) -> Tile:
     """
-    Computes the element-wise softmax of :code:`input`.
+    Computes the row-wise softmax of :code:`input`.
+
+    For 2D tiles, softmax is applied independently along the last dimension for each row.
+    For 1D tiles, softmax is applied over all elements.
 
     The supported data types for the input are: :code:`float16`, :code:`float32`.
 
     Args:
-        input: The input value (tile)
+        input: The input tile (1D or 2D)
 
     Returns:
-        Tile: The result tile
+        Tile: The result tile with the same shape as input
 
     Raises:
-        RuntimeError: If the input dtype is not supported for this operation
+        RuntimeError: If the input dtype is not supported or input has more than 2 dimensions
 
     Examples:
-        Compute the element-wise softmax of all tile elements: ::
+        Compute row-wise softmax for a 2D tile: ::
 
-            input = asc2.load(tensor, [128, 256], offsets=[0, 0])
-            result = asc2.softmax(input)
+            input = asc2.load(x_gm, [64, 1024], offsets=[0, 0])
+            result = asc2.softmax(input)  # softmax applied independently to each of 64 rows
 
         Compute softmax for a 1D tile: ::
 
-            input = asc2.load(tensor, [1024], offsets=[0])
-            result = asc2.softmax(input)
+            input = asc2.load(x_gm, [1024], offsets=[0])
+            result = asc2.softmax(input)  # softmax applied over all 1024 elements
     """
     check_type("input", input, Tile)
     check_dtype("input", input, (KT.float16, KT.float32))
@@ -293,8 +296,41 @@ def softmax(input: Tile) -> Tile:
 
 
 @require_jit
-@set_docstring("RmsNorm function", support_dtypes=(KT.float16, KT.float32))
 def rms_norm(input: Tile, gamma: Tile, epsilon: RuntimeFloat) -> Tile:
+    """
+    Computes Root Mean Square Layer Normalization of :code:`input`.
+
+    RMSNorm normalizes the input by the root mean square and scales by learnable parameters :code:`gamma`.
+    This is commonly used in transformer architectures as an alternative to LayerNorm.
+
+    The supported data types for the inputs are: :code:`float16`, :code:`float32`.
+
+    Args:
+        input: The input tile to normalize (1D or 2D)
+        gamma: The scale parameter tile (1D, same length as last dimension of input)
+        epsilon: Small constant added for numerical stability
+
+    Returns:
+        Tile: The normalized tile with same shape as input
+
+    Raises:
+        TypeError: If input or gamma is not a Tile
+        RuntimeError: If input dtype is not supported, input has more than 2 dimensions,
+            or gamma dtype is not supported
+
+    Examples:
+        Apply RMSNorm to a 2D tile: ::
+
+            input = asc2.load(x_gm, [32, 128], offsets=[0, 0])
+            gamma = asc2.load(gamma_gm, [128], offsets=[0])
+            output = asc2.rms_norm(input, gamma, 1e-5)
+
+        Apply RMSNorm to a 1D tile: ::
+
+            input = asc2.load(x_gm, [128], offsets=[0])
+            gamma = asc2.load(gamma_gm, [128], offsets=[0])
+            output = asc2.rms_norm(input, gamma, 1e-6)
+    """
     check_type("input", input, Tile)
     check_dtype("input", input, (KT.float16, KT.float32))
     check_type("gamma", gamma, Tile)

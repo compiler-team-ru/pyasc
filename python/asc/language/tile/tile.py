@@ -17,7 +17,6 @@ from typing_extensions import Self, TypeAlias
 from ..._C import ir
 from ..core.dtype import DataType
 from ..core.ir_value import IRHandle, IRValue, PlainValue, RuntimeInt, RuntimeNumeric
-from ..core.utils import global_builder, require_jit
 from .validation import check_type
 
 T = TypeVar("T")
@@ -42,8 +41,13 @@ class Tile(IRValue):
     """Number of elements"""
 
     def __init__(self, handle: IRHandle) -> None:
-        """This constructor is not called by user. Use :py:func:`asc2.load` function to create a tile."""
+        """
+        This constructor is not called by user.
+
+        Use :py:func:`load`, :py:func:`zeros`, or other functions to create a tile.
+        """
         super().__init__()
+        check_type("handle", handle, IRHandle)
         self.handle: Final = handle
         ir_type = handle.get_type()
         self.dtype: Final = DataType.from_ir(ir.get_element_type(ir_type))
@@ -59,19 +63,14 @@ class Tile(IRValue):
     def to_ir(self) -> IRHandle:
         return self.handle
 
-    @require_jit
-    def to(self: Tile, dtype: DataType) -> Tile:
-        """Cast tile elements to the provided dtype."""
-        check_type("dtype", dtype, DataType)
-        if self.dtype == dtype:
-            return self
-        ir_type = ir.clone_shaped_type(self.to_ir().get_type(), dtype.to_ir())
-        handle = global_builder.get_ir_builder().create_asctile_CastOp(ir_type, self.to_ir())
-        return Tile(handle)
+    def to(self, dtype: DataType) -> Self:
+        """Forwards to :py:func:`cast` function."""
+        from .creation_ops import cast
+        return cast(self, dtype)
 
     @property
     def T(self) -> Self:
-        """Transpose a 2D tile by swapping its dimensions (see :py:func:`asc2.transpose`)."""
+        """Transpose a 2D tile by swapping its dimensions (see :py:func:`transpose`)."""
         from .shape_ops import transpose
         return transpose(self)
 
@@ -284,6 +283,7 @@ class Binder:
                 return fn(*args, **kwargs)
 
         wrapper.__signature__ = new_sig
+        wrapper.__doc__ = wrapper.__doc__ = f"Forwards to :py:func:`{fn_name}` function."
         setattr(Tile, name, wrapper)
         return fn
 
