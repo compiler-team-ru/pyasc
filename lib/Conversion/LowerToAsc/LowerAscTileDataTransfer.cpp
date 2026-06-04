@@ -341,10 +341,45 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
                 nValue = rewriter.create<arith::MinSIOp>(loc, dstShapeRows, realRows);
                 dValue = rewriter.create<arith::MinSIOp>(loc, dstShapeCols, realCols);
             }
-            auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
-                loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
-                ValueRange{const1, nValue, dValue, const0, srcInfo.shape[1], dstShapeRows, const1, const0}, argTypes);
-            rewriter.create<ascendc::DataCopyL2Op>(loc, dst, srcInfo.tensor, nd2NzParams);
+            constexpr int64_t maxSrcDValue = 65535;
+            auto needsLoop = rewriter.create<arith::CmpIOp>(
+                loc, arith::CmpIPredicate::sgt, srcInfo.shape[1], consts.i32(maxSrcDValue));
+            auto ifOp = rewriter.create<scf::IfOp>(loc, needsLoop, /*withElseRegion=*/true);
+            {
+                ConvertRewriter::InsertionGuard guard(rewriter);
+                rewriter.setInsertionPointToStart(ifOp.thenBlock());
+                auto dstType = dst.getType();
+                auto dstRowStride = consts.i32(dstShape[0]);
+                auto srcRows = srcInfo.shape[0];
+                auto offsetRows = op.getOffsets().empty() ? const0 : op.getOffsets()[0];
+                auto availableRows = rewriter.create<arith::SubIOp>(loc, srcRows, offsetRows);
+                auto availableRowsPos = rewriter.create<arith::MaxSIOp>(loc, const0, availableRows);
+                auto actualNValue = rewriter.create<arith::MinSIOp>(loc, nValue, availableRowsPos);
+                auto forOp = rewriter.create<scf::ForOp>(loc, const0, actualNValue, const1);
+                rewriter.setInsertionPointToStart(forOp.getBody());
+                auto rowIdx = forOp.getInductionVar();
+                auto srcRowOffset = rewriter.create<arith::MulIOp>(loc, rowIdx, srcInfo.shape[1]);
+                auto srcTensorWithOffset =
+                    rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, srcInfo.type, srcInfo.tensor, srcRowOffset);
+                auto dstRowOffset = rewriter.create<arith::MulIOp>(loc, rowIdx, consts.i32(ascendc::cubeBlockSize));
+                auto dstTensorWithOffset =
+                    rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dstType, dst, dstRowOffset);
+                auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
+                    loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
+                    ValueRange{const1, const1, dValue, const0, dValue, dstRowStride, const1, const0}, argTypes);
+                rewriter.create<ascendc::DataCopyL2Op>(loc, dstTensorWithOffset, srcTensorWithOffset, nd2NzParams);
+                rewriter.setInsertionPointAfter(forOp);
+                forOp->setAttr(asctile::attr::parallel, rewriter.getUnitAttr());
+            }
+            {
+                ConvertRewriter::InsertionGuard guard(rewriter);
+                rewriter.setInsertionPointToStart(ifOp.elseBlock());
+                auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
+                    loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
+                    ValueRange{const1, nValue, dValue, const0, srcInfo.shape[1], dstShapeRows, const1, const0},
+                    argTypes);
+                rewriter.create<ascendc::DataCopyL2Op>(loc, dst, srcInfo.tensor, nd2NzParams);
+            }
         } else {
             auto ndNum = consts.i32(llvm::divideCeilSigned(dstShape[0], ascendc::cubeBlockSize));
             auto nValue = consts.i32(ascendc::cubeBlockSize);
@@ -449,6 +484,8 @@ struct ConvertStoreFixpipe : ConvertOp<asctile::StoreFixpipeOp> {
             nSize = rewriter.create<arith::MinSIOp>(loc, nSize, realCols);
             Value realRows = rewriter.getRemappedValue(realShape[0]);
             mSize = rewriter.create<arith::MinSIOp>(loc, mSize, realRows);
+        } else {
+            mSize = rewriter.create<arith::MinSIOp>(loc, mSize, dstInfo.shape[0]);
         }
         auto srcStride = static_cast<int32_t>(llvm::alignTo<ascendc::cubeBlockSize>(srcType.getShape()[0]));
         auto paramsBuilder = emitasc::InitStructBuilder(rewriter.getType<ascendc::FixpipeParamsV220Type>())

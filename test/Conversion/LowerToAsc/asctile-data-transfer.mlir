@@ -344,11 +344,12 @@ func.func @lower_store_fixpipe_static_quantize(%arg0: memref<*xf32, 22>, %arg1: 
 // CHECK-NEXT:  %7 = arith.cmpi slt, %6, %c0_i32 : i32
 // CHECK-NEXT:  %8 = arith.select %7, %c0_i32, %6 : i32
 // CHECK-NEXT:  %9 = arith.minsi %8, %c16_i32 : i32
-// CHECK-NEXT:  %10 = ascendc.construct !ascendc.quant_mode_t(%c1_i32) [!ascendc.quant_mode_t] constexpr static : i32
-// CHECK-NEXT:  %11 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %9 : i32, "mSize" = %c16_i32 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %arg5 : i32, "reluEn" = %c1_i32 : i32, "quantPre" = %10 : !ascendc.quant_mode_t)
-// CHECK-NEXT:  %12 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
-// CHECK-NEXT:  %13 = ascendc.construct !ascendc.fixpipe_config(%12) constexpr static : !ascendc.co2_layout
-// CHECK-NEXT:  ascendc.fixpipe %5, %0, %11, %13 : !ascendc.global_tensor<?x?xf16>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
+// CHECK-NEXT:  %10 = arith.minsi %arg4, %c16_i32 : i32
+// CHECK-NEXT:  %11 = ascendc.construct !ascendc.quant_mode_t(%c1_i32) [!ascendc.quant_mode_t] constexpr static : i32
+// CHECK-NEXT:  %12 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %9 : i32, "mSize" = %10 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %arg5 : i32, "reluEn" = %c1_i32 : i32, "quantPre" = %11 : !ascendc.quant_mode_t)
+// CHECK-NEXT:  %13 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
+// CHECK-NEXT:  %14 = ascendc.construct !ascendc.fixpipe_config(%13) constexpr static : !ascendc.co2_layout
+// CHECK-NEXT:  ascendc.fixpipe %5, %0, %12, %14 : !ascendc.global_tensor<?x?xf16>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
 // CHECK-NEXT:  return
 // CHECK-NEXT:}
 func.func @lower_store_fixpipe_dynamic_relu_quantize(%arg0: memref<*xf32, 22>, %arg1: !asctile.tile<16x16xf32, L0C>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32) {
@@ -469,8 +470,23 @@ func.func @lower_load_gm_l1_fp16_real_shape_static(%arg0: memref<*xf16, 22>) -> 
 // CHECK-NEXT:  %6 = builtin.unrealized_conversion_cast %5 : !ascendc.local_tensor<16x64xf16> to !asctile.tile<16x64xf16, L1>
 // CHECK-NEXT:  %7 = arith.minsi %arg5, %c16_i32 : i32
 // CHECK-NEXT:  %8 = arith.minsi %arg6, %c64_i32 : i32
-// CHECK-NEXT:  %9 = ascendc.construct !ascendc.nd2nz_params(%c1_i32, %7, %8, %c0_i32, %arg2, %c16_i32, %c1_i32, %c0_i32) [ui16, ui16, ui32, ui64, ui32, ui16, ui16, ui64] : i32, i32, i32, i32, i32, i32, i32, i32
-// CHECK-NEXT:  ascendc.data_copy_l2 %5, %4, %9 : !ascendc.local_tensor<16x64xf16>, !ascendc.global_tensor<?x?xf16>, !ascendc.nd2nz_params
+// CHECK-NEXT:  %9 = arith.cmpi sgt, %arg2, %c65535_i32 : i32
+// CHECK-NEXT:  scf.if %9 {
+// CHECK-NEXT:    %10 = arith.subi %arg1, %arg3 : i32
+// CHECK-NEXT:    %11 = arith.maxsi %10, %c0_i32 : i32
+// CHECK-NEXT:    %12 = arith.minsi %7, %11 : i32
+// CHECK-NEXT:    scf.for %arg7 = %c0_i32 to %12 step %c1_i32  : i32 {
+// CHECK-NEXT:      %13 = arith.muli %arg7, %arg2 : i32
+// CHECK-NEXT:      %14 = ascendc.global_tensor.subindex %4[%13] : !ascendc.global_tensor<?x?xf16>, i32, !ascendc.global_tensor<?x?xf16>
+// CHECK-NEXT:      %15 = arith.muli %arg7, %c16_i32 : i32
+// CHECK-NEXT:      %16 = ascendc.local_tensor.subindex %5[%15] : !ascendc.local_tensor<16x64xf16>, i32, !ascendc.local_tensor<16x64xf16>
+// CHECK-NEXT:      %17 = ascendc.construct !ascendc.nd2nz_params(%c1_i32, %c1_i32, %8, %c0_i32, %8, %c16_i32, %c1_i32, %c0_i32) [ui16, ui16, ui32, ui64, ui32, ui16, ui16, ui64] : i32, i32, i32, i32, i32, i32, i32, i32
+// CHECK-NEXT:      ascendc.data_copy_l2 %16, %14, %17 : !ascendc.local_tensor<16x64xf16>, !ascendc.global_tensor<?x?xf16>, !ascendc.nd2nz_params
+// CHECK-NEXT:    } {asctile.parallel}
+// CHECK-NEXT:  } else {
+// CHECK-NEXT:    %10 = ascendc.construct !ascendc.nd2nz_params(%c1_i32, %7, %8, %c0_i32, %arg2, %c16_i32, %c1_i32, %c0_i32) [ui16, ui16, ui32, ui64, ui32, ui16, ui16, ui64] : i32, i32, i32, i32, i32, i32, i32, i32
+// CHECK-NEXT:    ascendc.data_copy_l2 %5, %4, %10 : !ascendc.local_tensor<16x64xf16>, !ascendc.global_tensor<?x?xf16>, !ascendc.nd2nz_params
+// CHECK-NEXT:  }
 // CHECK-NEXT:  return %6 : !asctile.tile<16x64xf16, L1>
 func.func @lower_load_gm_l1_fp16_real_shape_dynamic(%arg0: memref<*xf16, 22>, %arg1: i32, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32) -> !asctile.tile<16x64xf16, L1> {
   %cst = arith.constant 0.000000e+00 : f16
