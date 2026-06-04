@@ -357,6 +357,30 @@ func.func @lower_store_fixpipe_dynamic_relu_quantize(%arg0: memref<*xf32, 22>, %
   return
 }
 
+// CHECK-LABEL: func.func @lower_store_fixpipe_real_shape(%arg0: memref<*xf32, 22>, %arg1: !asctile.tile<16x16xf32, L0C>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32) {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg1 : !asctile.tile<16x16xf32, L0C> to !ascendc.local_tensor<16x16xf32>
+// CHECK-NEXT:  %1 = asctile.tensor %arg0(%arg4, %arg5) : memref<*xf32, 22>, !asctile.tensor<?x?xf32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !asctile.tensor<?x?xf32> to !ascendc.global_tensor<?x?xf32>
+// CHECK-NEXT:  %3 = arith.muli %arg2, %arg5 : i32
+// CHECK-NEXT:  %4 = arith.addi %arg3, %3 : i32
+// CHECK-NEXT:  %5 = ascendc.global_tensor.subindex %2[%4] : !ascendc.global_tensor<?x?xf32>, i32, !ascendc.global_tensor<?x?xf32>
+// CHECK-NEXT:  %6 = arith.subi %arg5, %arg3 : i32
+// CHECK-NEXT:  %7 = arith.cmpi slt, %6, %c0_i32 : i32
+// CHECK-NEXT:  %8 = arith.select %7, %c0_i32, %6 : i32
+// CHECK-NEXT:  %9 = arith.minsi %8, %c16_i32 : i32
+// CHECK-NEXT:  %10 = arith.minsi %9, %arg7 : i32
+// CHECK-NEXT:  %11 = arith.minsi %arg6, %c16_i32 : i32
+// CHECK-NEXT:  %12 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %10 : i32, "mSize" = %11 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %arg5 : i32)
+// CHECK-NEXT:  %13 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
+// CHECK-NEXT:  %14 = ascendc.construct !ascendc.fixpipe_config(%13) constexpr static : !ascendc.co2_layout
+// CHECK-NEXT:  ascendc.fixpipe %5, %0, %12, %14 : !ascendc.global_tensor<?x?xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
+// CHECK-NEXT:  return
+func.func @lower_store_fixpipe_real_shape(%arg0: memref<*xf32, 22>, %arg1: !asctile.tile<16x16xf32, L0C>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32) {
+  %0 = asctile.tensor %arg0(%arg4, %arg5) : memref<*xf32, 22>, !asctile.tensor<?x?xf32>
+  asctile.store_fixpipe %arg1, %0 [%arg2, %arg3], (%arg6, %arg7) : !asctile.tile<16x16xf32, L0C>, !asctile.tensor<?x?xf32>
+  return
+}
+
 // CHECK-LABEL: func.func @lower_store_real_shape(%arg0: memref<*xf32, 22>, %arg1: !asctile.tile<2x8xf32, UB>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32) {
 // CHECK:   %0 = builtin.unrealized_conversion_cast %arg1 : !asctile.tile<2x8xf32, UB> to !ascendc.local_tensor<2x8xf32>
 // CHECK-NEXT:   %1 = asctile.tensor %arg0(%arg2, %arg3) : memref<*xf32, 22>, !asctile.tensor<?x?xf32>

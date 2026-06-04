@@ -256,6 +256,18 @@ LogicalResult StoreFixpipeOp::verify()
     if (!getQuantize() && getElementTypeOrSelf(getBase()) != getElementTypeOrSelf(getValue())) {
         return emitOpError("failed to verify that all of {base, value} have same element type");
     }
+    if (auto realShape = getRealShape(); !realShape.empty()) {
+        auto tileShape = getValue().getType().getShape();
+        if (tileShape.size() != realShape.size())
+            return emitOpError() << "real_shape must have same rank as tile shape";
+        for (auto [realDimValue, tileDim] : llvm::zip_equal(realShape, tileShape)) {
+            APInt realDim;
+            if (!matchPattern(realDimValue, m_ConstantInt(&realDim)))
+                continue;
+            if (realDim.getSExtValue() > tileDim)
+                return emitOpError() << "real_shape exceeds tile shape";
+        }
+    }
     return success();
 }
 

@@ -443,10 +443,17 @@ struct ConvertStoreFixpipe : ConvertOp<asctile::StoreFixpipeOp> {
         auto tailNegCond = rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::slt, tailElementsLastDim, const0);
         Value tailElements = rewriter.create<arith::SelectOp>(loc, tailNegCond, const0, tailElementsLastDim);
         Value nSize = rewriter.create<arith::MinSIOp>(loc, srcLastDim, tailElements);
+        Value mSize = srcShape[0];
+        if (auto realShape = op.getRealShape(); !realShape.empty()) {
+            Value realCols = rewriter.getRemappedValue(realShape.back());
+            nSize = rewriter.create<arith::MinSIOp>(loc, nSize, realCols);
+            Value realRows = rewriter.getRemappedValue(realShape[0]);
+            mSize = rewriter.create<arith::MinSIOp>(loc, mSize, realRows);
+        }
         auto srcStride = static_cast<int32_t>(llvm::alignTo<ascendc::cubeBlockSize>(srcType.getShape()[0]));
         auto paramsBuilder = emitasc::InitStructBuilder(rewriter.getType<ascendc::FixpipeParamsV220Type>())
                                  .addField("nSize", nSize)
-                                 .addField("mSize", srcShape[0])
+                                 .addField("mSize", mSize)
                                  .addField("srcStride", consts.i32(srcStride))
                                  .addField("dstStride", dstInfo.shape[1]);
         if (op.getRelu())
