@@ -362,15 +362,17 @@ def ReduceOp : AscTile_Op<"reduce", [
   }];
 }
 
-def StoreFixpipeOp : AscTile_Op<"store_fixpipe", [MemoryEffectsOpInterface]> {
+def StoreFixpipeOp : AscTile_Op<"store_fixpipe", [
+  AttrSizedOperandSegments, MemoryEffectsOpInterface
+]> {
   let summary = "Store a tile into a tensor";
   let arguments = (ins NumericTile:$value,
                    Arg<Tensor, "tensor to store to", [MemWrite]>:$base,
-                   Variadic<I32>:$offsets, UnitAttr:$relu,
-                   UnitAttr:$quantize);
+                   Variadic<I32>:$offsets, Variadic<I32>:$realShape,
+                   UnitAttr:$relu, UnitAttr:$quantize);
   let assemblyFormat = [{
-    $value `,` $base `[` $offsets `]` attr-dict `:` qualified(type($value)) `,`
-    qualified(type($base))
+    $value `,` $base `[` $offsets `]` (`,` `(` $realShape^ `)`)? attr-dict `:`
+    qualified(type($value)) `,` qualified(type($base))
   }];
   let hasVerifier = 1;
 }

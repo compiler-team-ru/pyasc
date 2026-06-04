@@ -47,7 +47,8 @@ struct TransformStoreOp : OpRewritePattern<asctile::StoreOp> {
         auto value = op.getValue();
         if (value.getType().getLoc() != TileLocation::L0C)
             return failure();
-        rewriter.replaceOpWithNewOp<asctile::StoreFixpipeOp>(op, value, op.getBase(), op.getOffsets());
+        rewriter.replaceOpWithNewOp<asctile::StoreFixpipeOp>(
+            op, value, op.getBase(), op.getOffsets(), op.getRealShape());
         return success();
     }
 };
