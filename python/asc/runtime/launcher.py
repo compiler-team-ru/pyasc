@@ -66,7 +66,7 @@ class LaunchOptions:
             kernel[core_num](x, y)
     """
 
-    core_num: int = 0
+    core_num: Optional[int] = None
     """
     Number of active execution blocks (AI cores) used to launch the kernel.
     By default, all cores available on the current platform will be used.
@@ -108,14 +108,9 @@ class Launcher:
 
     def __init__(self, options: LaunchOptions):
         self.options = options
-
-    @staticmethod
-    def is_torch_scalar(value: Any) -> bool:
-        try:
-            import torch
-            return isinstance(value, torch.Tensor) and value.dim() == 0
-        except ModuleNotFoundError:
-            return False
+        core_num = self.options.core_num
+        if core_num is not None and core_num <= 0:
+            raise ValueError("'core_num' must be positive")
 
     @staticmethod
     def is_torch_scalar(value: Any) -> bool:
@@ -154,6 +149,10 @@ class Launcher:
                 kernel_args.append(resolve_memory_handle(arg))
         return kernel_args
 
+    @staticmethod
+    def get_core_num() -> int:
+        return rt.device_info(rt.DeviceModuleType.RT_MODULE_TYPE_AICORE, rt.DeviceInfoType.INFO_TYPE_CORE_NUM)
+
     def launch_kernel(self, function: rt.Function, kernel_args: List[Union[np.generic, MemoryHandle]],
                       enable_debug: bool, func_name: str) -> None:
 
@@ -183,8 +182,9 @@ class Launcher:
         combined_inputs = bytes().join(input_blobs).ljust(aligned_len, b"\0")
         chunks = [combined_inputs[i:i + 8] for i in range(0, len(combined_inputs), 8)]
         inputs = [ctypes.c_uint64(int.from_bytes(x, "little")) for x in chunks]
+        core_num = self.options.core_num or self.get_core_num()
         stream = self.options.stream or rt.current_stream()
-        rt.launch_kernel(function, self.options.core_num, inputs, stream_handle=stream)
+        rt.launch_kernel(function, core_num, inputs, stream_handle=stream)
         rt.synchronize()
         for index, arg in enumerate(memory_args):
             try:
@@ -242,8 +242,6 @@ class Launcher:
             function = rt.register_function(kernel_handle, function_name, mode=0)
             if kernel_callback is not None:
                 kernel_callback(function)
-        if self.options.core_num <= 0:
-            raise ValueError("Core number should be large than 0")
         self.launch_kernel(function, kernel_args, kernel.meta.enable_debug, function_name)
         if discard_handles and kernel_handle is not None:
             rt.unregister_device_binary_kernel(kernel_handle)
