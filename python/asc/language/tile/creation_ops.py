@@ -7,11 +7,11 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 from numbers import Real
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Union, overload
 
 from ..._C import ir
 from ..core.dtype import DataType, KnownTypes as KT
-from ..core.ir_value import RuntimeNumeric
+from ..core.ir_value import PlainValue, RuntimeNumeric, materialize_ir_value
 from ..core.utils import global_builder, require_jit
 from .tile import Tile, TileLocation
 from .utils import constant_tile, splat_tile
@@ -188,6 +188,73 @@ def zeros_acc(shape: Iterable[int], dtype: DataType) -> Tile:
     ir_type = ir.get_asctile_TileType(shape, dtype.to_ir(), TileLocation.L0C)
     handle = global_builder.get_ir_builder().create_asctile_AccumulatorOp(ir_type)
     return Tile.from_ir(handle)
+
+
+@overload
+def cast(input: Tile, dtype: DataType) -> Tile:
+    ...
+
+
+@overload
+def cast(input: RuntimeNumeric, dtype: DataType) -> PlainValue:
+    ...
+
+
+@require_jit
+def cast(input: Union[Tile, RuntimeNumeric], dtype: DataType) -> Union[Tile, PlainValue]:
+    """
+    Cast a tile or scalar value to a different data type.
+
+    Creates a new tile (or scalar) with the same shape but converted to the specified data type. If the input already
+    has the target dtype, returns the input unchanged.
+
+    The supported data types are: ``int8``, ``int16``, ``int32``, ``int64``, ``float16``, ``bfloat16``, ``float32``.
+
+    Args:
+        input: The input tile or scalar value to cast
+        dtype: The target data type
+
+    Returns:
+        Tile: A new tile with the specified dtype (if input is a Tile)
+        PlainValue: A scalar value with the specified dtype (if input is a scalar)
+
+    Raises:
+        TypeError: If input is not a Tile or numeric value, or dtype is not a DataType
+
+    Note:
+        This function is also available as the :code:`.to()` method on tiles: :code:`tile.to(dtype)`.
+
+    Examples:
+        Cast a tile from float32 to float16: ::
+
+            tile = asc2.load(x_gm, [128], offsets=[0])
+            tile_fp16 = asc2.cast(tile, asc2.float16)
+
+        Cast using the .to() method (equivalent): ::
+
+            tile = asc2.load(x_gm, [128], offsets=[0])
+            tile_fp16 = tile.to(asc2.float16)
+
+        Cast a scalar value: ::
+
+            scalar_fp16 = asc2.cast(3.14, asc2.float16)
+
+        Chain multiple casts for quantization: ::
+
+            acc = asc2.zeros_acc([64, 128], dtype=asc2.float32)
+            # ... accumulate matmul results ...
+            result_fp16 = acc.to(asc2.float16)
+            asc2.store(result_fp16, out_gm, offsets=[0, 0])
+    """
+    check_type("input", input, (Tile, RuntimeNumeric))
+    check_type("dtype", dtype, DataType)
+    if not isinstance(input, Tile):
+        return materialize_ir_value(input, dtype)
+    if input.dtype == dtype:
+        return input
+    ir_type = ir.clone_shaped_type(input.to_ir().get_type(), dtype.to_ir())
+    handle = global_builder.get_ir_builder().create_asctile_CastOp(ir_type, input.to_ir())
+    return Tile(handle)
 
 
 @require_jit

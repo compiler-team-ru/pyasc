@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from typing import Generator, Iterable, Optional
+from typing import Generator, Iterable
 from typing_extensions import Self
 
 from ..._C import ir
@@ -75,9 +75,10 @@ class Tensor(IRValue):
     shape: RuntimeShape
     """Tensor shape"""
 
-    def __init__(self, *, handle: Optional[IRHandle] = None) -> None:
-        """This constructor is not called by user. Use :py:func:`asc2.tensor` function to define a tensor."""
+    def __init__(self, *, handle: IRHandle) -> None:
+        """This constructor is not called by user. Use :py:func:`tensor` function to define a tensor."""
         super().__init__()
+        check_type("handle", handle, IRHandle)
         self.handle = handle
         ir_type = self.handle.get_type()
         self.dtype = DataType.from_ir(ir.get_element_type(ir_type))
@@ -94,14 +95,34 @@ class Tensor(IRValue):
 @require_jit
 def tensor(base: GlobalAddress, shape: Iterable[RuntimeInt]) -> Tensor:
     """
-    Define a new tensor. Tensors are used to transfer data between local and global memory.
+    Define a new tensor descriptor for accessing data in global memory.
+
+    Tensors represent contiguous ND-arrays in global memory and are used to transfer data between global and local
+    memory via :py:func:`load` and :py:func:`store` operations.
 
     Args:
-        base: The base address of an array in Global Memory representing a tensor
-        shape: An iterable for integer-like values representing the number of elements for each dimension of a tensor
+        base: The base address of an array in global memory representing the tensor
+        shape: An iterable of integer-like values representing the number of elements for each dimension
 
     Returns:
         Tensor: A new tensor descriptor
+
+    Raises:
+        TypeError: If base is not a GlobalAddress or shape contains non-integer values
+        RuntimeError: If shape is empty
+
+    Examples:
+        Create a 1D tensor with static shape: ::
+
+            x_gm = asc2.tensor(x_ptr, [1024])
+
+        Create a 2D tensor with static shape: ::
+
+            x_gm = asc2.tensor(x_ptr, [64, 128])
+
+        Create a tensor with dynamic shape (using runtime values): ::
+
+            x_gm = asc2.tensor(x_ptr, [num_rows, num_cols])
     """
     check_type("base", base, GlobalAddress)
     shape = verify_runtime_ints(shape, "shape")
@@ -115,4 +136,4 @@ def tensor(base: GlobalAddress, shape: Iterable[RuntimeInt]) -> Tensor:
             dynamic_sizes.append(mat(dim, int32).to_ir())
     ir_type = ir.get_asctile_TensorType(static_sizes, base.dtype.to_ir())
     handle = global_builder.get_ir_builder().create_asctile_TensorOp(ir_type, base.to_ir(), dynamic_sizes)
-    return Tensor.from_ir(handle=handle)
+    return Tensor.from_ir(handle)
