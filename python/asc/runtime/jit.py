@@ -59,14 +59,21 @@ class JITFunction(Function[P, T]):
         self.launch_options = LaunchOptions()
         self.kernel_cache: Dict[str, CompiledKernel] = {}
 
-    def __getitem__(self, options: Union[int, tuple]) -> Callable[P, T]:
+    def __getitem__(self, options: Union[int, tuple]) -> Callable:
         if not isinstance(options, tuple):
             options = (options, )
         try:
-            self.launch_options = self.launcher.options_cls(*options)
+            self.launch_options = LaunchOptions(*options)
         except Exception as e:
             raise TypeError("Provided launch options are not supported") from e
-        return self._run
+        return self
+
+    @staticmethod
+    def get_clashed_args(fn: Callable) -> List[str]:
+        keywords = set(__class__.get_config_keywords())
+        signature = inspect.signature(fn)
+        keywords.intersection_update(signature.parameters)
+        return list(keywords)
 
     @staticmethod
     def get_arg_type(value: Any) -> BaseArgType:
@@ -222,14 +229,7 @@ class JITFunction(Function[P, T]):
         launcher = self.launcher(options)
         launcher.run(kernel, self.fn.__name__, runtime_args, not enable_cache, save_launched_kernel)
 
-        def save_launched_kernel(handle: rt.Function) -> None:
-            if enable_cache:
-                self.kernel_cache[mem_cache_key] = LaunchedKernel.from_compiled(kernel, handle)
-
-        launcher = self.launcher(options)
-        launcher.run(kernel, self.fn.__name__, runtime_args, not enable_cache, save_launched_kernel)
-
-    def _run(self, *args: P.args, **kwargs: P.kwargs) -> T:
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> None:
         kwargs = merge_dict(self.default_options, kwargs)
         codegen_options = self.extract_kwargs(self.codegen.options_cls, kwargs)
         compile_options = self.extract_kwargs(self.compiler.options_cls, kwargs)
