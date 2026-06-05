@@ -47,9 +47,7 @@ def splat_tile(value: PlainValue, shape: TensorShape, dtype: DataType,
 
 def create_tile(value: Union[Tile, RuntimeNumeric], dtype: DataType, shape: Tuple[int, ...]) -> Tile:
     if isinstance(value, Tile):
-        if value.shape != shape:
-            raise RuntimeError("Tile shape doesn't match the required shape")
-        return value.to(dtype)
+        return value.to(dtype).broadcast_to(*shape)
     if isinstance(value, Real):
         return constant_tile(value, shape, dtype)
     if isinstance(value, PlainValue):
@@ -96,8 +94,20 @@ def infer_common_dtype(lhs: Union[Tile, RuntimeNumeric], rhs: Union[Tile, Runtim
 def infer_common_shape(lhs: Union[Tile, RuntimeNumeric], rhs: Union[Tile, RuntimeNumeric]) -> Tuple[int, ...]:
     lhs_is_tile = isinstance(lhs, Tile)
     rhs_is_tile = isinstance(rhs, Tile)
-    if lhs_is_tile and rhs_is_tile:
-        if lhs.shape == rhs.shape:
-            return lhs.shape
-        raise RuntimeError(f"Shape mismatch: {lhs.shape} vs. {rhs.shape}")
-    return lhs.shape if lhs_is_tile else rhs.shape
+    if not lhs_is_tile and not rhs_is_tile:
+        raise TypeError("At least one operand must be a Tile")
+    if not lhs_is_tile:
+        return rhs.shape
+    if not rhs_is_tile:
+        return lhs.shape
+    if lhs.shape == rhs.shape:
+        return lhs.shape
+    rank = max(len(lhs.shape), len(rhs.shape))
+    lhs_padded = (1, ) * (rank - len(lhs.shape)) + lhs.shape
+    rhs_padded = (1, ) * (rank - len(rhs.shape)) + rhs.shape
+    result = []
+    for dim_lhs, dim_rhs in zip(lhs_padded, rhs_padded):
+        if dim_lhs != dim_rhs and dim_lhs != 1 and dim_rhs != 1:
+            raise RuntimeError(f"Shapes are not broadcastable: {lhs.shape} vs. {rhs.shape}")
+        result.append(max(dim_lhs, dim_rhs))
+    return tuple(result)
