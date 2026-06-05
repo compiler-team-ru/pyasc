@@ -25,22 +25,14 @@ def select(cond_ptr: asc2.GlobalAddress, input_x_ptr: asc2.GlobalAddress, input_
     block_loop_num = asc2.ceildiv(asc2.ceildiv(input_length, asc2.block_num()), tile_length)
     block_length = tile_length * block_loop_num
     block_offset = asc2.block_idx() * block_length
-    loop_count = block_loop_num
-    tile_length_tail = asc2.number(tile_length, asc2.int_)
-    if asc2.block_idx() == asc2.block_num() - 1:
-        tail_block_length = input_length - block_length * (asc2.block_num() - 1)
-        loop_count = asc2.ceildiv(tail_block_length, tile_length)
-        tile_length_tail = tail_block_length - tile_length * (loop_count - 1)
 
-    for i in asc2.range(loop_count, unroll_factor=unroll_factor, parallel=True):
+    for i in asc2.range(block_loop_num, unroll_factor=unroll_factor, parallel=True):
         current_offset = block_offset + i * tile_length
-        real_tile_length = tile_length_tail if i == loop_count - 1 and asc2.block_idx(
-        ) == asc2.block_num() - 1 else tile_length
-        ct = asc2.load(c, [tile_length], real_shape=[real_tile_length], offsets=[current_offset])
-        xt = asc2.load(x, [tile_length], real_shape=[real_tile_length], offsets=[current_offset])
-        yt = asc2.load(y, [tile_length], real_shape=[real_tile_length], offsets=[current_offset])
+        ct = asc2.load(c, [tile_length], offsets=[current_offset])
+        xt = asc2.load(x, [tile_length], offsets=[current_offset])
+        yt = asc2.load(y, [tile_length], offsets=[current_offset])
         zt = asc2.where(ct != 0, xt, yt)
-        asc2.store(zt, z, real_shape=[real_tile_length], offsets=[current_offset])
+        asc2.store(zt, z, offsets=[current_offset])
 
 
 @pytest.mark.parametrize("block_num, unroll_factor, input_shape, in_out_dtype, tiling_key, tiling_values", [

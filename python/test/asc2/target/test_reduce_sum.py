@@ -22,30 +22,17 @@ def reduce_sum_rows(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
 
     rows_per_block = asc2.ceildiv(input_num_rows, asc2.block_num())
     start_offset = asc2.block_idx() * rows_per_block
-
     row_iters = asc2.ceildiv(rows_per_block, tile_shape[0])
-    tail_tile_rows = asc2.number(tile_shape[0], asc2.int_)
-    if asc2.block_idx() == asc2.block_num() - 1:
-        tail_rows_per_block = input_num_rows - rows_per_block * (asc2.block_num() - 1)
-        row_iters = asc2.ceildiv(tail_rows_per_block, tile_shape[0])
-        tail_tile_rows = tail_rows_per_block - tile_shape[0] * (row_iters - 1)
-
     column_iters = asc2.ceildiv(input_num_cols, tile_shape[1])
-    tail_tile_cols = input_num_cols - tile_shape[1] * (column_iters - 1)
 
     for i in asc2.range(row_iters, parallel=True, unroll_factor=unroll_factor):
         row_start_offset = start_offset + i * tile_shape[0]
         cache = asc2.zeros([tile_shape[0]], dtype=asc2.float32)
-        real_tile_rows = tail_tile_rows if i == row_iters - 1 and asc2.block_idx(
-        ) == asc2.block_num() - 1 else tile_shape[0]
         for j in asc2.range(column_iters, parallel=False):
-            real_tile_cols = tail_tile_cols if j == column_iters - 1 else tile_shape[1]
-            real_shape = [real_tile_rows, real_tile_cols]
-            tensor_part = asc2.load(in_gm, tile_shape, real_shape=real_shape,
-                                    offsets=[row_start_offset, j * tile_shape[1]], pad_value=0)
+            tensor_part = asc2.load(in_gm, tile_shape, offsets=[row_start_offset, j * tile_shape[1]], pad_value=0)
             output = asc2.reduce_sum(tensor_part, 1)
             cache = output + cache
-        asc2.store(cache, out_gm, real_shape=[real_tile_rows], offsets=[row_start_offset])
+        asc2.store(cache, out_gm, offsets=[row_start_offset])
 
 
 @asc2.jit(static_alloc=True, reuse_ub=True)
@@ -57,30 +44,17 @@ def reduce_sum_cols(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
 
     cols_per_block = asc2.ceildiv(input_num_cols, asc2.block_num())
     start_offset = asc2.block_idx() * cols_per_block
-
     column_iters = asc2.ceildiv(cols_per_block, tile_shape[1])
-    tail_tile_cols = asc2.number(tile_shape[1], asc2.int_)
-    if asc2.block_idx() == asc2.block_num() - 1:
-        tail_cols_per_block = input_num_cols - cols_per_block * (asc2.block_num() - 1)
-        column_iters = asc2.ceildiv(tail_cols_per_block, tile_shape[1])
-        tail_tile_cols = tail_cols_per_block - tile_shape[1] * (column_iters - 1)
-
     row_iters = asc2.ceildiv(input_num_rows, tile_shape[0])
-    tail_tile_rows = input_num_rows - tile_shape[0] * (row_iters - 1)
 
     for j in asc2.range(column_iters, parallel=True, unroll_factor=unroll_factor):
         col_start_offset = start_offset + j * tile_shape[1]
         cache = asc2.zeros([tile_shape[1]], dtype=asc2.float32)
-        real_tile_cols = tail_tile_cols if j == column_iters - 1 and asc2.block_idx(
-        ) == asc2.block_num() - 1 else tile_shape[1]
         for i in asc2.range(row_iters, parallel=False):
-            real_tile_rows = tail_tile_rows if i == row_iters - 1 else tile_shape[0]
-            real_shape = [real_tile_rows, real_tile_cols]
-            tensor_part = asc2.load(in_gm, tile_shape, real_shape=real_shape,
-                                    offsets=[i * tile_shape[0], col_start_offset])
+            tensor_part = asc2.load(in_gm, tile_shape, offsets=[i * tile_shape[0], col_start_offset])
             output = asc2.reduce_sum(tensor_part, 0)
             cache = output + cache
-        asc2.store(cache, out_gm, real_shape=[real_tile_cols], offsets=[col_start_offset])
+        asc2.store(cache, out_gm, offsets=[col_start_offset])
 
 
 @pytest.mark.parametrize(

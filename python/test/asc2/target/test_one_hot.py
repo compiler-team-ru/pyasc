@@ -23,12 +23,9 @@ def one_hot(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, arang
 
     block_length = asc2.ceildiv(input_total, asc2.block_num())
     block_offset = asc2.block_idx() * block_length
-    loop_count = block_length
-    if asc2.block_idx() == asc2.block_num() - 1:
-        loop_count = input_total - block_length * (asc2.block_num() - 1)
 
     arange_tile = asc2.load(arange_gm, [depth], offsets=[0])
-    for i in asc2.range(loop_count, unroll_factor=unroll_factor, parallel=True):
+    for i in asc2.range(block_length, unroll_factor=unroll_factor, parallel=True):
         idx_pos = block_offset + i
         idx_scalar = asc2.load(in_gm, offsets=[idx_pos])
         mask = asc2.equal(arange_tile, idx_scalar)
