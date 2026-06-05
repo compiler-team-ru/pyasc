@@ -24,21 +24,18 @@ def softmax_fused(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
     # rows_per_block = asc2.ceildiv(input_num_rows, asc2.block_num())
     rows_per_block = rows_per_core
     start_offset = asc2.block_idx() * rows_per_block
+    block_loop_num = asc2.number(asc2.ceildiv(rows_per_block, tile_shape[0]), asc2.int_)
 
-    ub_loop = asc2.number(asc2.ceildiv(rows_per_block, tile_shape[0]), asc2.int_)
-    tail_rows = asc2.number(tile_shape[0], asc2.int_)
+    # TODO: remove redundant tail handling when the accuracy issue is resolved
     if asc2.block_idx() == asc2.block_num() - 1:
         tail_rows_per_block = input_num_rows - rows_per_block * (asc2.block_num() - 1)
-        ub_loop = asc2.ceildiv(tail_rows_per_block, tile_shape[0])
-        tail_rows = tail_rows_per_block - tile_shape[0] * (ub_loop - 1)
+        block_loop_num = asc2.ceildiv(tail_rows_per_block, tile_shape[0])
 
-    for i in asc2.range(ub_loop, unroll_factor=unroll_factor, parallel=True):
+    for i in asc2.range(block_loop_num, unroll_factor=unroll_factor, parallel=True):
         row_start_offset = start_offset + i * tile_shape[0]
-        real_rows = tail_rows if i == ub_loop - 1 and asc2.block_idx() == asc2.block_num() - 1 else tile_shape[0]
-        rows = asc2.load(in_gm, [tile_shape[0], tile_shape[1]], real_shape=[real_rows, input_num_cols],
-                         offsets=[row_start_offset, 0], pad_value=float('-inf'))
+        rows = asc2.load(in_gm, [tile_shape[0], tile_shape[1]], offsets=[row_start_offset, 0], pad_value=float('-inf'))
         out = asc2.softmax(rows)
-        asc2.store(out, out_gm, real_shape=[real_rows, input_num_cols], offsets=[row_start_offset, 0])
+        asc2.store(out, out_gm, offsets=[row_start_offset, 0])
 
 
 @pytest.mark.parametrize("block_num, unroll_factor, input_shape, in_out_dtype, tiling_key, tiling_values", [

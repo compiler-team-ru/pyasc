@@ -23,18 +23,10 @@ def gelu(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_le
     block_loop_num = asc2.ceildiv(asc2.ceildiv(input_length, asc2.block_num()), tile_length)
     block_length = tile_length * block_loop_num
     block_offset = block_length * asc2.block_idx()
-    loop_count = block_loop_num
-    tile_length_tail = asc2.number(tile_length, asc2.int_)
-    if asc2.block_idx() == asc2.block_num() - 1:
-        tail_block_length = input_length - block_length * (asc2.block_num() - 1)
-        loop_count = asc2.ceildiv(tail_block_length, tile_length)
-        tile_length_tail = tail_block_length - tile_length * (loop_count - 1)
 
-    for i in asc2.range(loop_count, unroll_factor=unroll_factor, parallel=True):
+    for i in asc2.range(block_loop_num, unroll_factor=unroll_factor, parallel=True):
         current_offset = block_offset + i * tile_length
-        real_tile_length = tile_length_tail if i == loop_count - 1 and asc2.block_idx(
-        ) == asc2.block_num() - 1 else tile_length
-        row = asc2.load(in_gm, [tile_length], real_shape=[real_tile_length], offsets=[current_offset])
+        row = asc2.load(in_gm, [tile_length], offsets=[current_offset])
         input_sq = row * row
         input_cub = input_sq * row
         input_cub = row + input_cub * TANH_APPROX_FACTOR
@@ -42,7 +34,7 @@ def gelu(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_le
         input_cub = asc2.exp(input_cub)
         input_cub = input_cub + 1
         out = row / input_cub
-        asc2.store(out, out_gm, real_shape=[real_tile_length], offsets=[current_offset])
+        asc2.store(out, out_gm, offsets=[current_offset])
 
 
 def gelu_torch(x: torch.Tensor, TANH_APPROX_FACTOR, NEG_SQRT_EIGHT_OVER_PI):

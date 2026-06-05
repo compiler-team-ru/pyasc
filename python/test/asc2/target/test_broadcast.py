@@ -22,21 +22,12 @@ def broadcast_scalar(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddre
 
     cols_per_block = asc2.ceildiv(output_num_cols, asc2.block_num())
     start_offset = asc2.block_idx() * cols_per_block
-
     column_iters = asc2.ceildiv(cols_per_block, tile_shape[1])
-    tail_tile_cols = asc2.number(tile_shape[1], asc2.int_)
-    if asc2.block_idx() == asc2.block_num() - 1:
-        tail_cols_per_block = output_num_cols - cols_per_block * (asc2.block_num() - 1)
-        column_iters = asc2.ceildiv(tail_cols_per_block, tile_shape[1])
-        tail_tile_cols = tail_cols_per_block - tile_shape[1] * (column_iters - 1)
 
     for i in asc2.range(column_iters, parallel=True, unroll_factor=unroll_factor):
-        real_tile_cols = tail_tile_cols if i == column_iters - 1 and asc2.block_idx(
-        ) == asc2.block_num() - 1 else tile_shape[1]
         scalar = asc2.load(in_gm, offsets=[0])
         res = asc2.full(tile_shape, scalar)
-        asc2.store(res, out_gm, real_shape=[tile_shape[0], real_tile_cols],
-                   offsets=[0, start_offset + i * tile_shape[1]])
+        asc2.store(res, out_gm, offsets=[0, start_offset + i * tile_shape[1]])
 
 
 @asc2.jit(static_alloc=False, reuse_ub=True)
@@ -48,27 +39,16 @@ def broadcast_first_dim(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAd
 
     rows_per_block = asc2.ceildiv(output_num_rows, asc2.block_num())
     start_offset = asc2.block_idx() * rows_per_block
-
     row_iters = asc2.ceildiv(rows_per_block, tile_shape[0])
-    tail_tile_rows = asc2.number(tile_shape[0], asc2.int_)
-    if asc2.block_idx() == asc2.block_num() - 1:
-        tail_rows_per_block = output_num_rows - rows_per_block * (asc2.block_num() - 1)
-        row_iters = asc2.ceildiv(tail_rows_per_block, tile_shape[0])
-        tail_tile_rows = tail_rows_per_block - tile_shape[0] * (row_iters - 1)
 
     column_iters = asc2.ceildiv(output_num_cols, tile_shape[1])
-    tail_tile_cols = output_num_cols - tile_shape[1] * (column_iters - 1)
 
     for j in asc2.range(column_iters, parallel=True, unroll_factor=unroll_factor):
         col_start_offset = j * tile_shape[1]
-        real_tile_cols = tail_tile_cols if j == column_iters - 1 else tile_shape[1]
-        tensor_part = asc2.load(in_gm, [tile_shape[1]], real_shape=[real_tile_cols], offsets=[col_start_offset])
+        tensor_part = asc2.load(in_gm, [tile_shape[1]], offsets=[col_start_offset])
         res = tensor_part.broadcast_to(tile_shape[0], tile_shape[1])
         for i in asc2.range(row_iters, parallel=True):
-            real_tile_rows = tail_tile_rows if i == row_iters - 1 and asc2.block_idx(
-            ) == asc2.block_num() - 1 else tile_shape[0]
-            asc2.store(res, out_gm, real_shape=[real_tile_rows, real_tile_cols],
-                       offsets=[start_offset + i * tile_shape[0], col_start_offset])
+            asc2.store(res, out_gm, offsets=[start_offset + i * tile_shape[0], col_start_offset])
 
 
 # static_alloc=False due to bug
@@ -81,28 +61,15 @@ def broadcast_last_dim(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAdd
 
     rows_per_block = asc2.ceildiv(output_num_rows, asc2.block_num())
     start_offset = asc2.block_idx() * rows_per_block
-
     row_iters = asc2.ceildiv(rows_per_block, tile_shape[0])
-    tail_tile_rows = asc2.number(tile_shape[0], asc2.int_)
-    if asc2.block_idx() == asc2.block_num() - 1:
-        tail_rows_per_block = output_num_rows - rows_per_block * (asc2.block_num() - 1)
-        row_iters = asc2.ceildiv(tail_rows_per_block, tile_shape[0])
-        tail_tile_rows = tail_rows_per_block - tile_shape[0] * (row_iters - 1)
-
     column_iters = asc2.ceildiv(output_num_cols, tile_shape[1])
-    tail_tile_cols = output_num_cols - tile_shape[1] * (column_iters - 1)
 
     for i in asc2.range(row_iters, parallel=True, unroll_factor=unroll_factor):
         row_start_offset = start_offset + i * tile_shape[0]
-        real_tile_rows = tail_tile_rows if i == row_iters - 1 and asc2.block_idx(
-        ) == asc2.block_num() - 1 else tile_shape[0]
-        tensor_part = asc2.load(in_gm, [tile_shape[0]], real_shape=[real_tile_rows],
-                                offsets=[row_start_offset]).reshape(tile_shape[0], 1)
+        tensor_part = asc2.load(in_gm, [tile_shape[0]], offsets=[row_start_offset]).reshape(tile_shape[0], 1)
         res = tensor_part.broadcast_to(tile_shape[0], tile_shape[1])
         for j in asc2.range(column_iters, parallel=False):
-            real_tile_cols_iter = tail_tile_cols if j == column_iters - 1 else tile_shape[1]
-            asc2.store(res, out_gm, real_shape=[real_tile_rows, real_tile_cols_iter],
-                       offsets=[row_start_offset, j * tile_shape[1]])
+            asc2.store(res, out_gm, offsets=[row_start_offset, j * tile_shape[1]])
 
 
 def get_broadcast_axes(input_shape, output_shape):
