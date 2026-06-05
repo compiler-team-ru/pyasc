@@ -12,10 +12,13 @@ import asc2
 import pytest
 import torch
 
+STATIC = "static"
+DYNAMIC = "dynamic"
+
 
 @asc2.jit(static_alloc=True, reuse_ub=True)
-def add(input_x_ptr: asc2.GlobalAddress, input_y_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
-        input_length: asc2.ConstExpr, tile_length: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
+def add(input_x_ptr: asc2.GlobalAddress, input_y_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length,
+        tile_length: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     x = asc2.tensor(input_x_ptr, [input_length])
     y = asc2.tensor(input_y_ptr, [input_length])
     z = asc2.tensor(output_ptr, [input_length])
@@ -32,6 +35,7 @@ def add(input_x_ptr: asc2.GlobalAddress, input_y_ptr: asc2.GlobalAddress, output
         asc2.store(zt, z, offsets=[current_offset])
 
 
+@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
 @pytest.mark.parametrize("block_num, unroll_factor, input_shape, in_out_dtype, tiling_key, tiling_values", [
     (36, 2, [9216], torch.float32, 8, [9216, 0, 128, 36]),
     (35, 2, [8732], torch.float32, 8, [8732, 0, 128, 35]),
@@ -42,7 +46,8 @@ def add(input_x_ptr: asc2.GlobalAddress, input_y_ptr: asc2.GlobalAddress, output
     (54, 1, [6691304], torch.float32, 8, [6691304, 0, 10496, 54]),
     (56, 1, [5224328], torch.float32, 8, [5224328, 0, 10496, 56]),
 ])
-def test_add(profiler, runs, block_num, unroll_factor, input_shape, in_out_dtype, tiling_key, tiling_values):
+def test_add(profiler, runs, kernel_type, block_num, unroll_factor, input_shape, in_out_dtype, tiling_key,
+             tiling_values):
     input_shape_1d = [math.prod(input_shape)]
     _, _, tile_length, block_num = tiling_values
 
@@ -50,9 +55,16 @@ def test_add(profiler, runs, block_num, unroll_factor, input_shape, in_out_dtype
     in_tensor_y = torch.randn(input_shape_1d, dtype=in_out_dtype)
     out_tensor = torch.zeros(input_shape_1d, dtype=in_out_dtype)
 
+    params = [in_tensor_x, in_tensor_y, out_tensor]
+    if kernel_type == STATIC:
+        params.append(asc2.ConstExpr(input_shape_1d[0]))
+    else:
+        params.append(input_shape_1d[0])
+    params.extend([tile_length, unroll_factor])
+
     with profiler.profile():
         for _ in range(runs):
-            add[block_num](in_tensor_x, in_tensor_y, out_tensor, input_shape_1d[0], tile_length, unroll_factor)
+            add[block_num](*params)
 
     expected = torch.add(in_tensor_x, in_tensor_y)
     torch.testing.assert_close(out_tensor, expected, atol=1e-3, rtol=1e-3)

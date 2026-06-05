@@ -12,11 +12,13 @@ import asc2
 import pytest
 import torch
 
+STATIC = "static"
+DYNAMIC = "dynamic"
+
 
 @asc2.jit(static_alloc=True, reuse_ub=True, reuse_ub_in_out=True)
-def gelu(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length: asc2.ConstExpr,
-         tile_length: asc2.ConstExpr, TANH_APPROX_FACTOR: asc2.ConstExpr, NEG_SQRT_EIGHT_OVER_PI: asc2.ConstExpr,
-         unroll_factor: asc2.ConstExpr):
+def gelu(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length, tile_length: asc2.ConstExpr,
+         TANH_APPROX_FACTOR: asc2.ConstExpr, NEG_SQRT_EIGHT_OVER_PI: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     in_gm = asc2.tensor(input_ptr, [input_length])
     out_gm = asc2.tensor(output_ptr, [input_length])
 
@@ -47,6 +49,7 @@ def gelu_torch(x: torch.Tensor, TANH_APPROX_FACTOR, NEG_SQRT_EIGHT_OVER_PI):
     return x / input_cub
 
 
+@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
 @pytest.mark.parametrize("block_num, unroll_factor, input_shape, in_out_dtype, tiling_key, tiling_values", [
     ## Ascend950PR_9599
     # (72, 2, [24, 512, 1024], torch.float32, 7, [12582912, 72, 15872]),
@@ -66,7 +69,8 @@ def gelu_torch(x: torch.Tensor, TANH_APPROX_FACTOR, NEG_SQRT_EIGHT_OVER_PI):
     (56, 2, [101, 181, 53, 17, 1], torch.float16, 3, [16471181, 56, 10496]),
     (56, 2, [101, 181, 53, 17, 1], torch.float32, 7, [16471181, 56, 15872]),
 ])
-def test_gelu(profiler, runs, block_num, unroll_factor, input_shape, in_out_dtype, tiling_key, tiling_values):
+def test_gelu(profiler, runs, kernel_type, block_num, unroll_factor, input_shape, in_out_dtype, tiling_key,
+              tiling_values):
     TANH_APPROX_FACTOR = 1.0 / 0.044715
     NEG_SQRT_EIGHT_OVER_PI = -1.595769121 * 0.044715
     input_shape_1d = [math.prod(input_shape)]
@@ -75,10 +79,16 @@ def test_gelu(profiler, runs, block_num, unroll_factor, input_shape, in_out_dtyp
     in_tensor = torch.randn(input_shape_1d, dtype=in_out_dtype)
     out_tensor = torch.zeros(input_shape_1d, dtype=in_out_dtype)
 
+    params = [in_tensor, out_tensor]
+    if kernel_type == STATIC:
+        params.append(asc2.ConstExpr(input_shape_1d[0]))
+    else:
+        params.append(input_shape_1d[0])
+    params.extend([tile_length, TANH_APPROX_FACTOR, NEG_SQRT_EIGHT_OVER_PI, unroll_factor])
+
     with profiler.profile():
         for _ in range(runs):
-            gelu[block_num](in_tensor, out_tensor, input_shape_1d[0], tile_length, TANH_APPROX_FACTOR,
-                            NEG_SQRT_EIGHT_OVER_PI, unroll_factor)
+            gelu[block_num](*params)
 
     expected = gelu_torch(in_tensor, TANH_APPROX_FACTOR, NEG_SQRT_EIGHT_OVER_PI)
     torch.testing.assert_close(out_tensor, expected, rtol=1e-3, atol=1e-3)

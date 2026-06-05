@@ -12,11 +12,14 @@ import asc2
 import pytest
 import torch
 
+STATIC = "static"
+DYNAMIC = "dynamic"
+
 
 @asc2.jit(static_alloc=True, reuse_ub=True)
-def cast_direct(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length: asc2.ConstExpr,
-                block_loop_num: asc2.ConstExpr, block_loop_num_tail: asc2.ConstExpr, block_length: asc2.ConstExpr,
-                tile_length: asc2.ConstExpr, dst_dtype: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
+def cast_direct(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length, block_loop_num,
+                block_loop_num_tail, block_length, tile_length: asc2.ConstExpr, dst_dtype: asc2.ConstExpr,
+                unroll_factor: asc2.ConstExpr):
     x_gm = asc2.tensor(input_ptr, [input_length])
     out_gm = asc2.tensor(output_ptr, [input_length])
 
@@ -32,10 +35,9 @@ def cast_direct(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, i
 
 
 @asc2.jit(static_alloc=True, reuse_ub=True)
-def cast_two(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length: asc2.ConstExpr,
-             block_loop_num: asc2.ConstExpr, block_loop_num_tail: asc2.ConstExpr, block_length: asc2.ConstExpr,
-             tile_length: asc2.ConstExpr, intermediate_dtype: asc2.ConstExpr, dst_dtype: asc2.ConstExpr,
-             unroll_factor: asc2.ConstExpr):
+def cast_two(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length, block_loop_num,
+             block_loop_num_tail, block_length, tile_length: asc2.ConstExpr, intermediate_dtype: asc2.ConstExpr,
+             dst_dtype: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     x_gm = asc2.tensor(input_ptr, [input_length])
     out_gm = asc2.tensor(output_ptr, [input_length])
 
@@ -51,6 +53,8 @@ def cast_two(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, inpu
         asc2.store(zt, out_gm, offsets=[current_offset])
 
 
+# DYNAMIC [2, 5, 7, 42767] only supports unroll_factor = 1
+@pytest.mark.parametrize("kernel_type", [STATIC])
 @pytest.mark.parametrize("block_num, unroll_factor, input_shape, input_dtype, output_dtype, tiling_key, tiling_values", [
     # Ascend950PR_9599
     # (1, 2, [1, 4096, 1], torch.int8, torch.bfloat16, 0, [1, 25344, 4096, 1, 1, 4096, 4096, 0, 0, 0, 0, 0]),
@@ -80,7 +84,7 @@ def cast_two(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, inpu
     (56, 2, [2, 5, 7, 42767], torch.int32, torch.int8, 0, [56, 25344, 53464, 3, 3, 2776, 2482, 64, 16, 396, 44, 39]),
     (56, 2, [8192, 1024], torch.float32, torch.bfloat16, 0, [56, 21120, 149800, 8, 8, 1960, 1768, 0, 0, 0, 0, 0]),
 ])
-def test_cast(profiler, runs, block_num, unroll_factor, input_shape, input_dtype, output_dtype, tiling_key,
+def test_cast(profiler, runs, kernel_type, block_num, unroll_factor, input_shape, input_dtype, output_dtype, tiling_key,
               tiling_values):
     # There is no cast for bool in Ascend, use int8 instead
     input_dtype = torch.int8 if input_dtype == torch.bool else input_dtype
@@ -115,17 +119,31 @@ def test_cast(profiler, runs, block_num, unroll_factor, input_shape, input_dtype
         torch.bfloat16: asc2.bfloat16,
     }
     dst_dtype = dtype_map[output_dtype]
+
+    params = [in_tensor_x, out_tensor]
+    if kernel_type == STATIC:
+        params.extend([
+            asc2.ConstExpr(input_shape_1d[0]),
+            asc2.ConstExpr(block_loop_num),
+            asc2.ConstExpr(block_loop_num_tail),
+            asc2.ConstExpr(block_length)
+        ])
+    else:
+        params.extend([input_shape_1d[0], block_loop_num, block_loop_num_tail, block_length])
+
     if input_dtype == torch.int8 or output_dtype == torch.int8:
         intermediate_dtype = asc2.float16
+        params.extend([tile_length, intermediate_dtype, dst_dtype, unroll_factor])
+
         with profiler.profile():
             for _ in range(runs):
-                cast_two[block_num](in_tensor_x, out_tensor, input_shape_1d[0], block_loop_num, block_loop_num_tail,
-                                    block_length, tile_length, intermediate_dtype, dst_dtype, unroll_factor)
+                cast_two[block_num](*params)
     else:
+        params.extend([tile_length, dst_dtype, unroll_factor])
+
         with profiler.profile():
             for _ in range(runs):
-                cast_direct[block_num](in_tensor_x, out_tensor, input_shape_1d[0], block_loop_num, block_loop_num_tail,
-                                       block_length, tile_length, dst_dtype, unroll_factor)
+                cast_direct[block_num](*params)
 
     expected = in_tensor_x.to(output_dtype)
     torch.testing.assert_close(out_tensor, expected, atol=1e-3, rtol=1e-3)

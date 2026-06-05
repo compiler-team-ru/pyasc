@@ -12,10 +12,13 @@ import asc2
 import pytest
 import torch
 
+STATIC = "static"
+DYNAMIC = "dynamic"
+
 
 @asc2.jit(static_alloc=True, reuse_ub=True)
 def one_hot(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, arange_ptr: asc2.GlobalAddress,
-            on_value: asc2.ConstExpr, off_value: asc2.ConstExpr, input_total: asc2.ConstExpr, depth: asc2.ConstExpr,
+            on_value: asc2.ConstExpr, off_value: asc2.ConstExpr, input_total, depth: asc2.ConstExpr,
             unroll_factor: asc2.ConstExpr):
     in_gm = asc2.tensor(input_ptr, [input_total])
     out_gm = asc2.tensor(output_ptr, [input_total * depth])
@@ -48,6 +51,7 @@ def one_hot(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, arang
 # `axis` is recorded for documentation; the kernel produces depth-innermost output
 # (functionally equivalent to axis=-1) regardless. Tests verify functional one-hot
 # correctness, not GM byte-layout parity with CANN.
+@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
 @pytest.mark.parametrize(
     "block_num, unroll_factor, input_shape, input_dtype, output_shape, output_dtype, axis, depth, on_value, off_value",
     [
@@ -71,8 +75,8 @@ def one_hot(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, arang
         (56, 1, [1259, 1, 192, 2, 127], torch.int32, [1259, 1, 192, 2, 127, 3], torch.float32, -1, 3, 10.5, 30.6),
     ],
 )
-def test_one_hot(profiler, runs, block_num, unroll_factor, input_shape, input_dtype, output_shape, output_dtype, axis,
-                 depth, on_value, off_value):
+def test_one_hot(profiler, runs, kernel_type, block_num, unroll_factor, input_shape, input_dtype, output_shape,
+                 output_dtype, axis, depth, on_value, off_value):
     input_total = math.prod(input_shape)
 
     indices = torch.randint(0, depth, input_shape, dtype=input_dtype)
@@ -80,10 +84,16 @@ def test_one_hot(profiler, runs, block_num, unroll_factor, input_shape, input_dt
     arange_t = torch.arange(depth, dtype=input_dtype)
     out_tensor = torch.zeros(input_total * depth, dtype=output_dtype)
 
+    params = [indices_flat, out_tensor, arange_t, on_value, off_value]
+    if kernel_type == STATIC:
+        params.append(asc2.ConstExpr(input_total))
+    else:
+        params.append(input_total)
+    params.extend([depth, unroll_factor])
+
     with profiler.profile():
         for _ in range(runs):
-            one_hot[block_num](indices_flat, out_tensor, arange_t, on_value, off_value, input_total, depth,
-                               unroll_factor)
+            one_hot[block_num](*params)
 
     # Golden directly expresses CANN's two-phase semantics: fill with off_value,
     # then sparse-write on_value at index positions. The kernel emits a

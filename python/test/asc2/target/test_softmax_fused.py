@@ -12,12 +12,14 @@ import asc2
 import pytest
 import torch
 
+STATIC = "static"
+DYNAMIC = "dynamic"
+
 
 # The current implementation works for columns as long as the shape specified in asc2.load fits in UB.
 @asc2.jit(static_alloc=True, reuse_ub=True)
-def softmax_fused(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows: asc2.ConstExpr,
-                  input_num_cols: asc2.ConstExpr, tile_shape: asc2.ConstExpr, rows_per_core: asc2.ConstExpr,
-                  unroll_factor: asc2.ConstExpr):
+def softmax_fused(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows, input_num_cols,
+                  rows_per_core, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     in_gm = asc2.tensor(input_ptr, [input_num_rows, input_num_cols])
     out_gm = asc2.tensor(output_ptr, [input_num_rows, input_num_cols])
 
@@ -38,6 +40,7 @@ def softmax_fused(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
         asc2.store(out, out_gm, offsets=[row_start_offset, 0])
 
 
+@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
 @pytest.mark.parametrize("block_num, unroll_factor, input_shape, in_out_dtype, tiling_key, tiling_values", [
     (56, 2, [668, 3], torch.float32, 1000, [668, 3, 8, 12, 12, 1]),
     (52, 2, [512, 4], torch.float32, 1000, [512, 4, 8, 10, 10, 1]),
@@ -52,7 +55,8 @@ def softmax_fused(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
     (56, 1, [8, 12, 197, 197], torch.float32, 1000, [18912, 197, 200, 63, 338, 4]),
     (56, 1, [2, 12, 512, 512], torch.float32, 1000, [12288, 512, 512, 24, 220, 8]),
 ])
-def test_softmax_fused(profiler, runs, block_num, unroll_factor, input_shape, in_out_dtype, tiling_key, tiling_values):
+def test_softmax_fused(profiler, runs, kernel_type, block_num, unroll_factor, input_shape, in_out_dtype, tiling_key,
+                       tiling_values):
     input_shape_2d = [1, input_shape[0]] if len(input_shape) == 1 else [math.prod(input_shape[:-1]), input_shape[-1]]
 
     rows_per_iter = rows_per_core = None
@@ -71,10 +75,19 @@ def test_softmax_fused(profiler, runs, block_num, unroll_factor, input_shape, in
     in_tensor = torch.randn(input_shape_2d, dtype=in_out_dtype)
     out_tensor = torch.zeros(input_shape_2d, dtype=in_out_dtype)
 
+    params = [in_tensor, out_tensor]
+    if kernel_type == STATIC:
+        params.extend(
+            [asc2.ConstExpr(input_shape_2d[0]),
+             asc2.ConstExpr(input_shape_2d[1]),
+             asc2.ConstExpr(rows_per_core)])
+    else:
+        params.extend([input_shape_2d[0], input_shape_2d[1], rows_per_core])
+    params.extend([tile_shape, unroll_factor])
+
     with profiler.profile():
         for _ in range(runs):
-            softmax_fused[block_num](in_tensor, out_tensor, input_shape_2d[0], input_shape_2d[1], tile_shape,
-                                     rows_per_core, unroll_factor)
+            softmax_fused[block_num](*params)
 
     expected = torch.softmax(in_tensor, dim=1)
     torch.testing.assert_close(out_tensor, expected, atol=1e-3, rtol=1e-3)
