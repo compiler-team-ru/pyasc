@@ -12,11 +12,13 @@ import asc2
 import pytest
 import torch
 
+STATIC = "static"
+DYNAMIC = "dynamic"
+
 
 @asc2.jit(static_alloc=False, reuse_ub=True)
-def broadcast_scalar(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length: asc2.ConstExpr,
-                     output_num_rows: asc2.ConstExpr, output_num_cols: asc2.ConstExpr, tile_shape: asc2.ConstExpr,
-                     unroll_factor: asc2.ConstExpr):
+def broadcast_scalar(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length, output_num_rows,
+                     output_num_cols, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     in_gm = asc2.tensor(input_ptr, [input_length])
     out_gm = asc2.tensor(output_ptr, [output_num_rows, output_num_cols])
 
@@ -31,9 +33,8 @@ def broadcast_scalar(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddre
 
 
 @asc2.jit(static_alloc=False, reuse_ub=True)
-def broadcast_first_dim(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length: asc2.ConstExpr,
-                        output_num_rows: asc2.ConstExpr, output_num_cols: asc2.ConstExpr, tile_shape: asc2.ConstExpr,
-                        unroll_factor: asc2.ConstExpr):
+def broadcast_first_dim(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length, output_num_rows,
+                        output_num_cols, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     in_gm = asc2.tensor(input_ptr, [input_length])
     out_gm = asc2.tensor(output_ptr, [output_num_rows, output_num_cols])
 
@@ -53,9 +54,8 @@ def broadcast_first_dim(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAd
 
 # static_alloc=False due to bug
 @asc2.jit(static_alloc=False, reuse_ub=True)
-def broadcast_last_dim(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length: asc2.ConstExpr,
-                       output_num_rows: asc2.ConstExpr, output_num_cols: asc2.ConstExpr, tile_shape: asc2.ConstExpr,
-                       unroll_factor: asc2.ConstExpr):
+def broadcast_last_dim(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length, output_num_rows,
+                       output_num_cols, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     in_gm = asc2.tensor(input_ptr, [input_length])
     out_gm = asc2.tensor(output_ptr, [output_num_rows, output_num_cols])
 
@@ -85,6 +85,7 @@ def get_broadcast_axes(input_shape, output_shape):
     return broadcast_axis, padded_input
 
 
+@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
 @pytest.mark.parametrize(
     "block_num, unroll_factor, input_shape, in_out_dtype, output_shape, tiling_key, tiling_values",
     [(3, 2, [1, 1], torch.float32, [1, 160], 11003, [
@@ -152,8 +153,8 @@ def get_broadcast_axes(input_shape, output_shape):
          [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
      ]),  # bcast by last dim
      ])
-def test_broadcast(profiler, runs, block_num, unroll_factor, input_shape, in_out_dtype, output_shape, tiling_key,
-                   tiling_values):
+def test_broadcast(profiler, runs, kernel_type, block_num, unroll_factor, input_shape, in_out_dtype, output_shape,
+                   tiling_key, tiling_values):
     is_scalar_input = math.prod(input_shape) == 1
     tilingKey, _, _, _, bufferCnt, _, _, _, _, _, _, _, _, _, _, uLpUnit, _, uOutOffset, _, _, _, _, _, _, _, _, _ = tiling_values
     tile_shape = [1, uLpUnit] if is_scalar_input else [uLpUnit, uOutOffset]
@@ -193,10 +194,17 @@ def test_broadcast(profiler, runs, block_num, unroll_factor, input_shape, in_out
     if is_scalar_input:
         in_tensor = torch.arange(1, dtype=in_out_dtype) + 1
         out_tensor = torch.ones(output_shape_2d, dtype=in_out_dtype)
+
+        params = [in_tensor, out_tensor]
+        if kernel_type == STATIC:
+            params.extend([asc2.ConstExpr(1), asc2.ConstExpr(output_shape_2d[0]), asc2.ConstExpr(output_shape_2d[1])])
+        else:
+            params.extend([1, output_shape_2d[0], output_shape_2d[1]])
+        params.extend([tile_shape, unroll_factor])
+
         with profiler.profile():
             for _ in range(runs):
-                broadcast_scalar[block_num](in_tensor, out_tensor, 1, output_shape_2d[0], output_shape_2d[1],
-                                            tile_shape, unroll_factor)
+                broadcast_scalar[block_num](*params)
         expected = torch.broadcast_to(in_tensor, output_shape_2d)
     else:
         if input_shape == [1048576, 1]:
@@ -207,11 +215,20 @@ def test_broadcast(profiler, runs, block_num, unroll_factor, input_shape, in_out
         in_tensor = torch.arange(input_length, dtype=in_out_dtype) + 1
         out_tensor = torch.ones(output_shape_2d, dtype=in_out_dtype)
 
+        params = [in_tensor, out_tensor]
+        if kernel_type == STATIC:
+            params.extend(
+                [asc2.ConstExpr(input_length),
+                 asc2.ConstExpr(output_shape_2d[0]),
+                 asc2.ConstExpr(output_shape_2d[1])])
+        else:
+            params.extend([input_length, output_shape_2d[0], output_shape_2d[1]])
+        params.extend([tile_shape, unroll_factor])
+
         kernel_impl = broadcast_first_dim if axis == 0 else broadcast_last_dim
         with profiler.profile():
             for _ in range(runs):
-                kernel_impl[block_num](in_tensor, out_tensor, input_length, output_shape_2d[0], output_shape_2d[1],
-                                       tile_shape, unroll_factor)
+                kernel_impl[block_num](*params)
         to_reshape = [1, input_length] if axis == 0 else [input_length, 1]
         reshaped_in_tensor = in_tensor.reshape(to_reshape)
         expected = torch.broadcast_to(reshaped_in_tensor, output_shape_2d)

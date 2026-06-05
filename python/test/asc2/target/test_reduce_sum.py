@@ -12,11 +12,13 @@ import asc2
 import pytest
 import torch
 
+STATIC = "static"
+DYNAMIC = "dynamic"
+
 
 @asc2.jit(static_alloc=True, reuse_ub=True)
-def reduce_sum_rows(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows: asc2.ConstExpr,
-                    input_num_cols: asc2.ConstExpr, output_length: asc2.ConstExpr, tile_shape: asc2.ConstExpr,
-                    unroll_factor: asc2.ConstExpr):
+def reduce_sum_rows(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows, input_num_cols,
+                    output_length, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     in_gm = asc2.tensor(input_ptr, [input_num_rows, input_num_cols])
     out_gm = asc2.tensor(output_ptr, [output_length])
 
@@ -36,9 +38,8 @@ def reduce_sum_rows(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
 
 
 @asc2.jit(static_alloc=True, reuse_ub=True)
-def reduce_sum_cols(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows: asc2.ConstExpr,
-                    input_num_cols: asc2.ConstExpr, output_length: asc2.ConstExpr, tile_shape: asc2.ConstExpr,
-                    unroll_factor: asc2.ConstExpr):
+def reduce_sum_cols(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows, input_num_cols,
+                    output_length, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     in_gm = asc2.tensor(input_ptr, [input_num_rows, input_num_cols])
     out_gm = asc2.tensor(output_ptr, [output_length])
 
@@ -57,6 +58,7 @@ def reduce_sum_cols(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
         asc2.store(cache, out_gm, offsets=[col_start_offset])
 
 
+@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
 @pytest.mark.parametrize(
     "block_num, unroll_factor, input_shape, in_out_dtype, output_shape, axis, tiling_key, tiling_values", [
         # reduce by row
@@ -190,8 +192,8 @@ def reduce_sum_cols(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
             [1, 256, 17, 0, 0, 0, 0, 0, 0], [4352, 17, 1, 0, 0, 0, 0, 0, 0]
         ]),
     ])
-def test_reduce_sum(profiler, runs, block_num, unroll_factor, input_shape, in_out_dtype, output_shape, axis, tiling_key,
-                    tiling_values):
+def test_reduce_sum(profiler, runs, kernel_type, block_num, unroll_factor, input_shape, in_out_dtype, output_shape,
+                    axis, tiling_key, tiling_values):
     keep_dims = (len(input_shape) == len(output_shape))
     input_shape_2d = input_shape
 
@@ -224,10 +226,20 @@ def test_reduce_sum(profiler, runs, block_num, unroll_factor, input_shape, in_ou
     in_tensor = torch.randn(input_shape_2d, dtype=in_out_dtype)
     out_tensor = torch.zeros(output_shape_1d, dtype=in_out_dtype)
     kernel_impl = reduce_sum_rows if axis == 1 else reduce_sum_cols
+
+    params = [in_tensor, out_tensor]
+    if kernel_type == STATIC:
+        params.extend(
+            [asc2.ConstExpr(input_shape_2d[0]),
+             asc2.ConstExpr(input_shape_2d[1]),
+             asc2.ConstExpr(output_shape_1d[0])])
+    else:
+        params.extend([input_shape_2d[0], input_shape_2d[1], output_shape_1d[0]])
+    params.extend([tile_shape, unroll_factor])
+
     with profiler.profile():
         for _ in range(runs):
-            kernel_impl[block_num](in_tensor, out_tensor, input_shape_2d[0], input_shape_2d[1], output_shape_1d[0],
-                                   tile_shape, unroll_factor)
+            kernel_impl[block_num](*params)
     if keep_dims:
         target_shape = [output_shape_1d[0], 1] if axis == 1 else [1, output_shape_1d[0]]
         out_tensor = out_tensor.reshape(target_shape)

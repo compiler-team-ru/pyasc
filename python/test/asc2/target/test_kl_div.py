@@ -12,10 +12,13 @@ import asc2
 import pytest
 import torch
 
+STATIC = "static"
+DYNAMIC = "dynamic"
 
-@asc2.jit(reuse_ub=True, reuse_ub_in_out=True, vf_fusion=True)
+
+@asc2.jit(static_alloc=True, reuse_ub=True, reuse_ub_in_out=True, vf_fusion=True)
 def kl_div(input_x_ptr: asc2.GlobalAddress, input_target_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
-           input_size: asc2.ConstExpr, tile_length: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
+           input_size, tile_length: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     loop_count = asc2.ceildiv(input_size, tile_length)
     x_gm = asc2.tensor(input_x_ptr, [input_size])
     target_gm = asc2.tensor(input_target_ptr, [input_size])
@@ -46,6 +49,7 @@ def kl_div(input_x_ptr: asc2.GlobalAddress, input_target_ptr: asc2.GlobalAddress
     asc2.store(final_result, output_gm, offsets=[0])
 
 
+@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
 @pytest.mark.parametrize("unroll_factor, input_shape, input_dtype, tile_length", [
     (2, [1, 427], torch.float16, 427),
     (2, [427, 2], torch.float16, 854),
@@ -60,16 +64,23 @@ def kl_div(input_x_ptr: asc2.GlobalAddress, input_target_ptr: asc2.GlobalAddress
     (2, [8689, 1000, 32], torch.float32, 3328),
     (2, [1000, 997, 1000, 2, 1], torch.float32, 3328),
 ])
-def test_kl_div(profiler, runs, unroll_factor, input_shape, input_dtype, tile_length):
+def test_kl_div(profiler, runs, kernel_type, unroll_factor, input_shape, input_dtype, tile_length):
     input_shape_1d = [math.prod(input_shape)]
 
     in_tensor_x = torch.rand(input_shape_1d, dtype=input_dtype)
     in_tensor_target = torch.rand_like(in_tensor_x)
     out_tensor = torch.empty(1, dtype=in_tensor_x.dtype)
 
+    params = [in_tensor_x, in_tensor_target, out_tensor]
+    if kernel_type == STATIC:
+        params.append(asc2.ConstExpr(input_shape_1d[0]))
+    else:
+        params.append(input_shape_1d[0])
+    params.extend([tile_length, unroll_factor])
+
     with profiler.profile():
         for _ in range(runs):
-            kl_div[1](in_tensor_x, in_tensor_target, out_tensor, input_shape_1d[0], tile_length, unroll_factor)
+            kl_div[1](*params)
 
     expected = torch.nn.functional.kl_div(in_tensor_x, in_tensor_target, reduction='sum', log_target=False)
     torch.testing.assert_close(out_tensor[0], expected, atol=1e-3, rtol=1e-3)

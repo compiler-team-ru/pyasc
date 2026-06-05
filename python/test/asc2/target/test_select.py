@@ -12,11 +12,13 @@ import asc2
 import pytest
 import torch
 
+STATIC = "static"
+DYNAMIC = "dynamic"
+
 
 @asc2.jit(static_alloc=True, reuse_ub=True)
 def select(cond_ptr: asc2.GlobalAddress, input_x_ptr: asc2.GlobalAddress, input_y_ptr: asc2.GlobalAddress,
-           output_ptr: asc2.GlobalAddress, input_length: asc2.ConstExpr, tile_length: asc2.ConstExpr,
-           unroll_factor: asc2.ConstExpr):
+           output_ptr: asc2.GlobalAddress, input_length, tile_length: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     c = asc2.tensor(cond_ptr, [input_length])
     x = asc2.tensor(input_x_ptr, [input_length])
     y = asc2.tensor(input_y_ptr, [input_length])
@@ -35,6 +37,7 @@ def select(cond_ptr: asc2.GlobalAddress, input_x_ptr: asc2.GlobalAddress, input_
         asc2.store(zt, z, offsets=[current_offset])
 
 
+@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
 @pytest.mark.parametrize("block_num, unroll_factor, input_shape, in_out_dtype, tiling_key, tiling_values", [
     (2, 2, [1920], torch.int32, 8, [1920, 0, 512, 2]),
     (15, 2, [1920, 1, 8], torch.float32, 8, [15360, 0, 512, 15]),
@@ -46,7 +49,8 @@ def select(cond_ptr: asc2.GlobalAddress, input_x_ptr: asc2.GlobalAddress, input_
     (50, 2, [2, 1, 256, 256, 16], torch.float32, 8, [2097152, 0, 7040, 50]),
     (50, 1, [2, 1, 256, 256, 16], torch.float16, 8, [2097152, 0, 14080, 50]),
 ])
-def test_select(profiler, runs, block_num, unroll_factor, input_shape, in_out_dtype, tiling_key, tiling_values):
+def test_select(profiler, runs, kernel_type, block_num, unroll_factor, input_shape, in_out_dtype, tiling_key,
+                tiling_values):
     input_shape_1d = [math.prod(input_shape)]
     _, _, tile_length, block_num = tiling_values
 
@@ -55,10 +59,16 @@ def test_select(profiler, runs, block_num, unroll_factor, input_shape, in_out_dt
     in_tensor_y = torch.randn(input_shape_1d).to(in_out_dtype)
     out_tensor = torch.zeros(input_shape_1d, dtype=in_out_dtype)
 
+    params = [in_tensor_c, in_tensor_x, in_tensor_y, out_tensor]
+    if kernel_type == STATIC:
+        params.append(asc2.ConstExpr(input_shape_1d[0]))
+    else:
+        params.append(input_shape_1d[0])
+    params.extend([tile_length, unroll_factor])
+
     with profiler.profile():
         for _ in range(runs):
-            select[block_num](in_tensor_c, in_tensor_x, in_tensor_y, out_tensor, input_shape_1d[0], tile_length,
-                              unroll_factor)
+            select[block_num](*params)
 
     expected = torch.where(in_tensor_c.bool(), in_tensor_x, in_tensor_y)
     torch.testing.assert_close(out_tensor, expected, atol=1e-3, rtol=1e-3)
