@@ -105,6 +105,9 @@ def set_docstring(name: str, support_dtypes: Tuple[DataType, ...], rhs_scalar_on
 
     Note:
         At least one of input operands must be :code:`Tile`.
+        Operands are automatically cast to a common data type and broadcast to a common shape.
+        When one operand is a :code:`Tile` and the other is a scalar, the tile's dtype takes precedence.
+        Inputs must either have the same shapes or be broadcastable according to NumPy broadcasting rules.
 
     Examples:
         {examples}

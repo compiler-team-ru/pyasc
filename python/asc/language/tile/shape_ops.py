@@ -60,6 +60,8 @@ def broadcast_to(input: Tile, *shape: int) -> Tile:
     check_type("input", input, Tile)
     check_dtype("input", input, (KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32))
     shape = verify_shape(shape)
+    if input.shape == shape:
+        return input
     if not shapes_match(input.shape, shape):
         raise RuntimeError(f"Cannot broadcast tile with shape {input.shape} to {shape}")
     result_type = ir.clone_shaped_type(input.to_ir().get_type(), shape)

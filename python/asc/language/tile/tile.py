@@ -34,7 +34,7 @@ class Tile(IRValue):
     dtype: DataType
     """Tile element type"""
 
-    shape: Tuple[int]
+    shape: Tuple[int, ...]
     """Tile shape"""
 
     size: int

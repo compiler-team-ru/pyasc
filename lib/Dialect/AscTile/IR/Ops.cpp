@@ -69,6 +69,18 @@ LogicalResult AccumulatorOp::canonicalize(AccumulatorOp op, PatternRewriter& rew
 }
 
 //===----------------------------------------------------------------------===//
+// BroadcastOp
+//===----------------------------------------------------------------------===//
+
+OpFoldResult BroadcastOp::fold([[maybe_unused]] FoldAdaptor adaptor)
+{
+    SplatElementsAttr attr;
+    if (!matchPattern(getOperand(), m_Constant(&attr)))
+        return {};
+    return SplatElementsAttr::get(getType(), attr.getSplatValue<Attribute>());
+}
+
+//===----------------------------------------------------------------------===//
 // ConcatOp
 //===----------------------------------------------------------------------===//
 
@@ -190,6 +202,18 @@ LogicalResult LoadOp::verify()
             return emitOpError() << "real_shape exceeds tile shape";
     }
     return success();
+}
+
+//===----------------------------------------------------------------------===//
+// SplatOp
+//===----------------------------------------------------------------------===//
+
+OpFoldResult SplatOp::fold([[maybe_unused]] FoldAdaptor adaptor)
+{
+    Attribute attr;
+    if (matchPattern(getOperand(), m_Constant(&attr)))
+        return SplatElementsAttr::get(getType(), attr);
+    return {};
 }
 
 //===----------------------------------------------------------------------===//
@@ -336,6 +360,11 @@ LogicalResult MatmulAccOp::verify()
 //===----------------------------------------------------------------------===//
 // AscTileDialect
 //===----------------------------------------------------------------------===//
+
+Operation* AscTileDialect::materializeConstant(OpBuilder& builder, Attribute value, Type type, Location loc)
+{
+    return arith::ConstantOp::materialize(builder, value, type, loc);
+}
 
 void AscTileDialect::registerOps()
 {

@@ -59,6 +59,7 @@ def SplatOp
   let arguments = (ins AscTile_Numeric:$value);
   let results = (outs NumericTile:$result);
   let assemblyFormat = "$value attr-dict `:` qualified(type($result))";
+  let hasFolder = 1;
 }
 
 def CopyOp : AscTile_Op<"copy", [
@@ -347,6 +348,7 @@ def BroadcastOp : AscTile_Op<"broadcast", [
   let assemblyFormat = [{
     $operand attr-dict `:` qualified(type($operand)) `to` qualified(type($result))
   }];
+  let hasFolder = 1;
 }
 
 def ReduceOp : AscTile_Op<"reduce", [
