@@ -26,11 +26,14 @@ class AscTile_Op<string mnemonic, list<Trait> traits = []>
 }
 
 def AccumulatorOp : AscTile_Op<"accumulator"> {
-  let summary = "Create a zeros tile in L0C";
-  let arguments = (ins);
+  let summary = "Create a zeros tile in L0C or initialize with bias";
+  let arguments = (ins Optional<TileOfRankAndType<[1], [F32]>>:$bias);
   let results = (outs NumericTile:$result);
-  let assemblyFormat = "attr-dict `:` qualified(type($result))";
+  let assemblyFormat = [{
+    ($bias^)? attr-dict `:` qualified(type($result)) (`,` type($bias)^)?
+  }];
   let hasCanonicalizeMethod = 1;
+  let hasVerifier = 1;
 }
 
 def TensorOp : AscTile_Op<"tensor", [Pure]> {

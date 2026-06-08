@@ -156,7 +156,7 @@ def zeros_like(input: Tile, location: TileLocation = TileLocation.UB) -> Tile:
 
 
 @require_jit
-def zeros_acc(shape: Iterable[int], dtype: DataType) -> Tile:
+def zeros_acc(shape: Iterable[int], dtype: DataType, *, bias: Optional[Tile] = None) -> Tile:
     """
     Create a zero-initialized accumulator tile in L0C memory for matrix multiplication.
 
@@ -168,26 +168,48 @@ def zeros_acc(shape: Iterable[int], dtype: DataType) -> Tile:
     Args:
         shape: The shape of the accumulator tile
         dtype: The data type of the accumulator
+        bias: Optional initialization tile (1D tile in :code:`BT`). If provided, the accumulator
+              will be initialized with this value instead of zeros. This is typically used for bias
+              initialization in matrix multiplication.
 
     Returns:
-        Tile: A new zero-initialized accumulator tile in L0C memory
+        Tile: A new accumulator tile in L0C memory, either zero-initialized or initialized with the provided value
 
     Raises:
         TypeError: If shape contains non-integer values
         RuntimeError: If shape contains non-positive values
 
-    Examples:
-        Create an accumulator tile for matrix multiplication: ::
+    Note:
+        When :code:`bias` is provided, it must be a 1D tile in :code:`BT` location (bias tensor).
+        This eliminates the need to pass bias to each :py:func:`matmul_acc` call in accumulation loops.
 
-            acc = asc2.zeros_acc([16, 16], dtype=asc2.float32)
-            result = asc2.matmul(acc, a_tile, b_tile)
+    Examples:
+        Create a zero-initialized accumulator: ::
+
+            acc = asc2.zeros_acc([64, 256], dtype=asc2.float32)
+            for k in range(k_tiles):
+                a_k = asc2.load(a_gm, [64, 32], offsets=[0, k * 32], location=asc2.TileLocation.L0A)
+                b_k = asc2.load(b_gm, [32, 256], offsets=[k * 32, 0], location=asc2.TileLocation.L0B)
+                asc2.matmul_acc(acc, a_k, b_k)
+            asc2.store(acc, c_gm, offsets=[0, 0])
+
+        Create a bias-initialized accumulator: ::
+
+            bias = asc2.load(bias_gm, [256], offsets=[0], location=asc2.TileLocation.BT)
+            acc = asc2.zeros_acc([64, 256], dtype=asc2.float32, bias=bias)
+            for k in range(k_tiles):
+                a_k = asc2.load(a_gm, [64, 32], offsets=[0, k * 32], location=asc2.TileLocation.L0A)
+                b_k = asc2.load(b_gm, [32, 256], offsets=[k * 32, 0], location=asc2.TileLocation.L0B)
+                asc2.matmul_acc(acc, a_k, b_k)
+            asc2.store(acc, c_gm, offsets=[0, 0])
     """
     check_type("dtype", dtype, DataType)
     check_dtype("dtype", dtype, KT.float32)
     shape = verify_shape(shape)
-    ir_type = ir.get_asctile_TileType(shape, dtype.to_ir(), TileLocation.L0C)
-    handle = global_builder.get_ir_builder().create_asctile_AccumulatorOp(ir_type)
-    return Tile.from_ir(handle)
+    ir_type = ir.get_asctile_TileType(list(shape), dtype.to_ir(), TileLocation.L0C)
+    bias_ir = bias.to_ir() if bias is not None else None
+    handle = global_builder.get_ir_builder().create_asctile_AccumulatorOp(ir_type, bias_ir)
+    return Tile(handle)
 
 
 @overload
