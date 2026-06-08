@@ -16,6 +16,7 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/Matchers.h"
 
 namespace mlir {
 namespace ascendc {
@@ -29,6 +30,15 @@ using namespace mlir;
 namespace {
 
 class FixupMmadAccParamsPass : public ascendc::impl::FixupMmadAccParamsBase<FixupMmadAccParamsPass> {
+    std::optional<StringRef> getFieldWithTrueValue(emitasc::InitStructOp mmadParamsOp)
+    {
+        for (const auto& field : {"cmatrixInitVal", "cmatrixSource"}) {
+            if (matchPattern(mmadParamsOp.getField(field), m_One()))
+                return field;
+        }
+        return std::nullopt;
+    }
+
     void runOnOperation() override
     {
         llvm::DenseMap<Operation*, SmallVector<ascendc::MmadOp>> mmadOpsOfDst;
@@ -50,14 +60,17 @@ class FixupMmadAccParamsPass : public ascendc::impl::FixupMmadAccParamsBase<Fixu
         Value falseVal = consts.i1(false);
         for (const auto& [dst, mmadOps] : mmadOpsOfDst) {
             builder.setInsertionPointAfter(dst);
-            Value cMatrixInitVar = builder.create<emitasc::VariableOp>(dst->getLoc(), builder.getBoolAttr(true));
+            Value initVar = builder.create<emitasc::VariableOp>(dst->getLoc(), builder.getBoolAttr(true));
             for (ascendc::MmadOp mmadOp : mmadOps) {
                 auto mmadParamsOp = mmadOp.getMmadParams().getDefiningOp<emitasc::InitStructOp>();
                 builder.setInsertionPoint(mmadParamsOp);
-                Value loadInitVal = builder.create<memref::LoadOp>(mmadParamsOp.getLoc(), cMatrixInitVar, zero);
-                mmadParamsOp.setField("cmatrixInitVal", loadInitVal);
+                auto fieldName = getFieldWithTrueValue(mmadParamsOp);
+                if (!fieldName.has_value())
+                    continue;
+                Value loadInitVal = builder.create<memref::LoadOp>(mmadParamsOp.getLoc(), initVar, zero);
+                mmadParamsOp.setField(fieldName.value(), loadInitVal);
                 builder.setInsertionPointAfter(mmadOp);
-                builder.create<memref::StoreOp>(mmadParamsOp.getLoc(), falseVal, cMatrixInitVar, zero);
+                builder.create<memref::StoreOp>(mmadParamsOp.getLoc(), falseVal, initVar, zero);
             }
         }
     }

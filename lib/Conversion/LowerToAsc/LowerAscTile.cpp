@@ -598,7 +598,8 @@ struct ConvertMatmulAcc : ConvertOp<asctile::MatmulAccOp> {
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loc = op.getLoc();
-        auto dst = rewriter.getRemappedValue(op.getAcc());
+        auto acc = op.getAcc();
+        auto dst = rewriter.getRemappedValue(acc);
         auto matrixA = rewriter.getRemappedValue(op.getMatrixA());
         auto matrixB = rewriter.getRemappedValue(op.getMatrixB());
         auto matrixATensorShape = cast<ascendc::LocalTensorType>(matrixA.getType()).getShape();
@@ -611,12 +612,15 @@ struct ConvertMatmulAcc : ConvertOp<asctile::MatmulAccOp> {
             rewriter.create<ascendc::SetHF32ModeOp>(loc, consts.i1(true));
             rewriter.create<ascendc::SetHF32TransModeOp>(loc, consts.i1(true));
         }
-        auto mmadParams = emitasc::InitStructBuilder(rewriter.getType<ascendc::MmadParamsType>())
-                              .addField("m", consts.i32(matrixATensorShape[0]))
-                              .addField("n", consts.i32(matrixBTensorShape[1]))
-                              .addField("k", consts.i32(matrixBTensorShape[0]))
-                              .addField("cmatrixInitVal", consts.i32(1))
-                              .create(rewriter, loc);
+        auto params = emitasc::InitStructBuilder(rewriter.getType<ascendc::MmadParamsType>())
+                          .addField("m", consts.i32(matrixATensorShape[0]))
+                          .addField("n", consts.i32(matrixBTensorShape[1]))
+                          .addField("k", consts.i32(matrixBTensorShape[0]));
+        auto accOp = acc.getDefiningOp<asctile::AccumulatorOp>();
+        bool hasBias = accOp && accOp.getBias();
+        params.addField("cmatrixInitVal", consts.i1(!hasBias));
+        params.addField("cmatrixSource", consts.i1(hasBias));
+        auto mmadParams = params.create(rewriter, loc);
         rewriter.create<ascendc::MmadOp>(loc, dst, matrixA, matrixB, mmadParams);
         rewriter.eraseOp(op);
         if (op.getHf32())

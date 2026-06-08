@@ -317,6 +317,32 @@ LogicalResult CopyFixpipeOp::verify()
 }
 
 //===----------------------------------------------------------------------===//
+// AccumulatorOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult AccumulatorOp::verify()
+{
+    auto bias = getBias();
+    if (!bias)
+        return success();
+    auto biasType = bias.getType();
+    if (biasType.getLoc() != TileLocation::BT)
+        return emitOpError("bias must have BT tile location");
+    if (biasType.getRank() != 1)
+        return emitOpError("bias must be a 1D tile");
+    auto result = getResult();
+    auto resultShape = result.getType().getShape();
+    auto biasShape = biasType.getShape();
+    if (resultShape.size() != 2)
+        return emitOpError("result must be a 2D tile");
+    if (getElementTypeOrSelf(bias) != getElementTypeOrSelf(result))
+        return emitOpError("failed to verify that all of {bias, result} have same element type");
+    if (biasShape[0] != resultShape[1])
+        return emitOpError("bias shape must match result's second dimension");
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
 // MatmulOp
 //===----------------------------------------------------------------------===//
 

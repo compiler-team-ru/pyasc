@@ -164,3 +164,40 @@ def test_matmul_with_bias(m, k, n, dtype):
     matmul_bias_kernel[1](a, b, bias, c, a.shape, b.shape, bias.shape, c.shape)
     c_ref = a.to(torch.float32) @ b.to(torch.float32) + bias
     torch.testing.assert_close(c, c_ref, atol=1e-3, rtol=1e-3)
+
+
+@asc2.jit(always_compile=True)
+def matmul_acc_bias_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, bias_ptr: asc2.GlobalAddress,
+                           c_ptr: asc2.GlobalAddress, a_shape: asc2.ConstExpr, b_shape: asc2.ConstExpr,
+                           bias_shape: asc2.ConstExpr, c_shape: asc2.ConstExpr, k_tiles: asc2.ConstExpr):
+    a_gm = asc2.tensor(a_ptr, a_shape)
+    b_gm = asc2.tensor(b_ptr, b_shape)
+    bias_gm = asc2.tensor(bias_ptr, bias_shape)
+    c_gm = asc2.tensor(c_ptr, c_shape)
+    bias_c1 = asc2.load(bias_gm, bias_shape, offsets=[0], location=asc2.TileLocation.L1)
+    bias = asc2.copy(bias_c1, bias_shape, offsets=[0], location=asc2.TileLocation.BT)
+    acc = asc2.zeros_acc(c_shape, dtype=asc2.float32, bias=bias)
+    k_offset = a_shape[1] // k_tiles
+    a_l1 = asc2.load(a_gm, a_shape, offsets=[0, 0], location=asc2.TileLocation.L1)
+    b_l1 = asc2.load(b_gm, b_shape, offsets=[0, 0], location=asc2.TileLocation.L1)
+    for i in range(k_tiles, unroll_factor=1, parallel=True):
+        a_i = asc2.copy(a_l1, [a_shape[0], k_offset], offsets=[0, i * k_offset], location=asc2.TileLocation.L0A)
+        b_i = asc2.copy(b_l1, [k_offset, b_shape[1]], offsets=[i * k_offset, 0], location=asc2.TileLocation.L0B)
+        asc2.matmul_acc(acc, a_i, b_i)
+    asc2.store(acc, c_gm, offsets=[0, 0])
+
+
+@pytest.mark.parametrize("m, k, n, dtype, k_tiles", [
+    (64, 64, 64, torch.float16, 2),
+    (64, 128, 64, torch.bfloat16, 4),
+    (32, 32, 32, torch.float32, 1),
+    (64, 64, 64, torch.float16, 1),
+])
+def test_matmul_acc_with_bias(m, k, n, dtype, k_tiles):
+    a = (torch.rand((m, k), dtype=dtype) - .5) * 10
+    b = (torch.rand((k, n), dtype=dtype) - .5) * 10
+    bias = (torch.rand((n, ), dtype=torch.float32) - .5) * 10
+    c = torch.zeros((a.shape[0], b.shape[1]), dtype=torch.float32)
+    matmul_acc_bias_kernel[1](a, b, bias, c, a.shape, b.shape, bias.shape, c.shape, k_tiles)
+    c_ref = a.to(torch.float32) @ b.to(torch.float32) + bias
+    torch.testing.assert_close(c, c_ref, atol=1e-3, rtol=1e-3)

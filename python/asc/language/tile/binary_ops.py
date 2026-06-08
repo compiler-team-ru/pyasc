@@ -322,7 +322,7 @@ def matmul_acc(acc: Tile, input: Tile, other: Tile, *, hf32: bool = False) -> No
     Computes the matrix multiplication of :code:`input` and :code:`other` and accumulates the result into :code:`acc`.
 
     This function performs in-place accumulation, adding the result of :code:`input @ other` to the existing
-    accumulator values. Use :py:func:`asc2.zeros_acc` to create a zero-initialized accumulator. For simple matrix
+    accumulator values. Use :py:func:`asc2.zeros_acc` to create an accumulator. For simple matrix
     multiplication without accumulation, use :py:func:`matmul` which returns a new tile.
 
     **Rationale:** Ascend's Cube units operate on a dedicated L0C accumulator register where the accumulator and matmul
@@ -352,6 +352,16 @@ def matmul_acc(acc: Tile, input: Tile, other: Tile, *, hf32: bool = False) -> No
         Accumulate multiple matrix multiplications (e.g., for K-tiled matmul): ::
 
             acc = asc2.zeros_acc([64, 256], dtype=asc2.float32)
+            for k in range(k_tiles):
+                a_k = asc2.copy(a_l1, [64, 32], offsets=[0, k * 32], location=asc2.TileLocation.L0A)
+                b_k = asc2.copy(b_l1, [32, 256], offsets=[k * 32, 0], location=asc2.TileLocation.L0B)
+                asc2.matmul_acc(acc, a_k, b_k)
+            asc2.store(acc, c_gm, offsets=[0, 0])
+
+        Accumulate with bias initialization: ::
+
+            bias = asc2.copy(bias_l1, [256], offsets=[0], location=asc2.TileLocation.BT)
+            acc = asc2.zeros_acc([64, 256], dtype=asc2.float32, init=bias)
             for k in range(k_tiles):
                 a_k = asc2.copy(a_l1, [64, 32], offsets=[0, k * 32], location=asc2.TileLocation.L0A)
                 b_k = asc2.copy(b_l1, [32, 256], offsets=[k * 32, 0], location=asc2.TileLocation.L0B)
