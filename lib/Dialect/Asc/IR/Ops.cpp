@@ -44,28 +44,6 @@ LogicalResult GlobalTensorOp::canonicalize(GlobalTensorOp op, PatternRewriter& r
 }
 
 //===----------------------------------------------------------------------===//
-// IfAICOp
-//===----------------------------------------------------------------------===//
-
-void IfAICOp::getCanonicalizationPatterns(RewritePatternSet& results, MLIRContext* context)
-{
-    results.add<
-        ascir::EraseEmptyGroup<IfAICOp, YieldOp>, ascir::EraseUnusedOperands<IfAICOp, YieldOp>,
-        ascir::EraseUnusedResults<IfAICOp, YieldOp>>(context);
-}
-
-//===----------------------------------------------------------------------===//
-// IfAIVOp
-//===----------------------------------------------------------------------===//
-
-void IfAIVOp::getCanonicalizationPatterns(RewritePatternSet& results, MLIRContext* context)
-{
-    results.add<
-        ascir::EraseEmptyGroup<IfAIVOp, YieldOp>, ascir::EraseUnusedOperands<IfAIVOp, YieldOp>,
-        ascir::EraseUnusedResults<IfAIVOp, YieldOp>>(context);
-}
-
-//===----------------------------------------------------------------------===//
 // GlobalTensorSubIndexOp
 //===----------------------------------------------------------------------===//
 
