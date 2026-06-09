@@ -26,11 +26,31 @@ using namespace mlir::asctile;
 
 namespace {
 
+class Annotator {
+    bool enable;
+    int64_t iterOffset;
+
+public:
+    Annotator(bool enable, int64_t iterOffset) : enable(enable), iterOffset(iterOffset) {}
+    ~Annotator() = default;
+
+    void advance(int64_t unrollFactor) { iterOffset += unrollFactor; }
+
+    void operator()(unsigned iter, Operation* op, OpBuilder builder) const
+    {
+        if (enable)
+            op->setAttr(attr::unrollIter, builder.getI64IntegerAttr(iterOffset + iter));
+    }
+};
+
 struct UnrollLoopPass : public asctile::impl::UnrollLoopBase<UnrollLoopPass> {
+    UnrollLoopPass(const UnrollLoopOptions& options) : UnrollLoopBase(options) {}
+
     void runOnOperation() override
     {
         auto op = getOperation();
-        op.walk([this](scf::ForOp loop) {
+        Annotator annotator(annotate, 0);
+        op.walk([this, &annotator](scf::ForOp loop) {
             int64_t unrollFactor = 0;
             if (auto a = loop->getAttrOfType<IntegerAttr>(attr::unrollFactor)) {
                 unrollFactor = a.getValue().getSExtValue();
@@ -38,16 +58,21 @@ struct UnrollLoopPass : public asctile::impl::UnrollLoopBase<UnrollLoopPass> {
             loop->removeAttr(attr::unrollFactor);
             if (unrollFactor <= 1)
                 return;
-            auto result = loopUnrollByFactor(loop, unrollFactor);
+            auto result = loopUnrollByFactor(loop, unrollFactor, annotator);
+            annotator.advance(unrollFactor);
             if (failed(result))
                 signalPassFailure();
-            if (auto epilogueLoop = result.value().epilogueLoopOp) {
+            if (auto epilogueLoop = result->epilogueLoopOp)
                 epilogueLoop->walk([](Operation* op) { op->removeAttr(attr::unrollGroup); });
-            }
         });
     }
 };
 
 } // namespace
 
-std::unique_ptr<Pass> mlir::asctile::createUnrollLoopPass() { return std::make_unique<UnrollLoopPass>(); }
+std::unique_ptr<Pass> mlir::asctile::createUnrollLoopPass(bool annotate)
+{
+    UnrollLoopOptions options;
+    options.annotate = annotate;
+    return std::make_unique<UnrollLoopPass>(options);
+}

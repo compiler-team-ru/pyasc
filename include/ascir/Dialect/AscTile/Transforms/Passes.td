@@ -355,6 +355,7 @@ def TransformStoreFixpipe : Pass<"asctile-transform-store-fixpipe", "func::FuncO
 def UnrollLoop : Pass<"asctile-unroll-loop", "func::FuncOp"> {
   let summary = "Unroll scf.for loops by their unroll_factor attribute value";
   let constructor = "mlir::asctile::createUnrollLoopPass()";
+  let options = [Option<"annotate", "annotate", "bool", "false", "Add annotation attribute to each inner operation">];
   let description = [{
     This pass unrolls `scf.for` loops by the factor specified in their `asctile.unroll_factor` attribute.
     After unrolling, the attribute is removed from the loop.
