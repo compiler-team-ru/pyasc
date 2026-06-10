@@ -13,7 +13,7 @@ from ..._C import ir
 from ..core.dtype import KnownTypes as KT
 from ..core.utils import global_builder, require_jit
 from .tile import Tile, bind_tile_method
-from .validation import check_dtype, check_type, verify_shape
+from .validation import check_dtype, check_type, verify_shape, check_data_alignment
 
 
 def shapes_match(shape: Tuple[int, ...], target_shape: Tuple[int, ...]) -> bool:
@@ -107,7 +107,8 @@ def reshape(input: Tile, *shape: int) -> Tile:
                 (KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32, KT.float64))
     shape = verify_shape(shape)
     if math.prod(input.shape) != math.prod(shape):
-        raise RuntimeError("Result tile must have the same number of elements as input tile")
+        raise RuntimeError(f"Reshaping tile of shape {input.shape} with {math.prod(input.shape)} elements not match "
+                           f"output shape {shape} with {math.prod(shape)} elements")
     builder = global_builder.get_ir_builder()
     ir_type = ir.clone_shaped_type(input.to_ir().get_type(), shape)
     handle = builder.create_asctile_ReshapeOp(ir_type, input.to_ir())
@@ -229,32 +230,51 @@ def squeeze(input: Tile, *axis: int) -> Tile:
 
 @bind_tile_method
 @require_jit
-def transpose(input: Tile) -> Tile:
+def transpose(input: Tile, *axis: int) -> Tile:
     """
-    Transpose a 2D tile by swapping its dimensions.
-
-    The supported data types are: ``int8``, ``int16``, ``int32``, ``int64``, ``float16``, ``bfloat16``, ``float32``,
-    ``float64``.
+    Rearrange tile dimensions in specific order.
+    The supported data types are: ``int8``, ``int16``, ``int32``, ``int64``, ``float16``, ``bfloat16``, ``float32``, ``float64``.
 
     Args:
-        input: The input tile (must be 2D)
+        input: The input tile
+        axis: Order of input dimensions in result. Swaps two last dimensions when no axis provided
 
     Returns:
         Tile: The transposed tile with swapped dimensions
 
     Raises:
         TypeError: If input is not a Tile
-        RuntimeError: If the input tile dtype is not supported
+        RuntimeError: If the input tile dtype is not supported or axis is incorrect
 
     Examples:
-        Transpose a 2D tile: ::
+        Transpose 2d tile: ::
 
-            input = asc2.load(x, [32, 16], offsets=[0, 0])
-            result = input.transpose()  # shape becomes [16, 32]
+            input = asc2.load(x, [32, 16], offsets=[0, 0, 0])            
+            result = input.transpose()  # shape becomes [32, 16], same as input.transpose(1, 0)
+
+        Transpose a tile with 
+
+            input = asc2.load(x, [32, 64, 16], offsets=[0, 0, 0])
+            result = input.transpose(2, 0, 1)  # shape becomes [16, 32, 64]
     """
     check_type("input", input, Tile)
     check_dtype("input", input,
                 (KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32, KT.float64))
-    ir_type = ir.clone_shaped_type(input.to_ir().get_type(), [input.shape[1], input.shape[0]])
-    handle = global_builder.get_ir_builder().create_asctile_TransposeOp(ir_type, input.to_ir())
+    rank = len(input.shape)
+    if len(axis) == 0:
+        axis = list(range(0, rank))
+        axis[-1], axis[-2] = axis[-2], axis[-1]
+    if len(axis) != rank:
+        raise RuntimeError(f"Transpose axis count {len(axis)} should match count of tensors dimensions {rank}")
+    if list(axis) == list(range(0, rank)):  # Identity transformation
+        return input
+    if set(axis) != set(range(0, rank)):
+        raise RuntimeError(f"Wrong dimensions rearrangement {axis} for tile of {rank} dimensions")
+    result_shape = [input.shape[i] for i in axis]
+    check_data_alignment(result_shape, input.dtype)
+
+    ir_type = ir.clone_shaped_type(input.to_ir().get_type(), result_shape)
+    handle = global_builder.get_ir_builder().create_asctile_TransposeOp(
+        ir_type, input.to_ir(),
+        global_builder.get_ir_builder().get_i32_array_attr(axis))
     return Tile(handle)

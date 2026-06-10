@@ -26,13 +26,15 @@ def check_real_shape(shape: Tuple[int, ...], real_shape: Tuple[RuntimeInt, ...])
         raise RuntimeError(f"real_shape must have same rank as shape: {len(real_shape)} != {len(shape)}")
     for tile_dim, real_dim in zip(shape, real_shape):
         if isinstance(real_dim, int) and real_dim > tile_dim:
-            raise RuntimeError(f"real_shape dimension {real_dim} exceeds tile dimension {tile_dim}")
+            raise RuntimeError(
+                f"real_shape dimension {real_dim} (which is '{real_shape}') exceeds tile dimension {tile_dim} (which is '{shape}')."
+            )
 
 
 def infer_offsets(tensor_shape: Tuple[RuntimeInt], shape: Tuple[int, ...], tile_id: Optional[Iterable[RuntimeInt]],
                   offsets: Optional[Iterable[RuntimeInt]]) -> List[RuntimeInt]:
     if len(tensor_shape) != len(shape):
-        raise RuntimeError("rank of 'tensor_shape' must match rank of 'shape'")
+        raise RuntimeError(f"rank of 'tensor_shape':{len(tensor_shape)} must match rank of 'shape':{len(shape)}")
     if tile_id is not None:
         tile_id = verify_runtime_ints(tile_id, "tile_id")
         return to_ir_list(idx * size for idx, size in zip(tile_id, shape))

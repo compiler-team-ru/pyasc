@@ -410,10 +410,10 @@ def CopyFixpipeOp : AscTile_Op<"copy_fixpipe"> {
 def TransposeOp
     : AscTile_Op<"transpose", [Pure, SameOperandsAndResultElementType]> {
   let summary = "Transpose a tile";
-  let arguments = (ins NumericTile:$operand);
+  let arguments = (ins NumericTile:$operand, I32ArrayAttr:$dims);
   let results = (outs NumericTile:$result);
   let assemblyFormat = [{
-    $operand attr-dict `:` qualified(type($operand)) `to` qualified(type($result))
+      $operand `,` $dims attr-dict `:` qualified(type($operand)) `to` qualified(type($result))
   }];
 }
 

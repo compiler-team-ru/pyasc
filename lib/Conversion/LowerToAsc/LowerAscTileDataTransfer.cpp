@@ -280,7 +280,11 @@ struct ConvertLoadToUBWithTranspose : ConvertOp<asctile::LoadOp> {
             else
                 size[i] = consts.i32(readShape[i]);
             int32_t writeStride = 1;
-            auto mappedDim = dimsOrder[i];
+            size_t mappedDim = 0;
+            for (size_t j = 0; j < dims; ++j) {
+                if (dimsOrder[j] == i)
+                    mappedDim = j;
+            }
             for (size_t j = mappedDim + 1; j < dims; ++j)
                 writeStride *= static_cast<int32_t>(dstShape[j]);
             srcStride[i] = strides[i];
@@ -406,15 +410,17 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
 
     LogicalResult matchAndRewrite(asctile::StoreOp op, ConvertRewriter& rewriter) const override
     {
-        auto loc = op.getLoc();
-        auto offsets = op.getOffsets();
         auto value = op.getValue();
-        TensorInfo dstInfo = prepareTensorInfo(rewriter, loc, op.getBase(), offsets);
+        assert(value.getType().getLoc() == asctile::TileLocation::UB && "Tile should be located in UB.");
         Value src = rewriter.getRemappedValue(value);
         auto srcType = cast<ascendc::BaseTensorType>(src.getType());
-        assert(value.getType().getLoc() == asctile::TileLocation::UB && "Tile should be located in UB.");
-        ascir::ConstantOpBuilder consts(rewriter);
         SmallVector<Value> srcShape = getStaticShape(rewriter, srcType);
+        if (srcShape.size() > 2)
+            return failure();
+        auto loc = op.getLoc();
+        auto offsets = op.getOffsets();
+        ascir::ConstantOpBuilder consts(rewriter);
+        TensorInfo dstInfo = prepareTensorInfo(rewriter, loc, op.getBase(), offsets);
         auto const0 = consts.i32(0);
         Value typeSize = consts.i32(ascendc::getElementTypeSize(srcType));
         Value srcLastDim = srcShape.back();
@@ -451,6 +457,91 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
             ValueRange{blockCount, blockLen, srcStride, dstStride, const0},
             rewriter.getTypeArrayAttr({rewriter.getIntegerType(16, false), ui32Type, ui32Type, ui32Type, ui32Type}));
         rewriter.replaceOpWithNewOp<ascendc::DataCopyPadExtL2Op>(op, dstInfo.tensor, src, dataCopyExtParams);
+        return success();
+    }
+};
+
+struct ConvertStoreHighDims : ConvertOp<asctile::StoreOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    static Value calculateCopyCount(
+        ConvertRewriter& rewriter, Location& loc, const SmallVector<Value>& srcShape,
+        const SmallVector<Value>& dstShape, const OperandRange& offsets, const OperandRange& realShape, size_t dim)
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        Value tailElementsCount = rewriter.create<arith::SubIOp>(loc, dstShape[dim], offsets[dim]);
+        auto tailNegCond =
+            rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::slt, tailElementsCount, consts.i32(0));
+        Value tailElements = rewriter.create<arith::SelectOp>(loc, tailNegCond, consts.i32(0), tailElementsCount);
+        Value minTailElements =
+            rewriter.create<arith::MinSIOp>(loc, realShape.empty() ? srcShape[dim] : realShape[dim], tailElements);
+        return minTailElements;
+    }
+
+    LogicalResult matchAndRewrite(asctile::StoreOp op, ConvertRewriter& rewriter) const override
+    {
+        auto loc = op.getLoc();
+        auto offsets = op.getOffsets();
+        auto value = op.getValue();
+        TensorInfo dstInfo = prepareTensorInfo(rewriter, loc, op.getBase(), offsets);
+        Value src = rewriter.getRemappedValue(value);
+        auto srcType = cast<ascendc::BaseTensorType>(src.getType());
+        assert(value.getType().getLoc() == asctile::TileLocation::UB && "Tile should be located in UB.");
+        ascir::ConstantOpBuilder consts(rewriter);
+        SmallVector<Value> srcShape = getStaticShape(rewriter, srcType);
+        if (srcShape.size() <= 2 || srcShape.size() > 4)
+            return failure();
+        auto const0 = consts.i32(0);
+        Value typeSize = consts.i32(ascendc::getElementTypeSize(srcType));
+        Value srcLastDim = srcShape.back();
+        Value dstLastDim = dstInfo.shape.back();
+        Value minTailElements =
+            calculateCopyCount(rewriter, loc, srcShape, dstInfo.shape, offsets, op.getRealShape(), srcShape.size() - 1);
+
+        Value blockLen = rewriter.create<arith::MulIOp>(loc, minTailElements, typeSize);
+        Value srcStrideElements = rewriter.create<arith::SubIOp>(loc, srcLastDim, minTailElements);
+        Value dstStrideElements = rewriter.create<arith::SubIOp>(loc, dstLastDim, minTailElements);
+        Value blockCount = consts.i32(1);
+        blockCount =
+            calculateCopyCount(rewriter, loc, srcShape, dstInfo.shape, offsets, op.getRealShape(), srcShape.size() - 2);
+        Value dataBlockSize = consts.i32(ascendc::ubBlockSize);
+        Value srcStrideBytes = rewriter.create<arith::MulIOp>(loc, srcStrideElements, typeSize);
+        Value srcStride = rewriter.create<arith::DivSIOp>(loc, srcStrideBytes, dataBlockSize);
+        Value dstStride = rewriter.create<arith::MulIOp>(loc, dstStrideElements, typeSize);
+        auto ui32Type = rewriter.getIntegerType(32, false);
+        auto dataCopyExtParams = rewriter.create<ascendc::ConstructOp>(
+            loc, rewriter.getType<ascendc::DataCopyExtParamsType>(),
+            ValueRange{blockCount, blockLen, srcStride, dstStride, const0},
+            rewriter.getTypeArrayAttr({rewriter.getIntegerType(16, false), ui32Type, ui32Type, ui32Type, ui32Type}));
+        Value loop1Size =
+            calculateCopyCount(rewriter, loc, srcShape, dstInfo.shape, offsets, op.getRealShape(), srcShape.size() - 3);
+        Value loop2Size = srcShape.size() == 3 ? consts.i32(1) :
+                                                 calculateCopyCount(
+                                                     rewriter, loc, srcShape, dstInfo.shape, offsets, op.getRealShape(),
+                                                     srcShape.size() - 4);
+
+        Value dim0SrcStride = rewriter.create<arith::MulIOp>(loc, srcShape[srcShape.size() - 1], typeSize);
+        Value dim1SrcStride = rewriter.create<arith::MulIOp>(loc, dim0SrcStride, srcShape[srcShape.size() - 2]);
+        Value dim2SrcStride = rewriter.create<arith::MulIOp>(loc, dim1SrcStride, srcShape[srcShape.size() - 3]);
+
+        Value dim0DstStride = rewriter.create<arith::MulIOp>(loc, dstInfo.shape[dstInfo.shape.size() - 1], typeSize);
+        Value dim1DstStride =
+            rewriter.create<arith::MulIOp>(loc, dim0DstStride, dstInfo.shape[dstInfo.shape.size() - 2]);
+        Value dim2DstStride =
+            rewriter.create<arith::MulIOp>(loc, dim1DstStride, dstInfo.shape[dstInfo.shape.size() - 3]);
+
+        auto dataCopyOp =
+            rewriter.replaceOpWithNewOp<ascendc::DataCopyPadExtL2Op>(op, dstInfo.tensor, src, dataCopyExtParams);
+        auto ui64Type = rewriter.getIntegerType(64, false);
+        auto params = rewriter.create<ascendc::ConstructOp>(
+            loc, rewriter.getType<ascendc::LoopModeParamsType>(),
+            ValueRange{loop1Size, loop2Size, dim1SrcStride, dim1DstStride, dim2SrcStride, dim2DstStride},
+            rewriter.getTypeArrayAttr({ui32Type, ui32Type, ui64Type, ui64Type, ui64Type, ui64Type}));
+        auto setParamsOp = rewriter.create<ascendc::SetLoopModeParaOp>(loc, params, ascendc::DataCopyMVType::UB_TO_OUT);
+        rewriter.create<ascendc::ResetLoopModeParaOp>(loc, ascendc::DataCopyMVType::UB_TO_OUT);
+        rewriter.moveOpBefore(setParamsOp, dataCopyOp);
+        rewriter.moveOpBefore(params, setParamsOp);
         return success();
     }
 };
@@ -768,7 +859,7 @@ struct LowerAscTileDataTransferPass
         patterns.insert<
             //
             ConvertLoadToUB, ConvertLoadToUBWithTranspose, ConvertLoadToL1, ConvertStore, ConvertStoreFixpipe,
-            ConvertCopy, ConvertGetValue, ConvertSetValue, ConvertCopyFixpipe
+            ConvertCopy, ConvertGetValue, ConvertSetValue, ConvertCopyFixpipe, ConvertStoreHighDims
             //
             >(converter, context);
         if (applyPartialConversion(getOperation(), target, std::move(patterns)).failed())

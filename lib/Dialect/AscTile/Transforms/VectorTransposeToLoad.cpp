@@ -37,17 +37,17 @@ struct VectorTransposeToLoad : OpRewritePattern<asctile::TransposeOp> {
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loadOp = op.getOperand().getDefiningOp<asctile::LoadOp>();
-        if (!loadOp || op.getType().getLoc() != TileLocation::UB || !op->hasOneUse()) {
+        if (!loadOp || op.getType().getLoc() != TileLocation::UB || !op.getOperand().hasOneUse()) {
             return failure();
         }
         auto shape = op.getOperand().getType().getShape();
-        if (shape.size() != 2) {
-            return failure();
-        }
         auto newLoadOp = rewriter.replaceOpWithNewOp<asctile::LoadOp>(
             op, op.getType(), loadOp.getBase(), loadOp.getOffsets(), loadOp.getPadValue(), loadOp.getRealShape());
         rewriter.startOpModification(newLoadOp);
-        SmallVector<int32_t> dimOrder = {1, 0};
+        SmallVector<int32_t> dimOrder;
+        for (auto value : op.getDims().getAsValueRange<IntegerAttr>()) {
+            dimOrder.push_back(static_cast<int32_t>(value.getSExtValue()));
+        }
         newLoadOp->setAttr(asctile::attr::transposeDims, rewriter.getDenseI32ArrayAttr(dimOrder));
         rewriter.finalizeOpModification(newLoadOp);
         return success();
