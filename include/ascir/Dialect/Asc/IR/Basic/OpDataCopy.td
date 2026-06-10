@@ -157,7 +157,7 @@ def AscendC_NdDmaParamsOp: AscendC_Op<"nd_dma_params", [AttrSizedOperandSegments
   }];
 }
 
-def DataCopyNdDmaOp : DataCopyOp<"data_copy_nd_dma", "DataCopy", [
+def AscendC_DataCopyNdDmaOp : DataCopyOp<"data_copy_nd_dma", "DataCopy", [
   AscFunc, OpWithSrcInterface
 ]> {
   let description = "DataCopy with NdDmaParams arguments";

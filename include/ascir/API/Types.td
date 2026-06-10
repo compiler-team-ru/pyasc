@@ -474,4 +474,8 @@ def VdeqInfo : APIType<"VdeqInfo"> {
   let apiName = "AscendC::VdeqInfo";
 }
 
+def LoopModeParams : APIType<"LoopModeParams"> {
+    let mnemonic = "loop_mode_params";
+    let apiName = "AscendC::LoopModeParams";
+}
 #endif // API_TYPES_TD

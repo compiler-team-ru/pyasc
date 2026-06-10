@@ -596,4 +596,13 @@ def AscendC_ReducePatternAttr : I32EnumAttr<"ReducePattern", "", [
   let underlyingType = "uint8_t";
 }
 
+def AscendC_DataCopyMVTypeAttr: I32EnumAttr<"DataCopyMVType", "", [
+    I32EnumAttrCase<"UB_TO_OUT", 0>,
+    I32EnumAttrCase<"OUT_TO_UB", 1>,
+]>{
+  let cppNamespace = "::mlir::ascendc";
+  let description = "Used in SetLoopModePara/ResetLoopModePara";
+  let underlyingType = "uint8_t";
+}
+
 #endif // ASC_CORE_ATTRIBUTES_TD
