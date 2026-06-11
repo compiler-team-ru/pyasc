@@ -14,7 +14,7 @@ from ..core.dtype import DataType, KnownTypes as KT
 from ..core.ir_value import PlainValue, RuntimeNumeric, materialize_ir_value
 from ..core.utils import global_builder, require_jit
 from .tile import Tile, TileLocation
-from .utils import constant_tile, splat_tile
+from .utils import check_bias, constant_tile, splat_tile
 from .validation import check_dtype, check_type, verify_shape
 
 
@@ -205,6 +205,7 @@ def zeros_acc(shape: Iterable[int], dtype: DataType, *, bias: Optional[Tile] = N
     """
     check_type("dtype", dtype, DataType)
     check_dtype("dtype", dtype, KT.float32)
+    check_bias(bias, shape[1])
     shape = verify_shape(shape)
     ir_type = ir.get_asctile_TileType(list(shape), dtype.to_ir(), TileLocation.L0C)
     bias_ir = bias.to_ir() if bias is not None else None
