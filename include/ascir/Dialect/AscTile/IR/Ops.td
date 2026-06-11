@@ -27,7 +27,7 @@ class AscTile_Op<string mnemonic, list<Trait> traits = []>
 
 def AccumulatorOp : AscTile_Op<"accumulator"> {
   let summary = "Create a zeros tile in L0C or initialize with bias";
-  let arguments = (ins Optional<TileOfRankAndType<[1], [F32]>>:$bias);
+  let arguments = (ins Optional<TileOfRankAndType<[1], [BF16, F32]>>:$bias);
   let results = (outs NumericTile:$result);
   let assemblyFormat = [{
     ($bias^)? attr-dict `:` qualified(type($result)) (`,` type($bias)^)?
@@ -318,7 +318,7 @@ def MatmulOp : AscTile_Op<"matmul", [
   let summary = "Compute matrix multiplication on 2D tiles with optional bias";
   Type inputTileType = TileOfRankAndType<[2], [AscTile_Float]>;
   let arguments = (ins inputTileType:$matrixA, inputTileType:$matrixB,
-                   Optional<TileOfRankAndType<[1], [F32]>>:$bias, UnitAttr:$hf32);
+                   Optional<TileOfRankAndType<[1], [BF16, F32]>>:$bias, UnitAttr:$hf32);
   let results = (outs TileOfRankAndType<[2], [F32]>:$result);
   let assemblyFormat = [{
     $matrixA `,` $matrixB (`,` $bias^)? attr-dict `:` type($matrixA) `,`

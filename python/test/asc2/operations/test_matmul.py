@@ -151,15 +151,15 @@ def matmul_bias_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, bia
     asc2.store(c, c_gm, offsets=[0, 0])
 
 
-@pytest.mark.parametrize("m, k, n, dtype", [
-    (64, 64, 64, torch.float16),
-    (64, 64, 64, torch.bfloat16),
-    (32, 32, 32, torch.float32),
+@pytest.mark.parametrize("m, k, n, dtype, bias_dtype", [
+    (64, 64, 64, torch.float16, torch.float32),
+    (64, 64, 64, torch.bfloat16, torch.bfloat16),
+    (32, 32, 32, torch.float32, torch.float32),
 ])
-def test_matmul_with_bias(m, k, n, dtype):
+def test_matmul_with_bias(m, k, n, dtype, bias_dtype):
     a = (torch.rand((m, k), dtype=dtype) - .5) * 10
     b = (torch.rand((k, n), dtype=dtype) - .5) * 10
-    bias = (torch.rand((n, ), dtype=torch.float32) - .5) * 10
+    bias = (torch.rand((n, ), dtype=bias_dtype) - .5) * 10
     c = torch.zeros((a.shape[0], b.shape[1]), dtype=torch.float32)
     matmul_bias_kernel[1](a, b, bias, c, a.shape, b.shape, bias.shape, c.shape)
     c_ref = a.to(torch.float32) @ b.to(torch.float32) + bias
@@ -187,16 +187,16 @@ def matmul_acc_bias_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress,
     asc2.store(acc, c_gm, offsets=[0, 0])
 
 
-@pytest.mark.parametrize("m, k, n, dtype, k_tiles", [
-    (64, 64, 64, torch.float16, 2),
-    (64, 128, 64, torch.bfloat16, 4),
-    (32, 32, 32, torch.float32, 1),
-    (64, 64, 64, torch.float16, 1),
+@pytest.mark.parametrize("m, k, n, dtype, bias_dtype, k_tiles", [
+    (64, 64, 64, torch.float16, torch.float32, 2),
+    (64, 128, 64, torch.bfloat16, torch.bfloat16, 4),
+    (32, 32, 32, torch.float32, torch.float32, 1),
+    (64, 64, 64, torch.float16, torch.float32, 1),
 ])
-def test_matmul_acc_with_bias(m, k, n, dtype, k_tiles):
+def test_matmul_acc_with_bias(m, k, n, dtype, bias_dtype, k_tiles):
     a = (torch.rand((m, k), dtype=dtype) - .5) * 10
     b = (torch.rand((k, n), dtype=dtype) - .5) * 10
-    bias = (torch.rand((n, ), dtype=torch.float32) - .5) * 10
+    bias = (torch.rand((n, ), dtype=bias_dtype) - .5) * 10
     c = torch.zeros((a.shape[0], b.shape[1]), dtype=torch.float32)
     matmul_acc_bias_kernel[1](a, b, bias, c, a.shape, b.shape, bias.shape, c.shape, k_tiles)
     c_ref = a.to(torch.float32) @ b.to(torch.float32) + bias

@@ -14,7 +14,7 @@ from ..core.dtype import DataType, KnownTypes as KT
 from ..core.ir_value import IRHandle, RuntimeInt, RuntimeNumeric
 from ..core.utils import global_builder, require_jit
 from .tile import BinaryOperandTypeError, Tile, TileLocation, bind_tile_method
-from .utils import create_tile, infer_common_dtype, infer_common_shape
+from .utils import check_bias, create_tile, infer_common_dtype, infer_common_shape
 from .validation import check_dtype, check_runtime_int, check_type
 
 T = TypeVar("T")
@@ -248,17 +248,6 @@ def check_matmul_arguments(input: Tile, other: Tile, hf32: bool) -> None:
         raise RuntimeError("HF32 mode can only be set when input tile dtype is float32")
 
 
-def check_matmul_bias(bias: Optional[Tile], size: int) -> None:
-    if bias is None:
-        return
-    check_type("bias", bias, Tile)
-    check_dtype("bias", bias, KT.float32)
-    if len(bias.shape) != 1:
-        raise RuntimeError(f"Bias must be 1D tile, got shape {bias.shape}")
-    if bias.shape[0] != size:
-        raise RuntimeError(f"Bias shape {bias.shape[0]} must match last output dimension {size}")
-
-
 @bind_tile_method(name="__matmul__", binary_op="@")
 def matmul(input: Tile, other: Tile, bias: Optional[Tile] = None, *, hf32: bool = False) -> Tile:
     """
@@ -309,7 +298,7 @@ def matmul(input: Tile, other: Tile, bias: Optional[Tile] = None, *, hf32: bool 
             asc2.store(c, c_gm, offsets=[0, 0])
     """
     check_matmul_arguments(input, other, hf32)
-    check_matmul_bias(bias, other.shape[1])
+    check_bias(bias, other.shape[1])
     builder = global_builder.get_ir_builder()
     ir_type = ir.get_asctile_TileType([input.shape[0], other.shape[1]], KT.float32.to_ir(), TileLocation.L0C)
     bias_ir = bias.to_ir() if bias is not None else None

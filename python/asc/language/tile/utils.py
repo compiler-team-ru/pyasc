@@ -7,7 +7,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 from numbers import Real
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 from ..._C import ir
 from ..core.dtype import DataType, KnownTypes as KT
@@ -15,6 +15,7 @@ from ..core.ir_value import PlainValue, RuntimeNumeric
 from ..core.tensor import TensorShape
 from ..core.utils import global_builder
 from .tile import BinaryOperandTypeError, Tile
+from .validation import check_dtype, check_type
 
 
 def constant_tile(value: Real, shape: TensorShape, dtype: DataType, loc: ir.TileLocation = ir.TileLocation.UB) -> Tile:
@@ -111,3 +112,14 @@ def infer_common_shape(lhs: Union[Tile, RuntimeNumeric], rhs: Union[Tile, Runtim
             raise RuntimeError(f"Shapes are not broadcastable: {lhs.shape} vs. {rhs.shape}")
         result.append(max(dim_lhs, dim_rhs))
     return tuple(result)
+
+
+def check_bias(bias: Optional[Tile], size: int) -> None:
+    if bias is None:
+        return
+    check_type("bias", bias, Tile)
+    check_dtype("bias", bias, (KT.bfloat16, KT.float32), optional=True)
+    if len(bias.shape) != 1:
+        raise RuntimeError(f"Bias must be 1D tile, got shape {bias.shape}")
+    if bias.size != size:
+        raise RuntimeError(f"Bias shape {bias.size} must match last output dimension {size}")
