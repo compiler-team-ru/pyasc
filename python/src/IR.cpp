@@ -247,6 +247,17 @@ void bindEnums(py::module& m)
         .value("Any", asctile::ReduceKind::Any)
         .value("XorSum", asctile::ReduceKind::XorSum)
         .def_static("symbolize", [](int32_t kind) { return static_cast<asctile::ReduceKind>(kind); });
+
+    py::enum_<asctile::RoundMode>(m, "asctile_RoundMode", py::module_local())
+        .value("Default", asctile::RoundMode::Default)
+        .value("NoRound", asctile::RoundMode::NoRound)
+        .value("Rint", asctile::RoundMode::Rint)
+        .value("Floor", asctile::RoundMode::Floor)
+        .value("Ceil", asctile::RoundMode::Ceil)
+        .value("Round", asctile::RoundMode::Round)
+        .value("Trunc", asctile::RoundMode::Trunc)
+        .value("Odd", asctile::RoundMode::Odd)
+        .def_static("symbolize", [](int32_t mode) { return static_cast<asctile::RoundMode>(mode); });
 }
 
 void bindContextAndDialect(py::module& m)

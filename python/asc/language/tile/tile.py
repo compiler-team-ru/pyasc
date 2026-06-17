@@ -21,6 +21,7 @@ from .validation import check_type
 
 T = TypeVar("T")
 
+RoundMode: TypeAlias = ir.asctile_RoundMode
 TileLocation: TypeAlias = ir.TileLocation
 
 
@@ -63,10 +64,10 @@ class Tile(IRValue):
     def to_ir(self) -> IRHandle:
         return self.handle
 
-    def to(self, dtype: DataType) -> Self:
+    def to(self, dtype: DataType, round_mode: RoundMode = RoundMode.Default) -> Self:
         """Forwards to :py:func:`cast` function."""
         from .creation_ops import cast
-        return cast(self, dtype)
+        return cast(self, dtype, round_mode)
 
     @property
     def T(self) -> Self:

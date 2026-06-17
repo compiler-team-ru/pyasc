@@ -83,9 +83,11 @@ struct FoldCastPattern : OpRewritePattern<asctile::CastOp> {
         auto defOp = op.getIn().getDefiningOp<asctile::CastOp>();
         if (!defOp)
             return failure();
+        if (op.getRoundMode() != defOp.getRoundMode())
+            return failure();
         if (!isCastSupported(defOp.getIn().getType(), op.getType()))
             return failure();
-        rewriter.replaceOpWithNewOp<asctile::CastOp>(op, op.getType(), defOp.getIn());
+        rewriter.replaceOpWithNewOp<asctile::CastOp>(op, op.getType(), defOp.getIn(), defOp.getRoundMode());
         return success();
     }
 };

@@ -226,10 +226,10 @@ def CastOp : AscTile_Op<"cast", [
   Pure, SameOperandsAndResultShape, DeclareOpInterfaceMethods<CastOpInterface>
 ]> {
   let summary = "Cast tile elements to other data type";
-  let arguments = (ins NumericTile:$in);
+  let arguments = (ins NumericTile:$in, AscTile_RoundModeAttr:$roundMode);
   let results = (outs NumericTile:$out);
   let assemblyFormat = [{
-    $in attr-dict `:` qualified(type($in)) `to` qualified(type($out))
+    $roundMode $in attr-dict `:` qualified(type($in)) `to` qualified(type($out))
   }];
   let hasFolder = 1;
 }

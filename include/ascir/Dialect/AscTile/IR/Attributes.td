@@ -78,4 +78,21 @@ def AscTile_ReduceKind : I32EnumAttr<"ReduceKind", "kind of reduce", [
 
 def AscTile_ReduceKindAttr : AscTile_EnumAttr<AscTile_ReduceKind, "kind">;
 
+def AscTile_RoundMode : I32EnumAttr<"RoundMode", "cast rounding mode", [
+  I32EnumAttrCase<"NoRound", 0, "noround">,
+  I32EnumAttrCase<"Rint", 1, "rint">,
+  I32EnumAttrCase<"Floor", 2, "floor">,
+  I32EnumAttrCase<"Ceil", 3, "ceil">,
+  I32EnumAttrCase<"Round", 4, "round">,
+  I32EnumAttrCase<"Trunc", 5, "trunc">,
+  I32EnumAttrCase<"Odd", 6, "odd">,
+  I32EnumAttrCase<"Default", 100, "default">,
+]> {
+  let cppNamespace = "::mlir::asctile";
+  let description = "Cast rounding mode";
+  let genSpecializedAttr = 0;
+}
+
+def AscTile_RoundModeAttr : AscTile_EnumAttr<AscTile_RoundMode, "round_mode">;
+
 #endif // ASCTILE_ATTRIBUTES_TD

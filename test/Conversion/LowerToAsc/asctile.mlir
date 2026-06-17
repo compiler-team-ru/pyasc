@@ -27,11 +27,11 @@ func.func @lower_relu(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xf32,
 // CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<32xf32, UB> to !ascendc.local_tensor<32xf32>
 // CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <32xi32>
 // CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<32xi32> to !asctile.tile<32xi32, UB>
-// CHECK-NEXT:  ascendc.cast_l2 %1, %0, %c32_i64 {roundMode = 1 : i32} : !ascendc.local_tensor<32xi32>, !ascendc.local_tensor<32xf32>, i64
+// CHECK-NEXT:  ascendc.cast_l2 %1, %0, %c32_i64 {roundMode = 5 : i32} : !ascendc.local_tensor<32xi32>, !ascendc.local_tensor<32xf32>, i64
 // CHECK-NEXT:  return %2 : !asctile.tile<32xi32, UB>
 // CHECK-NEXT:}
 func.func @lower_cast(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xi32, UB> {
-  %0 = asctile.cast %arg0 : !asctile.tile<32xf32, UB> to !asctile.tile<32xi32, UB>
+  %0 = asctile.cast <default> %arg0 : !asctile.tile<32xf32, UB> to !asctile.tile<32xi32, UB>
   return %0 : !asctile.tile<32xi32, UB>
 }
 
@@ -343,4 +343,88 @@ func.func @lower_reduce_max(%arg0: !asctile.tile<64x32xf32, UB>) -> !asctile.til
 func.func @lower_reduce_prod(%arg0: !asctile.tile<64x32xf32, UB>) -> !asctile.tile<32xf32, UB> {
   %0 = asctile.reduce <prod> %arg0 {dims = [0 : i32]} : !asctile.tile<64x32xf32, UB>, !asctile.tile<32xf32, UB>
   return %0 : !asctile.tile<32xf32, UB>
+}
+
+// CHECK-LABEL: func.func @lower_cast_round_floor(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xi32, UB> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<32xf32, UB> to !ascendc.local_tensor<32xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <32xi32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<32xi32> to !asctile.tile<32xi32, UB>
+// CHECK-NEXT:  ascendc.cast_l2 %1, %0, %c32_i64 {roundMode = 2 : i32} : !ascendc.local_tensor<32xi32>, !ascendc.local_tensor<32xf32>, i64
+// CHECK-NEXT:  return %2 : !asctile.tile<32xi32, UB>
+// CHECK-NEXT:}
+func.func @lower_cast_round_floor(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xi32, UB> {
+  %0 = asctile.cast <floor> %arg0 : !asctile.tile<32xf32, UB> to !asctile.tile<32xi32, UB>
+  return %0 : !asctile.tile<32xi32, UB>
+}
+
+// CHECK-LABEL: func.func @lower_cast_round_ceil(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xi32, UB> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<32xf32, UB> to !ascendc.local_tensor<32xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <32xi32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<32xi32> to !asctile.tile<32xi32, UB>
+// CHECK-NEXT:  ascendc.cast_l2 %1, %0, %c32_i64 {roundMode = 3 : i32} : !ascendc.local_tensor<32xi32>, !ascendc.local_tensor<32xf32>, i64
+// CHECK-NEXT:  return %2 : !asctile.tile<32xi32, UB>
+// CHECK-NEXT:}
+func.func @lower_cast_round_ceil(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xi32, UB> {
+  %0 = asctile.cast <ceil> %arg0 : !asctile.tile<32xf32, UB> to !asctile.tile<32xi32, UB>
+  return %0 : !asctile.tile<32xi32, UB>
+}
+
+// CHECK-LABEL: func.func @lower_cast_round_trunc(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xi32, UB> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<32xf32, UB> to !ascendc.local_tensor<32xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <32xi32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<32xi32> to !asctile.tile<32xi32, UB>
+// CHECK-NEXT:  ascendc.cast_l2 %1, %0, %c32_i64 {roundMode = 5 : i32} : !ascendc.local_tensor<32xi32>, !ascendc.local_tensor<32xf32>, i64
+// CHECK-NEXT:  return %2 : !asctile.tile<32xi32, UB>
+// CHECK-NEXT:}
+func.func @lower_cast_round_trunc(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xi32, UB> {
+  %0 = asctile.cast <trunc> %arg0 : !asctile.tile<32xf32, UB> to !asctile.tile<32xi32, UB>
+  return %0 : !asctile.tile<32xi32, UB>
+}
+
+// CHECK-LABEL: func.func @lower_cast_round_round(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xi32, UB> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<32xf32, UB> to !ascendc.local_tensor<32xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <32xi32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<32xi32> to !asctile.tile<32xi32, UB>
+// CHECK-NEXT:  ascendc.cast_l2 %1, %0, %c32_i64 {roundMode = 4 : i32} : !ascendc.local_tensor<32xi32>, !ascendc.local_tensor<32xf32>, i64
+// CHECK-NEXT:  return %2 : !asctile.tile<32xi32, UB>
+// CHECK-NEXT:}
+func.func @lower_cast_round_round(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xi32, UB> {
+  %0 = asctile.cast <round> %arg0 : !asctile.tile<32xf32, UB> to !asctile.tile<32xi32, UB>
+  return %0 : !asctile.tile<32xi32, UB>
+}
+
+// CHECK-LABEL: func.func @lower_cast_round_noround(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xf16, UB> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<32xf32, UB> to !ascendc.local_tensor<32xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <32xf16>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<32xf16> to !asctile.tile<32xf16, UB>
+// CHECK-NEXT:  ascendc.cast_l2 %1, %0, %c32_i64 {roundMode = 0 : i32} : !ascendc.local_tensor<32xf16>, !ascendc.local_tensor<32xf32>, i64
+// CHECK-NEXT:  return %2 : !asctile.tile<32xf16, UB>
+// CHECK-NEXT:}
+func.func @lower_cast_round_noround(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xf16, UB> {
+  %0 = asctile.cast <noround> %arg0 : !asctile.tile<32xf32, UB> to !asctile.tile<32xf16, UB>
+  return %0 : !asctile.tile<32xf16, UB>
+}
+
+// CHECK-LABEL: func.func @lower_cast_round_rint(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xi32, UB> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<32xf32, UB> to !ascendc.local_tensor<32xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <32xi32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<32xi32> to !asctile.tile<32xi32, UB>
+// CHECK-NEXT:  ascendc.cast_l2 %1, %0, %c32_i64 {roundMode = 1 : i32} : !ascendc.local_tensor<32xi32>, !ascendc.local_tensor<32xf32>, i64
+// CHECK-NEXT:  return %2 : !asctile.tile<32xi32, UB>
+// CHECK-NEXT:}
+func.func @lower_cast_round_rint(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xi32, UB> {
+  %0 = asctile.cast <rint> %arg0 : !asctile.tile<32xf32, UB> to !asctile.tile<32xi32, UB>
+  return %0 : !asctile.tile<32xi32, UB>
+}
+
+// CHECK-LABEL: func.func @lower_cast_round_odd(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xf16, UB> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<32xf32, UB> to !ascendc.local_tensor<32xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <32xf16>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<32xf16> to !asctile.tile<32xf16, UB>
+// CHECK-NEXT:  ascendc.cast_l2 %1, %0, %c32_i64 {roundMode = 6 : i32} : !ascendc.local_tensor<32xf16>, !ascendc.local_tensor<32xf32>, i64
+// CHECK-NEXT:  return %2 : !asctile.tile<32xf16, UB>
+// CHECK-NEXT:}
+func.func @lower_cast_round_odd(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.tile<32xf16, UB> {
+  %0 = asctile.cast <odd> %arg0 : !asctile.tile<32xf32, UB> to !asctile.tile<32xf16, UB>
+  return %0 : !asctile.tile<32xf16, UB>
 }

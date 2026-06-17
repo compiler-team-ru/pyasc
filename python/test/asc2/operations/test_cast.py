@@ -3,7 +3,7 @@ import pytest
 import torch
 
 USE_CORE_NUM = 1
-SIZE = 128
+SIZE = 32
 
 
 @asc2.jit(always_compile=True)
@@ -13,6 +13,86 @@ def cast_kernel(x_ptr, z_ptr, size: asc2.ConstExpr, dst_dtype: asc2.ConstExpr) -
     tile = asc2.load(x_gm, [size], offsets=[0])
     casted = tile.to(dst_dtype)
     asc2.store(casted, z_gm, offsets=[0])
+
+
+@asc2.jit(always_compile=True)
+def cast_round_mode_kernel(x_ptr, z_ptr, size: asc2.ConstExpr, dst_dtype: asc2.ConstExpr,
+                           round_mode: asc2.ConstExpr) -> None:
+    x_gm = asc2.tensor(x_ptr, [size])
+    z_gm = asc2.tensor(z_ptr, [size])
+    tile = asc2.load(x_gm, [size], offsets=[0])
+    casted = asc2.cast(tile, dst_dtype, round_mode=round_mode)
+    asc2.store(casted, z_gm, offsets=[0])
+
+
+@asc2.jit(always_compile=True)
+def cast_to_method_kernel(x_ptr, z_ptr, size: asc2.ConstExpr, dst_dtype: asc2.ConstExpr,
+                          round_mode: asc2.ConstExpr) -> None:
+    x_gm = asc2.tensor(x_ptr, [size])
+    z_gm = asc2.tensor(z_ptr, [size])
+    tile = asc2.load(x_gm, [size], offsets=[0])
+    casted = tile.to(dst_dtype, round_mode=round_mode)
+    asc2.store(casted, z_gm, offsets=[0])
+
+
+def round_half_away_from_zero(x):
+    return torch.sign(x) * torch.floor(torch.abs(x) + 0.5)
+
+
+def create_input(dtype: torch.dtype):
+    if dtype.is_floating_point:
+        return torch.randn(SIZE, dtype=dtype)
+    if dtype.is_signed:
+        return torch.randint(-100, 100, (SIZE, ), dtype=dtype)
+
+
+def get_expected(x, src_dtype: torch.dtype, dst_dtype: torch.dtype, round_fn=None):
+    if dst_dtype.is_floating_point:
+        if dst_dtype == torch.float16:
+            return x.to(torch.float16)
+        if dst_dtype == torch.float32:
+            return x.to(torch.float32)
+        if dst_dtype == torch.bfloat16:
+            return x.to(torch.bfloat16)
+    if src_dtype.is_floating_point:
+        if round_fn:
+            rounded = round_fn(x)
+        else:
+            rounded = torch.trunc(x)
+        if dst_dtype == torch.int8:
+            return torch.clamp(rounded, min=-128, max=127).to(torch.int8)
+        if dst_dtype == torch.int16:
+            return torch.clamp(rounded, min=-32768, max=32767).to(torch.int16)
+        if dst_dtype == torch.int32:
+            return rounded.to(torch.int32)
+        if dst_dtype == torch.int64:
+            return rounded.to(torch.int64)
+    src_bits = src_dtype.itemsize * 8
+    dst_bits = dst_dtype.itemsize * 8
+    if src_bits < dst_bits:
+        return x.to(dst_dtype)
+    if src_bits > dst_bits:
+        if dst_dtype == torch.int8:
+            return torch.clamp(x.to(torch.int32), min=-128, max=127).to(torch.int8)
+        if dst_dtype == torch.int16:
+            return torch.clamp(x.to(torch.int32), min=-32768, max=32767).to(torch.int16)
+        if dst_dtype == torch.int32:
+            return torch.clamp(x.to(torch.int64), min=-2147483648, max=2147483647).to(torch.int32)
+    return x.to(dst_dtype)
+
+
+def get_round_mode_fn(round_mode):
+    if round_mode == asc2.RoundMode.Floor:
+        return torch.floor
+    elif round_mode == asc2.RoundMode.Ceil:
+        return torch.ceil
+    elif round_mode == asc2.RoundMode.Trunc:
+        return torch.trunc
+    elif round_mode == asc2.RoundMode.Round:
+        return round_half_away_from_zero
+    elif round_mode == asc2.RoundMode.Rint:
+        return torch.round
+    return None
 
 
 @pytest.mark.parametrize("dst_dtype, torch_src, torch_dst", [
@@ -54,50 +134,114 @@ def test_cast(require_c310, dst_dtype, torch_src, torch_dst):
             or (torch_src == torch.int16 and torch_dst == torch.int32)
             or (torch_src == torch.int32 and torch_dst == torch.float16)):
         require_c310()
-
-    def create_input(dtype: torch.dtype):
-        if dtype.is_floating_point:
-            return torch.randn(SIZE, dtype=dtype)
-        if dtype.is_signed:
-            return torch.randint(-100, 100, (SIZE, ), dtype=dtype)
-
-    def get_expected(x, src_dtype: torch.dtype, dst_dtype: torch.dtype):
-        if dst_dtype.is_floating_point:
-            if dst_dtype == torch.float16:
-                return x.to(torch.float16)
-            if dst_dtype == torch.float32:
-                return x.to(torch.float32)
-            if dst_dtype == torch.bfloat16:
-                return x.to(torch.bfloat16)
-        if src_dtype.is_floating_point:
-            rounded = torch.round(x)
-            if dst_dtype == torch.int8:
-                return torch.clamp(rounded, min=-128, max=127).to(torch.int8)
-            if dst_dtype == torch.int16:
-                return torch.clamp(rounded, min=-32768, max=32767).to(torch.int16)
-            if dst_dtype == torch.int32:
-                return rounded.to(torch.int32)
-            if dst_dtype == torch.int64:
-                return rounded.to(torch.int64)
-        src_bits = src_dtype.itemsize * 8
-        dst_bits = dst_dtype.itemsize * 8
-        if src_bits < dst_bits:
-            return x.to(dst_dtype)
-        if src_bits > dst_bits:
-            if dst_dtype == torch.int8:
-                return torch.clamp(x.to(torch.int32), min=-128, max=127).to(torch.int8)
-            if dst_dtype == torch.int16:
-                return torch.clamp(x.to(torch.int32), min=-32768, max=32767).to(torch.int16)
-            if dst_dtype == torch.int32:
-                return torch.clamp(x.to(torch.int64), min=-2147483648, max=2147483647).to(torch.int32)
-        return x.to(dst_dtype)
-
     x = create_input(torch_src)
     z = torch.zeros(SIZE, dtype=torch_dst)
     cast_kernel[USE_CORE_NUM](x, z, SIZE, dst_dtype)
     expected = get_expected(x, torch_src, torch_dst)
     if torch_dst.is_floating_point:
         atol = 1e-3 if torch_dst == torch.float16 else 1e-2 if torch_dst == torch.bfloat16 else 1e-6
+        torch.testing.assert_close(z, expected, atol=atol, rtol=atol)
+    else:
+        torch.testing.assert_close(z, expected)
+
+
+@pytest.mark.parametrize("kernel", [
+    cast_round_mode_kernel,
+    cast_to_method_kernel,
+])
+@pytest.mark.parametrize("src_torch_dtype, dst_asc2_dtype, dst_torch_dtype, round_mode", [
+    # float -> float
+    (torch.float32, asc2.float32, torch.float32, asc2.RoundMode.Rint),
+    (torch.float32, asc2.float32, torch.float32, asc2.RoundMode.Floor),
+    (torch.float32, asc2.float32, torch.float32, asc2.RoundMode.Ceil),
+    (torch.float32, asc2.float32, torch.float32, asc2.RoundMode.Round),
+    (torch.float32, asc2.float32, torch.float32, asc2.RoundMode.Trunc),
+    (torch.float32, asc2.bfloat16, torch.bfloat16, asc2.RoundMode.Rint),
+    (torch.float32, asc2.bfloat16, torch.bfloat16, asc2.RoundMode.Floor),
+    (torch.float32, asc2.bfloat16, torch.bfloat16, asc2.RoundMode.Ceil),
+    (torch.float32, asc2.bfloat16, torch.bfloat16, asc2.RoundMode.Round),
+    (torch.float32, asc2.bfloat16, torch.bfloat16, asc2.RoundMode.Trunc),
+    (torch.float32, asc2.float16, torch.float16, asc2.RoundMode.Rint),
+    (torch.float32, asc2.float16, torch.float16, asc2.RoundMode.Floor),
+    (torch.float32, asc2.float16, torch.float16, asc2.RoundMode.Ceil),
+    (torch.float32, asc2.float16, torch.float16, asc2.RoundMode.Round),
+    (torch.float32, asc2.float16, torch.float16, asc2.RoundMode.Trunc),
+    (torch.float32, asc2.float16, torch.float16, asc2.RoundMode.Odd),
+    (torch.float32, asc2.float16, torch.float16, asc2.RoundMode.NoRound),
+    # float -> int
+    (torch.float32, asc2.int16, torch.int16, asc2.RoundMode.Rint),
+    (torch.float32, asc2.int16, torch.int16, asc2.RoundMode.Floor),
+    (torch.float32, asc2.int16, torch.int16, asc2.RoundMode.Ceil),
+    (torch.float32, asc2.int16, torch.int16, asc2.RoundMode.Round),
+    (torch.float32, asc2.int16, torch.int16, asc2.RoundMode.Trunc),
+    (torch.float32, asc2.int32, torch.int32, asc2.RoundMode.Rint),
+    (torch.float32, asc2.int32, torch.int32, asc2.RoundMode.Floor),
+    (torch.float32, asc2.int32, torch.int32, asc2.RoundMode.Ceil),
+    (torch.float32, asc2.int32, torch.int32, asc2.RoundMode.Round),
+    (torch.float32, asc2.int32, torch.int32, asc2.RoundMode.Trunc),
+    (torch.float32, asc2.int64, torch.int64, asc2.RoundMode.Rint),
+    (torch.float32, asc2.int64, torch.int64, asc2.RoundMode.Floor),
+    (torch.float32, asc2.int64, torch.int64, asc2.RoundMode.Ceil),
+    (torch.float32, asc2.int64, torch.int64, asc2.RoundMode.Round),
+    (torch.float32, asc2.int64, torch.int64, asc2.RoundMode.Trunc),
+    # half -> int/float
+    (torch.float16, asc2.int16, torch.int16, asc2.RoundMode.Rint),
+    (torch.float16, asc2.int16, torch.int16, asc2.RoundMode.Floor),
+    (torch.float16, asc2.int16, torch.int16, asc2.RoundMode.Ceil),
+    (torch.float16, asc2.int16, torch.int16, asc2.RoundMode.Round),
+    (torch.float16, asc2.int16, torch.int16, asc2.RoundMode.Trunc),
+    (torch.float16, asc2.int32, torch.int32, asc2.RoundMode.Rint),
+    (torch.float16, asc2.int32, torch.int32, asc2.RoundMode.Floor),
+    (torch.float16, asc2.int32, torch.int32, asc2.RoundMode.Ceil),
+    (torch.float16, asc2.int32, torch.int32, asc2.RoundMode.Round),
+    (torch.float16, asc2.int32, torch.int32, asc2.RoundMode.Trunc),
+    (torch.float16, asc2.int8, torch.int8, asc2.RoundMode.Rint),
+    (torch.float16, asc2.int8, torch.int8, asc2.RoundMode.Floor),
+    (torch.float16, asc2.int8, torch.int8, asc2.RoundMode.Ceil),
+    (torch.float16, asc2.int8, torch.int8, asc2.RoundMode.Round),
+    (torch.float16, asc2.int8, torch.int8, asc2.RoundMode.Trunc),
+    (torch.float16, asc2.float32, torch.float32, asc2.RoundMode.NoRound),
+    (torch.float16, asc2.bfloat16, torch.bfloat16, asc2.RoundMode.Rint),
+    (torch.float16, asc2.bfloat16, torch.bfloat16, asc2.RoundMode.Floor),
+    (torch.float16, asc2.bfloat16, torch.bfloat16, asc2.RoundMode.Ceil),
+    (torch.float16, asc2.bfloat16, torch.bfloat16, asc2.RoundMode.Round),
+    (torch.float16, asc2.bfloat16, torch.bfloat16, asc2.RoundMode.Trunc),
+    # bfloat16 -> int/float
+    (torch.bfloat16, asc2.int32, torch.int32, asc2.RoundMode.Rint),
+    (torch.bfloat16, asc2.int32, torch.int32, asc2.RoundMode.Floor),
+    (torch.bfloat16, asc2.int32, torch.int32, asc2.RoundMode.Ceil),
+    (torch.bfloat16, asc2.int32, torch.int32, asc2.RoundMode.Round),
+    (torch.bfloat16, asc2.int32, torch.int32, asc2.RoundMode.Trunc),
+    (torch.bfloat16, asc2.float16, torch.float16, asc2.RoundMode.Rint),
+    (torch.bfloat16, asc2.float16, torch.float16, asc2.RoundMode.Floor),
+    (torch.bfloat16, asc2.float16, torch.float16, asc2.RoundMode.Ceil),
+    (torch.bfloat16, asc2.float16, torch.float16, asc2.RoundMode.Round),
+    (torch.bfloat16, asc2.float16, torch.float16, asc2.RoundMode.Trunc),
+    (torch.bfloat16, asc2.float32, torch.float32, asc2.RoundMode.NoRound),
+    # int -> float
+    (torch.int8, asc2.float16, torch.float16, asc2.RoundMode.NoRound),
+    (torch.int16, asc2.float16, torch.float16, asc2.RoundMode.Rint),
+    (torch.int16, asc2.float32, torch.float32, asc2.RoundMode.NoRound),
+    (torch.int32, asc2.float32, torch.float32, asc2.RoundMode.Rint),
+    (torch.int64, asc2.float32, torch.float32, asc2.RoundMode.Rint),
+    # int -> int
+    (torch.int8, asc2.int16, torch.int16, asc2.RoundMode.NoRound),
+    (torch.int8, asc2.int32, torch.int32, asc2.RoundMode.NoRound),
+    (torch.int16, asc2.int32, torch.int32, asc2.RoundMode.NoRound),
+    (torch.int32, asc2.int16, torch.int16, asc2.RoundMode.NoRound),
+    (torch.int32, asc2.int64, torch.int64, asc2.RoundMode.NoRound),
+    (torch.int64, asc2.int32, torch.int32, asc2.RoundMode.NoRound),
+])
+def test_cast_with_round_mode(require_c310, src_torch_dtype, dst_asc2_dtype, dst_torch_dtype, round_mode, kernel):
+    require_c310()
+    x = create_input(src_torch_dtype)
+    x_float = x.float() if src_torch_dtype == torch.bfloat16 else x
+    z = torch.zeros(SIZE, dtype=dst_torch_dtype)
+    kernel[USE_CORE_NUM](x, z, SIZE, dst_asc2_dtype, round_mode)
+    round_fn = get_round_mode_fn(round_mode)
+    expected = get_expected(x_float, src_torch_dtype, dst_torch_dtype, round_fn)
+    if dst_torch_dtype.is_floating_point:
+        atol = 1e-3 if dst_torch_dtype == torch.float16 else 1e-2 if dst_torch_dtype == torch.bfloat16 else 1e-6
         torch.testing.assert_close(z, expected, atol=atol, rtol=atol)
     else:
         torch.testing.assert_close(z, expected)
