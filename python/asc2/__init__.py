@@ -57,7 +57,7 @@ __all__ += [
 ]
 
 from asc.language.tile.tensor import Tensor, tensor
-from asc.language.tile.tile import Tile, TileLocation
+from asc.language.tile.tile import RoundMode, Tile, TileLocation
 from asc.language.tile.range import range
 
 # Tile operations
@@ -151,6 +151,7 @@ __all__ += [
     "Tensor",
     "tensor",
     # tile
+    "RoundMode",
     "Tile",
     "TileLocation",
     # range

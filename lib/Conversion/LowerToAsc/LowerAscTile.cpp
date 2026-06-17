@@ -126,10 +126,10 @@ struct ConvertCast : ConvertOp<asctile::CastOp> {
             if ((srcWidth == 8 && dstWidth == 16) || (srcWidth == 16 && dstWidth == 32)) {
                 return ascendc::RoundMode::CAST_NONE;
             }
-            return ascendc::RoundMode::CAST_RINT;
+            return ascendc::RoundMode::CAST_TRUNC;
         }
         if (srcIsFloat && dstIsInt)
-            return ascendc::RoundMode::CAST_RINT;
+            return ascendc::RoundMode::CAST_TRUNC;
         if (srcIsFloat && dstIsFloat) {
             unsigned srcWidth = cast<FloatType>(srcType).getWidth();
             unsigned dstWidth = cast<FloatType>(dstType).getWidth();
@@ -142,6 +142,57 @@ struct ConvertCast : ConvertOp<asctile::CastOp> {
         return ascendc::RoundMode::CAST_NONE;
     }
 
+    static bool isRoundModeSupported(asctile::RoundMode mode, Type srcType, Type dstType)
+    {
+        if (mode == asctile::RoundMode::Default)
+            return true;
+        bool srcIsInt = isa<IntegerType>(srcType);
+        bool srcIsFloat = isa<FloatType>(srcType);
+        bool dstIsInt = isa<IntegerType>(dstType);
+        bool dstIsFloat = isa<FloatType>(dstType);
+        if (srcIsInt && dstIsInt)
+            return mode == asctile::RoundMode::NoRound;
+        if (srcIsFloat && dstIsFloat) {
+            if (isa<Float32Type>(srcType) && isa<Float16Type>(dstType))
+                return true;
+            if (isa<Float16Type>(srcType) && isa<Float32Type>(dstType))
+                return mode == asctile::RoundMode::NoRound;
+            if (isa<BFloat16Type>(srcType) && isa<Float32Type>(dstType))
+                return mode == asctile::RoundMode::NoRound;
+            if (isa<Float32Type>(srcType) && isa<Float32Type>(dstType))
+                return mode != asctile::RoundMode::Odd && mode != asctile::RoundMode::NoRound;
+            return mode != asctile::RoundMode::Odd && mode != asctile::RoundMode::NoRound;
+        }
+        if (srcIsFloat && dstIsInt) {
+            unsigned dstWidth = cast<IntegerType>(dstType).getWidth();
+            if (isa<Float32Type>(srcType) && (dstWidth == 16 || dstWidth == 32 || dstWidth == 64))
+                return mode != asctile::RoundMode::Odd && mode != asctile::RoundMode::NoRound;
+            if (isa<Float16Type>(srcType) && (dstWidth == 8 || dstWidth == 16 || dstWidth == 32))
+                return mode != asctile::RoundMode::Odd && mode != asctile::RoundMode::NoRound;
+            if (isa<BFloat16Type>(srcType) && dstWidth == 32)
+                return mode != asctile::RoundMode::Odd && mode != asctile::RoundMode::NoRound;
+            return false;
+        }
+        if (srcIsInt && dstIsFloat) {
+            unsigned srcWidth = cast<IntegerType>(srcType).getWidth();
+            if (isa<Float16Type>(dstType) && srcWidth == 8)
+                return mode == asctile::RoundMode::NoRound;
+            if (isa<Float32Type>(dstType) && srcWidth == 16)
+                return mode == asctile::RoundMode::NoRound;
+            if (isa<Float16Type>(dstType) && (srcWidth == 16 || srcWidth == 32))
+                return mode != asctile::RoundMode::Odd && mode != asctile::RoundMode::NoRound;
+            if (isa<Float32Type>(dstType) && (srcWidth == 32 || srcWidth == 64))
+                return mode != asctile::RoundMode::Odd && mode != asctile::RoundMode::NoRound;
+            return false;
+        }
+        return false;
+    }
+
+    static ascendc::RoundMode convertRoundMode(asctile::RoundMode mode)
+    {
+        return static_cast<ascendc::RoundMode>(static_cast<uint32_t>(mode));
+    }
+
     LogicalResult matchAndRewrite(asctile::CastOp op, ConvertRewriter& rewriter) const override
     {
         Location loc = op.getLoc();
@@ -150,8 +201,18 @@ struct ConvertCast : ConvertOp<asctile::CastOp> {
         Value src = rewriter.getRemappedValue(op.getIn());
         Type srcType = getElementTypeOrSelf(src);
         Type dstType = getElementTypeOrSelf(dst);
-        FailureOr<ascendc::RoundMode> roundMode = inferRoundMode(srcType, dstType);
-        rewriter.create<ascendc::CastL2Op>(loc, dst, src, *roundMode, consts.i64(calCount(dst)));
+        ascendc::RoundMode roundMode;
+        auto roundModeOpt = op.getRoundMode();
+        if (roundModeOpt == asctile::RoundMode::Default) {
+            roundMode = *inferRoundMode(srcType, dstType);
+        } else {
+            if (!isRoundModeSupported(roundModeOpt, srcType, dstType)) {
+                return op.emitError() << "round_mode " << asctile::stringifyRoundMode(roundModeOpt)
+                                      << " is not supported for cast from " << srcType << " to " << dstType;
+            }
+            roundMode = convertRoundMode(roundModeOpt);
+        }
+        rewriter.create<ascendc::CastL2Op>(loc, dst, src, roundMode, consts.i64(calCount(dst)));
         rewriter.replaceOp(op, dst);
         return success();
     }

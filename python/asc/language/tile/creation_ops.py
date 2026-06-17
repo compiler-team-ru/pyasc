@@ -13,7 +13,7 @@ from ..._C import ir
 from ..core.dtype import DataType, KnownTypes as KT
 from ..core.ir_value import PlainValue, RuntimeNumeric, materialize_ir_value
 from ..core.utils import global_builder, require_jit
-from .tile import Tile, TileLocation
+from .tile import RoundMode, Tile, TileLocation
 from .utils import check_bias, constant_tile, splat_tile
 from .validation import check_dtype, check_type, verify_shape
 
@@ -214,17 +214,18 @@ def zeros_acc(shape: Iterable[int], dtype: DataType, *, bias: Optional[Tile] = N
 
 
 @overload
-def cast(input: Tile, dtype: DataType) -> Tile:
+def cast(input: Tile, dtype: DataType, round_mode: RoundMode = RoundMode.Default) -> Tile:
     ...
 
 
 @overload
-def cast(input: RuntimeNumeric, dtype: DataType) -> PlainValue:
+def cast(input: RuntimeNumeric, dtype: DataType, round_mode: RoundMode = RoundMode.Default) -> PlainValue:
     ...
 
 
 @require_jit
-def cast(input: Union[Tile, RuntimeNumeric], dtype: DataType) -> Union[Tile, PlainValue]:
+def cast(input: Union[Tile, RuntimeNumeric], dtype: DataType,
+         round_mode: RoundMode = RoundMode.Default) -> Union[Tile, PlainValue]:
     """
     Cast a tile or scalar value to a different data type.
 
@@ -236,6 +237,15 @@ def cast(input: Union[Tile, RuntimeNumeric], dtype: DataType) -> Union[Tile, Pla
     Args:
         input: The input tile or scalar value to cast
         dtype: The target data type
+        round_mode: The rounding mode for precision conversion. Supported values:
+            ``RoundMode.Default`` (automatically infer rounding mode based on source and target types),
+            ``RoundMode.NoRound`` (no rounding, truncate toward zero),
+            ``RoundMode.Rint`` (round to nearest, ties to even),
+            ``RoundMode.Floor`` (round toward negative infinity),
+            ``RoundMode.Ceil`` (round toward positive infinity),
+            ``RoundMode.Round`` (round half away from zero),
+            ``RoundMode.Trunc`` (truncate toward zero),
+            ``RoundMode.Odd`` (round to nearest odd).
 
     Returns:
         Tile: A new tile with the specified dtype (if input is a Tile)
@@ -252,6 +262,11 @@ def cast(input: Union[Tile, RuntimeNumeric], dtype: DataType) -> Union[Tile, Pla
 
             tile = asc2.load(x_gm, [128], offsets=[0])
             tile_fp16 = asc2.cast(tile, asc2.float16)
+
+        Cast with explicit rounding mode: ::
+
+            tile = asc2.load(x_gm, [128], offsets=[0])
+            tile_int32 = asc2.cast(tile, asc2.int32, round_mode=asc2.RoundMode.Floor)
 
         Cast using the .to() method (equivalent): ::
 
@@ -276,7 +291,7 @@ def cast(input: Union[Tile, RuntimeNumeric], dtype: DataType) -> Union[Tile, Pla
     if input.dtype == dtype:
         return input
     ir_type = ir.clone_shaped_type(input.to_ir().get_type(), dtype.to_ir())
-    handle = global_builder.get_ir_builder().create_asctile_CastOp(ir_type, input.to_ir())
+    handle = global_builder.get_ir_builder().create_asctile_CastOp(ir_type, input.to_ir(), round_mode)
     return Tile(handle)
 
 
