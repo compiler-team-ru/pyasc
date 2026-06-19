@@ -137,7 +137,7 @@ dumps/
 ### Tune generated Ascend C code
 
 The Ascend C code generated from PyAsc2 can be injected back in PyAsc2 python code:
-- pass content of generated kernel as parameter to `asc.inline()` method;
+- pass content of generated kernel as parameter to {py:func}`asc2.inline` method;
 - comment out `TPipe` definition in the code (see an example below).
 
 ```python
@@ -162,3 +162,27 @@ return;
 ```
 
 > Note: co-existence of PyAsc2 API and `asc.inline` in the same kernel is not supported for now.
+
+### Passing arguments to inline code
+
+Kernel arguments can be passed to `asc2.inline` via the `args` parameter. Use `$<index>` placeholders (e.g., `$0`, `$1`, `$2`) in the code string to reference arguments by their position in the list:
+
+```python
+@asc2.jit
+def kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, size: int):
+    asc.inline('''
+        auto input_x = $0;
+        auto input_y = $1;
+        auto output = $2;
+        int64_t length = $3;
+        
+        AscendC::GlobalTensor<float> x_gm;
+        x_gm.SetGlobalBuffer(input_x);
+        AscendC::GlobalTensor<float> y_gm;
+        y_gm.SetGlobalBuffer(input_y);
+        AscendC::GlobalTensor<float> out_gm;
+        out_gm.SetGlobalBuffer(output);
+    ''', [x_ptr, y_ptr, out_ptr, size])
+```
+
+Each argument is materialized as an IR value and substituted into the generated code at the corresponding placeholder position.

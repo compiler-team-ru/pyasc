@@ -44,10 +44,13 @@ class CompileOptions:
     This option may be useful for testing and parallel execution.
     """
 
-    bisheng_options: Optional[Tuple[str]] = None
+    bisheng_options: Optional[Tuple[str, ...]] = None
     """
     Append extra arguments to the :code:`bisheng` command line used to produce an object file for the kernel.
     Please, run :code:`bisheng --help` to get the list of options supported by the compiler.
+    
+    Note: To pass a single argument, use :code:`("-O3",)` (with a trailing comma).
+    Without the comma, :code:`("-O3")` is just a string, not a tuple.
     """
 
     opt_level: int = 3

@@ -24,7 +24,7 @@ from asc.language.core.dtype import (
     int_,
 )
 from asc.language.core.ir_value import GlobalAddress
-from asc.language.core.ops import number
+from asc.language.core.ops import inline, number
 from asc.language.core.range import static_range
 from asc.language.core.utils import ceildiv
 from asc.lib import profiling, runtime
@@ -49,6 +49,7 @@ __all__ += [
     "int32",
     "int64",
     "int_",
+    "inline",
     "number",
     "profiling",
     "runtime",

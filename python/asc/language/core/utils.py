@@ -171,6 +171,28 @@ global_builder = GlobalBuilder()
 
 
 def ceildiv(x: int, y: int) -> int:
+    """
+    Compute ceiling division of two integers.
+
+    Returns the smallest integer greater than or equal to ``x / y``. This is commonly used to compute
+    the number of tiles or iterations needed to cover a given data size.
+
+    Can be used both on the host (outside a kernel) and inside a kernel. When used inside a kernel,
+    the operation follows C semantics (signed integer ceiling division).
+
+    Args:
+        x: The dividend (numerator). Must be a non-negative integer.
+        y: The divisor (denominator). Must be a positive integer.
+
+    Returns:
+        int: The ceiling of ``x / y``, computed as ``(x + y - 1) // y``.
+
+    Examples:
+        Compute the number of tiles needed to cover the input data: ::
+
+            num_tiles = asc2.ceildiv(size, tile_size)
+            tiles_per_core = asc2.ceildiv(num_tiles, asc2.block_num())
+    """
     return (x + y - 1) // y
 
 
