@@ -1,3 +1,5 @@
+import itertools
+
 import asc2
 import pytest
 import torch
@@ -47,6 +49,35 @@ def test_shape_op(require_c310, asc_op, torch_op, args, shape, dtype: torch.dtyp
         asc2.store(zt, asc2.tensor(z_ptr, output_shape), offsets=out_offsets)
 
     kernel[1](x, z, x.shape, ref_z.shape, in_offsets, out_offsets, asc_op, args)
+    torch.testing.assert_close(z, ref_z)
+
+
+@pytest.mark.parametrize("iter_factory", (list, tuple, itertools.chain))
+@pytest.mark.parametrize("asc_op, torch_op, dst_shape, input_shape", (
+    (asc2.reshape, torch.reshape, [64], [2, 32]),
+    (asc2.reshape, torch.reshape, [4, 32], [128]),
+    (asc2.broadcast_to, torch.broadcast_to, [4, 32], [1, 32]),
+))
+def test_shape_op_with_list_or_tuple(require_c310, asc_op, torch_op, dst_shape, input_shape, iter_factory):
+    if asc_op is asc2.broadcast_to:
+        require_c310()
+
+    x = torch.randn(input_shape, dtype=torch.float32).clamp(1, 100)
+    ref_z = torch_op(x, dst_shape)
+    z = torch.zeros(ref_z.shape, dtype=torch.float32)
+    in_offsets = (0, ) * len(x.shape)
+    out_offsets = (0, ) * len(ref_z.shape)
+    wrapped_args = iter_factory(dst_shape)
+    static_alloc = False if asc_op is asc2.broadcast_to else None
+
+    @asc2.jit(always_compile=True, static_alloc=static_alloc)
+    def kernel(x_ptr, z_ptr, input_shape: asc2.ConstExpr, output_shape: asc2.ConstExpr, in_offsets: asc2.ConstExpr,
+               out_offsets: asc2.ConstExpr, op: asc2.ConstExpr, op_param: asc2.ConstExpr) -> None:
+        xt = asc2.load(asc2.tensor(x_ptr, input_shape), input_shape, offsets=in_offsets)
+        zt = op(xt, op_param)
+        asc2.store(zt, asc2.tensor(z_ptr, output_shape), offsets=out_offsets)
+
+    kernel[1](x, z, x.shape, ref_z.shape, in_offsets, out_offsets, asc_op, wrapped_args)
     torch.testing.assert_close(z, ref_z)
 
 
