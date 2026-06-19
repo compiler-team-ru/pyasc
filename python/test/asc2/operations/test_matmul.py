@@ -152,7 +152,7 @@ def matmul_bias_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, bia
 
 
 @pytest.mark.parametrize("m, k, n, dtype, bias_dtype", [
-    (64, 64, 64, torch.float16, torch.float32),
+    (64, 64, 64, torch.float16, torch.float16),
     (64, 64, 64, torch.bfloat16, torch.bfloat16),
     (32, 32, 32, torch.float32, torch.float32),
 ])
@@ -188,10 +188,10 @@ def matmul_acc_bias_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress,
 
 
 @pytest.mark.parametrize("m, k, n, dtype, bias_dtype, k_tiles", [
-    (64, 64, 64, torch.float16, torch.float32, 2),
+    (64, 64, 64, torch.float16, torch.float16, 2),
     (64, 128, 64, torch.bfloat16, torch.bfloat16, 4),
     (32, 32, 32, torch.float32, torch.float32, 1),
-    (64, 64, 64, torch.float16, torch.float32, 1),
+    (64, 64, 64, torch.float16, torch.float16, 1),
 ])
 def test_matmul_acc_with_bias(m, k, n, dtype, bias_dtype, k_tiles):
     a = (torch.rand((m, k), dtype=dtype) - .5) * 10

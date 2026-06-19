@@ -118,7 +118,7 @@ def check_bias(bias: Optional[Tile], size: int) -> None:
     if bias is None:
         return
     check_type("bias", bias, Tile)
-    check_dtype("bias", bias, (KT.bfloat16, KT.float32), optional=True)
+    check_dtype("bias", bias, (KT.bfloat16, KT.float16, KT.float32), optional=True)
     if len(bias.shape) != 1:
         raise RuntimeError(f"Bias must be 1D tile, got shape {bias.shape}")
     if bias.size != size:

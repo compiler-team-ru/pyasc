@@ -256,7 +256,7 @@ def matmul(input: Tile, other: Tile, bias: Optional[Tile] = None, *, hf32: bool 
     Args:
         input: The left operand (2D tile in :code:`L0A`)
         other: The right operand (2D tile in :code:`L0B`)
-        bias: Optional bias tile (1D tile of :code:`float32` in :code:`BT`)
+        bias: Optional bias tile (1D tile in :code:`BT`)
         hf32: Enable the rounding to HF32 for input tiles with :code:`float32` dtype
 
     Returns:
@@ -270,7 +270,9 @@ def matmul(input: Tile, other: Tile, bias: Optional[Tile] = None, *, hf32: bool 
     Note:
         Input tiles must have either :code:`float16`, :code:`bfloat16`, or :code:`float32` data type
         and compatible shapes. Result tile type is always :code:`float32`.
-        Bias must be a 1D tile of :code:`float32` with shape matching the last dimension of the output.
+        Bias must be a 1D tile of :code:`float16`, :code:`bfloat16`, or :code:`float32` with shape
+        matching the last dimension of the output. Bias with :code:`float16` or :code:`bfloat16` dtype
+        is automatically promoted to :code:`float32` to match the result type.
 
     Examples:
         Basic matrix multiplication using operator syntax: ::
@@ -350,7 +352,7 @@ def matmul_acc(acc: Tile, input: Tile, other: Tile, *, hf32: bool = False) -> No
         Accumulate with bias initialization: ::
 
             bias = asc2.copy(bias_l1, [256], offsets=[0], location=asc2.TileLocation.BT)
-            acc = asc2.zeros_acc([64, 256], dtype=asc2.float32, init=bias)
+            acc = asc2.zeros_acc([64, 256], dtype=asc2.float32, bias=bias)
             for k in range(k_tiles):
                 a_k = asc2.copy(a_l1, [64, 32], offsets=[0, k * 32], location=asc2.TileLocation.L0A)
                 b_k = asc2.copy(b_l1, [32, 256], offsets=[k * 32, 0], location=asc2.TileLocation.L0B)

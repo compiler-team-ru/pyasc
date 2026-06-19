@@ -708,10 +708,10 @@ func.func @lower_load_bias_gm_l1_fp16(%arg0: memref<*xf16, 22>) -> !asctile.tile
 
 // CHECK-LABEL: func.func @lower_copy_bias_l1_bt_fp16(%arg0: !asctile.tile<64xf16, L1>) -> !asctile.tile<64xf16, BT>
 // CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<64xf16, L1> to !ascendc.local_tensor<64xf16>
-// CHECK-NEXT:  %1 = ascendc.local_tensor_auto c2() : <64xf16>
-// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<64xf16> to !asctile.tile<64xf16, BT>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto c2() : <64xf32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<64xf32> to !asctile.tile<64xf16, BT>
 // CHECK-NEXT:  %3 = ascendc.construct !ascendc.data_copy_params(%c1_i32, %c4_i32, %c0_i32, %c0_i32) : i32, i32, i32, i32
-// CHECK-NEXT:  ascendc.data_copy_l0 %1, %0, %3 : !ascendc.local_tensor<64xf16>, !ascendc.local_tensor<64xf16>, !ascendc.data_copy_params
+// CHECK-NEXT:  ascendc.data_copy_l0 %1, %0, %3 : !ascendc.local_tensor<64xf32>, !ascendc.local_tensor<64xf16>, !ascendc.data_copy_params
 // CHECK-NEXT:  return %2 : !asctile.tile<64xf16, BT>
 func.func @lower_copy_bias_l1_bt_fp16(%arg0: !asctile.tile<64xf16, L1>) -> !asctile.tile<64xf16, BT> {
   %c0_i32 = arith.constant 0 : i32

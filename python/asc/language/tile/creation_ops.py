@@ -170,18 +170,17 @@ def zeros_acc(shape: Iterable[int], dtype: DataType, *, bias: Optional[Tile] = N
         dtype: The data type of the accumulator
         bias: Optional initialization tile (1D tile in :code:`BT`). If provided, the accumulator
               will be initialized with this value instead of zeros. This is typically used for bias
-              initialization in matrix multiplication.
+              initialization in matrix multiplication. Supported dtypes: :code:`float16`, :code:`bfloat16`,
+              or :code:`float32`. Tiles with :code:`float16` or :code:`bfloat16` are automatically
+              promoted to :code:`float32`.
 
     Returns:
         Tile: A new accumulator tile in L0C memory, either zero-initialized or initialized with the provided value
 
     Raises:
         TypeError: If shape contains non-integer values
-        RuntimeError: If shape contains non-positive values
+        RuntimeError: If shape contains non-positive values or bias has wrong shape/dtype
 
-    Note:
-        When :code:`bias` is provided, it must be a 1D tile in :code:`BT` location (bias tensor).
-        This eliminates the need to pass bias to each :py:func:`matmul_acc` call in accumulation loops.
 
     Examples:
         Create a zero-initialized accumulator: ::
