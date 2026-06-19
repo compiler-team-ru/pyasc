@@ -183,3 +183,23 @@ Atomic operations
     atomic_add
     atomic_max
     atomic_min
+
+
+Debug operations
+----------------
+
+.. autosummary::
+    :toctree: generated
+    :nosignatures:
+
+    inline
+
+
+Utility functions
+-----------------
+
+.. autosummary::
+    :toctree: generated
+    :nosignatures:
+
+    ceildiv
