@@ -71,6 +71,8 @@ struct TensorTypeConverter : public LoweringTypeConverter {
                 shape = {numElements};
                 elType = replType.iType;
             }
+            if (type.getLoc() == asctile::TileLocation::BT && (elType.isF16() || elType.isBF16()))
+                elType = FloatType::getF32(type.getContext());
             return ascendc::LocalTensorType::get(shape, elType);
         });
         addConversion([](asctile::TensorType type) {

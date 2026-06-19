@@ -160,6 +160,55 @@ For iterative matrix multiplication (e.g., tiling along K dimension), use the ac
 * Must be float32 dtype
 * Must be 2D tile
 
+Bias Support
+~~~~~~~~~~~~
+
+Both :func:`~asc2.matmul` and :func:`~asc2.zeros_acc` support optional bias initialization. Bias tiles must be 1D tiles in :code:`BT` location with shape matching the last dimension of the output.
+
+**Supported bias dtypes:** :code:`float16`, :code:`bfloat16`, or :code:`float32`. Bias with :code:`float16` or :code:`bfloat16` dtype is automatically promoted to :code:`float32` to match the accumulator/result type.
+
+**Using bias with matmul:**
+
+.. code-block:: python
+
+   @asc2.jit
+   def matmul_bias_kernel(a_ptr, b_ptr, bias_ptr, c_ptr, m, k, n):
+       a_gm = asc2.tensor(a_ptr, [m, k])
+       b_gm = asc2.tensor(b_ptr, [k, n])
+       bias_gm = asc2.tensor(bias_ptr, [n])
+       c_gm = asc2.tensor(c_ptr, [m, n])
+       
+       a = asc2.load(a_gm, [m, k], offsets=[0, 0], location=asc2.TileLocation.L0A)
+       b = asc2.load(b_gm, [k, n], offsets=[0, 0], location=asc2.TileLocation.L0B)
+       bias = asc2.load(bias_gm, [n], offsets=[0], location=asc2.TileLocation.BT)
+       
+       # C = A @ B + bias
+       c = asc2.matmul(a, b, bias)
+       asc2.store(c, c_gm, offsets=[0, 0])
+
+**Using bias with zeros_acc for K-tiled accumulation:**
+
+.. code-block:: python
+
+   @asc2.jit
+   def matmul_tiled_bias_kernel(a_ptr, b_ptr, bias_ptr, c_ptr, m, k, n, k_tiles):
+       a_gm = asc2.tensor(a_ptr, [m, k])
+       b_gm = asc2.tensor(b_ptr, [k, n])
+       bias_gm = asc2.tensor(bias_ptr, [n])
+       c_gm = asc2.tensor(c_ptr, [m, n])
+       
+       bias = asc2.load(bias_gm, [n], offsets=[0], location=asc2.TileLocation.BT)
+       # Initialize accumulator with bias
+       acc = asc2.zeros_acc([m, n], dtype=asc2.float32, bias=bias)
+       
+       tile_k = k // k_tiles
+       for i in asc2.range(k_tiles):
+           a_tile = asc2.load(a_gm, [m, tile_k], offsets=[0, i * tile_k], location=asc2.TileLocation.L0A)
+           b_tile = asc2.load(b_gm, [tile_k, n], offsets=[i * tile_k, 0], location=asc2.TileLocation.L0B)
+           asc2.matmul_acc(acc, a_tile, b_tile)
+       
+       asc2.store(acc, c_gm, offsets=[0, 0])
+
 Supported Features
 ------------------
 
@@ -422,7 +471,6 @@ Unsupported Features
 
 * **Data Types:** INT8/INT4 quantization, unsigned integers, cast to int types
 * **Quantization:** DeqScalar parameter, dequantization modes (int32 → float16), quantization to int8, vector quantization (VDEQF16, VQF322B8_PRE, VREQ8)
-* **Bias:** :func:`~asc2.matmul` does not have a bias parameter
 * **Dimensions:** Batch matmul, 3D tensors
 * **Gemm from L1:** Direct L1 → L0C matmul operation is not supported
 * **L0C → UB via FixPipe:** Copying data from L0C to UB through FixPipe operation is not yet implemented
