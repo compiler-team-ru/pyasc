@@ -7,7 +7,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 import math
-from typing import Tuple
+from typing import Iterable, Tuple
 
 from ..._C import ir
 from ..core.dtype import KnownTypes as KT
@@ -27,6 +27,10 @@ def shapes_match(shape: Tuple[int, ...], target_shape: Tuple[int, ...]) -> bool:
     return True
 
 
+def normalize_shape_args(args: tuple) -> Tuple[int, ...]:
+    return tuple(args[0]) if len(args) == 1 and isinstance(args[0], Iterable) else args
+
+
 @bind_tile_method
 @require_jit
 def broadcast_to(input: Tile, *shape: int) -> Tile:
@@ -37,7 +41,7 @@ def broadcast_to(input: Tile, *shape: int) -> Tile:
 
     Args:
         input: The input tensor
-        shape: The target shape
+        shape: The target shape (can be passed as separate integers or as an iterable (list/tuple) arguments
 
     Returns:
         Tile: A new tile with the broadcasted shape
@@ -59,6 +63,7 @@ def broadcast_to(input: Tile, *shape: int) -> Tile:
     """
     check_type("input", input, Tile)
     check_dtype("input", input, (KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32))
+    shape = normalize_shape_args(shape)
     shape = verify_shape(shape)
     if input.shape == shape:
         return input
@@ -82,7 +87,7 @@ def reshape(input: Tile, *shape: int) -> Tile:
 
     Args:
         input: The input tile
-        shape: The target shape
+        shape: The target shape (can be passed as individual arguments or as a list/tuple)
 
     Returns:
         Tile: A tile with the new shape
@@ -105,6 +110,7 @@ def reshape(input: Tile, *shape: int) -> Tile:
     check_type("input", input, Tile)
     check_dtype("input", input,
                 (KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32, KT.float64))
+    shape = normalize_shape_args(shape)
     shape = verify_shape(shape)
     if math.prod(input.shape) != math.prod(shape):
         raise RuntimeError(f"Reshaping tile of shape {input.shape} with {math.prod(input.shape)} elements not match "
