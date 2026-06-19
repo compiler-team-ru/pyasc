@@ -41,7 +41,7 @@ def broadcast_to(input: Tile, *shape: int) -> Tile:
 
     Args:
         input: The input tensor
-        shape: The target shape (can be passed as separate integers or as an iterable (list/tuple) arguments
+        shape: The target shape (can be passed as separate integers or as an iterable, e.g. list or tuple)
 
     Returns:
         Tile: A new tile with the broadcasted shape
@@ -87,7 +87,7 @@ def reshape(input: Tile, *shape: int) -> Tile:
 
     Args:
         input: The input tile
-        shape: The target shape (can be passed as individual arguments or as a list/tuple)
+        shape: The target shape (can be passed as separate integers or as an iterable, e.g. list or tuple)
 
     Returns:
         Tile: A tile with the new shape
