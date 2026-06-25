@@ -1140,6 +1140,11 @@ void bindCreateAscTileOperations(py::class_<PyOpBuilder>& clss)
             [](PyOpBuilder& self, Value operand) -> Value {
                 return self.create<asctile::ReluOp>(operand.getType(), operand);
             })
+        .def(
+            "create_asctile_InlineVFOp",
+            [](PyOpBuilder& self, Type result, const std::vector<Value>& inputs, const std::string& code) -> Value {
+                return self.create<asctile::InlineVFOp>(result, ValueRange{inputs}, StringRef(code));
+            })
 #include "ascir/Dialect/AscTile/IR/AscTileOpBindings.h.inc"
         ;
 }

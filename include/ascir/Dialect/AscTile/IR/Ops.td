@@ -418,4 +418,13 @@ def TransposeOp
   }];
 }
 
+def InlineVFOp : AscTile_Op<"inline_vf", [Pure]> {
+  let summary = "Declare vector function provided as C++ code";
+  let arguments = (ins Variadic<NumericTile>:$inputs, StrAttr:$code);
+  let results = (outs NumericTile:$result);
+  let assemblyFormat = [{
+    `(` $inputs `)` $code attr-dict `:` functional-type($inputs, results)
+  }];
+}
+
 #endif // ASCTILE_OPS_TD

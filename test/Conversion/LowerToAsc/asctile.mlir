@@ -428,3 +428,28 @@ func.func @lower_cast_round_odd(%arg0: !asctile.tile<32xf32, UB>) -> !asctile.ti
   %0 = asctile.cast <odd> %arg0 : !asctile.tile<32xf32, UB> to !asctile.tile<32xf16, UB>
   return %0 : !asctile.tile<32xf16, UB>
 }
+
+// CHECK-LABEL: func.func @lower_inline_vf(%arg0: !asctile.tile<32xf32, UB>, %arg1: !asctile.tile<32xi32, UB>) -> (!asctile.tile<32xf16, UB>, !asctile.tile<32xi16, UB>) {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg1 : !asctile.tile<32xi32, UB> to !ascendc.local_tensor<32xi32>
+// CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<32xf32, UB> to !ascendc.local_tensor<32xf32>
+// CHECK-NEXT:  %2 = ascendc.local_tensor_auto veccalc() : <32xf16>
+// CHECK-NEXT:  %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<32xf16> to !asctile.tile<32xf16, UB>
+// CHECK-NEXT:  ascvf.vf_group %2, %c0_i32 : !ascendc.local_tensor<32xf16>, i32 {
+// CHECK-NEXT:    ascvf.vec_scope {
+// CHECK-NEXT:      emitasc.verbatim ";;; // $0" %2 : !ascendc.local_tensor<32xf16>
+// CHECK-NEXT:    }
+// CHECK-NEXT:  } {operandSegmentSizes = array<i32: 1, 0, 1>}
+// CHECK-NEXT:  %4 = ascendc.local_tensor_auto veccalc() : <32xi16>
+// CHECK-NEXT:  %5 = builtin.unrealized_conversion_cast %4 : !ascendc.local_tensor<32xi16> to !asctile.tile<32xi16, UB>
+// CHECK-NEXT:  ascvf.vf_group %4, %1, %0, %c0_i32 : !ascendc.local_tensor<32xi16>, !ascendc.local_tensor<32xf32>, !ascendc.local_tensor<32xi32>, i32 {
+// CHECK-NEXT:    ascvf.vec_scope {
+// CHECK-NEXT:      emitasc.verbatim ";;; // $0 $1 $2" %4, %1, %0 : !ascendc.local_tensor<32xi16>, !ascendc.local_tensor<32xf32>, !ascendc.local_tensor<32xi32>
+// CHECK-NEXT:    }
+// CHECK-NEXT:  } {operandSegmentSizes = array<i32: 1, 2, 1>}
+// CHECK-NEXT:  return %3, %5 : !asctile.tile<32xf16, UB>, !asctile.tile<32xi16, UB>
+// CHECK-NEXT:}
+func.func @lower_inline_vf(%arg0: !asctile.tile<32xf32, UB>, %arg1: !asctile.tile<32xi32, UB>) -> (!asctile.tile<32xf16, UB>, !asctile.tile<32xi16, UB>) {
+  %0 = asctile.inline_vf() ";;; // $0" : () -> !asctile.tile<32xf16, UB>
+  %1 = asctile.inline_vf(%arg0, %arg1) ";;; // $0 $1 $2" : (!asctile.tile<32xf32, UB>, !asctile.tile<32xi32, UB>) -> !asctile.tile<32xi16, UB>
+  return %0, %1 : !asctile.tile<32xf16, UB>, !asctile.tile<32xi16, UB>
+}

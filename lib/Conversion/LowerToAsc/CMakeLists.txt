@@ -33,6 +33,7 @@ LINK_COMPONENTS
 LINK_LIBS PUBLIC
   MLIRArithDialect
   MLIRAsc
+  MLIRAscVF
   MLIRAscTile
   MLIRMathDialect
   MLIRMathTransforms

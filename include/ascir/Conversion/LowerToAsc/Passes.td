@@ -90,7 +90,7 @@ def LowerAscTile : Pass<"asclower-asctile", "func::FuncOp"> {
   let summary = "Lower core asctile dialect operations to ascendc compute and neural network operations";
   let constructor = "mlir::asclower::createLowerAscTilePass()";
   let dependentDialects = [
-    "arith::ArithDialect", "ascendc::AscendCDialect", "emitasc::EmitAscDialect",
+    "arith::ArithDialect", "ascvf::AscVFDialect", "ascendc::AscendCDialect", "emitasc::EmitAscDialect",
   ];
   let description = [{
     Converts AscTile tile operations to Ascend C equivalents:

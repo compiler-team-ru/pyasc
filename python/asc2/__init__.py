@@ -94,6 +94,8 @@ from asc.language.tile.creation_ops import (
     zeros_acc,
     zeros_like,
 )
+from asc.language.tile.debug_ops import (
+    inline_vf, )
 from asc.language.tile.memory_ops import (
     copy,
     load,
@@ -186,6 +188,8 @@ __all__ += [
     "zeros",
     "zeros_acc",
     "zeros_like",
+    # debug_ops
+    "inline_vf",
     # memory_ops
     "copy",
     "load",

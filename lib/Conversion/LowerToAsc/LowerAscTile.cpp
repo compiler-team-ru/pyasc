@@ -12,7 +12,7 @@
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
-#include "ascir/Dialect/AscTile/Utils/Attributes.h"
+#include "ascir/Dialect/AscVF/IR/AscVF.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/EmitAsc/Utils/InitStructBuilder.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
@@ -690,6 +690,37 @@ struct ConvertMatmulAcc : ConvertOp<asctile::MatmulAccOp> {
     }
 };
 
+struct ConvertInlineVF : ConvertOp<asctile::InlineVFOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    LogicalResult matchAndRewrite(asctile::InlineVFOp op, ConvertRewriter& rewriter) const override
+    {
+        auto loc = op.getLoc();
+        Value dst = createTensorOp(rewriter, loc, op.getType());
+        SmallVector<Value> inputs;
+        if (rewriter.getRemappedValues(op.getInputs(), inputs).failed())
+            return op.emitOpError("has unsupported inputs");
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto vfGroup = rewriter.create<ascvf::VFGroupOp>(loc, ValueRange{dst}, inputs, consts.i32(0));
+        {
+            OpBuilder::InsertionGuard guard(rewriter);
+            rewriter.setInsertionPointToStart(&vfGroup.getRegion().emplaceBlock());
+            auto vecScope = rewriter.create<ascvf::VecScopeOp>(loc);
+            {
+                OpBuilder::InsertionGuard guard(rewriter);
+                rewriter.setInsertionPointToStart(&vecScope.getRegion().emplaceBlock());
+                inputs.insert(inputs.begin(), dst);
+                rewriter.create<emitasc::VerbatimOp>(loc, op.getCodeAttr(), inputs);
+                rewriter.create<ascvf::YieldOp>(loc);
+            }
+            rewriter.create<ascvf::YieldOp>(loc);
+        }
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
 struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePass> {
     void runOnOperation() override
     {
@@ -702,17 +733,18 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
             asctile::TensorOp, asctile::SplatOp, asctile::ReluOp, asctile::CastOp, asctile::SoftmaxOp,
             asctile::MatmulOp, asctile::ReshapeOp, asctile::BroadcastOp, asctile::AddSOp, asctile::SubSOp,
             asctile::MulSOp, asctile::DivSOp, asctile::MinSOp, asctile::MaxSOp, asctile::ShLSOp, asctile::ShRSOp,
-            asctile::ReduceAs1dOp, asctile::ReduceOp, asctile::AccumulatorOp, asctile::MatmulAccOp
+            asctile::ReduceAs1dOp, asctile::ReduceOp, asctile::AccumulatorOp, asctile::MatmulAccOp, asctile::InlineVFOp
             //
             >();
-        target.addLegalDialect<ascendc::AscendCDialect, arith::ArithDialect, emitasc::EmitAscDialect>();
+        target.addLegalDialect<
+            ascendc::AscendCDialect, ascvf::AscVFDialect, arith::ArithDialect, emitasc::EmitAscDialect>();
         target.addLegalOp<UnrealizedConversionCastOp>();
         RewritePatternSet patterns(context);
         patterns.insert<
             //
             ConvertTensor, ConvertSplat, ConvertRelu, ConvertCast, ConvertMatmul, ConvertReshape, ConvertBroadcast,
             ConvertSoftmax, ConvertRmsNorm, ConvertAccumulator, ConvertMatmulAcc, ConvertReduceAs1d, ConvertReduce,
-            ConvertToL2<asctile::AddSOp, ascendc::AddsL2Op>,
+            ConvertInlineVF, ConvertToL2<asctile::AddSOp, ascendc::AddsL2Op>,
             ConvertVecScalarToL2<asctile::SubSOp, ascendc::SubsL2Op, ascendc::SubL2Op>,
             ConvertToL2<asctile::MulSOp, ascendc::MulsL2Op>,
             ConvertVecScalarToL2<asctile::DivSOp, ascendc::DivsL2Op, ascendc::DivL2Op>,
