@@ -169,15 +169,11 @@ def test_load_padding(require_c310, input_shape, tile_shape, offsets):
     x = torch.arange(1, input_shape[0] * input_shape[1] + 1, dtype=torch.float32).reshape(input_shape)
     out = torch.full(tile_shape, pad_value, dtype=torch.float32)
     kernel_load_padding[1](x, out, input_shape, tile_shape, offsets, pad_value)
-    out_expected = torch.full(tile_shape, pad_value, dtype=torch.float32)
     row_start, col_start = offsets
     tile_rows, tile_cols = tile_shape
     src_rows, src_cols = input_shape
-    available_rows = max(0, min(src_rows, row_start + tile_rows) - row_start)
-    available_cols = max(0, min(src_cols, col_start + tile_cols) - col_start)
-    real_rows, real_cols = available_rows, available_cols
-    valid_rows = min(real_rows, input_shape[0] - row_start) if row_start < input_shape[0] else 0
-    valid_cols = min(real_cols, input_shape[1] - col_start) if col_start < input_shape[1] else 0
+    valid_rows = max(0, min(src_rows, row_start + tile_rows) - row_start)
+    valid_cols = max(0, min(src_cols, col_start + tile_cols) - col_start)
     if valid_rows > 0 and valid_cols > 0:
-        out_expected[0:valid_rows, 0:valid_cols] = x[row_start:row_start + valid_rows, col_start:col_start + valid_cols]
-    torch.testing.assert_close(out, out_expected)
+        torch.testing.assert_close(out[0:valid_rows, 0:valid_cols], x[row_start:row_start + valid_rows,
+                                                                      col_start:col_start + valid_cols])

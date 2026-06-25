@@ -19,29 +19,17 @@
 // CHECK-NEXT:  %15 = arith.subi %c32_i32, %13 : i32
 // CHECK-NEXT:  %16 = arith.select %14, %c0_i32, %15 : i32
 // CHECK-NEXT:  %17 = arith.addi %11, %16 : i32
-// CHECK-NEXT:  %18 = arith.cmpi slt, %17, %c64_i32 : i32
-// CHECK-NEXT:  scf.if %18 {
-// CHECK-NEXT:    ascendc.duplicate_l2 %5, %cst, %c0_i32 : !ascendc.local_tensor<16x16xf32>, f32, i32
-// CHECK-NEXT:  }
-// CHECK-NEXT:  %19 = arith.addi %arg1, %c16_i32 : i32
-// CHECK-NEXT:  %20 = arith.minsi %19, %c32_i32 : i32
-// CHECK-NEXT:  %21 = arith.subi %20, %arg1 : i32
-// CHECK-NEXT:  %22 = arith.maxsi %21, %c0_i32 : i32
-// CHECK-NEXT:  %23 = arith.subi %c16_i32, %22 : i32
-// CHECK-NEXT:  %24 = arith.cmpi sgt, %23, %c0_i32 : i32
-// CHECK-NEXT:  scf.if %24 {
-// CHECK-NEXT:    %31 = arith.muli %22, %c16_i32 : i32
-// CHECK-NEXT:    %32 = ascendc.local_tensor.subindex %5[%31] : !ascendc.local_tensor<16x16xf32>, i32, !ascendc.local_tensor<16x16xf32>
-// CHECK-NEXT:    %33 = arith.muli %23, %c16_i32 : i32
-// CHECK-NEXT:    ascendc.duplicate_l2 %32, %cst, %33 {asc.cal_count_set} : !ascendc.local_tensor<16x16xf32>, f32, i32
-// CHECK-NEXT:  }
-// CHECK-NEXT:  %25 = arith.muli %12, %c4_i32 : i32
-// CHECK-NEXT:  %26 = arith.divsi %16, %c4_i32 : i32
-// CHECK-NEXT:  %27 = arith.subi %c64_i32, %17 : i32
-// CHECK-NEXT:  %28 = arith.divsi %27, %c32_i32 : i32
-// CHECK-NEXT:  %29 = ascendc.construct !ascendc.data_copy_ext_params(%22, %11, %25, %28, %c0_i32) [ui16, ui32, ui32, ui32, ui32] : i32, i32, i32, i32, i32
-// CHECK-NEXT:  %30 = ascendc.construct !ascendc.data_copy_pad_ext_params<f32>(%c1_i32, %c0_i32, %26, %cst) [i32, i32, ui8, f32] : i32, i32, i32, f32
-// CHECK-NEXT:  ascendc.data_copy_pad_l0_ext %5, %4, %29, %30 : !ascendc.local_tensor<16x16xf32>, !ascendc.global_tensor<32x32xf32>, !ascendc.data_copy_ext_params, !ascendc.data_copy_pad_ext_params<f32>
+// CHECK-NEXT:  %18 = arith.addi %arg1, %c16_i32 : i32
+// CHECK-NEXT:  %19 = arith.minsi %18, %c32_i32 : i32
+// CHECK-NEXT:  %20 = arith.subi %19, %arg1 : i32
+// CHECK-NEXT:  %21 = arith.maxsi %20, %c0_i32 : i32
+// CHECK-NEXT:  %22 = arith.muli %12, %c4_i32 : i32
+// CHECK-NEXT:  %23 = arith.divsi %16, %c4_i32 : i32
+// CHECK-NEXT:  %24 = arith.subi %c64_i32, %17 : i32
+// CHECK-NEXT:  %25 = arith.divsi %24, %c32_i32 : i32
+// CHECK-NEXT:  %26 = ascendc.construct !ascendc.data_copy_ext_params(%21, %11, %22, %25, %c0_i32) [ui16, ui32, ui32, ui32, ui32] : i32, i32, i32, i32, i32
+// CHECK-NEXT:  %27 = ascendc.construct !ascendc.data_copy_pad_ext_params<f32>(%c1_i32, %c0_i32, %23, %cst) [i32, i32, ui8, f32] : i32, i32, i32, f32
+// CHECK-NEXT:  ascendc.data_copy_pad_l0_ext %5, %4, %26, %27 : !ascendc.local_tensor<16x16xf32>, !ascendc.global_tensor<32x32xf32>, !ascendc.data_copy_ext_params, !ascendc.data_copy_pad_ext_params<f32>
 // CHECK-NEXT:  return %6 : !asctile.tile<16x16xf32, UB>
 // CHECK-NEXT:}
 func.func @lower_load_static(%arg0: memref<*xf32, 22>, %arg1: i32, %arg2: i32) -> !asctile.tile<16x16xf32, UB> {
@@ -74,29 +62,17 @@ func.func @lower_load_static(%arg0: memref<*xf32, 22>, %arg1: i32, %arg2: i32) -
 // CHECK-NEXT:  %19 = arith.subi %c32_i32, %17 : i32
 // CHECK-NEXT:  %20 = arith.select %18, %c0_i32, %19 : i32
 // CHECK-NEXT:  %21 = arith.addi %15, %20 : i32
-// CHECK-NEXT:  %22 = arith.cmpi slt, %21, %c16_i32 : i32
-// CHECK-NEXT:  scf.if %22 {
-// CHECK-NEXT:    ascendc.duplicate_l2 %9, %cst, %c0_i32 : !ascendc.local_tensor<2x2x3x4xf32>, f32, i32
-// CHECK-NEXT:  }
-// CHECK-NEXT:  %23 = arith.addi %arg1, %c2_i32 : i32
-// CHECK-NEXT:  %24 = arith.minsi %23, %c3_i32 : i32
-// CHECK-NEXT:  %25 = arith.subi %24, %arg1 : i32
-// CHECK-NEXT:  %26 = arith.maxsi %25, %c0_i32 : i32
-// CHECK-NEXT:  %27 = arith.subi %c2_i32, %26 : i32
-// CHECK-NEXT:  %28 = arith.cmpi sgt, %27, %c0_i32 : i32
-// CHECK-NEXT:  scf.if %28 {
-// CHECK-NEXT:    %35 = arith.muli %26, %c4_i32 : i32
-// CHECK-NEXT:    %36 = ascendc.local_tensor.subindex %9[%35] : !ascendc.local_tensor<2x2x3x4xf32>, i32, !ascendc.local_tensor<2x2x3x4xf32>
-// CHECK-NEXT:    %37 = arith.muli %27, %c4_i32 : i32
-// CHECK-NEXT:    ascendc.duplicate_l2 %36, %cst, %37 {asc.cal_count_set} : !ascendc.local_tensor<2x2x3x4xf32>, f32, i32
-// CHECK-NEXT:  }
-// CHECK-NEXT:  %29 = arith.muli %16, %c4_i32 : i32
-// CHECK-NEXT:  %30 = arith.divsi %20, %c4_i32 : i32
-// CHECK-NEXT:  %31 = arith.subi %c16_i32, %21 : i32
-// CHECK-NEXT:  %32 = arith.divsi %31, %c32_i32 : i32
-// CHECK-NEXT:  %33 = ascendc.construct !ascendc.data_copy_ext_params(%26, %15, %29, %32, %c0_i32) [ui16, ui32, ui32, ui32, ui32] : i32, i32, i32, i32, i32
-// CHECK-NEXT:  %34 = ascendc.construct !ascendc.data_copy_pad_ext_params<f32>(%c1_i32, %c0_i32, %30, %cst) [i32, i32, ui8, f32] : i32, i32, i32, f32
-// CHECK-NEXT:  ascendc.data_copy_pad_l0_ext %9, %8, %33, %34 : !ascendc.local_tensor<2x2x3x4xf32>, !ascendc.global_tensor<3x4x5x8xf32>, !ascendc.data_copy_ext_params, !ascendc.data_copy_pad_ext_params<f32>
+// CHECK-NEXT:  %22 = arith.addi %arg1, %c2_i32 : i32
+// CHECK-NEXT:  %23 = arith.minsi %22, %c3_i32 : i32
+// CHECK-NEXT:  %24 = arith.subi %23, %arg1 : i32
+// CHECK-NEXT:  %25 = arith.maxsi %24, %c0_i32 : i32
+// CHECK-NEXT:  %26 = arith.muli %16, %c4_i32 : i32
+// CHECK-NEXT:  %27 = arith.divsi %20, %c4_i32 : i32
+// CHECK-NEXT:  %28 = arith.subi %c16_i32, %21 : i32
+// CHECK-NEXT:  %29 = arith.divsi %28, %c32_i32 : i32
+// CHECK-NEXT:  %30 = ascendc.construct !ascendc.data_copy_ext_params(%25, %15, %26, %29, %c0_i32) [ui16, ui32, ui32, ui32, ui32] : i32, i32, i32, i32, i32
+// CHECK-NEXT:  %31 = ascendc.construct !ascendc.data_copy_pad_ext_params<f32>(%c1_i32, %c0_i32, %27, %cst) [i32, i32, ui8, f32] : i32, i32, i32, f32
+// CHECK-NEXT:  ascendc.data_copy_pad_l0_ext %9, %8, %30, %31 : !ascendc.local_tensor<2x2x3x4xf32>, !ascendc.global_tensor<3x4x5x8xf32>, !ascendc.data_copy_ext_params, !ascendc.data_copy_pad_ext_params<f32>
 // CHECK-NEXT:  return %10 : !asctile.tile<2x2x3x4xf32, UB>
 // CHECK-NEXT:}
 func.func @lower_load_4d_static(%arg0: memref<*xf32, 22>, %arg1: i32, %arg2: i32, %arg3: i32, %arg4: i32) -> !asctile.tile<2x2x3x4xf32, UB> {
@@ -125,29 +101,17 @@ func.func @lower_load_4d_static(%arg0: memref<*xf32, 22>, %arg1: i32, %arg2: i32
 // CHECK-NEXT:  %15 = arith.subi %c32_i32, %13 : i32
 // CHECK-NEXT:  %16 = arith.select %14, %c0_i32, %15 : i32
 // CHECK-NEXT:  %17 = arith.addi %11, %16 : i32
-// CHECK-NEXT:  %18 = arith.cmpi slt, %17, %c64_i32 : i32
-// CHECK-NEXT:  scf.if %18 {
-// CHECK-NEXT:    ascendc.duplicate_l2 %5, %cst, %c0_i32 : !ascendc.local_tensor<16x16xf32>, f32, i32
-// CHECK-NEXT:  }
-// CHECK-NEXT:  %19 = arith.addi %arg3, %c16_i32 : i32
-// CHECK-NEXT:  %20 = arith.minsi %arg1, %19 : i32
-// CHECK-NEXT:  %21 = arith.subi %20, %arg3 : i32
-// CHECK-NEXT:  %22 = arith.maxsi %21, %c0_i32 : i32
-// CHECK-NEXT:  %23 = arith.subi %c16_i32, %22 : i32
-// CHECK-NEXT:  %24 = arith.cmpi sgt, %23, %c0_i32 : i32
-// CHECK-NEXT:  scf.if %24 {
-// CHECK-NEXT:    %31 = arith.muli %22, %c16_i32 : i32
-// CHECK-NEXT:    %32 = ascendc.local_tensor.subindex %5[%31] : !ascendc.local_tensor<16x16xf32>, i32, !ascendc.local_tensor<16x16xf32>
-// CHECK-NEXT:    %33 = arith.muli %23, %c16_i32 : i32
-// CHECK-NEXT:    ascendc.duplicate_l2 %32, %cst, %33 {asc.cal_count_set} : !ascendc.local_tensor<16x16xf32>, f32, i32
-// CHECK-NEXT:  }
-// CHECK-NEXT:  %25 = arith.muli %12, %c4_i32 : i32
-// CHECK-NEXT:  %26 = arith.divsi %16, %c4_i32 : i32
-// CHECK-NEXT:  %27 = arith.subi %c64_i32, %17 : i32
-// CHECK-NEXT:  %28 = arith.divsi %27, %c32_i32 : i32
-// CHECK-NEXT:  %29 = ascendc.construct !ascendc.data_copy_ext_params(%22, %11, %25, %28, %c0_i32) [ui16, ui32, ui32, ui32, ui32] : i32, i32, i32, i32, i32
-// CHECK-NEXT:  %30 = ascendc.construct !ascendc.data_copy_pad_ext_params<f32>(%c1_i32, %c0_i32, %26, %cst) [i32, i32, ui8, f32] : i32, i32, i32, f32
-// CHECK-NEXT:  ascendc.data_copy_pad_l0_ext %5, %4, %29, %30 : !ascendc.local_tensor<16x16xf32>, !ascendc.global_tensor<?x?xf32>, !ascendc.data_copy_ext_params, !ascendc.data_copy_pad_ext_params<f32>
+// CHECK-NEXT:  %18 = arith.addi %arg3, %c16_i32 : i32
+// CHECK-NEXT:  %19 = arith.minsi %arg1, %18 : i32
+// CHECK-NEXT:  %20 = arith.subi %19, %arg3 : i32
+// CHECK-NEXT:  %21 = arith.maxsi %20, %c0_i32 : i32
+// CHECK-NEXT:  %22 = arith.muli %12, %c4_i32 : i32
+// CHECK-NEXT:  %23 = arith.divsi %16, %c4_i32 : i32
+// CHECK-NEXT:  %24 = arith.subi %c64_i32, %17 : i32
+// CHECK-NEXT:  %25 = arith.divsi %24, %c32_i32 : i32
+// CHECK-NEXT:  %26 = ascendc.construct !ascendc.data_copy_ext_params(%21, %11, %22, %25, %c0_i32) [ui16, ui32, ui32, ui32, ui32] : i32, i32, i32, i32, i32
+// CHECK-NEXT:  %27 = ascendc.construct !ascendc.data_copy_pad_ext_params<f32>(%c1_i32, %c0_i32, %23, %cst) [i32, i32, ui8, f32] : i32, i32, i32, f32
+// CHECK-NEXT:  ascendc.data_copy_pad_l0_ext %5, %4, %26, %27 : !ascendc.local_tensor<16x16xf32>, !ascendc.global_tensor<?x?xf32>, !ascendc.data_copy_ext_params, !ascendc.data_copy_pad_ext_params<f32>
 // CHECK-NEXT:  return %6 : !asctile.tile<16x16xf32, UB>
 // CHECK-NEXT:}
 func.func @lower_load_dynamic(%arg0: memref<*xf32, 22>, %arg1: i32, %arg2: i32, %arg3: i32, %arg4: i32) -> !asctile.tile<16x16xf32, UB> {
