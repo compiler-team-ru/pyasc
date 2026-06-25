@@ -161,7 +161,8 @@ struct ConvertLoadToUB : ConvertOp<asctile::LoadOp> {
         Value minTailElements = rewriter.create<arith::MinSIOp>(loc, dstLastDim, tailElements);
         Value blockLen, srcStrideElements;
         auto realShape = op.getRealShape();
-        if (!realShape.empty()) {
+        auto hasRealShape = !realShape.empty();
+        if (hasRealShape) {
             Value realLastDim = rewriter.getRemappedValue(realShape.back());
             Value realTailElements = rewriter.create<arith::MinSIOp>(loc, realLastDim, tailElements);
             blockLen = rewriter.create<arith::MulIOp>(loc, realTailElements, typeSizeValue);
@@ -177,9 +178,10 @@ struct ConvertLoadToUB : ConvertOp<asctile::LoadOp> {
             loc, remainderIsZero, const0, rewriter.create<arith::SubIOp>(loc, ubBlockSizeValue, blockLenRemainder));
         auto alignedBlockSize = rewriter.create<arith::AddIOp>(loc, blockLen, rightPadBytes);
         auto rowSizeBytes = rewriter.create<arith::MulIOp>(loc, dstLastDim, typeSizeValue);
-        auto hasGap = rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::sgt, rowSizeBytes, alignedBlockSize);
-        auto ifHasGap = rewriter.create<scf::IfOp>(loc, hasGap, false);
-        {
+        if (hasRealShape) {
+            auto hasGap =
+                rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::sgt, rowSizeBytes, alignedBlockSize);
+            auto ifHasGap = rewriter.create<scf::IfOp>(loc, hasGap, false);
             ConvertRewriter::InsertionGuard guard(rewriter);
             rewriter.setInsertionPointToStart(ifHasGap.thenBlock());
             rewriter.create<ascendc::DuplicateL2Op>(loc, dst, padValue, const0);
@@ -200,10 +202,11 @@ struct ConvertLoadToUB : ConvertOp<asctile::LoadOp> {
                 innerRows = rewriter.create<arith::MinSIOp>(loc, innerRows, realRows);
             }
             blockCount = innerRows;
-            auto padRows = rewriter.create<arith::SubIOp>(loc, dstRows, innerRows);
-            auto padRowsIsPositive = rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::sgt, padRows, const0);
-            auto ifPadRows = rewriter.create<scf::IfOp>(loc, padRowsIsPositive, false);
-            {
+            if (hasRealShape) {
+                auto padRows = rewriter.create<arith::SubIOp>(loc, dstRows, innerRows);
+                auto padRowsIsPositive =
+                    rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::sgt, padRows, const0);
+                auto ifPadRows = rewriter.create<scf::IfOp>(loc, padRowsIsPositive, false);
                 ConvertRewriter::InsertionGuard guard(rewriter);
                 rewriter.setInsertionPointToStart(ifPadRows.thenBlock());
                 auto dstCols = consts.i32(dstShape.back());
