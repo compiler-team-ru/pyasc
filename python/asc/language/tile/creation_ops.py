@@ -218,7 +218,7 @@ def cast(input: Tile, dtype: DataType, round_mode: RoundMode = RoundMode.Default
 
 
 @overload
-def cast(input: RuntimeNumeric, dtype: DataType, round_mode: RoundMode = RoundMode.Default) -> PlainValue:
+def cast(input: RuntimeNumeric, dtype: DataType) -> PlainValue:
     ...
 
 
@@ -236,7 +236,7 @@ def cast(input: Union[Tile, RuntimeNumeric], dtype: DataType,
     Args:
         input: The input tile or scalar value to cast
         dtype: The target data type
-        round_mode: The rounding mode for precision conversion. Supported values:
+        round_mode: The rounding mode for precision conversion (if ``input`` is a tile). Supported values:
             ``RoundMode.Default`` (automatically infer rounding mode based on source and target types),
             ``RoundMode.NoRound`` (no rounding, truncate toward zero),
             ``RoundMode.Rint`` (round to nearest, ties to even),
@@ -286,6 +286,8 @@ def cast(input: Union[Tile, RuntimeNumeric], dtype: DataType,
     check_type("input", input, (Tile, RuntimeNumeric))
     check_type("dtype", dtype, DataType)
     if not isinstance(input, Tile):
+        if round_mode != RoundMode.Default:
+            raise RuntimeError("'round_mode' argument cannot be used with scalar input")
         return materialize_ir_value(input, dtype)
     if input.dtype == dtype:
         return input
