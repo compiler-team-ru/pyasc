@@ -112,6 +112,54 @@ for i in asc2.range(row_iters, unroll_factor=2, parallel=True):
 
 ---
 
+## Vector function (VF) block fusion
+
+For a sequence of basic elementwise or reduction vector operations, PyAsc can automatically fuse them into a single **VF (vector function)** block that executes at the register level, avoiding redundant UB reads/writes between intermediate steps. Enable this by passing `vf_fusion=True` to the JIT decorator:
+
+```python
+@asc2.jit(vf_fusion=True)
+def kernel(x_ptr, y_ptr, out_ptr, size: int, tile_size: asc2.ConstExpr[int]):
+    x_gm = asc2.tensor(x_ptr, [size])
+    y_gm = asc2.tensor(y_ptr, [size])
+    out_gm = asc2.tensor(out_ptr, [size])
+    for i in asc2.range(asc2.num_tiles(x_gm, axis=0, shape=[tile_size])):
+        x = asc2.load(x_gm, [tile_size], tile_id=[i])
+        y = asc2.load(y_gm, [tile_size], tile_id=[i])
+        # These elementwise ops are fused into a single VF block
+        result = (x + y) * x - y
+        asc2.store(result, out_gm, tile_id=[i])
+```
+
+The automatic fusion handles straightforward chains of built-in arithmetic and reduction operations. For more complex patterns — such as custom register-level logic, specialized masking, or operations not expressible through the standard API — use {py:func}`asc2.inline_vf` to embed raw Ascend C register code directly as a VF block:
+
+```python
+# x * y + z — three inputs, processed in 64-element vector chunks
+out = asc2.inline_vf(
+    """
+    auto* out_ptr = reinterpret_cast<__ubuf__ float*>($0.GetPhyAddr());
+    auto* x_ptr = reinterpret_cast<__ubuf__ float*>($1.GetPhyAddr());
+    auto* y_ptr = reinterpret_cast<__ubuf__ float*>($2.GetPhyAddr());
+    auto* z_ptr = reinterpret_cast<__ubuf__ float*>($3.GetPhyAddr());
+    AscendC::MicroAPI::RegTensor<float> x_reg, y_reg, z_reg, xy_reg, result_reg;
+    uint32_t count = 256;
+    for (uint16_t i = 0; i < 4; i += 1) {
+      uint32_t offset = i * 64;
+      AscendC::MicroAPI::MaskReg mask = AscendC::MicroAPI::UpdateMask<float>(count);
+      AscendC::MicroAPI::DataCopy(x_reg, x_ptr + offset);
+      AscendC::MicroAPI::DataCopy(y_reg, y_ptr + offset);
+      AscendC::MicroAPI::Mul(xy_reg, x_reg, y_reg, mask);
+      AscendC::MicroAPI::DataCopy(z_reg, z_ptr + offset);
+      AscendC::MicroAPI::Add(result_reg, xy_reg, z_reg, mask);
+      AscendC::MicroAPI::DataCopy(out_ptr + offset, result_reg, mask);
+    }
+    """,
+    shape=x.shape, dtype=x.dtype, inputs=[x, y, z])
+```
+
+Inside the code string, `$0` refers to the output tile and `$1`, `$2`, ... refer to input tiles in the order they appear in the `inputs` list. All input tiles must reside in UB memory.
+
+---
+
 ## Measuring Performance with the Profiler
 
 The test suite provides a built-in `profiler` fixture that wraps kernel launches with NPU hardware profiling.

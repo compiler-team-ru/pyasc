@@ -193,6 +193,7 @@ Debug operations
     :nosignatures:
 
     inline
+    inline_vf
 
 
 Utility functions
