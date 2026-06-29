@@ -338,7 +338,7 @@ def rms_norm(input: Tile, gamma: Tile, epsilon: RuntimeFloat) -> Tile:
     check_runtime_float("epsilon", epsilon)
     if len(input.shape) > 2:
         raise RuntimeError("Tensor dimensionality greater than two is not supported.")
-    handle = global_builder.get_ir_builder().create_asctile_RmsnormOp(input.to_ir().get_type(), input.to_ir(),
+    handle = global_builder.get_ir_builder().create_asctile_RmsNormOp(input.to_ir().get_type(), input.to_ir(),
                                                                       gamma.to_ir(),
                                                                       _mat(epsilon, input.dtype).to_ir())
     return Tile(handle)

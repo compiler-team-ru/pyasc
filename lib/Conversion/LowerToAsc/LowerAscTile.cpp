@@ -332,7 +332,8 @@ struct ConvertRmsNorm : ConvertOp<asctile::RmsNormOp> {
         constexpr bool isBasicBlock = false;
         auto typeSize = static_cast<int>(ascendc::getElementTypeSize(tensorType));
         RmsNormTiling tilingStruct = getRmsNormTiling(shape, isBasicBlock, typeSize);
-        auto sharedBufTensor = createTensorOp(rewriter, loc, totalUbSize, rewriter.getIntegerType(8, false));
+        auto sharedBufTensor =
+            createTensorOp(rewriter, loc, ascendc::getTypeSize(tensorType) * 2, rewriter.getIntegerType(8, false));
         Value tiling = emitasc::InitStructBuilder(rewriter.getType<ascendc::RmsNormTilingType>())
                            .addField("bLength", consts.i32(tilingStruct.bLength))
                            .addField("sLength", consts.i32(tilingStruct.sLength))
