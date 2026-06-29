@@ -10,9 +10,9 @@ SIZE = 32
 def cast_kernel(x_ptr, z_ptr, size: asc2.ConstExpr, dst_dtype: asc2.ConstExpr) -> None:
     x_gm = asc2.tensor(x_ptr, [size])
     z_gm = asc2.tensor(z_ptr, [size])
-    tile = asc2.load(x_gm, [size], offsets=[0])
+    tile = asc2.load(x_gm, [0], [size])
     casted = tile.to(dst_dtype)
-    asc2.store(casted, z_gm, offsets=[0])
+    asc2.store(casted, z_gm, [0])
 
 
 @asc2.jit(always_compile=True)
@@ -20,9 +20,9 @@ def cast_round_mode_kernel(x_ptr, z_ptr, size: asc2.ConstExpr, dst_dtype: asc2.C
                            round_mode: asc2.ConstExpr) -> None:
     x_gm = asc2.tensor(x_ptr, [size])
     z_gm = asc2.tensor(z_ptr, [size])
-    tile = asc2.load(x_gm, [size], offsets=[0])
+    tile = asc2.load(x_gm, [0], [size])
     casted = asc2.cast(tile, dst_dtype, round_mode=round_mode)
-    asc2.store(casted, z_gm, offsets=[0])
+    asc2.store(casted, z_gm, [0])
 
 
 @asc2.jit(always_compile=True)
@@ -30,9 +30,9 @@ def cast_to_method_kernel(x_ptr, z_ptr, size: asc2.ConstExpr, dst_dtype: asc2.Co
                           round_mode: asc2.ConstExpr) -> None:
     x_gm = asc2.tensor(x_ptr, [size])
     z_gm = asc2.tensor(z_ptr, [size])
-    tile = asc2.load(x_gm, [size], offsets=[0])
+    tile = asc2.load(x_gm, [0], [size])
     casted = tile.to(dst_dtype, round_mode=round_mode)
-    asc2.store(casted, z_gm, offsets=[0])
+    asc2.store(casted, z_gm, [0])
 
 
 def round_half_away_from_zero(x):

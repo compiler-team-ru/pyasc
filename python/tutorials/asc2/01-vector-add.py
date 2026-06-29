@@ -47,12 +47,12 @@ def vector_add(
     for i in asc2.range(block_loop_num, unroll_factor=2, parallel=True):
         tile_offset = block_offset + i * tile_size
         # `asc2.load` is used to create tile object which is used for further calculations. Data movement from GM to UB happens in this operation.
-        x = asc2.load(x_gm, [tile_size], offsets=[tile_offset])
-        y = asc2.load(y_gm, [tile_size], offsets=[tile_offset])
+        x = asc2.load(x_gm, [tile_offset], [tile_size])
+        y = asc2.load(y_gm, [tile_offset], [tile_size])
         # One or more operations can be applied for tiles. It is compiler responsibility to allocate required number of memory blocks in UB.
         out = x + y
         # `asc2.store` is used to move data from UB back to GM.
-        asc2.store(out, out_gm, offsets=[tile_offset])
+        asc2.store(out, out_gm, [tile_offset])
 
 
 if __name__ == "__main__":

@@ -116,8 +116,7 @@ For runtime environment setup: @docs/installation/setup-runtime-env.rst
 ```python
 # Tensor creation and loading
 x_gm = asc2.tensor(x_ptr, [size])
-tile = asc2.load(tensor, shape=[128], offsets=[base])  # explicit byte offsets
-tile = asc2.load(tensor, shape=[128], tile_id=[idx])  # tile_id * shape = offset
+tile = asc2.load(tensor, shape=[128], offsets=[base])  # explicit element offsets
 scalar = asc2.load(tensor, offsets=[i])
 asc2.store(tile, tensor, offsets=[base])
 
@@ -135,7 +134,6 @@ asc2.store(tile, tensor, offsets=[base])
 # Programming model operations
 i = asc2.block_idx()    # current NPU block index
 n = asc2.block_num()    # total number of blocks
-k = asc2.num_tiles(tensor, axis=0, shape=[128])  # tiles fitting along axis
 
 # Loop control
 for i in asc2.range(start, stop, step, unroll_factor=4, parallel=False):

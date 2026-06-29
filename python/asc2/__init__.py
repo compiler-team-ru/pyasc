@@ -104,7 +104,6 @@ from asc.language.tile.memory_ops import (
 from asc.language.tile.prog_model_ops import (
     block_idx,
     block_num,
-    num_tiles,
 )
 from asc.language.tile.shape_ops import (
     broadcast_to,
@@ -197,7 +196,6 @@ __all__ += [
     # prog_model_ops
     "block_idx",
     "block_num",
-    "num_tiles",
     # shape_ops
     "broadcast_to",
     "expand_dims",

@@ -35,9 +35,9 @@ def softmax_fused(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
 
     for i in asc2.range(block_loop_num, unroll_factor=unroll_factor, parallel=True):
         row_start_offset = start_offset + i * tile_shape[0]
-        rows = asc2.load(in_gm, [tile_shape[0], tile_shape[1]], offsets=[row_start_offset, 0], pad_value=float('-inf'))
+        rows = asc2.load(in_gm, [row_start_offset, 0], [tile_shape[0], tile_shape[1]], pad_value=float('-inf'))
         out = asc2.softmax(rows)
-        asc2.store(out, out_gm, offsets=[row_start_offset, 0])
+        asc2.store(out, out_gm, [row_start_offset, 0])
 
 
 @pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])

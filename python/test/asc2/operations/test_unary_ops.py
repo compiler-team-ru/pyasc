@@ -27,13 +27,13 @@ unary_ops = [
 @asc2.jit(always_compile=True)
 def kernel(x_ptr: asc2.GlobalAddress, z_ptr: asc2.GlobalAddress, block_length: asc2.ConstExpr,
            op: asc2.ConstExpr) -> None:
-    xt = asc2.load(asc2.tensor(x_ptr, [32]), [block_length], offsets=[0])
+    xt = asc2.load(asc2.tensor(x_ptr, [32]), [0], [block_length])
     zt = op(xt)
-    asc2.store(zt, asc2.tensor(z_ptr, [32]), offsets=[0])
+    asc2.store(zt, asc2.tensor(z_ptr, [32]), [0])
 
 
 @pytest.mark.parametrize("asc_op, torch_op, dtype",
-                         ((asc_op, torch_op, d) for asc_op, torch_op, dtypes in unary_ops for d in dtypes))
+                         [(asc_op, torch_op, d) for asc_op, torch_op, dtypes in unary_ops for d in dtypes])
 def test_unary_operations(require_c310, asc_op, torch_op, dtype):
     if dtype not in (torch.float16, torch.float32):
         require_c310()

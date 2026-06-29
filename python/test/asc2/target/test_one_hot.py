@@ -27,13 +27,13 @@ def one_hot(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, arang
     block_length = asc2.ceildiv(input_total, asc2.block_num())
     block_offset = asc2.block_idx() * block_length
 
-    arange_tile = asc2.load(arange_gm, [depth], offsets=[0])
+    arange_tile = asc2.load(arange_gm, [0], [depth])
     for i in asc2.range(block_length, unroll_factor=unroll_factor, parallel=True):
         idx_pos = block_offset + i
-        idx_scalar = asc2.load(in_gm, offsets=[idx_pos])
+        idx_scalar = asc2.load(in_gm, [idx_pos])
         mask = asc2.equal(arange_tile, idx_scalar)
         result = asc2.where(mask, asc2.number(on_value, output_ptr.dtype), asc2.number(off_value, output_ptr.dtype))
-        asc2.store(result, out_gm, offsets=[idx_pos * depth])
+        asc2.store(result, out_gm, [idx_pos * depth])
 
 
 # Shapes derived from CSV column `stc_ori_inputs`/`stc_ori_outputs` of the ops-math

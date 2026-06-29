@@ -20,11 +20,11 @@ def kernel(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, reduce
            output_offsets: asc2.ConstExpr, op: asc2.ConstExpr) -> None:
     g_input = asc2.tensor(input_ptr, input_shape)
     g_output = asc2.tensor(output_ptr, output_shape)
-    input = asc2.load(g_input, input_shape, offsets=input_offsets)
+    input = asc2.load(g_input, input_offsets, input_shape)
     output = op(input, reduce_dim)
     if output.size == 1:
         output = asc2.broadcast_to(output, *output_shape)
-    asc2.store(output, g_output, offsets=output_offsets)
+    asc2.store(output, g_output, output_offsets)
 
 
 @asc2.jit(always_compile=True)
@@ -33,10 +33,10 @@ def kernel_all(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, in
                op: asc2.ConstExpr) -> None:
     g_input = asc2.tensor(input_ptr, input_shape)
     g_output = asc2.tensor(output_ptr, output_shape)
-    input = asc2.load(g_input, input_shape, offsets=input_offsets)
+    input = asc2.load(g_input, input_offsets, input_shape)
     scalar = op(input)
     output = asc2.full(output_shape, scalar, dtype=input.dtype)
-    asc2.store(output, g_output, offsets=output_offsets)
+    asc2.store(output, g_output, output_offsets)
 
 
 @dataclass
@@ -100,10 +100,10 @@ def reduce_tile_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, s
                        tile_size: asc2.ConstExpr[int]):
     x_gm = asc2.tensor(x_ptr, [size])
     out_gm = asc2.tensor(out_ptr, [1])
-    tile = asc2.load(x_gm, [tile_size], offsets=[0])
+    tile = asc2.load(x_gm, [0], [tile_size])
     max_val = asc2.reduce_max(tile)
     result = asc2.full([1], max_val, dtype=tile.dtype)
-    asc2.store(result, out_gm, offsets=[0])
+    asc2.store(result, out_gm, [0])
 
 
 @pytest.mark.parametrize("tile_size", [1, 7, 17])

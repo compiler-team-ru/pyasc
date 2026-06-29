@@ -29,7 +29,6 @@ Programming model
     tensor
     block_idx
     block_num
-    num_tiles
 
 
 Iterators

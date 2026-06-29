@@ -56,14 +56,14 @@ PyAsc2 provides simple and intuitive matrix multiplication operations using the 
        c_gm = asc2.tensor(c_ptr, [m, n])
        
        # Load matrices to L0A and L0B
-       a = asc2.load(a_gm, [m, k], offsets=[0, 0], location=asc2.TileLocation.L0A)
-       b = asc2.load(b_gm, [k, n], offsets=[0, 0], location=asc2.TileLocation.L0B)
+       a = asc2.load(a_gm, [0, 0], [m, k], asc2.TileLocation.L0A)
+       b = asc2.load(b_gm, [0, 0], [k, n], asc2.TileLocation.L0B)
        
        # Perform matrix multiplication
        c = a @ b  # or asc2.matmul(a, b)
        
        # Store result
-       asc2.store(c, c_gm, offsets=[0, 0])
+       asc2.store(c, c_gm, [0, 0])
 
 Data Types and Memory Locations
 --------------------------------
@@ -114,15 +114,15 @@ Example with explicit L1 usage:
        c_gm = asc2.tensor(c_ptr, [m, n])
        
        # Explicitly load to L1 first
-       a_l1 = asc2.load(a_gm, [m, k], offsets=[0, 0], location=asc2.TileLocation.L1)
-       b_l1 = asc2.load(b_gm, [k, n], offsets=[0, 0], location=asc2.TileLocation.L1)
+       a_l1 = asc2.load(a_gm, [0, 0], [m, k], asc2.TileLocation.L1)
+       b_l1 = asc2.load(b_gm, [0, 0], [k, n], asc2.TileLocation.L1)
        
        # Copy from L1 to L0A/L0B
-       a = asc2.copy(a_l1, [m, k], offsets=[0, 0], location=asc2.TileLocation.L0A)
-       b = asc2.copy(b_l1, [k, n], offsets=[0, 0], location=asc2.TileLocation.L0B)
+       a = asc2.copy(a_l1, [0, 0], [m, k], asc2.TileLocation.L0A)
+       b = asc2.copy(b_l1, [0, 0], [k, n], asc2.TileLocation.L0B)
        
        c = a @ b
-       asc2.store(c, c_gm, offsets=[0, 0])
+       asc2.store(c, c_gm, [0, 0])
 
 Accumulator Operations
 ----------------------
@@ -144,14 +144,14 @@ For iterative matrix multiplication (e.g., tiling along K dimension), use the ac
        tile_k = k // k_tiles
        for i in asc2.range(k_tiles):
            # Load tiles
-           a_tile = asc2.load(a_gm, [m, tile_k], offsets=[0, i * tile_k], location=asc2.TileLocation.L0A)
-           b_tile = asc2.load(b_gm, [tile_k, n], offsets=[i * tile_k, 0], location=asc2.TileLocation.L0B)
+           a_tile = asc2.load(a_gm, [0, i * tile_k], [m, tile_k], asc2.TileLocation.L0A)
+           b_tile = asc2.load(b_gm, [i * tile_k, 0], [tile_k, n], asc2.TileLocation.L0B)
            
            # Accumulate: acc += a_tile @ b_tile
            asc2.matmul_acc(acc, a_tile, b_tile)
        
        # Store final result
-       asc2.store(acc, c_gm, offsets=[0, 0])
+       asc2.store(acc, c_gm, [0, 0])
 
 **Accumulator Requirements:**
 
@@ -178,13 +178,13 @@ Both :func:`~asc2.matmul` and :func:`~asc2.zeros_acc` support optional bias init
        bias_gm = asc2.tensor(bias_ptr, [n])
        c_gm = asc2.tensor(c_ptr, [m, n])
        
-       a = asc2.load(a_gm, [m, k], offsets=[0, 0], location=asc2.TileLocation.L0A)
-       b = asc2.load(b_gm, [k, n], offsets=[0, 0], location=asc2.TileLocation.L0B)
-       bias = asc2.load(bias_gm, [n], offsets=[0], location=asc2.TileLocation.BT)
+       a = asc2.load(a_gm, [0, 0], [m, k], asc2.TileLocation.L0A)
+       b = asc2.load(b_gm, [0, 0], [k, n], asc2.TileLocation.L0B)
+       bias = asc2.load(bias_gm, [0], [n], asc2.TileLocation.BT)
        
        # C = A @ B + bias
        c = asc2.matmul(a, b, bias)
-       asc2.store(c, c_gm, offsets=[0, 0])
+       asc2.store(c, c_gm, [0, 0])
 
 **Using bias with zeros_acc for K-tiled accumulation:**
 
@@ -197,17 +197,17 @@ Both :func:`~asc2.matmul` and :func:`~asc2.zeros_acc` support optional bias init
        bias_gm = asc2.tensor(bias_ptr, [n])
        c_gm = asc2.tensor(c_ptr, [m, n])
        
-       bias = asc2.load(bias_gm, [n], offsets=[0], location=asc2.TileLocation.BT)
+       bias = asc2.load(bias_gm, [0], [n], asc2.TileLocation.BT)
        # Initialize accumulator with bias
        acc = asc2.zeros_acc([m, n], dtype=asc2.float32, bias=bias)
        
        tile_k = k // k_tiles
        for i in asc2.range(k_tiles):
-           a_tile = asc2.load(a_gm, [m, tile_k], offsets=[0, i * tile_k], location=asc2.TileLocation.L0A)
-           b_tile = asc2.load(b_gm, [tile_k, n], offsets=[i * tile_k, 0], location=asc2.TileLocation.L0B)
+           a_tile = asc2.load(a_gm, [0, i * tile_k], [m, tile_k], asc2.TileLocation.L0A)
+           b_tile = asc2.load(b_gm, [i * tile_k, 0], [tile_k, n], asc2.TileLocation.L0B)
            asc2.matmul_acc(acc, a_tile, b_tile)
        
-       asc2.store(acc, c_gm, offsets=[0, 0])
+       asc2.store(acc, c_gm, [0, 0])
 
 Supported Features
 ------------------
@@ -226,19 +226,19 @@ PyAsc2 supports transposing matrices before multiplication using :func:`~asc2.tr
        c_gm = asc2.tensor(c_ptr, [m, n])
        
        # Load to L1
-       a_l1 = asc2.load(a_gm, [k, m], offsets=[0, 0], location=asc2.TileLocation.L1)
-       b_l1 = asc2.load(b_gm, [n, k], offsets=[0, 0], location=asc2.TileLocation.L1)
+       a_l1 = asc2.load(a_gm, [0, 0], [k, m], asc2.TileLocation.L1)
+       b_l1 = asc2.load(b_gm, [0, 0], [n, k], asc2.TileLocation.L1)
        
        # Copy to L0A/L0B and transpose
-       a = asc2.copy(a_l1, [k, m], offsets=[0, 0], location=asc2.TileLocation.L0A)
+       a = asc2.copy(a_l1, [0, 0], [k, m], asc2.TileLocation.L0A)
        a_transpose = asc2.transpose(a)  # Transpose on L0A
        
-       b = asc2.copy(b_l1, [n, k], offsets=[0, 0], location=asc2.TileLocation.L0B)
+       b = asc2.copy(b_l1, [0, 0], [n, k], asc2.TileLocation.L0B)
        b_transpose = b.T  # Transpose using .T property of tile
        
        # C = A.T @ B.T
        c = a_transpose @ b_transpose
-       asc2.store(c, c_gm, offsets=[0, 0])
+       asc2.store(c, c_gm, [0, 0])
 
 **Important:**
 
@@ -267,15 +267,15 @@ Example:
        b_gm = asc2.tensor(b_ptr, [k, n])
        c_gm = asc2.tensor(c_ptr, [m, n])
        
-       a = asc2.load(a_gm, [m, k], offsets=[0, 0], location=asc2.TileLocation.L0A)
-       b = asc2.load(b_gm, [k, n], offsets=[0, 0], location=asc2.TileLocation.L0B)
+       a = asc2.load(a_gm, [0, 0], [m, k], asc2.TileLocation.L0A)
+       b = asc2.load(b_gm, [0, 0], [k, n], asc2.TileLocation.L0B)
        
        # Matmul produces float32 in L0C
        c = a @ b
        
        # Cast to quantized type (float16 or bfloat16)
        c_quant = c.to(quant_type)  # Uses F322F16 or F322BF16 mode
-       asc2.store(c_quant, c_gm, offsets=[0, 0])
+       asc2.store(c_quant, c_gm, [0, 0])
 
 **Not Supported Quantization Modes:**
 
@@ -298,14 +298,14 @@ ReLU can be applied after matmul using :func:`~asc2.relu` and is automatically f
        b_gm = asc2.tensor(b_ptr, [k, n])
        c_gm = asc2.tensor(c_ptr, [m, n])
        
-       a = asc2.load(a_gm, [m, k], offsets=[0, 0], location=asc2.TileLocation.L0A)
-       b = asc2.load(b_gm, [k, n], offsets=[0, 0], location=asc2.TileLocation.L0B)
+       a = asc2.load(a_gm, [0, 0], [m, k], asc2.TileLocation.L0A)
+       b = asc2.load(b_gm, [0, 0], [k, n], asc2.TileLocation.L0B)
        
        # Matmul + ReLU + Quantization (fused into Fixpipe)
        c = a @ b
        c = asc2.relu(c).to(quant_type)
        
-       asc2.store(c, c_gm, offsets=[0, 0])
+       asc2.store(c, c_gm, [0, 0])
 
 **ReLU Fusion:** The compiler automatically fuses ReLU into the Fixpipe operation when ReLU is applied directly to L0C result
 
@@ -322,13 +322,13 @@ For float32 inputs, HF32 (high-performance float32) mode can be enabled for opti
        b_gm = asc2.tensor(b_ptr, [k, n])
        c_gm = asc2.tensor(c_ptr, [m, n])
        
-       a = asc2.load(a_gm, [m, k], offsets=[0, 0], location=asc2.TileLocation.L0A)
-       b = asc2.load(b_gm, [k, n], offsets=[0, 0], location=asc2.TileLocation.L0B)
+       a = asc2.load(a_gm, [0, 0], [m, k], asc2.TileLocation.L0A)
+       b = asc2.load(b_gm, [0, 0], [k, n], asc2.TileLocation.L0B)
        
        # Use HF32 mode for float32 inputs
        c = asc2.matmul(a, b, hf32=True)
        
-       asc2.store(c, c_gm, offsets=[0, 0])
+       asc2.store(c, c_gm, [0, 0])
 
 Advanced Usage
 --------------
@@ -347,21 +347,21 @@ Chain multiple matmul operations by moving L0C result to L1 and then to L0A for 
        c_gm = asc2.tensor(c_ptr, [m, n])
        
        # First matmul: A @ B
-       a = asc2.load(a_gm, [m, k], offsets=[0, 0], location=asc2.TileLocation.L0A)
-       b = asc2.load(b_gm, [k, n], offsets=[0, 0], location=asc2.TileLocation.L0B)
+       a = asc2.load(a_gm, [0, 0], [m, k], asc2.TileLocation.L0A)
+       b = asc2.load(b_gm, [0, 0], [k, n], asc2.TileLocation.L0B)
        c = a @ b
        
        # Cast and move to L1
        c_cast = c.to(dtype)
-       c_l1 = asc2.copy(c_cast, [m, n], offsets=[0, 0], location=asc2.TileLocation.L1)
+       c_l1 = asc2.copy(c_cast, [0, 0], [m, n], asc2.TileLocation.L1)
        
        # Move to L0A for second matmul
-       c_l0a = asc2.copy(c_l1, [m, n], offsets=[0, 0], location=asc2.TileLocation.L0A)
+       c_l0a = asc2.copy(c_l1, [0, 0], [m, n], asc2.TileLocation.L0A)
        
        # Second matmul: C @ B
        result = c_l0a @ b
        
-       asc2.store(result, c_gm, offsets=[0, 0])
+       asc2.store(result, c_gm, [0, 0])
 
 Multi-Core Execution
 ~~~~~~~~~~~~~~~~~~~~
@@ -385,14 +385,14 @@ PyAsc2 supports multi-core parallel execution using :func:`~asc2.block_idx` and 
        local_m_start = block_id * tile_m
        
        # Load local tiles
-       a_tile = asc2.load(a_gm, [tile_m, k], offsets=[local_m_start, 0], location=asc2.TileLocation.L0A)
-       b = asc2.load(b_gm, [k, n], offsets=[0, 0], location=asc2.TileLocation.L0B)
+       a_tile = asc2.load(a_gm, [local_m_start, 0], [tile_m, k], asc2.TileLocation.L0A)
+       b = asc2.load(b_gm, [0, 0], [k, n], asc2.TileLocation.L0B)
        
        # Matmul
        c_tile = a_tile @ b
        
        # Store result for this block
-       asc2.store(c_tile, c_gm, offsets=[local_m_start, 0])
+       asc2.store(c_tile, c_gm, [local_m_start, 0])
 
    # Launch with multiple cores
    parallel_matmul_kernel[8](a, b, c, m, k, n)  # Use 8 cores
@@ -411,10 +411,10 @@ Cube operations in PyAsc2 support flexible tile shapes without strict alignment 
        b_gm = asc2.tensor(b_ptr, [32, 11])
        c_gm = asc2.tensor(c_ptr, [1, 11])
        
-       a = asc2.load(a_gm, [1, 32], offsets=[0, 0], location=asc2.TileLocation.L0A)
-       b = asc2.load(b_gm, [32, 11], offsets=[0, 0], location=asc2.TileLocation.L0B)
+       a = asc2.load(a_gm, [0, 0], [1, 32], asc2.TileLocation.L0A)
+       b = asc2.load(b_gm, [0, 0], [32, 11], asc2.TileLocation.L0B)
        c = a @ b
-       asc2.store(c, c_gm, offsets=[0, 0])
+       asc2.store(c, c_gm, [0, 0])
 
 **Supported Shape Examples:**
 
@@ -536,8 +536,8 @@ Complete Example
        tile_k = k // k_tiles
        for i in asc2.range(k_tiles, unroll_factor=4):
            # Load tiles (internally GM → L1 → L0A/L0B)
-           a_tile = asc2.load(a_gm, [m, tile_k], offsets=[0, i * tile_k], location=asc2.TileLocation.L0A)
-           b_tile = asc2.load(b_gm, [tile_k, n], offsets=[i * tile_k, 0], location=asc2.TileLocation.L0B)
+           a_tile = asc2.load(a_gm, [0, i * tile_k], [m, tile_k], asc2.TileLocation.L0A)
+           b_tile = asc2.load(b_gm, [i * tile_k, 0], [tile_k, n], asc2.TileLocation.L0B)
            
            # Accumulate
            asc2.matmul_acc(acc, a_tile, b_tile)
@@ -546,7 +546,7 @@ Complete Example
        result = asc2.relu(acc).to(asc2.float16)
        
        # Store result
-       asc2.store(result, c_gm, offsets=[0, 0])
+       asc2.store(result, c_gm, [0, 0])
 
    # Launch with multiple cores
    m, k, n, k_tiles = 256, 512, 128, 8

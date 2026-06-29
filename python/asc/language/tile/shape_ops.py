@@ -53,7 +53,7 @@ def broadcast_to(input: Tile, *shape: int) -> Tile:
     Examples:
         Broadcast tile to the provided shape: ::
 
-            input = asc2.load(x, [256], offsets=[0])
+            input = asc2.load(x, [0], [256])
             result = input.broadcast_to([16,256])
 
         The code above may act as the following: ::
@@ -99,12 +99,12 @@ def reshape(input: Tile, *shape: int) -> Tile:
     Examples:
         Reshape a 1D tile to 2D: ::
 
-            input = asc2.load(x, [256], offsets=[0])
+            input = asc2.load(x, [0], [256])
             result = input.reshape([16, 16])
 
         Reshape a 2D tile to 1D: ::
 
-            input = asc2.load(x, [32, 16], offsets=[0, 0])
+            input = asc2.load(x, [0, 0], [32, 16])
             result = input.reshape([512])
     """
     check_type("input", input, Tile)
@@ -144,7 +144,7 @@ def ravel(input: Tile) -> Tile:
     Examples:
         Flatten a 2D tile to 1D: ::
 
-            input = asc2.load(x, [32, 16], offsets=[0, 0])
+            input = asc2.load(x, [0, 0], [32, 16])
             result = input.ravel()
     """
     return reshape(input, math.prod(input.shape))
@@ -175,12 +175,12 @@ def expand_dims(input: Tile, *axis: int) -> Tile:
     Examples:
         Insert a dimension at axis 0: ::
 
-            input = asc2.load(x, [256], offsets=[0])
+            input = asc2.load(x, [0], [256])
             result = input.expand_dims(0)  # shape becomes [1, 256]
 
         Insert multiple dimensions: ::
 
-            input = asc2.load(x, [32, 16], offsets=[0, 0])
+            input = asc2.load(x, [0, 0], [32, 16])
             result = input.expand_dims(0, 2)  # shape becomes [1, 32, 1, 16]
     """
     check_type("input", input, Tile)
@@ -214,12 +214,12 @@ def squeeze(input: Tile, *axis: int) -> Tile:
     Examples:
         Remove all dimensions of size 1: ::
 
-            input = asc2.load(x, [1, 32, 1, 16], offsets=[0, 0, 0, 0])
+            input = asc2.load(x, [0, 0, 0, 0], [1, 32, 1, 16])
             result = input.squeeze()  # shape becomes [32, 16]
 
         Remove a specific dimension: ::
 
-            input = asc2.load(x, [1, 32, 16], offsets=[0, 0, 0])
+            input = asc2.load(x, [0, 0, 0], [1, 32, 16])
             result = input.squeeze(0)  # shape becomes [32, 16]
     """
     check_type("input", input, Tile)
@@ -253,14 +253,14 @@ def transpose(input: Tile, *axis: int) -> Tile:
         RuntimeError: If the input tile dtype is not supported or axis is incorrect
 
     Examples:
-        Transpose 2d tile: ::
+        Transpose a 2D tile: ::
 
-            input = asc2.load(x, [32, 16], offsets=[0, 0, 0])            
+            input = asc2.load(x, [0, 0, 0], [32, 16])
             result = input.transpose()  # shape becomes [32, 16], same as input.transpose(1, 0)
 
-        Transpose a tile with 
+        Transpose a 3D tile with specific order: ::
 
-            input = asc2.load(x, [32, 64, 16], offsets=[0, 0, 0])
+            input = asc2.load(x, [0, 0, 0], [32, 64, 16])
             result = input.transpose(2, 0, 1)  # shape becomes [16, 32, 64]
     """
     check_type("input", input, Tile)

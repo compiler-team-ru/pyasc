@@ -31,13 +31,13 @@ def one_hot_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, arange_
     if asc2.block_idx() == (asc2.block_num() - 1):
         loop_count = block_length_tail
 
-    arange_tile = asc2.load(arange_gm, [depth], offsets=[0])
+    arange_tile = asc2.load(arange_gm, [0], [depth])
     for i in asc2.range(loop_count, unroll_factor=unroll_factor, parallel=True):
         idx_pos = block_offset + i
-        idx_scalar = asc2.load(x, offsets=[idx_pos])
+        idx_scalar = asc2.load(x, [idx_pos])
         mask = asc2.equal(arange_tile, idx_scalar)
         result = asc2.where(mask, asc2.number(on_value, y_ptr.dtype), asc2.number(off_value, y_ptr.dtype))
-        asc2.store(result, y, offsets=[idx_pos * depth])
+        asc2.store(result, y, [idx_pos * depth])
 
 
 def make_indices(size: int, depth: int) -> torch.Tensor:

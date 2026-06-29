@@ -21,9 +21,9 @@ def vmuladd_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, z_ptr: 
     base_offset = asc2.block_idx() * tile_size * tile_per_block
     for i in range(tile_per_block, unroll_factor=buffer_factor, parallel=True):
         tile_offset = base_offset + i * tile_size
-        x = asc2.load(x_gm, [tile_size], offsets=[tile_offset])
-        y = asc2.load(y_gm, [tile_size], offsets=[tile_offset])
-        z = asc2.load(z_gm, [tile_size], offsets=[tile_offset])
+        x = asc2.load(x_gm, [tile_offset], [tile_size])
+        y = asc2.load(y_gm, [tile_offset], [tile_size])
+        z = asc2.load(z_gm, [tile_offset], [tile_size])
         out = asc2.inline_vf(
             """
             __ubuf__ float* v47 = reinterpret_cast<__ubuf__ float*>($1.GetPhyAddr());
@@ -51,7 +51,7 @@ def vmuladd_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, z_ptr: 
               AscendC::MicroAPI::DataCopy(v64, v56, v60);
             }
             """, x.shape, x.dtype, [x, y, z])
-        asc2.store(out, out_gm, offsets=[tile_offset])
+        asc2.store(out, out_gm, [tile_offset])
 
 
 def test_vmuladd_inline_vf():

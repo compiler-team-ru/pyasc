@@ -75,15 +75,15 @@ def set_docstring(name: str, support_dtypes: Tuple[DataType, ...], rhs_scalar_on
     examples = "" if rhs_scalar_only else f"""
         Compute the {name} between elements of two tiles: ::
 
-            input = asc2.load(tensor_a, [32, 16], offsets=[1, 4])
-            other = asc2.load(tensor_b, [32, 16], offsets=[2, 8])
+            input = asc2.load(tensor_a, [1, 4], [32, 16])
+            other = asc2.load(tensor_b, [2, 8], [32, 16])
             result = asc2.{{fn_name}}(input, other)
 
     """
     examples += f"""
         Compute the {name} of tile elements and a given scalar value: ::
 
-            input = asc2.load(tensor, [32, 16], offsets=[0, 0])
+            input = asc2.load(tensor, [0, 0], [32, 16])
             result = asc2.{{fn_name}}(input, 2)
     """
 
@@ -277,27 +277,27 @@ def matmul(input: Tile, other: Tile, bias: Optional[Tile] = None, *, hf32: bool 
     Examples:
         Basic matrix multiplication using operator syntax: ::
 
-            a = asc2.load(a_gm, [64, 128], offsets=[0, 0], location=asc2.TileLocation.L0A)
-            b = asc2.load(b_gm, [128, 256], offsets=[0, 0], location=asc2.TileLocation.L0B)
+            a = asc2.load(a_gm, [0, 0], [64, 128], asc2.TileLocation.L0A)
+            b = asc2.load(b_gm, [0, 0], [128, 256], asc2.TileLocation.L0B)
             c = a @ b  # result shape: [64, 256], location: L0C
 
         Matrix multiplication with bias: ::
 
-            a = asc2.load(a_gm, [64, 128], offsets=[0, 0], location=asc2.TileLocation.L0A)
-            b = asc2.load(b_gm, [128, 256], offsets=[0, 0], location=asc2.TileLocation.L0B)
-            bias = asc2.load(bias_gm, [256], offsets=[0], location=asc2.TileLocation.BT)
+            a = asc2.load(a_gm, [0, 0], [64, 128], asc2.TileLocation.L0A)
+            b = asc2.load(b_gm, [0, 0], [128, 256], asc2.TileLocation.L0B)
+            bias = asc2.load(bias_gm, [0], [256], asc2.TileLocation.BT)
             c = asc2.matmul(a, b, bias)
 
         Matrix multiplication with HF32 mode (for float32 inputs): ::
 
-            a = asc2.load(a_gm, [32, 64], offsets=[0, 0], location=asc2.TileLocation.L0A)
-            b = asc2.load(b_gm, [64, 64], offsets=[0, 0], location=asc2.TileLocation.L0B)
+            a = asc2.load(a_gm, [0, 0], [32, 64], asc2.TileLocation.L0A)
+            b = asc2.load(b_gm, [0, 0], [64, 64], asc2.TileLocation.L0B)
             c = asc2.matmul(a, b, hf32=True)
 
         Store result to global memory: ::
 
             c = a @ b
-            asc2.store(c, c_gm, offsets=[0, 0])
+            asc2.store(c, c_gm, [0, 0])
     """
     check_matmul_arguments(input, other, hf32)
     check_bias(bias, other.shape[1])
@@ -344,20 +344,20 @@ def matmul_acc(acc: Tile, input: Tile, other: Tile, *, hf32: bool = False) -> No
 
             acc = asc2.zeros_acc([64, 256], dtype=asc2.float32)
             for k in range(k_tiles):
-                a_k = asc2.copy(a_l1, [64, 32], offsets=[0, k * 32], location=asc2.TileLocation.L0A)
-                b_k = asc2.copy(b_l1, [32, 256], offsets=[k * 32, 0], location=asc2.TileLocation.L0B)
+                a_k = asc2.copy(a_l1, [0, k * 32], [64, 32], asc2.TileLocation.L0A)
+                b_k = asc2.copy(b_l1, [k * 32, 0], [32, 256], asc2.TileLocation.L0B)
                 asc2.matmul_acc(acc, a_k, b_k)
-            asc2.store(acc, c_gm, offsets=[0, 0])
+            asc2.store(acc, c_gm, [0, 0])
 
         Accumulate with bias initialization: ::
 
-            bias = asc2.copy(bias_l1, [256], offsets=[0], location=asc2.TileLocation.BT)
+            bias = asc2.copy(bias_l1, [0], [256], asc2.TileLocation.BT)
             acc = asc2.zeros_acc([64, 256], dtype=asc2.float32, bias=bias)
             for k in range(k_tiles):
-                a_k = asc2.copy(a_l1, [64, 32], offsets=[0, k * 32], location=asc2.TileLocation.L0A)
-                b_k = asc2.copy(b_l1, [32, 256], offsets=[k * 32, 0], location=asc2.TileLocation.L0B)
+                a_k = asc2.copy(a_l1, [0, k * 32], [64, 32], asc2.TileLocation.L0A)
+                b_k = asc2.copy(b_l1, [k * 32, 0], [32, 256], asc2.TileLocation.L0B)
                 asc2.matmul_acc(acc, a_k, b_k)
-            asc2.store(acc, c_gm, offsets=[0, 0])
+            asc2.store(acc, c_gm, [0, 0])
 
         Accumulate with HF32 mode (for float32 inputs): ::
 

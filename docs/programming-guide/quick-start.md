@@ -55,8 +55,8 @@ for i in asc2.range(tile_per_block, unroll_factor=2, parallel=True):
 `asc2.load` is used to create tile object which is used for further calculations. Data movement from GM to UB/L1/L0A/L0B happens in this operation. If `location' parameter is set, then the corresponding memory realm is used to load data to. Otherwise it is loaded to UB.
 
 ```python
-x = asc2.load(x_gm, [tile_size], offsets=[tile_offset], location=asc2.TileLocation.UB)
-y = asc2.load(y_gm, [tile_size], offsets=[tile_offset])  # location can be omitted
+x = asc2.load(x_gm, [tile_offset], [tile_size], asc2.TileLocation.UB)
+y = asc2.load(y_gm, [tile_offset], [tile_size])  # location can be omitted
 ```
 
 One or more operations can be applied for tiles. It is compiler responsibility to allocate required number of memory blocks in UB.
@@ -68,7 +68,7 @@ out = x + y
 `asc2.store` is used to move data from L0C/UB back to GM. Source location is defined by tile itself, so no `location` parameter is present in `asc2.store`.
 
 ```python
-asc2.store(out, out_gm, offsets=[tile_offset])
+asc2.store(out, out_gm, [tile_offset])
 ```
 
 ### Host code

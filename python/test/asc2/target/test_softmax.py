@@ -24,12 +24,12 @@ def softmax(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input
     out_gm = asc2.tensor(output_ptr, [input_num_rows, input_num_cols])
 
     for i in range(asc2.block_idx(), input_num_rows, asc2.block_num(), unroll_factor=unroll_factor, parallel=True):
-        row = asc2.load(in_gm, [1, tile_shape[1]], offsets=[i, 0], pad_value=float('-inf'))
+        row = asc2.load(in_gm, [i, 0], [1, tile_shape[1]], pad_value=float('-inf'))
         row_minus_max = row - asc2.reduce_max(row)
         numerator = asc2.exp(row_minus_max)
         denominator = asc2.reduce_sum(numerator)
         out = numerator / denominator
-        asc2.store(out, out_gm, offsets=[i, 0])
+        asc2.store(out, out_gm, [i, 0])
 
 
 @pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
