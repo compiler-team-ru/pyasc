@@ -65,12 +65,6 @@ struct VectorTransposeToLoadPass : public asctile::impl::VectorTransposeToLoadBa
             signalPassFailure();
             return;
         }
-        op->walk([this](asctile::TransposeOp op) {
-            if (op.getType().getLoc() == TileLocation::UB) {
-                op.emitOpError() << "not supported for UB";
-                signalPassFailure();
-            }
-        });
     }
 };
 

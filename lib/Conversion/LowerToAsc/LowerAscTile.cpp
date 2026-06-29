@@ -722,6 +722,114 @@ struct ConvertInlineVF : ConvertOp<asctile::InlineVFOp> {
     }
 };
 
+struct ConvertTransposeUB : ConvertOp<asctile::TransposeOp> {
+    using ConvertOp::ConvertOp;
+
+    static constexpr int transDataBlockSize = 16;
+    static SmallVector<int32_t> fillArray(int64_t startOffset, bool evenOffset, int64_t rowStride)
+    {
+        SmallVector<int32_t> result;
+        for (int i = 0; i < transDataBlockSize; ++i) {
+            int64_t offset = 0;
+            if (!evenOffset) {
+                offset = i * rowStride;
+            } else {
+                offset = (i / 2) * rowStride + (i % 2) * oneBlkSize;
+            }
+            result.push_back(static_cast<int32_t>(startOffset + offset));
+        }
+        return result;
+    }
+
+    LogicalResult matchAndRewrite(asctile::TransposeOp op, ConvertRewriter& rewriter) const override
+    {
+        if (op.getOperand().getType().getLoc() != asctile::TileLocation::UB ||
+            op.getResult().getType().getLoc() != asctile::TileLocation::UB)
+            return failure();
+        int64_t elementSize = ascendc::getElementTypeSize(op.getType());
+        if (elementSize != sizeof(int16_t) && elementSize != sizeof(int32_t) && elementSize != sizeof(int8_t))
+            return failure();
+
+        auto loc = op.getLoc();
+        Value src = rewriter.getRemappedValue(op.getOperand());
+        auto srcShape = cast<ascendc::BaseTensorType>(src.getType()).getShape();
+        if (srcShape.size() != 2)
+            return op.emitError("Not supporting tiles with dims greater than 2");
+
+        ascir::ConstantOpBuilder consts(rewriter);
+        Value dst = createTensorOp(rewriter, loc, op.getType());
+
+        int64_t width = srcShape[1];
+        int64_t height = srcShape[0];
+        bool axis = height >= width;
+        // for int16 use 16x16 block, int32 use 8x16, int8 special case 32x32
+        int64_t blockWidth = oneBlkSize / elementSize;
+        int64_t blockHeight = elementSize == 1 ? oneBlkSize : transDataBlockSize;
+        int64_t loopStep = axis ? blockWidth : blockHeight;
+        int64_t loopCount = ((axis ? width : height) + loopStep - 1) / loopStep;
+
+        for (int64_t i = 0; i < loopCount; ++i) {
+            int64_t srcStride = width * elementSize;
+            int64_t dstStride = height * elementSize;
+            int64_t srcOffset = 0;
+            int64_t dstOffset = 0;
+            int64_t blockCount = 0;
+            int64_t dstBlockStride = 0;
+            int64_t srcBlockStride = 0;
+            if (axis) {
+                srcOffset = i * oneBlkSize;
+                dstOffset = i * height * elementSize * blockWidth;
+                blockCount = (height + blockHeight - 1) / blockHeight;
+                srcBlockStride = elementSize * width * blockHeight;
+                dstBlockStride = blockHeight * elementSize;
+            } else {
+                srcOffset = i * width * elementSize * blockHeight;
+                dstOffset = i * blockHeight * elementSize;
+                blockCount = (width + blockWidth - 1) / blockWidth;
+                srcBlockStride = blockWidth * elementSize;
+                dstBlockStride = height * elementSize * blockWidth;
+            }
+            assert(blockCount > 0 && blockCount <= 255);
+            assert(dstBlockStride % oneBlkSize == 0);
+            assert(srcBlockStride % oneBlkSize == 0);
+            if (elementSize != sizeof(int8_t)) {
+                auto srcList = fillArray(srcOffset, false, srcStride);
+                auto dstList = fillArray(dstOffset, elementSize == sizeof(uint32_t), dstStride);
+                Value params = rewriter.create<ascendc::ConstructOp>(
+                    loc, rewriter.getType<ascendc::TransDataTo5HDParamsType>(),
+                    ValueRange{
+                        consts.i1(false), consts.i1(false), consts.i8(blockCount),
+                        consts.i16(blockCount == 1 ? 0 : dstBlockStride / oneBlkSize),
+                        consts.i16(blockCount == 1 ? 0 : srcBlockStride / oneBlkSize)});
+                rewriter.create<ascendc::TransDataTo5HDTensorOp>(loc, dst, src, dstList, srcList, params);
+            } else {
+                int64_t srcOffsetH = srcOffset + width * transDataBlockSize;
+                int64_t dstOffsetH = dstOffset + height * transDataBlockSize;
+                auto srcListLow = fillArray(srcOffset, false, srcStride);
+                auto srcListHigh = fillArray(srcOffsetH, false, srcStride);
+                auto dstListLow = fillArray(dstOffset, false, dstStride);
+                auto dstListHigh = fillArray(dstOffsetH, false, dstStride);
+                // Use 4 calls for each 16x16 subtile inside 32x32
+                for (int i = 0; i < 4; ++i) {
+                    Value dstHighHalf = consts.i1(i / 2 != 0);
+                    Value srcHighHalf = consts.i1(i % 2 != 0);
+                    Value params = rewriter.create<ascendc::ConstructOp>(
+                        loc, rewriter.getType<ascendc::TransDataTo5HDParamsType>(),
+                        ValueRange{
+                            dstHighHalf, srcHighHalf, consts.i8(blockCount),
+                            consts.i16(blockCount == 1 ? 0 : dstBlockStride / oneBlkSize),
+                            consts.i16(blockCount == 1 ? 0 : srcBlockStride / oneBlkSize)});
+                    rewriter.create<ascendc::TransDataTo5HDTensorOp>(
+                        loc, dst, src, i % 2 == 0 ? dstListLow : dstListHigh, i / 2 == 0 ? srcListLow : srcListHigh,
+                        params);
+                }
+            }
+        }
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
 struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePass> {
     void runOnOperation() override
     {
@@ -734,7 +842,8 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
             asctile::TensorOp, asctile::SplatOp, asctile::ReluOp, asctile::CastOp, asctile::SoftmaxOp,
             asctile::MatmulOp, asctile::ReshapeOp, asctile::BroadcastOp, asctile::AddSOp, asctile::SubSOp,
             asctile::MulSOp, asctile::DivSOp, asctile::MinSOp, asctile::MaxSOp, asctile::ShLSOp, asctile::ShRSOp,
-            asctile::ReduceAs1dOp, asctile::ReduceOp, asctile::AccumulatorOp, asctile::MatmulAccOp, asctile::InlineVFOp
+            asctile::ReduceAs1dOp, asctile::ReduceOp, asctile::AccumulatorOp, asctile::MatmulAccOp, asctile::InlineVFOp,
+            asctile::TransposeOp
             //
             >();
         target.addLegalDialect<
@@ -750,7 +859,8 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
             ConvertToL2<asctile::MulSOp, ascendc::MulsL2Op>,
             ConvertVecScalarToL2<asctile::DivSOp, ascendc::DivsL2Op, ascendc::DivL2Op>,
             ConvertToL2<asctile::MinSOp, ascendc::MinsL2Op>, ConvertToL2<asctile::MaxSOp, ascendc::MaxsL2Op>,
-            ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>, ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>
+            ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>, ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>,
+            ConvertTransposeUB
             //
             >(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())

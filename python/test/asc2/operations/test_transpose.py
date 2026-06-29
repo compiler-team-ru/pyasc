@@ -90,3 +90,34 @@ def test_transpose_onload(permute, input_shape, real_shape, offsets, pad_value, 
 
     kernel[1](input, result, input_shape, real_shape, output_shape, write_real_shape, offsets, pad_value, permute)
     torch.testing.assert_close(result, golden)
+
+
+@pytest.mark.parametrize("dtype", (torch.int8, torch.int16, torch.int32, torch.float16, torch.bfloat16, torch.float32))
+@pytest.mark.parametrize("input_shape", [
+    [128, 64],
+    [64, 128],
+])
+def test_transpose_in_ub(input_shape, dtype):
+    input = torch.rand(input_shape).mul(100).to(dtype=dtype)
+    element_size = input.element_size()
+    element_align = 32 // element_size
+    if input.shape[0] % element_align != 0 or input.shape[1] % element_align != 0:
+        pytest.skip("Shape is not 32 byte aligned")
+    result = torch.zeros(input_shape[::-1], dtype=dtype)
+    copy = torch.zeros_like(input)
+
+    @asc2.jit(always_compile=True)
+    def kernel(input_ptr, result_ptr, copy_ptr, input_shape: asc2.ConstExpr):
+        g_input = asc2.tensor(input_ptr, input_shape)
+        # Regular load here
+        tile = asc2.load(g_input, offsets=[0] * len(input_shape), shape=input_shape)
+        # Transpose in ub
+        result = tile.transpose()
+        g_output = asc2.tensor(result_ptr, [input_shape[1], input_shape[0]])
+        g_copy = asc2.tensor(copy_ptr, input_shape)
+        asc2.store(result, g_output, offsets=[0] * len(input_shape))
+        # 'copy' needs here to disable optimizing load+transpose in single op
+        asc2.store(tile, g_copy, offsets=[0] * len(input_shape))
+
+    kernel[1](input, result, copy, input_shape)
+    torch.testing.assert_close(input.T, result)
