@@ -413,8 +413,8 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
             TypeRange{ui16Type, ui16Type, ui32Type, ui64Type, ui32Type, ui16Type, ui16Type, ui64Type});
         bool isMatrixA = op->hasAttr(asctile::attr::isMatrixA);
         bool isTransposeB = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeB);
-        auto dstShapeCols = consts.i32(dstShape[1]);
-        auto dstShapeRows = consts.i32(dstShape[0]);
+        auto dstShapeCols = rewriter.create<arith::MinSIOp>(loc, srcInfo.shape[1], consts.i32(dstShape[1]));
+        auto dstShapeRows = rewriter.create<arith::MinSIOp>(loc, srcInfo.shape[0], consts.i32(dstShape[0]));
         Value nValue = dstShapeRows;
         Value dValue = dstShapeCols;
         if (auto realShape = op.getRealShape(); !realShape.empty()) {
