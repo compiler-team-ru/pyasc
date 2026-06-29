@@ -132,6 +132,17 @@ std::optional<ascendc::QuantMode> getQuantizeMode(
     return std::nullopt;
 }
 
+Value calculateCopyCount(
+    ConvertRewriter& rewriter, Location& loc, const SmallVector<int64_t>& ubShape, const SmallVector<Value>& gmShape,
+    const OperandRange& offsets, const OperandRange& realShape, size_t dim)
+{
+    ascir::ConstantOpBuilder consts(rewriter);
+    Value tailElementsCount = rewriter.create<arith::SubIOp>(loc, gmShape[dim], offsets[dim]);
+    tailElementsCount = rewriter.create<arith::MaxSIOp>(loc, tailElementsCount, consts.i32(0));
+    return rewriter.create<arith::MinSIOp>(
+        loc, realShape.empty() ? consts.i32(ubShape[dim]) : realShape[dim], tailElementsCount);
+}
+
 struct ConvertLoadToUB : ConvertOp<asctile::LoadOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
@@ -241,6 +252,92 @@ struct ConvertLoadToUBWithTranspose : ConvertOp<asctile::LoadOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
+    static void createTilePadding(
+        ConvertRewriter& rewriter, Location loc, Value value, ValueRange copyCount, ArrayRef<int64_t> tensorShape,
+        Value padValue)
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto const0 = consts.i32(0);
+        Value needDuplicateFull = consts.i1(false);
+        for (size_t i = copyCount.size() - 1; i + 1 > 1; --i) {
+            Value padCount = rewriter.create<arith::SubIOp>(loc, consts.i32(tensorShape[i]), copyCount[i]);
+            Value needPadding = rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::sgt, padCount, const0);
+            needDuplicateFull = rewriter.create<arith::OrIOp>(loc, needDuplicateFull, needPadding);
+        }
+        Value firstDimPadding = rewriter.create<arith::SubIOp>(loc, consts.i32(tensorShape.front()), copyCount.front());
+        Value needDuplicateLast =
+            rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::sgt, firstDimPadding, const0);
+        auto ifDuplicateFullOp = rewriter.create<scf::IfOp>(loc, needDuplicateFull, true);
+        {
+            ConvertRewriter::InsertionGuard guard(rewriter);
+            rewriter.setInsertionPointToStart(ifDuplicateFullOp.thenBlock());
+            rewriter.create<ascendc::DuplicateL2Op>(loc, value, padValue, const0);
+        }
+        {
+            ConvertRewriter::InsertionGuard guard(rewriter);
+            rewriter.setInsertionPointToStart(ifDuplicateFullOp.elseBlock());
+            auto ifDuplicateLast = rewriter.create<scf::IfOp>(loc, needDuplicateLast, false);
+            {
+                ConvertRewriter::InsertionGuard guard(rewriter);
+                rewriter.setInsertionPointToStart(ifDuplicateLast.thenBlock());
+                auto strides = getStrides(tensorShape);
+                Value firstDimStride = consts.i32(strides.front());
+                Value padOffset = rewriter.create<arith::MulIOp>(loc, firstDimStride, copyCount.front());
+                auto padTensor =
+                    rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, value.getType(), value, padOffset);
+                auto padCalCount = rewriter.create<arith::MulIOp>(loc, firstDimStride, firstDimPadding);
+                auto dupOp = rewriter.create<ascendc::DuplicateL2Op>(loc, padTensor, padValue, padCalCount);
+                dupOp->setAttr(ascendc::attr::calCountSet, rewriter.getUnitAttr());
+            }
+        }
+    }
+
+    template <typename T>
+    static SmallVector<T> applyPermute(const SmallVector<T>& input, const SmallVector<int64_t>& permute)
+    {
+        SmallVector<T> result;
+        for (auto i : permute) {
+            result.push_back(input[i]);
+        }
+        return result;
+    }
+    template <typename T, typename A>
+    static SmallVector<T> reversePermute(const SmallVector<A>& input, const SmallVector<int64_t>& permute)
+    {
+        SmallVector<T> result;
+        result.assign(permute.size(), T{});
+        for (size_t i = 0; i < permute.size(); ++i) {
+            result[permute[i]] = static_cast<A>(input[i]);
+        }
+        return result;
+    }
+
+    static SmallVector<Value> getStrides(
+        ConvertRewriter& rewriter, Location loc, ascir::ConstantOpBuilder& consts, ValueRange shape)
+    {
+        SmallVector<Value> result;
+        result.assign(shape.size(), Value{});
+        Value stride = consts.i32(1);
+        for (size_t i = shape.size() - 1; i + 1 >= 1; --i) {
+            result[i] = stride;
+            if (i > 0) {
+                stride = rewriter.create<arith::MulIOp>(loc, stride, shape[i]);
+            }
+        }
+        return result;
+    }
+    static SmallVector<int64_t> getStrides(const ArrayRef<int64_t>& shape)
+    {
+        SmallVector<int64_t> result;
+        result.assign(shape.size(), 0);
+        int64_t stride = 1;
+        for (size_t i = shape.size() - 1; i + 1 >= 1; --i) {
+            result[i] = stride;
+            stride *= shape[i];
+        }
+        return result;
+    }
+
     LogicalResult matchAndRewrite(asctile::LoadOp op, ConvertRewriter& rewriter) const override
     {
         auto opType = op.getType();
@@ -257,49 +354,28 @@ struct ConvertLoadToUBWithTranspose : ConvertOp<asctile::LoadOp> {
         ascir::ConstantOpBuilder consts(rewriter);
         auto const1 = consts.i32(1);
         auto padValue = rewriter.getRemappedValue(op.getPadValue());
-        ArrayRef<int32_t> transposeDims = transposeAttrs;
-        auto dims = transposeDims.size();
-        SmallVector<int64_t> dimsOrder(dims, 0);
-        SmallVector<int64_t> readShape(dims, 0);
-        for (size_t i = 0; i < dims; ++i) {
-            dimsOrder[i] = transposeDims[i];
-            readShape[dimsOrder[i]] = dstShape[i];
+        SmallVector<int64_t> dimsOrder{static_cast<ArrayRef<int32_t>>(transposeAttrs)};
+        auto dimCount = dimsOrder.size();
+
+        SmallVector<int64_t> readShape = reversePermute<int64_t>(SmallVector<int64_t>{dstShape}, dimsOrder);
+        SmallVector<Value> copyCount;
+        for (size_t i = 0; i < dimCount; ++i) {
+            copyCount.push_back(
+                calculateCopyCount(rewriter, loc, readShape, srcInfo.shape, op.getOffsets(), op.getRealShape(), i));
         }
-        SmallVector<Value> size(dims, const1);
-        SmallVector<Value> strides(dims, Value());
-        strides.back() = const1;
-        for (int64_t i = static_cast<int64_t>(dims) - 2; i >= 0; i--) {
-            auto mulOp = rewriter.create<arith::MulIOp>(loc, srcInfo.shape[i + 1], strides[i + 1]);
-            strides[i] = mulOp;
+        SmallVector<Value> srcStrides = getStrides(rewriter, loc, consts, srcInfo.shape);
+        SmallVector<int32_t> dstStrides = reversePermute<int32_t>(getStrides(dstShape), dimsOrder);
+        SmallVector<int32_t> padLeft(dimCount, 0);
+        SmallVector<int32_t> padRight(dimCount, 0);
+
+        if (!op.getRealShape().empty()) {
+            createTilePadding(rewriter, loc, dst, applyPermute(copyCount, dimsOrder), dstShape, padValue);
         }
-        SmallVector<Value> srcStride(dims, Value());
-        SmallVector<int32_t> dstStride(dims, 0);
-        SmallVector<int32_t> padLeft(dims, 0);
-        SmallVector<int32_t> padRight(dims, 0);
-        for (size_t i = 0; i < dims; ++i) {
-            auto realShape = op.getRealShape();
-            if (i < realShape.size())
-                size[i] = rewriter.getRemappedValue(realShape[i]);
-            else
-                size[i] = consts.i32(readShape[i]);
-            int32_t writeStride = 1;
-            size_t mappedDim = 0;
-            for (size_t j = 0; j < dims; ++j) {
-                if (dimsOrder[j] == i)
-                    mappedDim = j;
-            }
-            for (size_t j = mappedDim + 1; j < dims; ++j)
-                writeStride *= static_cast<int32_t>(dstShape[j]);
-            srcStride[i] = strides[i];
-            dstStride[i] = writeStride;
-            padLeft[i] = 0;
-            padRight[i] = 0;
-        }
-        auto paramsType = rewriter.getType<ascendc::NdDmaParamsType>(srcInfo.type.getElementType(), dims);
+        auto paramsType = rewriter.getType<ascendc::NdDmaParamsType>(srcInfo.type.getElementType(), dimCount);
         auto params = rewriter.create<ascendc::NdDmaParamsOp>(
-            loc, paramsType, dims, padValue, size, srcStride, rewriter.getI32ArrayAttr(dstStride),
+            loc, paramsType, dimCount, padValue, copyCount, srcStrides, rewriter.getI32ArrayAttr(dstStrides),
             rewriter.getI32ArrayAttr(padLeft), rewriter.getI32ArrayAttr(padRight));
-        rewriter.create<ascendc::DataCopyNdDmaOp>(loc, dst, srcInfo.tensor, params.getResult(), dims);
+        rewriter.create<ascendc::DataCopyNdDmaOp>(loc, dst, srcInfo.tensor, params.getResult(), dimCount);
         rewriter.replaceOp(op, dst);
         return success();
     }
@@ -454,20 +530,6 @@ struct ConvertStoreHighDims : ConvertOp<asctile::StoreOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    static Value calculateCopyCount(
-        ConvertRewriter& rewriter, Location& loc, const SmallVector<Value>& srcShape,
-        const SmallVector<Value>& dstShape, const OperandRange& offsets, const OperandRange& realShape, size_t dim)
-    {
-        ascir::ConstantOpBuilder consts(rewriter);
-        Value tailElementsCount = rewriter.create<arith::SubIOp>(loc, dstShape[dim], offsets[dim]);
-        auto tailNegCond =
-            rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::slt, tailElementsCount, consts.i32(0));
-        Value tailElements = rewriter.create<arith::SelectOp>(loc, tailNegCond, consts.i32(0), tailElementsCount);
-        Value minTailElements =
-            rewriter.create<arith::MinSIOp>(loc, realShape.empty() ? srcShape[dim] : realShape[dim], tailElements);
-        return minTailElements;
-    }
-
     LogicalResult matchAndRewrite(asctile::StoreOp op, ConvertRewriter& rewriter) const override
     {
         auto loc = op.getLoc();
@@ -478,12 +540,12 @@ struct ConvertStoreHighDims : ConvertOp<asctile::StoreOp> {
         auto srcType = cast<ascendc::BaseTensorType>(src.getType());
         assert(value.getType().getLoc() == asctile::TileLocation::UB && "Tile should be located in UB.");
         ascir::ConstantOpBuilder consts(rewriter);
-        SmallVector<Value> srcShape = getStaticShape(rewriter, srcType);
+        SmallVector<int64_t> srcShape{static_cast<ArrayRef<int64_t>>(srcType.getShape())};
         if (srcShape.size() <= 2 || srcShape.size() > 4)
             return failure();
         auto const0 = consts.i32(0);
         Value typeSize = consts.i32(ascendc::getElementTypeSize(srcType));
-        Value srcLastDim = srcShape.back();
+        Value srcLastDim = consts.i32(srcShape.back());
         Value dstLastDim = dstInfo.shape.back();
         Value minTailElements =
             calculateCopyCount(rewriter, loc, srcShape, dstInfo.shape, offsets, op.getRealShape(), srcShape.size() - 1);
@@ -510,9 +572,11 @@ struct ConvertStoreHighDims : ConvertOp<asctile::StoreOp> {
                                                      rewriter, loc, srcShape, dstInfo.shape, offsets, op.getRealShape(),
                                                      srcShape.size() - 4);
 
-        Value dim0SrcStride = rewriter.create<arith::MulIOp>(loc, srcShape[srcShape.size() - 1], typeSize);
-        Value dim1SrcStride = rewriter.create<arith::MulIOp>(loc, dim0SrcStride, srcShape[srcShape.size() - 2]);
-        Value dim2SrcStride = rewriter.create<arith::MulIOp>(loc, dim1SrcStride, srcShape[srcShape.size() - 3]);
+        Value dim0SrcStride = rewriter.create<arith::MulIOp>(loc, consts.i32(srcShape[srcShape.size() - 1]), typeSize);
+        Value dim1SrcStride =
+            rewriter.create<arith::MulIOp>(loc, dim0SrcStride, consts.i32(srcShape[srcShape.size() - 2]));
+        Value dim2SrcStride =
+            rewriter.create<arith::MulIOp>(loc, dim1SrcStride, consts.i32(srcShape[srcShape.size() - 3]));
 
         Value dim0DstStride = rewriter.create<arith::MulIOp>(loc, dstInfo.shape[dstInfo.shape.size() - 1], typeSize);
         Value dim1DstStride =
