@@ -338,68 +338,54 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
         bool isMatrixA = op->hasAttr(asctile::attr::isMatrixA);
         bool isTransposeB = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeB);
         auto dstShapeCols = consts.i32(dstShape[1]);
-        if (isMatrixA || isa<Float16Type, BFloat16Type>(opType.getElementType()) || isTransposeB) {
-            auto dstShapeRows = consts.i32(dstShape[0]);
-            Value nValue = dstShapeRows;
-            Value dValue = dstShapeCols;
-            if (auto realShape = op.getRealShape(); !realShape.empty()) {
-                Value realRows = rewriter.getRemappedValue(realShape[0]);
-                Value realCols = rewriter.getRemappedValue(realShape[1]);
-                nValue = rewriter.create<arith::MinSIOp>(loc, dstShapeRows, realRows);
-                dValue = rewriter.create<arith::MinSIOp>(loc, dstShapeCols, realCols);
-            }
-            constexpr int64_t maxSrcDValue = 65535;
-            auto needsLoop = rewriter.create<arith::CmpIOp>(
-                loc, arith::CmpIPredicate::sgt, srcInfo.shape[1], consts.i32(maxSrcDValue));
-            auto ifOp = rewriter.create<scf::IfOp>(loc, needsLoop, /*withElseRegion=*/true);
-            {
-                ConvertRewriter::InsertionGuard guard(rewriter);
-                rewriter.setInsertionPointToStart(ifOp.thenBlock());
-                auto dstType = dst.getType();
-                auto dstRowStride = consts.i32(dstShape[0]);
-                auto srcRows = srcInfo.shape[0];
-                auto offsetRows = op.getOffsets().empty() ? const0 : op.getOffsets()[0];
-                auto availableRows = rewriter.create<arith::SubIOp>(loc, srcRows, offsetRows);
-                auto availableRowsPos = rewriter.create<arith::MaxSIOp>(loc, const0, availableRows);
-                auto actualNValue = rewriter.create<arith::MinSIOp>(loc, nValue, availableRowsPos);
-                auto forOp = rewriter.create<scf::ForOp>(loc, const0, actualNValue, const1);
-                rewriter.setInsertionPointToStart(forOp.getBody());
-                auto rowIdx = forOp.getInductionVar();
-                auto srcRowOffset = rewriter.create<arith::MulIOp>(loc, rowIdx, srcInfo.shape[1]);
-                auto srcTensorWithOffset =
-                    rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, srcInfo.type, srcInfo.tensor, srcRowOffset);
-                auto dstRowOffset = rewriter.create<arith::MulIOp>(loc, rowIdx, consts.i32(ascendc::cubeBlockSize));
-                auto dstTensorWithOffset =
-                    rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dstType, dst, dstRowOffset);
-                auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
-                    loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
-                    ValueRange{const1, const1, dValue, const0, dValue, dstRowStride, const1, const0}, argTypes);
-                rewriter.create<ascendc::DataCopyL2Op>(loc, dstTensorWithOffset, srcTensorWithOffset, nd2NzParams);
-                rewriter.setInsertionPointAfter(forOp);
-                forOp->setAttr(asctile::attr::parallel, rewriter.getUnitAttr());
-            }
-            {
-                ConvertRewriter::InsertionGuard guard(rewriter);
-                rewriter.setInsertionPointToStart(ifOp.elseBlock());
-                auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
-                    loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
-                    ValueRange{const1, nValue, dValue, const0, srcInfo.shape[1], dstShapeRows, const1, const0},
-                    argTypes);
-                rewriter.create<ascendc::DataCopyL2Op>(loc, dst, srcInfo.tensor, nd2NzParams);
-            }
-        } else {
-            auto ndNum = consts.i32(llvm::divideCeilSigned(dstShape[0], ascendc::cubeBlockSize));
-            auto nValue = consts.i32(ascendc::cubeBlockSize);
-            auto srcNdMatrixStride = rewriter.create<arith::MulIOp>(loc, nValue, srcInfo.shape[1]);
-            int64_t fractal = (cubeKBlockBytes / ascendc::getElementTypeSize(opType)) * fractalNum;
-            auto ceilAlignFractal = static_cast<int64_t>(llvm::alignTo(dstShape[1], fractal));
-            auto dstNzMatrixStride = consts.i32(ascendc::cubeBlockSize * ceilAlignFractal);
+        auto dstShapeRows = consts.i32(dstShape[0]);
+        Value nValue = dstShapeRows;
+        Value dValue = dstShapeCols;
+        if (auto realShape = op.getRealShape(); !realShape.empty()) {
+            Value realRows = rewriter.getRemappedValue(realShape[0]);
+            Value realCols = rewriter.getRemappedValue(realShape[1]);
+            nValue = rewriter.create<arith::MinSIOp>(loc, dstShapeRows, realRows);
+            dValue = rewriter.create<arith::MinSIOp>(loc, dstShapeCols, realCols);
+        }
+        constexpr int64_t maxSrcDValue = 65535;
+        auto dstRowStride = consts.i32(dstShape[0]);
+        auto needsLoop =
+            rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::sgt, srcInfo.shape[1], consts.i32(maxSrcDValue));
+        auto ifOp = rewriter.create<scf::IfOp>(loc, needsLoop, /*withElseRegion=*/true);
+        {
+            ConvertRewriter::InsertionGuard guard(rewriter);
+            rewriter.setInsertionPointToStart(ifOp.thenBlock());
+            auto dstType = dst.getType();
+            auto srcRows = srcInfo.shape[0];
+            auto offsetRows = op.getOffsets().empty() ? const0 : op.getOffsets()[0];
+            auto availableRows = rewriter.create<arith::SubIOp>(loc, srcRows, offsetRows);
+            auto availableRowsPos = rewriter.create<arith::MaxSIOp>(loc, const0, availableRows);
+            auto actualNValue = rewriter.create<arith::MinSIOp>(loc, nValue, availableRowsPos);
+            auto forOp = rewriter.create<scf::ForOp>(loc, const0, actualNValue, const1);
+            rewriter.setInsertionPointToStart(forOp.getBody());
+            auto rowIdx = forOp.getInductionVar();
+            auto srcRowOffset = rewriter.create<arith::MulIOp>(loc, rowIdx, srcInfo.shape[1]);
+            auto srcTensorWithOffset =
+                rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, srcInfo.type, srcInfo.tensor, srcRowOffset);
+            auto dstRowOffset = rewriter.create<arith::MulIOp>(loc, rowIdx, consts.i32(ascendc::cubeBlockSize));
+            auto dstTensorWithOffset = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dstType, dst, dstRowOffset);
             auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
                 loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
-                ValueRange{
-                    ndNum, nValue, dstShapeCols, srcNdMatrixStride, srcInfo.shape[1], nValue, const1,
-                    dstNzMatrixStride},
-                argTypes);
+                ValueRange{const1, const1, dValue, const0, dValue, dstRowStride, const1, const0}, argTypes);
+            rewriter.create<ascendc::DataCopyL2Op>(loc, dstTensorWithOffset, srcTensorWithOffset, nd2NzParams);
+            rewriter.setInsertionPointAfter(forOp);
+            forOp->setAttr(asctile::attr::parallel, rewriter.getUnitAttr());
+        }
+        {
+            ConvertRewriter::InsertionGuard guard(rewriter);
+            rewriter.setInsertionPointToStart(ifOp.elseBlock());
+            auto dstNzC0Stride =
+                dstShape[0] == 1 && isMatrixA ?
+                    dstRowStride :
+                    consts.i32(static_cast<int64_t>(llvm::alignTo(dstShape[0], ascendc::cubeBlockSize)));
+            auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
+                loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
+                ValueRange{const1, nValue, dValue, const0, srcInfo.shape[1], dstNzC0Stride, const1, const0}, argTypes);
             rewriter.create<ascendc::DataCopyL2Op>(loc, dst, srcInfo.tensor, nd2NzParams);
         }
         rewriter.replaceOp(op, dst);
@@ -667,6 +653,41 @@ struct ConvertCopyFixpipe : ConvertOp<asctile::CopyFixpipeOp> {
     }
 };
 
+Value buildLoadData2DV2Params(
+    OpBuilder& builder, Location loc, ascir::ConstantOpBuilder& consts, bool isTensorA, bool isTransposeA,
+    bool isTransposeB, int64_t cubeKBlockSize, ArrayRef<int64_t> srcShape, ArrayRef<int64_t> dstShape)
+{
+    int64_t mStep, kStep, srcStride, dstStride;
+    bool ifTranspose;
+    if ((isTensorA && !isTransposeA) || (!isTensorA && isTransposeB)) {
+        auto mAlignL0 = llvm::alignTo(isTransposeB ? dstShape[1] : dstShape[0], ascendc::cubeBlockSize);
+        auto mAlignL1 = llvm::alignTo(srcShape[0], ascendc::cubeBlockSize);
+        auto kAlignL1 = llvm::alignTo(isTransposeB ? dstShape[0] : dstShape[1], cubeKBlockSize);
+        mStep = llvm::divideCeilSigned(mAlignL0, ascendc::cubeBlockSize);
+        kStep = llvm::divideCeilSigned(kAlignL1, cubeKBlockSize);
+        srcStride = llvm::divideCeilSigned(mAlignL1, ascendc::cubeBlockSize);
+        dstStride = llvm::divideCeilSigned(mAlignL0, ascendc::cubeBlockSize);
+        ifTranspose = false;
+    } else {
+        auto mAlignL1 = llvm::alignTo(isTransposeA ? dstShape[0] : dstShape[1], ascendc::cubeBlockSize);
+        auto kaAlignL0 = llvm::alignTo(isTransposeA ? dstShape[1] : dstShape[0], ascendc::cubeBlockSize);
+        auto kaAlignL1 = llvm::alignTo(srcShape[0], ascendc::cubeBlockSize);
+        mStep = llvm::divideCeilSigned(kaAlignL0, ascendc::cubeBlockSize);
+        kStep = llvm::divideCeilSigned(mAlignL1, cubeKBlockSize);
+        srcStride = llvm::divideCeilSigned(kaAlignL1, ascendc::cubeBlockSize);
+        dstStride = llvm::divideCeilSigned(mAlignL1, ascendc::cubeBlockSize);
+        ifTranspose = true;
+    }
+    auto paramsType = builder.getType<ascendc::LoadData2DParamsV2Type>();
+    return emitasc::InitStructBuilder(paramsType)
+        .addField("mStep", consts.i32(mStep))
+        .addField("kStep", consts.i32(kStep))
+        .addField("srcStride", consts.i32(srcStride))
+        .addField("dstStride", consts.i32(dstStride))
+        .addField("ifTranspose", consts.i1(ifTranspose))
+        .create(builder, loc);
+}
+
 struct ConvertCopy : ConvertOp<asctile::CopyOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
@@ -707,93 +728,38 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
         }
         assert(srcShape.size() == 2 && "supported only tensorShape with 2 dims");
         assert(offsets.size() == srcShape.size() && "must be one offset for each dimension");
-        bool isTensorA = dstPos == asctile::TileLocation::L0A;
-        bool isTransposeA = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeA);
-        bool isTransposeB = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeB);
-        bool isBNoTransF32 = !isTensorA && isa<Float32Type>(opType.getElementType()) && !isTransposeB;
-        const int64_t cubeKBlockSize = cubeKBlockBytes / ascendc::getElementTypeSize(opType);
-        const int64_t cubeBlockRows = !isBNoTransF32 ? ascendc::cubeBlockSize : cubeKBlockSize;
-        const int64_t cubeBlockCols = !isBNoTransF32 ? cubeKBlockSize : ascendc::cubeBlockSize;
-        const int64_t fractalSize = cubeBlockRows * cubeBlockCols;
-        const int64_t dstNzC0Stride = !isBNoTransF32 ? srcShape[0] : cubeBlockCols;
-        const int64_t dValue = !isBNoTransF32 ? cubeBlockCols : srcShape[1];
-        // Note! For this formula it is assumed that offsets are divisible by corresponding Cube block dimensions.
-        Value colOffset = rewriter.create<arith::MulIOp>(loc, consts.i32(dstNzC0Stride), offsets[1]);
-        Value rowOffset = rewriter.create<arith::MulIOp>(loc, offsets[0], consts.i32(dValue));
-        Value linearOffset = rewriter.create<arith::AddIOp>(loc, colOffset, rowOffset);
-        src = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcType, src, linearOffset);
         auto dst = createTensorOp(rewriter, loc, opType).getResult();
         auto dstType = dst.getType();
         auto dstShape = dstType.getShape();
-        auto const0 = consts.i32(0);
-        auto const1 = consts.i32(1);
-        auto dstFracStride = llvm::divideCeilSigned(isTransposeB ? dstShape[0] : dstShape[1], cubeBlockCols);
-        if (!isBNoTransF32) {
-            // LoadData2DParams doesn't support ifTranspose for float32, LoadDataWithTranpose doesn't support TPosition
-            // A2 on Ascend910_95. Used LoadData2DParamsV2
-            if (isTransposeA && isa<Float32Type>(opType.getElementType())) {
-                auto paramsType = rewriter.getType<ascendc::LoadData2DParamsV2Type>();
-                auto mStep = consts.i32(llvm::divideCeilSigned(dstShape[1], ascendc::cubeBlockSize));
-                auto kStep = consts.i32(
-                    llvm::divideCeilSigned(llvm::divideCeilSigned(dstShape[0], cubeKBlockSize), fractalNum) *
-                    fractalNum);
-                auto dstStride = consts.i32(llvm::divideCeilSigned(dstShape[0], cubeKBlockSize * fractalNum));
-                Value params = emitasc::InitStructBuilder(paramsType)
-                                   .addField("mStep", mStep)
-                                   .addField("kStep", kStep)
-                                   .addField("srcStride", mStep)
-                                   .addField("dstStride", dstStride)
-                                   .addField("ifTranspose", consts.i1(true))
-                                   .create(rewriter, loc);
-                rewriter.create<ascendc::LoadDataL0V2Op>(loc, dst, src, params);
-            } else {
-                auto paramsType = rewriter.getType<ascendc::LoadData2DParamsType>();
-                int64_t repeatTimes = llvm::divideCeilSigned(isTransposeB ? dstShape[1] : dstShape[0], cubeBlockRows);
-                Value srcStrideParam = isTransposeA ? consts.i32(dstFracStride) : const1;
-                Value dstGap = ((isTensorA && !isTransposeA) || isTransposeB) ? const0 : consts.i32(dstFracStride - 1);
-                Value params = emitasc::InitStructBuilder(paramsType)
-                                   .addField("repeatTimes", consts.i32(repeatTimes))
-                                   .addField("srcStride", srcStrideParam)
-                                   .addField("dstGap", dstGap)
-                                   .addField("ifTranspose", consts.i1(isTransposeA || (!isTensorA && !isTransposeB)))
-                                   .create(rewriter, loc);
-                auto forOp = rewriter.create<scf::ForOp>(loc, const0, consts.i32(dstFracStride), const1);
-                rewriter.setInsertionPointToStart(forOp.getBody());
-                auto indVar = forOp.getInductionVar();
-                int64_t srcStride =
-                    (isTensorA && isTransposeA) ? (cubeBlockRows * cubeBlockCols) : (srcShape[0] * cubeBlockCols);
-                auto iterSrcOffset = rewriter.create<arith::MulIOp>(loc, indVar, consts.i32(srcStride));
-                auto subLocalL1 = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcType, src, iterSrcOffset);
-                int64_t dstStride = (isTensorA || isTransposeB) ? repeatTimes * fractalSize : fractalSize;
-                auto iterDstOffset = rewriter.create<arith::MulIOp>(loc, indVar, consts.i32(dstStride));
-                auto subLocalL0 = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dstType, dst, iterDstOffset);
-                rewriter.create<ascendc::LoadDataG2LOp>(loc, subLocalL0, subLocalL1, params);
-                rewriter.setInsertionPointAfter(forOp);
-                forOp->setAttr(asctile::attr::parallel, rewriter.getUnitAttr());
-            }
+        bool isTensorA = dstPos == asctile::TileLocation::L0A;
+        bool isTransposeA = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeA);
+        bool isTransposeB = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeB);
+        bool isFloat32 = isa<Float32Type>(opType.getElementType());
+        bool isBNoTransF32 = !isTensorA && isFloat32 && !isTransposeB;
+        const int64_t cubeKBlockSize = cubeKBlockBytes / ascendc::getElementTypeSize(opType);
+        const int64_t cubeBlockCols = !isBNoTransF32 ? cubeKBlockSize : ascendc::cubeBlockSize;
+        // TODO: use LoadDataParamsV2.mStartPosition/kStartPosition instead of manual offset evaluation.
+        int64_t dstNzC0StrideElements, dValue;
+        if (isBNoTransF32) {
+            dstNzC0StrideElements = static_cast<int64_t>(llvm::alignTo(dstShape[1], ascendc::cubeBlockSize));
+            dValue = cubeKBlockSize;
+        } else if (isTensorA && isTransposeA) {
+            dstNzC0StrideElements = static_cast<int64_t>(llvm::alignTo(dstShape[1], cubeKBlockSize));
+            dValue = cubeBlockCols;
+        } else if (!isTensorA && isTransposeB) {
+            dstNzC0StrideElements = static_cast<int64_t>(llvm::alignTo(dstShape[1], ascendc::cubeBlockSize));
+            dValue = cubeBlockCols;
         } else {
-            auto paramsTransposeType = rewriter.getType<ascendc::LoadData2dTransposeParamsType>();
-            int64_t repeatTimes = llvm::divideCeilSigned(dstShape[1], cubeBlockRows * fractalNum);
-            Value params = emitasc::InitStructBuilder(paramsTransposeType)
-                               .addField("repeatTimes", consts.i32(repeatTimes))
-                               .addField("srcStride", const1)
-                               .addField("dstGap", const0)
-                               .addField("dstFracGap", consts.i32(dstFracStride - 1))
-                               .create(rewriter, loc);
-            Value uBound = consts.i32(llvm::divideCeilSigned(dstShape[0], ascendc::cubeBlockSize));
-            auto forOp = rewriter.create<scf::ForOp>(loc, const0, uBound, const1);
-            rewriter.setInsertionPointToStart(forOp.getBody());
-            auto indVar = forOp.getInductionVar();
-            int64_t srcOffset = repeatTimes * fractalSize * fractalNum;
-            auto iterSrcOffset = rewriter.create<arith::MulIOp>(loc, indVar, consts.i32(srcOffset));
-            auto subLocalL1 = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcType, src, iterSrcOffset);
-            int64_t dstOffset = dstFracStride * fractalSize * fractalNum;
-            auto iterDstOffset = rewriter.create<arith::MulIOp>(loc, indVar, consts.i32(dstOffset));
-            auto subLocalL0 = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dstType, dst, iterDstOffset);
-            rewriter.create<ascendc::LoadDataWithTransposeOp>(loc, subLocalL0, subLocalL1, params);
-            rewriter.setInsertionPointAfter(forOp);
-            forOp->setAttr(asctile::attr::parallel, rewriter.getUnitAttr());
+            dstNzC0StrideElements = dstShape[0];
+            dValue = cubeBlockCols;
         }
+        Value colOffset = rewriter.create<arith::MulIOp>(loc, consts.i32(dstNzC0StrideElements), offsets[1]);
+        Value rowOffset = rewriter.create<arith::MulIOp>(loc, offsets[0], consts.i32(dValue));
+        Value linearOffset = rewriter.create<arith::AddIOp>(loc, colOffset, rowOffset);
+        src = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcType, src, linearOffset);
+        Value params = buildLoadData2DV2Params(
+            rewriter, loc, consts, isTensorA, isTransposeA, isTransposeB, cubeKBlockSize, srcShape, dstShape);
+        rewriter.create<ascendc::LoadDataL0V2Op>(loc, dst, src, params);
         rewriter.replaceOp(op, dst);
         return success();
     }

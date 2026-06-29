@@ -391,7 +391,7 @@ func.func @lower_load_gm_l1_fp16(%arg0: memref<*xf16, 22>) -> !asctile.tile<16x6
 // CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %0 : !asctile.tensor<16x128xf32> to !ascendc.global_tensor<16x128xf32>
 // CHECK-NEXT:  %2 = ascendc.local_tensor_auto a1() : <16x64xf32>
 // CHECK-NEXT:  %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<16x64xf32> to !asctile.tile<16x64xf32, L1>
-// CHECK-NEXT:  %4 = ascendc.construct !ascendc.nd2nz_params(%c1_i32, %c16_i32, %c64_i32, %c2048_i32, %c128_i32, %c16_i32, %c1_i32, %c1024_i32) [ui16, ui16, ui32, ui64, ui32, ui16, ui16, ui64] : i32, i32, i32, i32, i32, i32, i32, i32
+// CHECK-NEXT:  %4 = ascendc.construct !ascendc.nd2nz_params(%c1_i32, %c16_i32, %c64_i32, %c0_i32, %c128_i32, %c16_i32, %c1_i32, %c0_i32) [ui16, ui16, ui32, ui64, ui32, ui16, ui16, ui64] : i32, i32, i32, i32, i32, i32, i32, i32
 // CHECK-NEXT:  ascendc.data_copy_l2 %2, %1, %4 : !ascendc.local_tensor<16x64xf32>, !ascendc.global_tensor<16x128xf32>, !ascendc.nd2nz_params
 // CHECK-NEXT:  return %3 : !asctile.tile<16x64xf32, L1>
 func.func @lower_load_gm_l1_fp32(%arg0: memref<*xf32, 22>) -> !asctile.tile<16x64xf32, L1> {
@@ -460,7 +460,7 @@ func.func @lower_load_gm_l1_fp16_real_shape_dynamic(%arg0: memref<*xf16, 22>, %a
 // CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %0 : !asctile.tensor<16x128xf32> to !ascendc.global_tensor<16x128xf32>
 // CHECK-NEXT:  %2 = ascendc.local_tensor_auto a1() : <16x64xf32>
 // CHECK-NEXT:  %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<16x64xf32> to !asctile.tile<16x64xf32, L1>
-// CHECK-NEXT:  %4 = ascendc.construct !ascendc.nd2nz_params(%c1_i32, %c16_i32, %c64_i32, %c2048_i32, %c128_i32, %c16_i32, %c1_i32, %c1024_i32) [ui16, ui16, ui32, ui64, ui32, ui16, ui16, ui64] : i32, i32, i32, i32, i32, i32, i32, i32
+// CHECK-NEXT:  %4 = ascendc.construct !ascendc.nd2nz_params(%c1_i32, %c16_i32, %c48_i32, %c0_i32, %c128_i32, %c16_i32, %c1_i32, %c0_i32) [ui16, ui16, ui32, ui64, ui32, ui16, ui16, ui64] : i32, i32, i32, i32, i32, i32, i32, i32
 // CHECK-NEXT:  ascendc.data_copy_l2 %2, %1, %4 : !ascendc.local_tensor<16x64xf32>, !ascendc.global_tensor<16x128xf32>, !ascendc.nd2nz_params
 // CHECK-NEXT:  return %3 : !asctile.tile<16x64xf32, L1>
 func.func @lower_load_gm_l1_fp32_real_shape_static(%arg0: memref<*xf32, 22>) -> !asctile.tile<16x64xf32, L1> {
@@ -481,9 +481,25 @@ func.func @lower_load_gm_l1_fp32_real_shape_static(%arg0: memref<*xf32, 22>) -> 
 // CHECK-NEXT:  %4 = ascendc.global_tensor.subindex %1[%3] : !ascendc.global_tensor<?x?xf32>, i32, !ascendc.global_tensor<?x?xf32>
 // CHECK-NEXT:  %5 = ascendc.local_tensor_auto a1() : <16x64xf32>
 // CHECK-NEXT:  %6 = builtin.unrealized_conversion_cast %5 : !ascendc.local_tensor<16x64xf32> to !asctile.tile<16x64xf32, L1>
-// CHECK-NEXT:  %7 = arith.muli %arg2, %c16_i32 : i32
-// CHECK-NEXT:  %8 = ascendc.construct !ascendc.nd2nz_params(%c1_i32, %c16_i32, %c64_i32, %7, %arg2, %c16_i32, %c1_i32, %c1024_i32) [ui16, ui16, ui32, ui64, ui32, ui16, ui16, ui64] : i32, i32, i32, i32, i32, i32, i32, i32
-// CHECK-NEXT:  ascendc.data_copy_l2 %5, %4, %8 : !ascendc.local_tensor<16x64xf32>, !ascendc.global_tensor<?x?xf32>, !ascendc.nd2nz_params
+// CHECK-NEXT:  %7 = arith.minsi %arg5, %c16_i32 : i32
+// CHECK-NEXT:  %8 = arith.minsi %arg6, %c64_i32 : i32
+// CHECK-NEXT:  %9 = arith.cmpi sgt, %arg2, %c65535_i32 : i32
+// CHECK-NEXT:  scf.if %9 {
+// CHECK-NEXT:    %10 = arith.subi %arg1, %arg3 : i32
+// CHECK-NEXT:    %11 = arith.maxsi %10, %c0_i32 : i32
+// CHECK-NEXT:    %12 = arith.minsi %7, %11 : i32
+// CHECK-NEXT:    scf.for %arg7 = %c0_i32 to %12 step %c1_i32  : i32 {
+// CHECK-NEXT:      %13 = arith.muli %arg7, %arg2 : i32
+// CHECK-NEXT:      %14 = ascendc.global_tensor.subindex %4[%13] : !ascendc.global_tensor<?x?xf32>, i32, !ascendc.global_tensor<?x?xf32>
+// CHECK-NEXT:      %15 = arith.muli %arg7, %c16_i32 : i32
+// CHECK-NEXT:      %16 = ascendc.local_tensor.subindex %5[%15] : !ascendc.local_tensor<16x64xf32>, i32, !ascendc.local_tensor<16x64xf32>
+// CHECK-NEXT:      %17 = ascendc.construct !ascendc.nd2nz_params(%c1_i32, %c1_i32, %8, %c0_i32, %8, %c16_i32, %c1_i32, %c0_i32) [ui16, ui16, ui32, ui64, ui32, ui16, ui16, ui64] : i32, i32, i32, i32, i32, i32, i32, i32
+// CHECK-NEXT:      ascendc.data_copy_l2 %16, %14, %17 : !ascendc.local_tensor<16x64xf32>, !ascendc.global_tensor<?x?xf32>, !ascendc.nd2nz_params
+// CHECK-NEXT:    } {asctile.parallel}
+// CHECK-NEXT:  } else {
+// CHECK-NEXT:    %10 = ascendc.construct !ascendc.nd2nz_params(%c1_i32, %7, %8, %c0_i32, %arg2, %c16_i32, %c1_i32, %c0_i32) [ui16, ui16, ui32, ui64, ui32, ui16, ui16, ui64] : i32, i32, i32, i32, i32, i32, i32, i32
+// CHECK-NEXT:    ascendc.data_copy_l2 %5, %4, %10 : !ascendc.local_tensor<16x64xf32>, !ascendc.global_tensor<?x?xf32>, !ascendc.nd2nz_params
+// CHECK-NEXT:  }
 // CHECK-NEXT:  return %6 : !asctile.tile<16x64xf32, L1>
 func.func @lower_load_gm_l1_fp32_real_shape_dynamic(%arg0: memref<*xf32, 22>, %arg1: i32, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32) -> !asctile.tile<16x64xf32, L1> {
   %cst = arith.constant 0.000000e+00 : f32
@@ -494,12 +510,12 @@ func.func @lower_load_gm_l1_fp32_real_shape_dynamic(%arg0: memref<*xf32, 22>, %a
 
 // CHECK-LABEL: func.func @lower_copy_l1_l0a_multiple_rows(%arg0: !asctile.tile<32x32xf16, L1>) -> !asctile.tile<32x16xf16, L0A>
 // CHECK:         %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<32x32xf16, L1> to !ascendc.local_tensor<32x32xf16>
-// CHECK-NEXT:    %1 = ascendc.local_tensor.subindex %0[%c512_i32] : !ascendc.local_tensor<32x32xf16>, i32, !ascendc.local_tensor<32x32xf16>
-// CHECK-NEXT:    %2 = ascendc.local_tensor_auto a2() : <32x16xf16>
-// CHECK-NEXT:    %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<32x16xf16> to !asctile.tile<32x16xf16, L0A>
-// CHECK-NEXT:    %4 = emitasc.init_struct !ascendc.load_data_2d_params("repeatTimes" = %c2_i32 : i32, "srcStride" = %c1_i32 : i32, "dstGap" = %c0_i32 : i32, "ifTranspose" = %false : i1)
-// CHECK-NEXT:    ascendc.load_data_g2l %2, %1, %4 : !ascendc.local_tensor<32x16xf16>, !ascendc.local_tensor<32x32xf16>, !ascendc.load_data_2d_params
-// CHECK-NEXT:    return %3 : !asctile.tile<32x16xf16, L0A>
+// CHECK-NEXT:    %1 = ascendc.local_tensor_auto a2() : <32x16xf16>
+// CHECK-NEXT:    %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<32x16xf16> to !asctile.tile<32x16xf16, L0A>
+// CHECK-NEXT:    %3 = ascendc.local_tensor.subindex %0[%c512_i32] : !ascendc.local_tensor<32x32xf16>, i32, !ascendc.local_tensor<32x32xf16>
+// CHECK-NEXT:    %4 = emitasc.init_struct !ascendc.load_data_2d_params_v2("mStep" = %c2_i32 : i32, "kStep" = %c1_i32 : i32, "srcStride" = %c2_i32 : i32, "dstStride" = %c2_i32 : i32, "ifTranspose" = %false : i1)
+// CHECK-NEXT:    ascendc.load_data_l0_v2 %1, %3, %4 : !ascendc.local_tensor<32x16xf16>, !ascendc.local_tensor<32x32xf16>, !ascendc.load_data_2d_params_v2
+// CHECK-NEXT:    return %2 : !asctile.tile<32x16xf16, L0A>
 func.func @lower_copy_l1_l0a_multiple_rows(%arg0: !asctile.tile<32x32xf16, L1>) -> !asctile.tile<32x16xf16, L0A> {
   %c0_i32 = arith.constant 0 : i32
   %c16_i32 = arith.constant 16 : i32
@@ -509,18 +525,12 @@ func.func @lower_copy_l1_l0a_multiple_rows(%arg0: !asctile.tile<32x32xf16, L1>) 
 
 // CHECK-LABEL: func.func @lower_copy_l1_l0a_multiple_cols(%arg0: !asctile.tile<32x32xf16, L1>) -> !asctile.tile<16x32xf16, L0A>
 // CHECK:         %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<32x32xf16, L1> to !ascendc.local_tensor<32x32xf16>
-// CHECK-NEXT:    %1 = ascendc.local_tensor.subindex %0[%c256_i32] : !ascendc.local_tensor<32x32xf16>, i32, !ascendc.local_tensor<32x32xf16>
-// CHECK-NEXT:    %2 = ascendc.local_tensor_auto a2() : <16x32xf16>
-// CHECK-NEXT:    %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<16x32xf16> to !asctile.tile<16x32xf16, L0A>
-// CHECK-NEXT:    %4 = emitasc.init_struct !ascendc.load_data_2d_params("repeatTimes" = %c1_i32 : i32, "srcStride" = %c1_i32 : i32, "dstGap" = %c0_i32 : i32, "ifTranspose" = %false : i1)
-// CHECK-NEXT:    scf.for %arg1 = %c0_i32 to %c2_i32 step %c1_i32  : i32 {
-// CHECK-NEXT:      %5 = arith.muli %arg1, %c512_i32 : i32
-// CHECK-NEXT:      %6 = ascendc.local_tensor.subindex %1[%5] : !ascendc.local_tensor<32x32xf16>, i32, !ascendc.local_tensor<32x32xf16>
-// CHECK-NEXT:      %7 = arith.muli %arg1, %c256_i32 : i32
-// CHECK-NEXT:      %8 = ascendc.local_tensor.subindex %2[%7] : !ascendc.local_tensor<16x32xf16>, i32, !ascendc.local_tensor<16x32xf16>
-// CHECK-NEXT:      ascendc.load_data_g2l %8, %6, %4 : !ascendc.local_tensor<16x32xf16>, !ascendc.local_tensor<32x32xf16>, !ascendc.load_data_2d_params
-// CHECK-NEXT:    } {asctile.parallel}
-// CHECK-NEXT:    return %3 : !asctile.tile<16x32xf16, L0A>
+// CHECK-NEXT:    %1 = ascendc.local_tensor_auto a2() : <16x32xf16>
+// CHECK-NEXT:    %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<16x32xf16> to !asctile.tile<16x32xf16, L0A>
+// CHECK-NEXT:    %3 = ascendc.local_tensor.subindex %0[%c256_i32] : !ascendc.local_tensor<32x32xf16>, i32, !ascendc.local_tensor<32x32xf16>
+// CHECK-NEXT:    %4 = emitasc.init_struct !ascendc.load_data_2d_params_v2("mStep" = %c1_i32 : i32, "kStep" = %c2_i32 : i32, "srcStride" = %c2_i32 : i32, "dstStride" = %c1_i32 : i32, "ifTranspose" = %false : i1)
+// CHECK-NEXT:    ascendc.load_data_l0_v2 %1, %3, %4 : !ascendc.local_tensor<16x32xf16>, !ascendc.local_tensor<32x32xf16>, !ascendc.load_data_2d_params_v2
+// CHECK-NEXT:    return %2 : !asctile.tile<16x32xf16, L0A>
 func.func @lower_copy_l1_l0a_multiple_cols(%arg0: !asctile.tile<32x32xf16, L1>) -> !asctile.tile<16x32xf16, L0A> {
   %c0_i32 = arith.constant 0 : i32
   %c16_i32 = arith.constant 16 : i32
@@ -530,18 +540,12 @@ func.func @lower_copy_l1_l0a_multiple_cols(%arg0: !asctile.tile<32x32xf16, L1>) 
 
 // CHECK-LABEL: func.func @lower_copy_l1_l0a_multiple_rows_f32(%arg0: !asctile.tile<32x32xf32, L1>) -> !asctile.tile<32x16xf32, L0A>
 // CHECK:         %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<32x32xf32, L1> to !ascendc.local_tensor<32x32xf32>
-// CHECK-NEXT:    %1 = ascendc.local_tensor.subindex %0[%c512_i32] : !ascendc.local_tensor<32x32xf32>, i32, !ascendc.local_tensor<32x32xf32>
-// CHECK-NEXT:    %2 = ascendc.local_tensor_auto a2() : <32x16xf32>
-// CHECK-NEXT:    %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<32x16xf32> to !asctile.tile<32x16xf32, L0A>
-// CHECK-NEXT:    %4 = emitasc.init_struct !ascendc.load_data_2d_params("repeatTimes" = %c2_i32 : i32, "srcStride" = %c1_i32 : i32, "dstGap" = %c0_i32 : i32, "ifTranspose" = %false : i1)
-// CHECK-NEXT:    scf.for %arg1 = %c0_i32 to %c2_i32 step %c1_i32  : i32 {
-// CHECK-NEXT:      %5 = arith.muli %arg1, %c256_i32 : i32
-// CHECK-NEXT:      %6 = ascendc.local_tensor.subindex %1[%5] : !ascendc.local_tensor<32x32xf32>, i32, !ascendc.local_tensor<32x32xf32>
-// CHECK-NEXT:      %7 = arith.muli %arg1, %c256_i32 : i32
-// CHECK-NEXT:      %8 = ascendc.local_tensor.subindex %2[%7] : !ascendc.local_tensor<32x16xf32>, i32, !ascendc.local_tensor<32x16xf32>
-// CHECK-NEXT:      ascendc.load_data_g2l %8, %6, %4 : !ascendc.local_tensor<32x16xf32>, !ascendc.local_tensor<32x32xf32>, !ascendc.load_data_2d_params
-// CHECK-NEXT:    } {asctile.parallel}
-// CHECK-NEXT:    return %3 : !asctile.tile<32x16xf32, L0A>
+// CHECK-NEXT:    %1 = ascendc.local_tensor_auto a2() : <32x16xf32>
+// CHECK-NEXT:    %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<32x16xf32> to !asctile.tile<32x16xf32, L0A>
+// CHECK-NEXT:    %3 = ascendc.local_tensor.subindex %0[%c512_i32] : !ascendc.local_tensor<32x32xf32>, i32, !ascendc.local_tensor<32x32xf32>
+// CHECK-NEXT:    %4 = emitasc.init_struct !ascendc.load_data_2d_params_v2("mStep" = %c2_i32 : i32, "kStep" = %c2_i32 : i32, "srcStride" = %c2_i32 : i32, "dstStride" = %c2_i32 : i32, "ifTranspose" = %false : i1)
+// CHECK-NEXT:    ascendc.load_data_l0_v2 %1, %3, %4 : !ascendc.local_tensor<32x16xf32>, !ascendc.local_tensor<32x32xf32>, !ascendc.load_data_2d_params_v2
+// CHECK-NEXT:    return %2 : !asctile.tile<32x16xf32, L0A>
 func.func @lower_copy_l1_l0a_multiple_rows_f32(%arg0: !asctile.tile<32x32xf32, L1>) -> !asctile.tile<32x16xf32, L0A> {
   %c0_i32 = arith.constant 0 : i32
   %c16_i32 = arith.constant 16 : i32
@@ -551,18 +555,12 @@ func.func @lower_copy_l1_l0a_multiple_rows_f32(%arg0: !asctile.tile<32x32xf32, L
 
 // CHECK-LABEL: func.func @lower_copy_l1_l0a_multiple_cols_f32(%arg0: !asctile.tile<32x32xf32, L1>) -> !asctile.tile<16x32xf32, L0A>
 // CHECK:         %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<32x32xf32, L1> to !ascendc.local_tensor<32x32xf32>
-// CHECK-NEXT:    %1 = ascendc.local_tensor.subindex %0[%c128_i32] : !ascendc.local_tensor<32x32xf32>, i32, !ascendc.local_tensor<32x32xf32>
-// CHECK-NEXT:    %2 = ascendc.local_tensor_auto a2() : <16x32xf32>
-// CHECK-NEXT:    %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<16x32xf32> to !asctile.tile<16x32xf32, L0A>
-// CHECK-NEXT:    %4 = emitasc.init_struct !ascendc.load_data_2d_params("repeatTimes" = %c1_i32 : i32, "srcStride" = %c1_i32 : i32, "dstGap" = %c0_i32 : i32, "ifTranspose" = %false : i1)
-// CHECK-NEXT:    scf.for %arg1 = %c0_i32 to %c4_i32 step %c1_i32  : i32 {
-// CHECK-NEXT:      %5 = arith.muli %arg1, %c256_i32 : i32
-// CHECK-NEXT:      %6 = ascendc.local_tensor.subindex %1[%5] : !ascendc.local_tensor<32x32xf32>, i32, !ascendc.local_tensor<32x32xf32>
-// CHECK-NEXT:      %7 = arith.muli %arg1, %c128_i32 : i32
-// CHECK-NEXT:      %8 = ascendc.local_tensor.subindex %2[%7] : !ascendc.local_tensor<16x32xf32>, i32, !ascendc.local_tensor<16x32xf32>
-// CHECK-NEXT:      ascendc.load_data_g2l %8, %6, %4 : !ascendc.local_tensor<16x32xf32>, !ascendc.local_tensor<32x32xf32>, !ascendc.load_data_2d_params
-// CHECK-NEXT:    } {asctile.parallel}
-// CHECK-NEXT:    return %3 : !asctile.tile<16x32xf32, L0A>
+// CHECK-NEXT:    %1 = ascendc.local_tensor_auto a2() : <16x32xf32>
+// CHECK-NEXT:    %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<16x32xf32> to !asctile.tile<16x32xf32, L0A>
+// CHECK-NEXT:    %3 = ascendc.local_tensor.subindex %0[%c128_i32] : !ascendc.local_tensor<32x32xf32>, i32, !ascendc.local_tensor<32x32xf32>
+// CHECK-NEXT:    %4 = emitasc.init_struct !ascendc.load_data_2d_params_v2("mStep" = %c1_i32 : i32, "kStep" = %c4_i32 : i32, "srcStride" = %c2_i32 : i32, "dstStride" = %c1_i32 : i32, "ifTranspose" = %false : i1)
+// CHECK-NEXT:    ascendc.load_data_l0_v2 %1, %3, %4 : !ascendc.local_tensor<16x32xf32>, !ascendc.local_tensor<32x32xf32>, !ascendc.load_data_2d_params_v2
+// CHECK-NEXT:    return %2 : !asctile.tile<16x32xf32, L0A>
 func.func @lower_copy_l1_l0a_multiple_cols_f32(%arg0: !asctile.tile<32x32xf32, L1>) -> !asctile.tile<16x32xf32, L0A> {
   %c0_i32 = arith.constant 0 : i32
   %c16_i32 = arith.constant 16 : i32
@@ -572,12 +570,12 @@ func.func @lower_copy_l1_l0a_multiple_cols_f32(%arg0: !asctile.tile<32x32xf32, L
 
 // CHECK-LABEL: func.func @lower_copy_l1_l0b_multiple_rows(%arg0: !asctile.tile<32x32xf16, L1>) -> !asctile.tile<32x16xf16, L0B>
 // CHECK:         %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<32x32xf16, L1> to !ascendc.local_tensor<32x32xf16>
-// CHECK-NEXT:    %1 = ascendc.local_tensor.subindex %0[%c512_i32] : !ascendc.local_tensor<32x32xf16>, i32, !ascendc.local_tensor<32x32xf16>
-// CHECK-NEXT:    %2 = ascendc.local_tensor_auto b2() : <32x16xf16>
-// CHECK-NEXT:    %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<32x16xf16> to !asctile.tile<32x16xf16, L0B>
-// CHECK-NEXT:    %4 = emitasc.init_struct !ascendc.load_data_2d_params("repeatTimes" = %c2_i32 : i32, "srcStride" = %c1_i32 : i32, "dstGap" = %c0_i32 : i32, "ifTranspose" = %true : i1)
-// CHECK-NEXT:    ascendc.load_data_g2l %2, %1, %4 : !ascendc.local_tensor<32x16xf16>, !ascendc.local_tensor<32x32xf16>, !ascendc.load_data_2d_params
-// CHECK-NEXT:    return %3 : !asctile.tile<32x16xf16, L0B>
+// CHECK-NEXT:    %1 = ascendc.local_tensor_auto b2() : <32x16xf16>
+// CHECK-NEXT:    %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<32x16xf16> to !asctile.tile<32x16xf16, L0B>
+// CHECK-NEXT:    %3 = ascendc.local_tensor.subindex %0[%c512_i32] : !ascendc.local_tensor<32x32xf16>, i32, !ascendc.local_tensor<32x32xf16>
+// CHECK-NEXT:    %4 = emitasc.init_struct !ascendc.load_data_2d_params_v2("mStep" = %c2_i32 : i32, "kStep" = %c1_i32 : i32, "srcStride" = %c2_i32 : i32, "dstStride" = %c1_i32 : i32, "ifTranspose" = %true : i1)
+// CHECK-NEXT:    ascendc.load_data_l0_v2 %1, %3, %4 : !ascendc.local_tensor<32x16xf16>, !ascendc.local_tensor<32x32xf16>, !ascendc.load_data_2d_params_v2
+// CHECK-NEXT:    return %2 : !asctile.tile<32x16xf16, L0B>
 func.func @lower_copy_l1_l0b_multiple_rows(%arg0: !asctile.tile<32x32xf16, L1>) -> !asctile.tile<32x16xf16, L0B> {
   %c0_i32 = arith.constant 0 : i32
   %c16_i32 = arith.constant 16 : i32
@@ -587,18 +585,12 @@ func.func @lower_copy_l1_l0b_multiple_rows(%arg0: !asctile.tile<32x32xf16, L1>) 
 
 // CHECK-LABEL: func.func @lower_copy_l1_l0b_multiple_cols(%arg0: !asctile.tile<32x32xf16, L1>) -> !asctile.tile<16x32xf16, L0B>
 // CHECK:         %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<32x32xf16, L1> to !ascendc.local_tensor<32x32xf16>
-// CHECK-NEXT:    %1 = ascendc.local_tensor.subindex %0[%c256_i32] : !ascendc.local_tensor<32x32xf16>, i32, !ascendc.local_tensor<32x32xf16>
-// CHECK-NEXT:    %2 = ascendc.local_tensor_auto b2() : <16x32xf16>
-// CHECK-NEXT:    %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<16x32xf16> to !asctile.tile<16x32xf16, L0B>
-// CHECK-NEXT:    %4 = emitasc.init_struct !ascendc.load_data_2d_params("repeatTimes" = %c1_i32 : i32, "srcStride" = %c1_i32 : i32, "dstGap" = %c1_i32 : i32, "ifTranspose" = %true : i1)
-// CHECK-NEXT:    scf.for %arg1 = %c0_i32 to %c2_i32 step %c1_i32  : i32 {
-// CHECK-NEXT:      %5 = arith.muli %arg1, %c512_i32 : i32
-// CHECK-NEXT:      %6 = ascendc.local_tensor.subindex %1[%5] : !ascendc.local_tensor<32x32xf16>, i32, !ascendc.local_tensor<32x32xf16>
-// CHECK-NEXT:      %7 = arith.muli %arg1, %c256_i32 : i32
-// CHECK-NEXT:      %8 = ascendc.local_tensor.subindex %2[%7] : !ascendc.local_tensor<16x32xf16>, i32, !ascendc.local_tensor<16x32xf16>
-// CHECK-NEXT:      ascendc.load_data_g2l %8, %6, %4 : !ascendc.local_tensor<16x32xf16>, !ascendc.local_tensor<32x32xf16>, !ascendc.load_data_2d_params
-// CHECK-NEXT:    } {asctile.parallel}
-// CHECK-NEXT:    return %3 : !asctile.tile<16x32xf16, L0B>
+// CHECK-NEXT:    %1 = ascendc.local_tensor_auto b2() : <16x32xf16>
+// CHECK-NEXT:    %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<16x32xf16> to !asctile.tile<16x32xf16, L0B>
+// CHECK-NEXT:    %3 = ascendc.local_tensor.subindex %0[%c256_i32] : !ascendc.local_tensor<32x32xf16>, i32, !ascendc.local_tensor<32x32xf16>
+// CHECK-NEXT:    %4 = emitasc.init_struct !ascendc.load_data_2d_params_v2("mStep" = %c1_i32 : i32, "kStep" = %c2_i32 : i32, "srcStride" = %c2_i32 : i32, "dstStride" = %c2_i32 : i32, "ifTranspose" = %true : i1)
+// CHECK-NEXT:    ascendc.load_data_l0_v2 %1, %3, %4 : !ascendc.local_tensor<16x32xf16>, !ascendc.local_tensor<32x32xf16>, !ascendc.load_data_2d_params_v2
+// CHECK-NEXT:    return %2 : !asctile.tile<16x32xf16, L0B>
 func.func @lower_copy_l1_l0b_multiple_cols(%arg0: !asctile.tile<32x32xf16, L1>) -> !asctile.tile<16x32xf16, L0B> {
   %c0_i32 = arith.constant 0 : i32
   %c16_i32 = arith.constant 16 : i32
@@ -608,18 +600,12 @@ func.func @lower_copy_l1_l0b_multiple_cols(%arg0: !asctile.tile<32x32xf16, L1>) 
 
 // CHECK-LABEL: func.func @lower_copy_l1_l0b_b_trans_f32(%arg0: !asctile.tile<32x32xf32, L1>) -> !asctile.tile<16x32xf32, L0B>
 // CHECK:         %0 = builtin.unrealized_conversion_cast %arg0 : !asctile.tile<32x32xf32, L1> to !ascendc.local_tensor<32x32xf32>
-// CHECK-NEXT:    %1 = ascendc.local_tensor.subindex %0[%c512_i32] : !ascendc.local_tensor<32x32xf32>, i32, !ascendc.local_tensor<32x32xf32>
-// CHECK-NEXT:    %2 = ascendc.local_tensor_auto b2() : <16x32xf32>
-// CHECK-NEXT:    %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<16x32xf32> to !asctile.tile<16x32xf32, L0B>
-// CHECK-NEXT:    %4 = emitasc.init_struct !ascendc.load_data_2d_params("repeatTimes" = %c2_i32 : i32, "srcStride" = %c1_i32 : i32, "dstGap" = %c0_i32 : i32, "ifTranspose" = %false : i1)
-// CHECK-NEXT:    scf.for %arg1 = %c0_i32 to %c2_i32 step %c1_i32  : i32 {
-// CHECK-NEXT:      %5 = arith.muli %arg1, %c256_i32 : i32
-// CHECK-NEXT:      %6 = ascendc.local_tensor.subindex %1[%5] : !ascendc.local_tensor<32x32xf32>, i32, !ascendc.local_tensor<32x32xf32>
-// CHECK-NEXT:      %7 = arith.muli %arg1, %c256_i32 : i32
-// CHECK-NEXT:      %8 = ascendc.local_tensor.subindex %2[%7] : !ascendc.local_tensor<16x32xf32>, i32, !ascendc.local_tensor<16x32xf32>
-// CHECK-NEXT:      ascendc.load_data_g2l %8, %6, %4 : !ascendc.local_tensor<16x32xf32>, !ascendc.local_tensor<32x32xf32>, !ascendc.load_data_2d_params
-// CHECK-NEXT:    } {asctile.parallel}
-// CHECK-NEXT:    return %3 : !asctile.tile<16x32xf32, L0B>
+// CHECK-NEXT:    %1 = ascendc.local_tensor_auto b2() : <16x32xf32>
+// CHECK-NEXT:    %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<16x32xf32> to !asctile.tile<16x32xf32, L0B>
+// CHECK-NEXT:    %3 = ascendc.local_tensor.subindex %0[%c512_i32] : !ascendc.local_tensor<32x32xf32>, i32, !ascendc.local_tensor<32x32xf32>
+// CHECK-NEXT:    %4 = emitasc.init_struct !ascendc.load_data_2d_params_v2("mStep" = %c2_i32 : i32, "kStep" = %c2_i32 : i32, "srcStride" = %c2_i32 : i32, "dstStride" = %c2_i32 : i32, "ifTranspose" = %false : i1)
+// CHECK-NEXT:    ascendc.load_data_l0_v2 %1, %3, %4 : !ascendc.local_tensor<16x32xf32>, !ascendc.local_tensor<32x32xf32>, !ascendc.load_data_2d_params_v2
+// CHECK-NEXT:    return %2 : !asctile.tile<16x32xf32, L0B>
 func.func @lower_copy_l1_l0b_b_trans_f32(%arg0: !asctile.tile<32x32xf32, L1>) -> !asctile.tile<16x32xf32, L0B> {
   %c0_i32 = arith.constant 0 : i32
   %c16_i32 = arith.constant 16 : i32
