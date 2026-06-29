@@ -24,10 +24,10 @@ def where_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, z_ptr: as
     x = asc2.tensor(x_ptr, [SIZE])
     y = asc2.tensor(y_ptr, [SIZE])
     z = asc2.tensor(z_ptr, [SIZE])
-    xt = asc2.load(x, [SIZE], offsets=[0])
-    yt = asc2.load(y, [SIZE], offsets=[0])
+    xt = asc2.load(x, [0], [SIZE])
+    yt = asc2.load(y, [0], [SIZE])
     zt = asc2.where(op(xt, yt), xt, yt)
-    asc2.store(zt, z, offsets=[0])
+    asc2.store(zt, z, [0])
 
 
 @pytest.mark.parametrize("dtype", SELECT_DTYPES)
@@ -54,9 +54,9 @@ def test_where_ops(require_c310, asc_op, torch_op, dtype):
 def where_scalar_kernel(x_ptr: asc2.GlobalAddress, scalar, z_ptr: asc2.GlobalAddress, op: asc2.ConstExpr):
     x = asc2.tensor(x_ptr, [SIZE])
     z = asc2.tensor(z_ptr, [SIZE])
-    xt = asc2.load(x, [SIZE], offsets=[0])
+    xt = asc2.load(x, [0], [SIZE])
     zt = asc2.where(op(xt, scalar), asc2.number(0.0, x_ptr.dtype), asc2.number(1.0, x_ptr.dtype))
-    asc2.store(zt, z, offsets=[0])
+    asc2.store(zt, z, [0])
 
 
 @pytest.mark.parametrize("dtype", SELECT_DTYPES)
@@ -90,11 +90,11 @@ def where_with_cond_kernel(cond_ptr: asc2.GlobalAddress, x_ptr: asc2.GlobalAddre
     base_offset = asc2.block_idx() * tile_size * tile_per_block
     for i in range(tile_per_block, unroll_factor=2, parallel=True):
         tile_offset = base_offset + i * tile_size
-        c = asc2.load(cond_gm, [tile_size], offsets=[tile_offset])
-        x = asc2.load(x_gm, [tile_size], offsets=[tile_offset])
-        y = asc2.load(y_gm, [tile_size], offsets=[tile_offset])
+        c = asc2.load(cond_gm, [tile_offset], [tile_size])
+        x = asc2.load(x_gm, [tile_offset], [tile_size])
+        y = asc2.load(y_gm, [tile_offset], [tile_size])
         out = asc2.where(c != 0, x, y)
-        asc2.store(out, out_gm, offsets=[tile_offset])
+        asc2.store(out, out_gm, [tile_offset])
 
 
 @asc2.jit(always_compile=True)
@@ -106,13 +106,13 @@ def where_scalar_source_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAd
     base_offset = asc2.block_idx() * tile_size * tile_per_block
     for i in range(tile_per_block, unroll_factor=2, parallel=True):
         tile_offset = base_offset + i * tile_size
-        x = asc2.load(x_gm, [tile_size], offsets=[tile_offset])
+        x = asc2.load(x_gm, [tile_offset], [tile_size])
         scalar = asc2.number(scalar_value, x_ptr.dtype)
         if scalar_on_true:
             out = asc2.where(x > 0, scalar, x)
         else:
             out = asc2.where(x > 0, x, scalar)
-        asc2.store(out, out_gm, offsets=[tile_offset])
+        asc2.store(out, out_gm, [tile_offset])
 
 
 def check_dtype(dtype: torch.dtype, require_c310):

@@ -73,9 +73,8 @@ def inline_vf(code: str, shape: Tuple[int, ...], dtype: DataType, inputs: Option
         for index, tile in enumerate(inputs):
             tile_name = f"inputs[{index}]"
             check_type(tile_name, tile, Tile)
-            tile_loc = ir.get_tile_location(tile.to_ir().get_type())
-            if ir.get_tile_location(tile.to_ir().get_type()) != TileLocation.UB:
-                raise RuntimeError(f"{tile_name} tile must have UB location, got {tile_loc.name}")
+            if tile.location != TileLocation.UB:
+                raise RuntimeError(f"{tile_name} tile must have UB location, got {tile.location.name}")
             ir_tiles.append(tile.to_ir())
     ir_type = ir.get_asctile_TileType(shape, dtype.to_ir(), TileLocation.UB)
     handle = global_builder.get_ir_builder().create_asctile_InlineVFOp(ir_type, ir_tiles, code)

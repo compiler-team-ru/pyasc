@@ -49,11 +49,11 @@ def fused_softmax(
     for i in asc2.range(ub_loop, unroll_factor=2, parallel=True):
         row_start_offset = block_offset + i * tile_shape[0]
         # `asc2.load` is used to create 2D tile object to load from GM to UB and pad with '-inf' all values that are out of global tensor
-        rows = asc2.load(in_gm, [tile_shape[0], tile_shape[1]], offsets=[row_start_offset, 0], pad_value=float('-inf'))
+        rows = asc2.load(in_gm, [row_start_offset, 0], [tile_shape[0], tile_shape[1]], pad_value=float('-inf'))
         # Call high-level 2D softmax
         out = asc2.softmax(rows)
         # `asc2.store` is used to move data from UB back to GM.
-        asc2.store(out, out_gm, offsets=[row_start_offset, 0])
+        asc2.store(out, out_gm, [row_start_offset, 0])
 
 
 if __name__ == "__main__":

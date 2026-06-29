@@ -48,8 +48,8 @@ def atomic_add(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt]) -> Non
     Examples:
         Atomically add tile elements to a tensor: ::
 
-            tile = asc2.load(x_gm, [128], offsets=[0])
-            asc2.atomic_add(tile, out_gm, offsets=[0])
+            tile = asc2.load(x_gm, [0], [128])
+            asc2.atomic_add(tile, out_gm, [0])
     """
     return op_atomic_impl(tile, tensor, offsets, ir.AtomicKind.Add)
 
@@ -76,8 +76,8 @@ def atomic_max(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt]) -> Non
     Examples:
         Atomically compute the maximum between tile and tensor elements: ::
 
-            tile = asc2.load(x_gm, [128], offsets=[0])
-            asc2.atomic_max(tile, out_gm, offsets=[0])
+            tile = asc2.load(x_gm, [0], [128])
+            asc2.atomic_max(tile, out_gm, [0])
     """
     return op_atomic_impl(tile, tensor, offsets, ir.AtomicKind.Max)
 
@@ -104,7 +104,7 @@ def atomic_min(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt]) -> Non
     Examples:
         Atomically compute the minimum between tile and tensor elements: ::
 
-            tile = asc2.load(x_gm, [128], offsets=[0])
-            asc2.atomic_min(tile, out_gm, offsets=[0])
+            tile = asc2.load(x_gm, [0], [128])
+            asc2.atomic_min(tile, out_gm, [0])
     """
     return op_atomic_impl(tile, tensor, offsets, ir.AtomicKind.Min)

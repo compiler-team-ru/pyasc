@@ -41,6 +41,12 @@ class Tile(IRValue):
     size: int
     """Number of elements"""
 
+    rank: int
+    """Number of dimensions"""
+
+    location: TileLocation
+    """Memory location of a tile"""
+
     def __init__(self, handle: IRHandle) -> None:
         """
         This constructor is not called by user.
@@ -56,6 +62,8 @@ class Tile(IRValue):
         if len(self.shape) < 1:
             raise RuntimeError("Tile shape must have at least one dimension")
         self.size: Final = math.prod(self.shape)
+        self.rank: Final = len(self.shape)
+        self.location: Final = ir.get_tile_location(ir_type)
 
     @classmethod
     def from_ir(cls, handle: IRHandle) -> Self:

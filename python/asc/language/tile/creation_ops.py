@@ -90,7 +90,7 @@ def full_like(input: Tile, value: RuntimeNumeric, location: TileLocation = TileL
     Examples:
         Create a tile filled with a value, matching another tile's shape and dtype: ::
 
-            src = asc2.load(x_gm, [128], offsets=[0])
+            src = asc2.load(x_gm, [0], [128])
             tile = asc2.full_like(src, 255)
     """
     check_type("input", input, Tile)
@@ -148,7 +148,7 @@ def zeros_like(input: Tile, location: TileLocation = TileLocation.UB) -> Tile:
     Examples:
         Create a zero-filled tile matching another tile's shape and dtype: ::
 
-            src = asc2.load(x_gm, [128], offsets=[0])
+            src = asc2.load(x_gm, [0], [128])
             tile = asc2.zeros_like(src)
     """
     check_type("input", input, Tile)
@@ -187,20 +187,20 @@ def zeros_acc(shape: Iterable[int], dtype: DataType, *, bias: Optional[Tile] = N
 
             acc = asc2.zeros_acc([64, 256], dtype=asc2.float32)
             for k in range(k_tiles):
-                a_k = asc2.load(a_gm, [64, 32], offsets=[0, k * 32], location=asc2.TileLocation.L0A)
-                b_k = asc2.load(b_gm, [32, 256], offsets=[k * 32, 0], location=asc2.TileLocation.L0B)
+                a_k = asc2.load(a_gm, [0, k * 32], [64, 32], asc2.TileLocation.L0A)
+                b_k = asc2.load(b_gm, [k * 32, 0], [32, 256], asc2.TileLocation.L0B)
                 asc2.matmul_acc(acc, a_k, b_k)
-            asc2.store(acc, c_gm, offsets=[0, 0])
+            asc2.store(acc, c_gm, [0, 0])
 
         Create a bias-initialized accumulator: ::
 
-            bias = asc2.load(bias_gm, [256], offsets=[0], location=asc2.TileLocation.BT)
+            bias = asc2.load(bias_gm, [0], [256], asc2.TileLocation.BT)
             acc = asc2.zeros_acc([64, 256], dtype=asc2.float32, bias=bias)
             for k in range(k_tiles):
-                a_k = asc2.load(a_gm, [64, 32], offsets=[0, k * 32], location=asc2.TileLocation.L0A)
-                b_k = asc2.load(b_gm, [32, 256], offsets=[k * 32, 0], location=asc2.TileLocation.L0B)
+                a_k = asc2.load(a_gm, [0, k * 32], [64, 32], asc2.TileLocation.L0A)
+                b_k = asc2.load(b_gm, [k * 32, 0], [32, 256], asc2.TileLocation.L0B)
                 asc2.matmul_acc(acc, a_k, b_k)
-            asc2.store(acc, c_gm, offsets=[0, 0])
+            asc2.store(acc, c_gm, [0, 0])
     """
     check_type("dtype", dtype, DataType)
     check_dtype("dtype", dtype, KT.float32)
@@ -259,17 +259,17 @@ def cast(input: Union[Tile, RuntimeNumeric], dtype: DataType,
     Examples:
         Cast a tile from float32 to float16: ::
 
-            tile = asc2.load(x_gm, [128], offsets=[0])
+            tile = asc2.load(x_gm, [0], [128])
             tile_fp16 = asc2.cast(tile, asc2.float16)
 
         Cast with explicit rounding mode: ::
 
-            tile = asc2.load(x_gm, [128], offsets=[0])
+            tile = asc2.load(x_gm, [0], [128])
             tile_int32 = asc2.cast(tile, asc2.int32, round_mode=asc2.RoundMode.Floor)
 
         Cast using the .to() method (equivalent): ::
 
-            tile = asc2.load(x_gm, [128], offsets=[0])
+            tile = asc2.load(x_gm, [0], [128])
             tile_fp16 = tile.to(asc2.float16)
 
         Cast a scalar value: ::
@@ -281,7 +281,7 @@ def cast(input: Union[Tile, RuntimeNumeric], dtype: DataType,
             acc = asc2.zeros_acc([64, 128], dtype=asc2.float32)
             # ... accumulate matmul results ...
             result_fp16 = acc.to(asc2.float16)
-            asc2.store(result_fp16, out_gm, offsets=[0, 0])
+            asc2.store(result_fp16, out_gm, [0, 0])
     """
     check_type("input", input, (Tile, RuntimeNumeric))
     check_type("dtype", dtype, DataType)
@@ -319,14 +319,14 @@ def concat(*inputs: Tile) -> Tile:
     Examples:
         Concatenate two tiles along the first dimension: ::
 
-            tile_a = asc2.load(x_gm, [64, 32], offsets=[0, 0])
-            tile_b = asc2.load(y_gm, [64, 32], offsets=[64, 0])
+            tile_a = asc2.load(x_gm, [0, 0], [64, 32])
+            tile_b = asc2.load(y_gm, [64, 0], [64, 32])
             result = asc2.concat(tile_a, tile_b)  # shape: [128, 32]
 
         Concatenate multiple tiles: ::
 
-            tiles = [asc2.load(x_gm, [32, 16], offsets=[0, 0]), asc2.load(x_gm, [16, 16], offsets=[32, 0]),
-                     asc2.load(x_gm, [8, 16], offsets=[64, 0]), asc2.maximum(tile_a, tile_b)]
+            tiles = [asc2.load(x_gm, [0, 0], [32, 16]), asc2.load(x_gm, [32, 0], [16, 16]),
+                     asc2.load(x_gm, [64, 0], [8, 16]), asc2.maximum(tile_a, tile_b)]
             result = asc2.concat(*tiles)  # shape: [120, 16]
     """
     if not inputs or not all(isinstance(inp, Tile) for inp in inputs):

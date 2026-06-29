@@ -162,23 +162,22 @@ A5 adds the following hardware capabilities relative to A2: <sup>[[58]](#ref-58)
 ### 4.3 Load and store
 
 ```python
-# Load a tile from a 2-D tensor — two addressing modes:
-tile = asc2.load(tensor, shape=[128], offsets=[base])       # explicit element offsets
-tile = asc2.load(tensor, shape=[128], tile_id=[block_idx])  # tile_id * shape = offset
+# Load a tile from N-D tensor:
+tile = asc2.load(tensor, [base], [128])       # explicit element offsets
 
 # Load a scalar (no shape → scalar load)
-scalar = asc2.load(tensor, offsets=[i])
+scalar = asc2.load(tensor, [i])
 
 # Optional padding for partial tiles
-tile = asc2.load(tensor, shape=[128], offsets=[base], pad_value=0.0)
+tile = asc2.load(tensor, [base], [128], pad_value=0.0)
 
 # Copy a tile (or sub-region) into a fresh tile, optionally on another location
 clone = asc2.copy(tile)
-sub   = asc2.copy(tile, shape=[64], offsets=[0])
+sub   = asc2.copy(tile, [0], [64])
 
 # Store tile or scalar back
-asc2.store(tile, tensor, offsets=[base])
-asc2.store(scalar_value, tensor, offsets=[i])
+asc2.store(tile, tensor, [base])
+asc2.store(scalar_value, tensor, [i])
 ```
 
 The last dimension of every tile shape must be aligned to `ub_block_size` (32 bytes). This is enforced at JIT time via `check_data_alignment`.
@@ -227,7 +226,6 @@ Operator overloads on `Tile` (`+`, `-`, `*`, `/`, `>`, `==`, …) call the same 
 ```python
 i = asc2.block_idx()    # current NPU block index (PlainValue)
 n = asc2.block_num()    # total number of blocks (PlainValue)
-k = asc2.num_tiles(tensor, axis=0, shape=[128])  # how many tiles fit along an axis
 ```
 
 ### 4.6 `asc2.range`
@@ -418,21 +416,19 @@ Because asc2 users don't write `set_flag`/`wait_flag`, all synchronization is in
 import asc2
 
 @asc2.jit
-def vadd(x_ptr, y_ptr, out_ptr, size: int, TILE: asc.ConstExpr[int]):
+def vadd(x_ptr, y_ptr, out_ptr, size: int, tiles_per_block: int, TILE: asc.ConstExpr[int]):
     x_gm   = asc2.tensor(x_ptr,   [size])
     y_gm   = asc2.tensor(y_ptr,   [size])
     out_gm = asc2.tensor(out_ptr, [size])
 
-    tiles_per_block = asc2.num_tiles(x_gm, 0, [TILE])
     base = asc2.block_idx() * tiles_per_block * TILE
-
     for i in asc2.range(tiles_per_block):
         off = base + i * TILE
-        x   = asc2.load(x_gm,   [TILE], offsets=[off])
-        y   = asc2.load(y_gm,   [TILE], offsets=[off])
-        asc2.store(x + y, out_gm, offsets=[off])
+        x   = asc2.load(x_gm, [off], [TILE])
+        y   = asc2.load(y_gm, [off], [TILE])
+        asc2.store(x + y, out_gm, [off])
 
-vadd[8](x, y, out, n, TILE=256)
+vadd[8](x, y, out, n, asc2.ceildiv(n // 256, 8), TILE=256)
 ```
 
 ### Softmax (row-wise)
@@ -444,9 +440,9 @@ def softmax(x_ptr, out_ptr, rows: int, cols: int, TILE: asc.ConstExpr[int]):
     out_gm = asc2.tensor(out_ptr, [rows, cols])
 
     for row in asc2.range(asc2.block_idx(), rows, asc2.block_num()):
-        x   = asc2.load(x_gm, [1, TILE], offsets=[row, 0])
+        x = asc2.load(x_gm, [row, 0], [1, TILE])
         exp_x = asc2.exp(x - x.max())
-        asc2.store(exp_x / exp_x.sum(), out_gm, offsets=[row, 0])
+        asc2.store(exp_x / exp_x.sum(), out_gm, [row, 0])
 ```
 
 ---

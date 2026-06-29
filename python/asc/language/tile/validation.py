@@ -6,7 +6,7 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-from typing import Any, Iterable, Protocol, Tuple, Type, TypeGuard, Union
+from typing import Any, Iterable, Optional, Protocol, Tuple, Type, TypeGuard, Union
 
 from ..._C import ir
 from ...common.compat import isinstance
@@ -64,24 +64,27 @@ def check_runtime_float(name: str, value: Any, exc_type: Type[Exception] = TypeE
     raise exc_type(f"'{name}' argument must be float or PlainValue with float dtype, got {value.__class__.__name__}")
 
 
-def iterable_to_non_empty_tuple(iterable: Any, name: str) -> tuple:
+def iterable_to_non_empty_tuple(iterable: Any, name: str, size: Optional[int] = None) -> tuple:
     if not isinstance(iterable, Iterable):
         raise TypeError(f"'{name}' must be Iterable")
     values = iterable if isinstance(iterable, tuple) else tuple(iterable)
-    if len(values) < 1:
+    act_size = len(values)
+    if act_size < 1:
         raise RuntimeError(f"'{name}' must have at least one value")
+    if size is not None and act_size != size:
+        raise ValueError(f"'{name}' must have {size} values, got {act_size}")
     return values
 
 
-def verify_runtime_ints(values: Iterable[Any], name: str) -> Tuple[RuntimeInt, ...]:
-    values = iterable_to_non_empty_tuple(values, name)
+def verify_runtime_ints(values: Iterable[Any], name: str, size: Optional[int] = None) -> Tuple[RuntimeInt, ...]:
+    values = iterable_to_non_empty_tuple(values, name, size)
     if not all(is_runtime_int(value) for value in values):
         raise TypeError(f"All values in '{name}' must be int or integer PlainValue")
     return values
 
 
-def verify_shape(shape: Iterable[int], name: str = "shape") -> Tuple[int, ...]:
-    shape = iterable_to_non_empty_tuple(shape, name)
+def verify_shape(shape: Iterable[int], name: str = "shape", size: Optional[int] = None) -> Tuple[int, ...]:
+    shape = iterable_to_non_empty_tuple(shape, name, size)
     if not all(isinstance(dim, int) for dim in shape):
         raise TypeError(f"All values in '{name}' must be integers")
     if any(dim <= 0 for dim in shape):

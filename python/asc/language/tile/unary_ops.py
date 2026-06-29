@@ -44,7 +44,7 @@ def set_docstring(name: str, support_dtypes: Tuple[DataType], support_scalar: bo
     examples = f"""
         Compute the element-wise {name} of all tile elements: ::
 
-            input = asc2.load(tensor, [128, 256], offsets=[0, 0])
+            input = asc2.load(tensor, [0, 0], [128, 256])
             result = asc2.{{fn_name}}(input)
         """
     if support_scalar:
@@ -279,12 +279,12 @@ def softmax(input: Tile) -> Tile:
     Examples:
         Compute row-wise softmax for a 2D tile: ::
 
-            input = asc2.load(x_gm, [64, 1024], offsets=[0, 0])
+            input = asc2.load(x_gm, [0, 0], [64, 1024])
             result = asc2.softmax(input)  # softmax applied independently to each of 64 rows
 
         Compute softmax for a 1D tile: ::
 
-            input = asc2.load(x_gm, [1024], offsets=[0])
+            input = asc2.load(x_gm, [0], [1024])
             result = asc2.softmax(input)  # softmax applied over all 1024 elements
     """
     check_type("input", input, Tile)
@@ -321,14 +321,14 @@ def rms_norm(input: Tile, gamma: Tile, epsilon: RuntimeFloat) -> Tile:
     Examples:
         Apply RMSNorm to a 2D tile: ::
 
-            input = asc2.load(x_gm, [32, 128], offsets=[0, 0])
-            gamma = asc2.load(gamma_gm, [128], offsets=[0])
+            input = asc2.load(x_gm, [0, 0], [32, 128])
+            gamma = asc2.load(gamma_gm, [0], [128])
             output = asc2.rms_norm(input, gamma, 1e-5)
 
         Apply RMSNorm to a 1D tile: ::
 
-            input = asc2.load(x_gm, [128], offsets=[0])
-            gamma = asc2.load(gamma_gm, [128], offsets=[0])
+            input = asc2.load(x_gm, [0], [128])
+            gamma = asc2.load(gamma_gm, [0], [128])
             output = asc2.rms_norm(input, gamma, 1e-6)
     """
     check_type("input", input, Tile)

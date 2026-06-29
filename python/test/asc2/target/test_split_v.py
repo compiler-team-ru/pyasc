@@ -33,18 +33,18 @@ def split_v(input_ptr: asc2.GlobalAddress, output0_ptr: asc2.GlobalAddress, outp
             remaining = tile_length - j * ub_chunk_size
             chunk_size = ub_chunk_size if remaining >= ub_chunk_size else remaining
             if current_offset + chunk_size <= split_boundary:
-                tile = asc2.load(in_gm, [ub_chunk_size], real_shape=[chunk_size], offsets=[current_offset])
-                asc2.store(tile, out0_gm, real_shape=[chunk_size], offsets=[current_offset])
+                tile = asc2.load(in_gm, [current_offset], [ub_chunk_size], real_shape=[chunk_size])
+                asc2.store(tile, out0_gm, [current_offset], real_shape=[chunk_size])
             elif current_offset >= split_boundary:
-                tile = asc2.load(in_gm, [ub_chunk_size], real_shape=[chunk_size], offsets=[current_offset])
-                asc2.store(tile, out1_gm, real_shape=[chunk_size], offsets=[current_offset - split_boundary])
+                tile = asc2.load(in_gm, [current_offset], [ub_chunk_size], real_shape=[chunk_size])
+                asc2.store(tile, out1_gm, [current_offset - split_boundary], real_shape=[chunk_size])
             else:
                 part1 = split_boundary - current_offset
-                tile1 = asc2.load(in_gm, [ub_chunk_size], real_shape=[part1], offsets=[current_offset])
-                asc2.store(tile1, out0_gm, real_shape=[part1], offsets=[current_offset])
+                tile1 = asc2.load(in_gm, [current_offset], [ub_chunk_size], real_shape=[part1])
+                asc2.store(tile1, out0_gm, [current_offset], real_shape=[part1])
                 part2 = chunk_size - part1
-                tile2 = asc2.load(in_gm, [ub_chunk_size], real_shape=[part2], offsets=[split_boundary])
-                asc2.store(tile2, out1_gm, real_shape=[part2], offsets=[0])
+                tile2 = asc2.load(in_gm, [split_boundary], [ub_chunk_size], real_shape=[part2])
+                asc2.store(tile2, out1_gm, [0], real_shape=[part2])
 
 
 @pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])

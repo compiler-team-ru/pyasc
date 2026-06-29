@@ -10,40 +10,32 @@ from typing import Iterable, List, Optional, Tuple, Union, overload
 
 from ..._C import ir
 from ..core.dtype import KnownTypes as KT
-from ..core.ir_value import PlainValue, RuntimeInt, RuntimeNumeric, materialize_ir_value as _mat
+from ..core.ir_value import IRHandle, PlainValue, RuntimeInt, RuntimeNumeric, materialize_ir_value as _mat
 from ..core.utils import global_builder, require_jit
 from .tensor import Tensor
 from .tile import Tile, TileLocation
 from .validation import check_data_alignment, check_type, verify_runtime_ints, verify_shape
 
 
-def to_ir_list(values):
+def to_ir_list(values: Iterable[RuntimeInt]) -> List[IRHandle]:
     return [_mat(v, KT.int32).to_ir() for v in values]
 
 
-def check_real_shape(shape: Tuple[int, ...], real_shape: Tuple[RuntimeInt, ...]) -> None:
-    if len(shape) != len(real_shape):
-        raise RuntimeError(f"real_shape must have same rank as shape: {len(real_shape)} != {len(shape)}")
+def verify_offsets(offsets: Iterable[RuntimeInt], rank: int) -> Tuple[RuntimeInt, ...]:
+    return verify_runtime_ints(offsets, "offsets", rank)
+
+
+def verify_real_shape(real_shape: Iterable[RuntimeInt], shape: Tuple[int, ...]) -> Tuple[RuntimeInt, ...]:
+    real_shape = verify_runtime_ints(real_shape, "real_shape", len(shape))
     for tile_dim, real_dim in zip(shape, real_shape):
         if isinstance(real_dim, int) and real_dim > tile_dim:
-            raise RuntimeError(
-                f"real_shape dimension {real_dim} (which is '{real_shape}') exceeds tile dimension {tile_dim} (which is '{shape}')."
-            )
-
-
-def infer_offsets(tensor_shape: Tuple[RuntimeInt], shape: Tuple[int, ...], tile_id: Optional[Iterable[RuntimeInt]],
-                  offsets: Optional[Iterable[RuntimeInt]]) -> List[RuntimeInt]:
-    if len(tensor_shape) != len(shape):
-        raise RuntimeError(f"rank of 'tensor_shape':{len(tensor_shape)} must match rank of 'shape':{len(shape)}")
-    if tile_id is not None:
-        tile_id = verify_runtime_ints(tile_id, "tile_id")
-        return to_ir_list(idx * size for idx, size in zip(tile_id, shape))
-    offsets = verify_runtime_ints(offsets, "offsets")
-    return to_ir_list(offsets)
+            raise RuntimeError(f"real_shape[{real_dim}] (which is {real_shape}) "
+                               f"exceeds tile dimension #{tile_dim} (which is {shape})")
+    return real_shape
 
 
 @require_jit
-def copy(tile: Tile, shape: Optional[Iterable[int]] = None, *, offsets: Optional[Iterable[RuntimeInt]] = None,
+def copy(tile: Tile, offsets: Optional[Iterable[RuntimeInt]] = None, shape: Optional[Iterable[int]] = None,
          location: TileLocation = TileLocation.UB) -> Tile:
     """
     Copy a tile to a new tile, optionally reshaping and relocating.
@@ -57,9 +49,9 @@ def copy(tile: Tile, shape: Optional[Iterable[int]] = None, *, offsets: Optional
 
     Args:
         tile: The source tile to copy.
+        offsets: The offsets into the source tile for each dimension. Default is zeros.
         shape: The shape of the resulting tile. If None, uses the source tile's shape.
             Must contain static values (e.g., :code:`ConstExpr` or compile-time constants).
-        offsets: The offsets into the source tile for each dimension. Default is zeros.
         location: The memory location for the destination tile. Default is :code:`TileLocation.UB`.
             Supported location transfers: ``L1`` to ``L0A``, ``L1`` to ``L0B``, ``L1`` to ``BT``, ``L0C`` to ``L1``.
 
@@ -73,19 +65,19 @@ def copy(tile: Tile, shape: Optional[Iterable[int]] = None, *, offsets: Optional
     Examples:
         Copy a tile with the same shape: ::
 
-            tile = asc2.load(x_gm, [128], offsets=[0])
+            tile = asc2.load(x_gm, [0], [128])
             tile_copy = asc2.copy(tile)
 
         Copy a sub-tile from a larger tile with explicit shape and offsets: ::
 
-            tile = asc2.load(x_gm, [64, 64], offsets=[0, 0])
-            sub_tile = asc2.copy(tile, [32, 32], offsets=[16, 16])
+            tile = asc2.load(x_gm, [0, 0], [64, 64])
+            sub_tile = asc2.copy(tile, [16, 16], [32, 32])
 
         Copy a tile to a different memory location (e.g., L0A for matrix multiplication): ::
 
-            a_l1 = asc2.load(a_gm, [64, 128], offsets=[0, 0], location=asc2.TileLocation.L1)
-            a_l0a = asc2.copy(a_l1, [64, 32], offsets=[0, 0], location=asc2.TileLocation.L0A)
-            b_l0b = asc2.copy(b_l1, [32, 64], offsets=[0, 0], location=asc2.TileLocation.L0B)
+            a_l1 = asc2.load(a_gm, [0, 0], [64, 128], asc2.TileLocation.L1)
+            a_l0a = asc2.copy(a_l1, [0, 0], [64, 32], asc2.TileLocation.L0A)
+            b_l0b = asc2.copy(b_l1, [0, 0], [32, 64], asc2.TileLocation.L0B)
 
         Copy accumulator result from L0C to L1: ::
 
@@ -98,69 +90,55 @@ def copy(tile: Tile, shape: Optional[Iterable[int]] = None, *, offsets: Optional
     if shape is None:
         shape = tile.shape
     else:
-        shape = verify_shape(shape)
+        shape = verify_shape(shape, tile.rank)
     if offsets is None:
         offsets = (0, ) * len(tile.shape)
-    shape = verify_shape(shape)
+    else:
+        offsets = verify_offsets(offsets, tile.rank)
     if location == TileLocation.UB:
         check_data_alignment(shape, tile.dtype)
-    offsets = infer_offsets(tile.shape, shape, None, offsets)
     ir_type = ir.get_asctile_TileType(list(shape), tile.dtype.to_ir(), location)
-    handle = global_builder.get_ir_builder().create_asctile_CopyOp(ir_type, tile.to_ir(), offsets)
+    handle = global_builder.get_ir_builder().create_asctile_CopyOp(ir_type, tile.to_ir(), to_ir_list(offsets))
     return Tile(handle)
 
 
 @overload
-def load(tensor: Tensor, shape: Iterable[int], *, real_shape: Optional[Iterable[RuntimeInt]] = None,
-         offsets: Iterable[RuntimeInt], location: TileLocation = TileLocation.UB,
-         pad_value: RuntimeNumeric = 0) -> Tile:
+def load(tensor: Tensor, offsets: Iterable[RuntimeInt], shape: Iterable[int], location: TileLocation = TileLocation.UB,
+         *, real_shape: Optional[Iterable[RuntimeInt]] = None, pad_value: RuntimeNumeric = 0) -> Tile:
     ...
 
 
 @overload
-def load(tensor: Tensor, shape: Iterable[int], *, real_shape: Optional[Iterable[RuntimeInt]] = None,
-         tile_id: Iterable[RuntimeInt], location: TileLocation = TileLocation.UB,
-         pad_value: RuntimeNumeric = 0) -> Tile:
-    ...
-
-
-@overload
-def load(tensor: Tensor, *, offsets: Iterable[RuntimeInt]) -> PlainValue:
+def load(tensor: Tensor, offsets: Iterable[RuntimeInt]) -> PlainValue:
     ...
 
 
 @require_jit
-def load(tensor: Tensor, shape: Optional[Iterable[int]] = None, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
-         tile_id: Optional[Iterable[RuntimeInt]] = None, offsets: Optional[Iterable[RuntimeInt]] = None,
-         location: TileLocation = TileLocation.UB, pad_value: RuntimeNumeric = 0) -> Union[Tile, PlainValue]:
+def load(tensor: Tensor, offsets: Iterable[RuntimeInt], shape: Optional[Iterable[int]] = None,
+         location: TileLocation = TileLocation.UB, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
+         pad_value: RuntimeNumeric = 0) -> Union[Tile, PlainValue]:
     """
     Load data from a tensor into a tile or scalar value.
 
-    This function supports three modes of operation:
+    This function supports two modes of operation:
 
-    1. **Load a tile with explicit offsets**: Load a tile of the given shape from the tensor
-       at the specified byte offsets.
+    1. **Load a tile with explicit offsets**: Load a tile of the given shape from the tensor at the specified offsets.
 
-    2. **Load a tile with tile_id**: Load a tile of the given shape where the offset is
-       computed as :code:`tile_id * shape` for each dimension.
-
-    3. **Load a scalar**: When shape is not provided, load a single scalar value at the specified offsets.
+    2. **Load a scalar**: When shape is not provided, load a single scalar value at the specified offsets.
 
     Args:
         tensor: The source tensor in global memory.
+        offsets: The offsets into the tensor for each dimension.
         shape: The shape of the tile to load. If None, loads a scalar value.
             Must contain static values (e.g., :code:`ConstExpr` or compile-time constants).
             For 1D tiles, any shape is supported. For 2D+ tiles in :code:`UB`, the last dimension
             must be aligned to 32 bytes (e.g., 8 elements for float32, 16 elements for float16).
+        location: The memory location for the tile. Default is :code:`TileLocation.UB`.
+            Available locations: :code:`UB`, :code:`L1`, :code:`L0A`, :code:`L0B`, :code:`BT`.
         real_shape: Explicitly specify how many elements to load from the tensor.
             The tile will have the given :code:`shape`, but only :code:`real_shape` elements are loaded;
             remaining elements are filled with :code:`pad_value`. Must match the rank of :code:`shape`
             and each dimension must not exceed the corresponding tile dimension.
-        offsets: The offsets into the tensor for each dimension. Mutually exclusive with :code:`tile_id`.
-        tile_id: The tile index for each dimension, where offset is computed as :code:`tile_id * shape`.
-            Mutually exclusive with :code:`offsets`.
-        location: The memory location for the tile. Default is :code:`TileLocation.UB`.
-            Available locations: :code:`UB`, :code:`L1`, :code:`L0A`, :code:`L0B`, :code:`BT`.
         pad_value: The value to use for padding when :code:`real_shape` is provided. Default is 0.
 
     Returns:
@@ -169,124 +147,96 @@ def load(tensor: Tensor, shape: Optional[Iterable[int]] = None, *, real_shape: O
 
     Raises:
         TypeError: If tensor is not a Tensor or location is not a TileLocation
-        ValueError: If neither or both of :code:`offsets` and :code:`tile_id` are provided
         RuntimeError: If shape is invalid, data alignment check fails, offsets rank mismatch,
             or real_shape exceeds tile shape
 
     Note:
-        Exactly one of :code:`offsets` or :code:`tile_id` must be provided.
         Only 1D and 2D tiles are fully supported and stable; higher-dimensional support is experimental.
 
     Examples:
         Load a 1D tile using explicit offsets: ::
 
             x_gm = asc2.tensor(x_ptr, [1024])
-            tile = asc2.load(x_gm, [128], offsets=[256])
-
-        Load a 1D tile using tile_id (offset = tile_id * shape): ::
-
-            x_gm = asc2.tensor(x_ptr, [1024])
-            tile = asc2.load(x_gm, [128], tile_id=[2])  # loads from offset 256
+            tile = asc2.load(x_gm, [256], [128])
 
         Load a 2D tile from a 2D tensor: ::
 
             x_gm = asc2.tensor(x_ptr, [64, 128])
-            tile = asc2.load(x_gm, [16, 32], offsets=[8, 16])
+            tile = asc2.load(x_gm, [8, 16], [16, 32])
 
         Load a scalar value: ::
 
             x_gm = asc2.tensor(x_ptr, [1024])
-            scalar = asc2.load(x_gm, offsets=[42])
+            scalar = asc2.load(x_gm, [42])
 
         Load a 1D tile with padding (load fewer elements than tile shape): ::
 
             x_gm = asc2.tensor(x_ptr, [256])
-            tile = asc2.load(x_gm, [128], offsets=[200], pad_value=2.0)
+            tile = asc2.load(x_gm, [200], [128], pad_value=2.0)
 
         Load a 2D tile with real_shape and padding (load fewer elements than tile shape): ::
 
             x_gm = asc2.tensor(x_ptr, [100, 100])
-            tile = asc2.load(x_gm, [16, 16], offsets=[0, 0], real_shape=[12, 12], pad_value=-1.0)
+            tile = asc2.load(x_gm, [0, 0], [16, 16], real_shape=[12, 12], pad_value=-1.0)
             # tile has shape [16, 16], but only 12x12 elements loaded from tensor, rest padded with -1.0
     """
     check_type("tensor", tensor, Tensor)
     check_type("location", location, TileLocation)
-    if (tile_id is None) == (offsets is None):
-        raise ValueError("Exactly one of 'tile_id' or 'offsets' must be provided")
     builder = global_builder.get_ir_builder()
+    offsets = to_ir_list(verify_offsets(offsets, tensor.rank))
     if shape is None:
-        handle = builder.create_asctile_GetValueOp(tensor.dtype.to_ir(), tensor.to_ir(), to_ir_list(offsets))
+        handle = builder.create_asctile_GetValueOp(tensor.dtype.to_ir(), tensor.to_ir(), offsets)
         return PlainValue(handle)
-    shape = verify_shape(shape)
+    shape = verify_shape(shape, tensor.rank)
     if location == TileLocation.UB:
         check_data_alignment(shape, tensor.dtype)
-    offsets = infer_offsets(tensor.shape, shape, tile_id, offsets)
     ir_type = ir.get_asctile_TileType(list(shape), tensor.dtype.to_ir(), location)
     pad_value = _mat(pad_value, tensor.dtype).to_ir() if pad_value is not None else None
-    real_shape_ir = []
-    if real_shape is not None:
-        real_shape = verify_runtime_ints(real_shape, "real_shape")
-        check_real_shape(shape, real_shape)
-        real_shape_ir = to_ir_list(real_shape)
-    handle = builder.create_asctile_LoadOp(ir_type, tensor.to_ir(), offsets, pad_value, real_shape_ir)
+    real_shape = [] if real_shape is None else to_ir_list(verify_real_shape(real_shape, shape))
+    handle = builder.create_asctile_LoadOp(ir_type, tensor.to_ir(), offsets, pad_value, real_shape)
     return Tile(handle)
 
 
 @overload
-def store(value: Tile, tensor: Tensor, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
-          offsets: Iterable[RuntimeInt]) -> None:
+def store(value: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt], *,
+          real_shape: Optional[Iterable[RuntimeInt]] = None) -> None:
     ...
 
 
 @overload
-def store(value: Tile, tensor: Tensor, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
-          tile_id: Iterable[RuntimeInt]) -> None:
-    ...
-
-
-@overload
-def store(value: RuntimeNumeric, tensor: Tensor, *, offsets: Iterable[RuntimeInt]) -> None:
+def store(value: RuntimeNumeric, tensor: Tensor, offsets: Iterable[RuntimeInt]) -> None:
     ...
 
 
 @require_jit
-def store(value: Union[Tile, RuntimeNumeric], tensor: Tensor, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
-          tile_id: Optional[Iterable[RuntimeInt]] = None, offsets: Optional[Iterable[RuntimeInt]] = None) -> None:
+def store(value: Union[Tile, RuntimeNumeric], tensor: Tensor, offsets: Iterable[RuntimeInt], *,
+          real_shape: Optional[Iterable[RuntimeInt]] = None) -> None:
     """
     Store data from a tile or scalar value to a tensor in global memory.
 
-    This function supports three modes of operation:
+    This function supports two modes of operation:
 
-    1. **Store a tile with explicit offsets**: Store a tile to the tensor at the specified byte offsets.
+    1. **Store a tile with explicit offsets**: Store a tile to the tensor at the specified offsets.
 
-    2. **Store a tile with tile_id**: Store a tile where the offset is computed as :code:`tile_id * tile_shape` for each
-       dimension.
-
-    3. **Store a scalar**: Store a single scalar value (or a tile with exactly one element) at the specified offsets.
+    2. **Store a scalar**: Store a single scalar value (or a tile with exactly one element) at the specified offsets.
 
     Args:
         value: The source value to store. Can be a tile, a scalar value, or a tile with exactly one element.
             For 1D tiles, any shape is supported. For 2D+ tiles in :code:`UB`, the last dimension
             must be aligned to 32 bytes (e.g., 8 elements for float32, 16 elements for float16).
         tensor: The destination tensor in global memory.
+        offsets: The offsets into the tensor for each dimension.
         real_shape: Explicitly specify how many elements to store to the tensor.
             The tile has its full shape, but only :code:`real_shape` elements are written to the tensor.
             Must match the rank of the tile and each dimension must not exceed the corresponding tile dimension.
             Cannot be used for scalar stores.
-        offsets: The offsets into the tensor for each dimension. Mutually exclusive with :code:`tile_id`.
-            Required for scalar stores.
-        tile_id: The tile index for each dimension, where offset is computed as :code:`tile_id * tile_shape`.
-            Mutually exclusive with :code:`offsets`. Cannot be used for scalar stores.
 
     Raises:
         TypeError: If value is not a Tile or numeric, or tensor is not a Tensor
-        ValueError: If neither or both of :code:`offsets` and :code:`tile_id` are provided (for tile stores), or if
-            :code:`tile_id` or :code:`real_shape` is used with scalar stores
+        ValueError: If :code:`real_shape` is used with scalar stores
         RuntimeError: If data alignment check fails, offsets rank mismatch, or real_shape exceeds tile shape
 
     Note:
-        For tile stores, exactly one of :code:`offsets` or :code:`tile_id` must be provided.
-        For scalar stores, :code:`offsets` must be provided and :code:`tile_id` and :code:`real_shape` cannot be used.
         Tiles from :code:`UB` and :code:`L0C` memory locations can be stored to global memory.
         Only 1D and 2D tiles are fully supported and stable; higher-dimensional support is experimental.
 
@@ -294,27 +244,22 @@ def store(value: Union[Tile, RuntimeNumeric], tensor: Tensor, *, real_shape: Opt
         Store a 1D tile using explicit offsets: ::
 
             out_gm = asc2.tensor(out_ptr, [1024])
-            asc2.store(tile, out_gm, offsets=[256])
-
-        Store a 1D tile using tile_id (offset = tile_id * tile_shape): ::
-
-            out_gm = asc2.tensor(out_ptr, [1024])
-            asc2.store(tile, out_gm, tile_id=[2])  # stores at offset 2 * tile.shape[0]
+            asc2.store(tile, out_gm, [256])
 
         Store a 2D tile to a 2D tensor: ::
 
             out_gm = asc2.tensor(out_ptr, [64, 128])
-            asc2.store(tile, out_gm, offsets=[8, 16])
+            asc2.store(tile, out_gm, [8, 16])
 
         Store a scalar value: ::
 
             out_gm = asc2.tensor(out_ptr, [1024])
-            asc2.store(42.0, out_gm, offsets=[0])
+            asc2.store(42.0, out_gm, [0])
 
         Store a 2D tile with explicit real_shape (store fewer elements than tile shape): ::
 
             out_gm = asc2.tensor(out_ptr, [100, 100])
-            asc2.store(tile, out_gm, offsets=[0, 0], real_shape=[12, 12])
+            asc2.store(tile, out_gm, [0, 0], real_shape=[12, 12])
             # tile has shape [16, 16], but only 12x12 elements stored to tensor
 
         Store an accumulator tile (from L0C) directly to global memory: ::
@@ -322,30 +267,20 @@ def store(value: Union[Tile, RuntimeNumeric], tensor: Tensor, *, real_shape: Opt
             acc = asc2.zeros_acc([64, 128], dtype=asc2.float32)
             asc2.matmul_acc(acc, a_l0a, b_l0b)
             out_gm = asc2.tensor(out_ptr, [64, 128])
-            asc2.store(acc, out_gm, offsets=[0, 0])
+            asc2.store(acc, out_gm, [0, 0])
     """
     check_type("value", value, (Tile, RuntimeNumeric))
     check_type("tensor", tensor, Tensor)
     builder = global_builder.get_ir_builder()
+    offsets = to_ir_list(verify_offsets(offsets, tensor.rank))
     scalar_store = not isinstance(value, Tile) or value.size == 1
     if scalar_store:
-        if tile_id is not None:
-            raise ValueError("'tile_id' argument cannot be used when storing a scalar value or a tile with 1 element")
-        if offsets is None:
-            raise ValueError("'offsets' argument must be provided")
         if real_shape is not None:
             raise ValueError("'real_shape' argument cannot be used when storing a scalar value")
         value = value.to(tensor.dtype) if isinstance(value, Tile) else _mat(value, tensor.dtype)
-        builder.create_asctile_SetValueOp(value.to_ir(), tensor.to_ir(), to_ir_list(offsets))
+        builder.create_asctile_SetValueOp(value.to_ir(), tensor.to_ir(), offsets)
         return
-    if (tile_id is None) == (offsets is None):
-        raise ValueError("Exactly one of 'tile_id' or 'offsets' must be provided")
-    if ir.get_tile_location(value.to_ir().get_type()) == TileLocation.UB:
+    if value.location == TileLocation.UB:
         check_data_alignment(value.shape, value.dtype)
-    offsets = infer_offsets(tensor.shape, value.shape, tile_id, offsets)
-    real_shape_ir = []
-    if real_shape is not None:
-        real_shape = verify_runtime_ints(real_shape, "real_shape")
-        check_real_shape(value.shape, real_shape)
-        real_shape_ir = to_ir_list(real_shape)
-    builder.create_asctile_StoreOp(value.to_ir(), tensor.to_ir(), offsets, real_shape_ir)
+    real_shape = [] if real_shape is None else to_ir_list(verify_real_shape(real_shape, value.shape))
+    builder.create_asctile_StoreOp(value.to_ir(), tensor.to_ir(), offsets, real_shape)

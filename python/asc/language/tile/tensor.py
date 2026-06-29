@@ -75,6 +75,9 @@ class Tensor(IRValue):
     shape: RuntimeShape
     """Tensor shape"""
 
+    rank: int
+    """Number of dimensions"""
+
     def __init__(self, *, handle: IRHandle) -> None:
         """This constructor is not called by user. Use :py:func:`tensor` function to define a tensor."""
         super().__init__()
@@ -83,6 +86,7 @@ class Tensor(IRValue):
         ir_type = self.handle.get_type()
         self.dtype = DataType.from_ir(ir.get_element_type(ir_type))
         self.shape = RuntimeShape(self.handle, ir.get_shape(ir_type))
+        self.rank = len(self.shape)
 
     @classmethod
     def from_ir(cls, handle: IRHandle) -> Self:

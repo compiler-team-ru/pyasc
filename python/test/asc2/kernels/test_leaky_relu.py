@@ -23,9 +23,9 @@ def leaky_relu_kernel(x_ptr: asc2.GlobalAddress, alpha: float, out_ptr: asc2.Glo
     base_offset = asc2.block_idx() * tile_size * tile_per_block
     for i in range(tile_per_block, unroll_factor=2, parallel=True):
         tile_offset = base_offset + i * tile_size
-        x = asc2.load(x_gm, [tile_size], offsets=[tile_offset])
+        x = asc2.load(x_gm, [tile_offset], [tile_size])
         out = leaky_relu(x, alpha)
-        asc2.store(out, out_gm, offsets=[tile_offset])
+        asc2.store(out, out_gm, [tile_offset])
 
 
 def leaky_relu_launch(x: torch.Tensor, alpha: torch.Tensor) -> torch.Tensor:

@@ -27,19 +27,17 @@ def matmul_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr: a
     m_off = single_core_m * (block_idx / n_blocks)
     n_off = single_core_n * (block_idx % n_blocks)
     for k_outer in range(asc2.ceildiv(k, step_kb), unroll_factor=unroll_factor, parallel=True):
-        b_l1 = asc2.load(b_gm, [step_kb, single_core_n], offsets=[k_outer * step_kb, n_off],
-                         location=asc2.TileLocation.L1)
+        b_l1 = asc2.load(b_gm, [k_outer * step_kb, n_off], [step_kb, single_core_n], asc2.TileLocation.L1)
         for k_mid in range(asc2.ceildiv(step_kb, step_ka), unroll_factor=unroll_factor, parallel=True):
             k_off = k_outer * step_kb + k_mid * step_ka
-            a_l1 = asc2.load(a_gm, [single_core_m, step_ka], offsets=[m_off, k_off], location=asc2.TileLocation.L1)
+            a_l1 = asc2.load(a_gm, [m_off, k_off], [single_core_m, step_ka], asc2.TileLocation.L1)
             for k_l0 in range(asc2.ceildiv(step_ka, base_k), unroll_factor=unroll_factor, parallel=True):
-                a_l0 = asc2.copy(a_l1, [single_core_m, base_k], offsets=[0, k_l0 * base_k],
-                                 location=asc2.TileLocation.L0A)
-                b_l0 = asc2.copy(b_l1, [base_k, single_core_n], offsets=[k_mid * step_ka + k_l0 * base_k, 0],
-                                 location=asc2.TileLocation.L0B)
+                a_l0 = asc2.copy(a_l1, [0, k_l0 * base_k], [single_core_m, base_k], asc2.TileLocation.L0A)
+                b_l0 = asc2.copy(b_l1, [k_mid * step_ka + k_l0 * base_k, 0], [base_k, single_core_n],
+                                 asc2.TileLocation.L0B)
                 asc2.matmul_acc(acc, a_l0, b_l0)
     acc = acc.to(quant_type)
-    asc2.store(acc, c_gm, offsets=[m_off, n_off])
+    asc2.store(acc, c_gm, [m_off, n_off])
 
 
 @pytest.mark.parametrize("block_num, unroll_factor, input_type, output_type, tiling_data", [

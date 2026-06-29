@@ -67,9 +67,9 @@ def test_transpose(permute, input_shape, real_shape, dtype):
     def kernel(input_ptr, result_ptr, input_shape: asc2.ConstExpr, real_shape: asc2.ConstExpr,
                output_shape: asc2.ConstExpr, write_real_shape: asc2.ConstExpr, permute: asc2.ConstExpr):
         g_input = asc2.tensor(input_ptr, input_shape)
-        tile = asc2.load(g_input, offsets=[0] * len(input_shape), shape=input_shape, real_shape=real_shape)
+        tile = asc2.load(g_input, [0] * len(input_shape), input_shape, real_shape=real_shape)
         g_output = asc2.tensor(result_ptr, output_shape)
-        asc2.store(tile.transpose(*permute), g_output, offsets=[0] * len(output_shape), real_shape=write_real_shape)
+        asc2.store(tile.transpose(*permute), g_output, [0] * len(output_shape), real_shape=write_real_shape)
 
     kernel[1](input, result, input_shape, real_shape, output_shape, write_real_shape, permute)
     for i in range(0, len(write_real_shape)):

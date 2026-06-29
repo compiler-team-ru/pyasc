@@ -30,11 +30,11 @@ def select(cond_ptr: asc2.GlobalAddress, input_x_ptr: asc2.GlobalAddress, input_
 
     for i in asc2.range(block_loop_num, unroll_factor=unroll_factor, parallel=True):
         current_offset = block_offset + i * tile_length
-        ct = asc2.load(c, [tile_length], offsets=[current_offset])
-        xt = asc2.load(x, [tile_length], offsets=[current_offset])
-        yt = asc2.load(y, [tile_length], offsets=[current_offset])
+        ct = asc2.load(c, [current_offset], [tile_length])
+        xt = asc2.load(x, [current_offset], [tile_length])
+        yt = asc2.load(y, [current_offset], [tile_length])
         zt = asc2.where(ct != 0, xt, yt)
-        asc2.store(zt, z, offsets=[current_offset])
+        asc2.store(zt, z, [current_offset])
 
 
 @pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])

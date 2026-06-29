@@ -19,10 +19,10 @@ def vadd_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, out_ptr: a
     base_offset = asc2.block_idx() * tile_size * tile_per_block
     for i in range(tile_per_block):
         tile_offset = base_offset + i * tile_size
-        x = asc2.load(x_gm, [tile_size], offsets=[tile_offset])
-        y = asc2.load(y_gm, [tile_size], offsets=[tile_offset])
+        x = asc2.load(x_gm, [tile_offset], [tile_size])
+        y = asc2.load(y_gm, [tile_offset], [tile_size])
         out = x + y
-        asc2.store(out, out_gm, offsets=[tile_offset])
+        asc2.store(out, out_gm, [tile_offset])
 
 
 def vadd_launch(x: np.ndarray, y: np.ndarray) -> np.ndarray:

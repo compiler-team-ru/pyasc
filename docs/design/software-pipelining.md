@@ -41,13 +41,13 @@ import asc2
 def simple_kernel(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
     x_gm = asc2.tensor(x, [size])
     y_gm = asc2.tensor(y, [size])
-    
+
     for i in asc2.range(size):
         # Loop remains as-is
-        x_val = asc2.load(x_gm, [1], offsets=[i])
-        y_val = asc2.load(y_gm, [1], offsets=[i])
+        x_val = asc2.load(x_gm, [i], [1])
+        y_val = asc2.load(y_gm, [i], [1])
         result = x_val + y_val
-        ascasc2.store(result, y_gm, offsets=[i])
+        asc2.store(result, y_gm, [i])
 ```
 
 ### Example 2: Recomended unrolling
@@ -56,13 +56,13 @@ def simple_kernel(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
 def unrolled_kernel(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
     x_gm = asc2.tensor(x, [size])
     y_gm = asc2.tensor(y, [size])
-    
+
     for i in asc2.range(size, unroll_factor=2):
         # Loop body will be unrolled 2 times
-        x_val = asc2.load(x_gm, [1], offsets=[i])
-        y_val = asc2.load(y_gm, [1], offsets=[i])
+        x_val = asc2.load(x_gm, [i], [1])
+        y_val = asc2.load(y_gm, [i], [1])
         result = x_val + y_val
-        asc2.store(result, y_gm, offsets=[i])
+        asc2.store(result, y_gm, [i])
 ```
 
 ### Example 3: Unrolling with Parallel Execution
@@ -75,13 +75,13 @@ and not-unrolled iterations.
 def parallel_unroll(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
     x_gm = asc2.tensor(x, [size])
     y_gm = asc2.tensor(y, [size])
-    
+
     for i in asc2.range(size, unroll_factor=2, parallel=True):
         # Loop unrolled and executed in parallel
-        x_val = asc2.load(x_gm, [1], offsets=[i])
-        y_val = asc2.load(y_gm, [1], offsets=[i])
+        x_val = asc2.load(x_gm, [i], [1])
+        y_val = asc2.load(y_gm, [i], [1])
         result = x_val + y_val
-        asc2.store(result, y_gm, offsets=[i])
+        asc2.store(result, y_gm, [i])
 ```
 
 ### Limitations & Recommendations

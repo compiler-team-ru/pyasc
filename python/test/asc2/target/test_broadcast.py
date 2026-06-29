@@ -27,9 +27,9 @@ def broadcast_scalar(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddre
     column_iters = asc2.ceildiv(cols_per_block, tile_shape[1])
 
     for i in asc2.range(column_iters, parallel=True, unroll_factor=unroll_factor):
-        scalar = asc2.load(in_gm, offsets=[0])
+        scalar = asc2.load(in_gm, [0])
         res = asc2.full(tile_shape, scalar)
-        asc2.store(res, out_gm, offsets=[0, start_offset + i * tile_shape[1]])
+        asc2.store(res, out_gm, [0, start_offset + i * tile_shape[1]])
 
 
 @asc2.jit(static_alloc=False, reuse_ub=True)
@@ -46,10 +46,10 @@ def broadcast_first_dim(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAd
 
     for j in asc2.range(column_iters, parallel=True, unroll_factor=unroll_factor):
         col_start_offset = j * tile_shape[1]
-        tensor_part = asc2.load(in_gm, [tile_shape[1]], offsets=[col_start_offset])
+        tensor_part = asc2.load(in_gm, [col_start_offset], [tile_shape[1]])
         res = tensor_part.broadcast_to(tile_shape[0], tile_shape[1])
         for i in asc2.range(row_iters, parallel=True):
-            asc2.store(res, out_gm, offsets=[start_offset + i * tile_shape[0], col_start_offset])
+            asc2.store(res, out_gm, [start_offset + i * tile_shape[0], col_start_offset])
 
 
 # static_alloc=False due to bug
@@ -66,10 +66,10 @@ def broadcast_last_dim(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAdd
 
     for i in asc2.range(row_iters, parallel=True, unroll_factor=unroll_factor):
         row_start_offset = start_offset + i * tile_shape[0]
-        tensor_part = asc2.load(in_gm, [tile_shape[0]], offsets=[row_start_offset]).reshape(tile_shape[0], 1)
+        tensor_part = asc2.load(in_gm, [row_start_offset], [tile_shape[0]]).reshape(tile_shape[0], 1)
         res = tensor_part.broadcast_to(tile_shape[0], tile_shape[1])
         for j in asc2.range(column_iters, parallel=False):
-            asc2.store(res, out_gm, offsets=[row_start_offset, j * tile_shape[1]])
+            asc2.store(res, out_gm, [row_start_offset, j * tile_shape[1]])
 
 
 def get_broadcast_axes(input_shape, output_shape):

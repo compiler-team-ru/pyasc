@@ -88,12 +88,12 @@ def reduce_sum(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, 
         Reduce tile by first (outermost) dimension, resulting tile having the shape [256],
         each element is sum of 128 elements in corresponding column: ::
 
-            input = asc2.load(x, [128, 256], offsets=[0, 0])
+            input = asc2.load(x, [0, 0], [128, 256])
             result = asc2.reduce_sum(input, 0)
 
         Compute total sum of all numbers in tile, returns single scalar value: ::
 
-            input = asc2.load(x, [256, 256], offsets=[0, 0])
+            input = asc2.load(x, [0, 0], [256, 256])
             result = asc2.reduce_sum(input)
     """
     return op_reduce_impl(input, keep_dims, dims, ir.ReduceKind.Sum, support_dtypes=(KT.int32, KT.int64, KT.float32),
@@ -138,12 +138,12 @@ def reduce_max(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, 
         Reduce tile by first (outermost) dimension, resulting tile having the shape [256],
         each element is a maximum value between 128 elements in corresponding column: ::
 
-            input = asc2.load(x, [128, 256], offsets=[0, 0])
+            input = asc2.load(x, [0, 0], [128, 256])
             result = asc2.reduce_max(input, 0)
 
         Compute the maximum value between all tile elements, returns single scalar value: ::
 
-            input = asc2.load(x, [256, 256], offsets=[0, 0])
+            input = asc2.load(x, [0, 0], [256, 256])
             result = asc2.reduce_max(input)
     """
     return op_reduce_impl(input, keep_dims, dims, ir.ReduceKind.Max,
@@ -189,12 +189,12 @@ def reduce_min(input: Tile, *dims: int, keep_dims: bool = False) -> Union[Tile, 
         Reduce tile by first (outermost) dimension, resulting tile having the shape [256],
         each element is a minimum value between 128 elements in corresponding column: ::
 
-            input = asc2.load(x, [128, 256], offsets=[0, 0])
+            input = asc2.load(x, [0, 0], [128, 256])
             result = asc2.reduce_min(input, 0)
 
         Compute the minimum value between all tile elements, returns single scalar value: ::
 
-            input = asc2.load(x, [256, 256], offsets=[0, 0])
+            input = asc2.load(x, [0, 0], [256, 256])
             result = asc2.reduce_min(input)
     """
     return op_reduce_impl(input, keep_dims, dims, ir.ReduceKind.Min,
@@ -228,7 +228,7 @@ def reduce_prod(input: Tile, *dims: int, keep_dims: bool = False) -> Tile:
         Reduce tile by first (outermost) dimension, resulting tile having the shape [256],
         each element is product of 128 elements in corresponding column: ::
 
-            input = asc2.load(x, [128, 256], offsets=[0, 0])
+            input = asc2.load(x, [0, 0], [128, 256])
             result = asc2.reduce_prod(0)
     """
     return op_reduce_impl(input, keep_dims, dims, ir.ReduceKind.Prod, support_dtypes=(KT.float32, ),

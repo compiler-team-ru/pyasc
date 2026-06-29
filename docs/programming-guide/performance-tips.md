@@ -122,12 +122,12 @@ def kernel(x_ptr, y_ptr, out_ptr, size: int, tile_size: asc2.ConstExpr[int]):
     x_gm = asc2.tensor(x_ptr, [size])
     y_gm = asc2.tensor(y_ptr, [size])
     out_gm = asc2.tensor(out_ptr, [size])
-    for i in asc2.range(asc2.num_tiles(x_gm, axis=0, shape=[tile_size])):
-        x = asc2.load(x_gm, [tile_size], tile_id=[i])
-        y = asc2.load(y_gm, [tile_size], tile_id=[i])
+    for i in asc2.range(asc2.ceildiv(size, tile_size)):
+        x = asc2.load(x_gm, [i * tile_size], [tile_size])
+        y = asc2.load(y_gm, [i * tile_size], [tile_size])
         # These elementwise ops are fused into a single VF block
         result = (x + y) * x - y
-        asc2.store(result, out_gm, tile_id=[i])
+        asc2.store(result, out_gm, [i * tile_size])
 ```
 
 The automatic fusion handles straightforward chains of built-in arithmetic and reduction operations. For more complex patterns — such as custom register-level logic, specialized masking, or operations not expressible through the standard API — use {py:func}`asc2.inline_vf` to embed raw Ascend C register code directly as a VF block:
