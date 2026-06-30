@@ -16,12 +16,12 @@ def softmax_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, num_r
     x_gm = asc2.global_tensor(x_ptr, [num_rows, num_cols])
     out_gm = asc2.global_tensor(out_ptr, [num_rows, num_cols])
     for i in range(asc2.block_idx(), num_rows, asc2.block_num(), parallel=True):
-        row = asc2.load(x_gm, [i, 0], [1, tile_size])
+        row = asc2.copy_in(x_gm, [i, 0], [1, tile_size])
         row_minus_max = row - asc2.reduce_max(row)
         numerator = asc2.exp(row_minus_max)
         denominator = asc2.reduce_sum(numerator)
         out = numerator / denominator
-        asc2.store(out, out_gm, [i, 0])
+        asc2.copy_out(out, out_gm, [i, 0])
 
 
 def softmax_launch(x: torch.Tensor) -> torch.Tensor:

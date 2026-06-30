@@ -28,10 +28,10 @@ def transpose_block(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
         offset_y = (i // total_tiles_w) * block_height
         load_width = block_width if block_width < width - offset_x else width - offset_x
         load_height = block_height if block_height < height - offset_y else height - offset_y
-        input = asc2.load(global_tensor, [offset_y, offset_x], [tile_height, tile_width],
-                          real_shape=[load_height, load_width])
+        input = asc2.copy_in(global_tensor, [offset_y, offset_x], [tile_height, tile_width],
+                             real_shape=[load_height, load_width])
         transposed = input.transpose()
-        asc2.store(transposed, result_tensor, [offset_x, offset_y], real_shape=[load_width, load_height])
+        asc2.copy_out(transposed, result_tensor, [offset_x, offset_y], real_shape=[load_width, load_height])
 
 
 # Reads (height,n) at once
@@ -46,9 +46,9 @@ def transpose_column(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddre
     for i in asc2.range(asc2.block_idx(), total_count, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
         offset = i * block_size
         load_width = block_size if block_size < width - offset else width - offset
-        input = asc2.load(global_tensor, [0, offset], [tile_height, tile_width], real_shape=[height, load_width])
+        input = asc2.copy_in(global_tensor, [0, offset], [tile_height, tile_width], real_shape=[height, load_width])
         transposed = input.transpose()
-        asc2.store(transposed, result_tensor, [offset, 0], real_shape=[load_width, height])
+        asc2.copy_out(transposed, result_tensor, [offset, 0], real_shape=[load_width, height])
 
 
 # Reads (n,width) at once
@@ -62,9 +62,9 @@ def transpose_line(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress
     for i in asc2.range(asc2.block_idx(), total_count, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
         offset = i * block_size
         load_height = block_size if block_size < height - offset else height - offset
-        input = asc2.load(global_tensor, [offset, 0], [tile_height, tile_width], real_shape=[load_height, width])
+        input = asc2.copy_in(global_tensor, [offset, 0], [tile_height, tile_width], real_shape=[load_height, width])
         transposed = input.transpose()
-        asc2.store(transposed, result_tensor, [0, offset], real_shape=[width, load_height])
+        asc2.copy_out(transposed, result_tensor, [0, offset], real_shape=[width, load_height])
 
 
 # Iteration step is [1..1,axis_step,remaining_transposed_shape] for transposed shape.
@@ -122,10 +122,10 @@ def transpose_nlast_axis(
             load_offsets[load_axes[2]] = id2
             store_offsets[store_shape_axis - 2] = id2
 
-        tile = asc2.load(input_tensor, load_offsets, ub_load_shape, real_shape=load_real_shape)
+        tile = asc2.copy_in(input_tensor, load_offsets, ub_load_shape, real_shape=load_real_shape)
         tile2 = tile.transpose(*permute)
 
-        asc2.store(tile2, output_tensor, store_offsets, real_shape=store_real_shape)
+        asc2.copy_out(tile2, output_tensor, store_offsets, real_shape=store_real_shape)
 
 
 def launch_nlast_axis(input, permute, axis, axis_step, cores, dtype, runs, profiler):
@@ -199,11 +199,11 @@ def transpose_one_axis(
             load_shape_axis] else input_shape[load_shape_axis] - offset
         read_offsets = [0] * (load_shape_axis) + [offset] + [0] * (len(load_shape) - 1 - load_shape_axis)
         read_shape = load_shape[:load_shape_axis] + [read_count] + load_shape[load_shape_axis + 1:]
-        load_tensor = asc2.load(input_tensor, read_offsets, ub_load_shape, real_shape=read_shape)
+        load_tensor = asc2.copy_in(input_tensor, read_offsets, ub_load_shape, real_shape=read_shape)
         transposed_tensor = load_tensor.transpose(*permute)
         write_offsets = [0] * (store_shape_axis) + [offset] + [0] * (len(store_shape) - 1 - store_shape_axis)
         store_real_shape = store_shape[:store_shape_axis] + [read_count] + store_shape[store_shape_axis + 1:]
-        asc2.store(transposed_tensor, output_tensor, write_offsets, real_shape=store_real_shape)
+        asc2.copy_out(transposed_tensor, output_tensor, write_offsets, real_shape=store_real_shape)
 
 
 def launch_one_axis(input, permute, axis, axis_step, cores, dtype, runs, profiler):
@@ -278,7 +278,7 @@ def transpose_2_axis(
         read_count[load_shape_axis0] = count0
         read_count[load_shape_axis1] = count1
 
-        load_tensor = asc2.load(input_tensor, read_offsets, ub_load_shape, real_shape=read_count)
+        load_tensor = asc2.copy_in(input_tensor, read_offsets, ub_load_shape, real_shape=read_count)
         transposed_tensor = load_tensor.transpose(*permute)
 
         write_offsets = [0] * len(load_shape)
@@ -288,7 +288,7 @@ def transpose_2_axis(
         write_count[store_axis[0]] = count0
         write_count[store_axis[1]] = count1
 
-        asc2.store(transposed_tensor, output_tensor, write_offsets, real_shape=write_count)
+        asc2.copy_out(transposed_tensor, output_tensor, write_offsets, real_shape=write_count)
 
 
 def launch_2axis(input, permute, axis, step, dtype, cores, unroll_factor, runs, profiler):

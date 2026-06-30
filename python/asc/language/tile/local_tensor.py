@@ -51,7 +51,7 @@ class LocalTensor(IRValue):
         """
         This constructor is not called by user.
 
-        Use :py:func:`load`, :py:func:`zeros`, or other functions to create a local tensor.
+        Use :py:func:`copy_in`, :py:func:`zeros`, or other functions to create a local tensor.
         """
         super().__init__()
         check_type("handle", handle, IRHandle)

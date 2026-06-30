@@ -32,8 +32,8 @@ def kl_div(input_x_ptr: asc2.GlobalAddress, input_target_ptr: asc2.GlobalAddress
         current_offset = i * tile_length
         tail_length = input_size - tile_length
         real_offset = max(current_offset, tail_length)
-        target_block = asc2.load(target_gm, [current_offset], [tile_length], real_shape=[input_size - real_offset],
-                                 pad_value=0)
+        target_block = asc2.copy_in(target_gm, [current_offset], [tile_length], real_shape=[input_size - real_offset],
+                                    pad_value=0)
         positive_target = asc2.maximum(target_block, 0)
         if input_x_ptr.dtype == asc2.float16:
             positive_target = positive_target.to(asc2.float32) * 1024
@@ -41,11 +41,12 @@ def kl_div(input_x_ptr: asc2.GlobalAddress, input_target_ptr: asc2.GlobalAddress
         if input_x_ptr.dtype == asc2.float16:
             mask = mask.to(asc2.float16)
         log_target = asc2.log(asc2.maximum(target_block, epsilon))
-        x_block = asc2.load(x_gm, [current_offset], [tile_length], real_shape=[input_size - real_offset], pad_value=0)
+        x_block = asc2.copy_in(x_gm, [current_offset], [tile_length], real_shape=[input_size - real_offset],
+                               pad_value=0)
         block_result = mask * (target_block * (log_target - x_block))
         acc_block = acc_block + block_result
     final_result = asc2.reduce_sum(acc_block)
-    asc2.store(final_result, output_gm, [0])
+    asc2.copy_out(final_result, output_gm, [0])
 
 
 @pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])

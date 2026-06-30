@@ -44,7 +44,7 @@ def set_docstring(name: str, support_dtypes: Tuple[DataType], support_scalar: bo
     examples = f"""
         Compute the element-wise {name} of all tensor elements: ::
 
-            input = asc2.load(tensor, [0, 0], [128, 256])
+            input = asc2.copy_in(tensor, [0, 0], [128, 256])
             result = asc2.{{fn_name}}(input)
         """
     if support_scalar:
@@ -279,12 +279,12 @@ def softmax(input: LocalTensor) -> LocalTensor:
     Examples:
         Compute row-wise softmax for a 2D tensor: ::
 
-            input = asc2.load(x_gm, [0, 0], [64, 1024])
+            input = asc2.copy_in(x_gm, [0, 0], [64, 1024])
             result = asc2.softmax(input)  # softmax applied independently to each of 64 rows
 
         Compute softmax for a 1D tensor: ::
 
-            input = asc2.load(x_gm, [0], [1024])
+            input = asc2.copy_in(x_gm, [0], [1024])
             result = asc2.softmax(input)  # softmax applied over all 1024 elements
     """
     check_type("input", input, LocalTensor)
@@ -321,14 +321,14 @@ def rms_norm(input: LocalTensor, gamma: LocalTensor, epsilon: RuntimeFloat) -> L
     Examples:
         Apply RMSNorm to a 2D tensor: ::
 
-            input = asc2.load(x_gm, [0, 0], [32, 128])
-            gamma = asc2.load(gamma_gm, [0], [128])
+            input = asc2.copy_in(x_gm, [0, 0], [32, 128])
+            gamma = asc2.copy_in(gamma_gm, [0], [128])
             output = asc2.rms_norm(input, gamma, 1e-5)
 
         Apply RMSNorm to a 1D tensor: ::
 
-            input = asc2.load(x_gm, [0], [128])
-            gamma = asc2.load(gamma_gm, [0], [128])
+            input = asc2.copy_in(x_gm, [0], [128])
+            gamma = asc2.copy_in(gamma_gm, [0], [128])
             output = asc2.rms_norm(input, gamma, 1e-6)
     """
     check_type("input", input, LocalTensor)

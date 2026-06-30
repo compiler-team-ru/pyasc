@@ -29,9 +29,9 @@ def cast_direct(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, i
 
     for i in asc2.range(block_loop_num, parallel=True, unroll_factor=unroll_factor):
         current_offset = block_offset + i * tile_length
-        xt = asc2.load(x_gm, [current_offset], [tile_length])
+        xt = asc2.copy_in(x_gm, [current_offset], [tile_length])
         zt = xt.to(dst_dtype)
-        asc2.store(zt, out_gm, [current_offset])
+        asc2.copy_out(zt, out_gm, [current_offset])
 
 
 @asc2.jit(static_alloc=True, reuse_ub=True)
@@ -47,10 +47,10 @@ def cast_two(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, inpu
 
     for i in asc2.range(block_loop_num, parallel=True, unroll_factor=unroll_factor):
         current_offset = block_offset + i * tile_length
-        xt = asc2.load(x_gm, [current_offset], [tile_length])
+        xt = asc2.copy_in(x_gm, [current_offset], [tile_length])
         middle_tile = xt.to(intermediate_dtype)
         zt = middle_tile.to(dst_dtype)
-        asc2.store(zt, out_gm, [current_offset])
+        asc2.copy_out(zt, out_gm, [current_offset])
 
 
 # DYNAMIC [2, 5, 7, 42767] only supports unroll_factor = 1

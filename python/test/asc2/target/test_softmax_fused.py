@@ -16,7 +16,7 @@ STATIC = "static"
 DYNAMIC = "dynamic"
 
 
-# The current implementation works for columns as long as the shape specified in asc2.load fits in UB.
+# The current implementation works for columns as long as the shape specified in asc2.copy_in fits in UB.
 @asc2.jit(static_alloc=True, reuse_ub=True)
 def softmax_fused(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows, input_num_cols,
                   rows_per_core, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
@@ -35,9 +35,9 @@ def softmax_fused(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
 
     for i in asc2.range(block_loop_num, unroll_factor=unroll_factor, parallel=True):
         row_start_offset = start_offset + i * tile_shape[0]
-        rows = asc2.load(in_gm, [row_start_offset, 0], [tile_shape[0], tile_shape[1]], pad_value=float('-inf'))
+        rows = asc2.copy_in(in_gm, [row_start_offset, 0], [tile_shape[0], tile_shape[1]], pad_value=float('-inf'))
         out = asc2.softmax(rows)
-        asc2.store(out, out_gm, [row_start_offset, 0])
+        asc2.copy_out(out, out_gm, [row_start_offset, 0])
 
 
 @pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])

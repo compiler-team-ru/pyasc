@@ -98,8 +98,8 @@ from asc.language.tile.debug_ops import (
     inline_vf, )
 from asc.language.tile.memory_ops import (
     copy,
-    load,
-    store,
+    copy_in,
+    copy_out,
 )
 from asc.language.tile.prog_model_ops import (
     block_idx,
@@ -191,8 +191,8 @@ __all__ += [
     "inline_vf",
     # memory_ops
     "copy",
-    "load",
-    "store",
+    "copy_in",
+    "copy_out",
     # prog_model_ops
     "block_idx",
     "block_num",

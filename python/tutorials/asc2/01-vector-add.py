@@ -27,7 +27,7 @@ def vector_add(
         # Scalar parameters are passed as Python types (e.g. `int`, `float`).
         # For optimization purposes it is recommended to pass scalar parameter as constants (e.g. `asc2.ConstExpr[int]`).
         size: int,
-        # tile_size is used in asc2.load must be asc2.ConstExpr
+        # tile_size is used in asc2.copy_in must be asc2.ConstExpr
         tile_size: asc2.ConstExpr):
 
     # Tensor descriptor is created from `asc2.GlobalAddress` to represent entire tensor.
@@ -46,13 +46,13 @@ def vector_add(
     # It is user responsibility to ensure that there are no data dependencies between overlapped iterations.
     for i in asc2.range(block_loop_num, unroll_factor=2, parallel=True):
         tile_offset = block_offset + i * tile_size
-        # `asc2.load` is used to create tile object which is used for further calculations. Data movement from GM to UB happens in this operation.
-        x = asc2.load(x_gm, [tile_offset], [tile_size])
-        y = asc2.load(y_gm, [tile_offset], [tile_size])
+        # `asc2.copy_in` is used to create tile object which is used for further calculations. Data movement from GM to UB happens in this operation.
+        x = asc2.copy_in(x_gm, [tile_offset], [tile_size])
+        y = asc2.copy_in(y_gm, [tile_offset], [tile_size])
         # One or more operations can be applied for tiles. It is compiler responsibility to allocate required number of memory blocks in UB.
         out = x + y
-        # `asc2.store` is used to move data from UB back to GM.
-        asc2.store(out, out_gm, [tile_offset])
+        # `asc2.copy_out` is used to move data from UB back to GM.
+        asc2.copy_out(out, out_gm, [tile_offset])
 
 
 if __name__ == "__main__":

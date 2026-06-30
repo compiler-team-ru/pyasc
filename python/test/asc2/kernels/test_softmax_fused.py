@@ -16,9 +16,9 @@ def softmax_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, num_r
     x_gm = asc2.global_tensor(x_ptr, [num_rows, num_cols])
     out_gm = asc2.global_tensor(out_ptr, [num_rows, num_cols])
     start_rows = asc2.block_idx() * block_size
-    rows = asc2.load(x_gm, [start_rows, 0], [block_size, num_cols])
+    rows = asc2.copy_in(x_gm, [start_rows, 0], [block_size, num_cols])
     out = asc2.softmax(rows)
-    asc2.store(out, out_gm, [start_rows, 0])
+    asc2.copy_out(out, out_gm, [start_rows, 0])
 
 
 def softmax_launch(x: torch.Tensor) -> torch.Tensor:

@@ -31,26 +31,26 @@ def kernel(x_ptr, y_ptr, z_ptr, block_length: asc2.ConstExpr, fmt: asc2.ConstExp
            mask_type: asc2.ConstExpr, count: asc2.ConstExpr, other: asc2.ConstExpr, hibits: asc2.ConstExpr,
            lowbits: asc2.ConstExpr) -> None:
     if fmt == VV:
-        xt = asc2.load(asc2.global_tensor(x_ptr, [32]), [0], [block_length])
-        yt = asc2.load(asc2.global_tensor(y_ptr, [32]), [0], [block_length])
+        xt = asc2.copy_in(asc2.global_tensor(x_ptr, [32]), [0], [block_length])
+        yt = asc2.copy_in(asc2.global_tensor(y_ptr, [32]), [0], [block_length])
     elif fmt == VS:
-        xt = asc2.load(asc2.global_tensor(x_ptr, [32]), [0], [block_length])
+        xt = asc2.copy_in(asc2.global_tensor(x_ptr, [32]), [0], [block_length])
         yt = y_ptr
     elif fmt == SV:
         xt = x_ptr
-        yt = asc2.load(asc2.global_tensor(y_ptr, [32]), [0], [block_length])
+        yt = asc2.copy_in(asc2.global_tensor(y_ptr, [32]), [0], [block_length])
 
     if mask_type == NO_MASK:
         zt = op(xt, yt)
-        asc2.store(zt, asc2.global_tensor(z_ptr, [32]), [0])
+        asc2.copy_out(zt, asc2.global_tensor(z_ptr, [32]), [0])
     elif mask_type == COUNT_MASK:
         with asc2.mask(count=count, other=other):
             zt = op(xt, yt)
-            asc2.store(zt, asc2.global_tensor(z_ptr, [32]), [0])
+            asc2.copy_out(zt, asc2.global_tensor(z_ptr, [32]), [0])
     elif mask_type == BIT_MASK:
         with asc2.mask(bits=[hibits, lowbits], other=other):
             zt = op(xt, yt)
-            asc2.store(zt, asc2.global_tensor(z_ptr, [32]), [0])
+            asc2.copy_out(zt, asc2.global_tensor(z_ptr, [32]), [0])
 
 
 def handle_mask(gold, mask_type, count, other, hibits, lowbits) -> torch.Tensor:

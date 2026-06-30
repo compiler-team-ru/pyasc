@@ -25,12 +25,12 @@ def matmul_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr: a
     n_base_off = ((m_elems_per_block * blockId) // a_shape[0]) * (n_tile * n_tiles_per_block)
     for j in range(n_tiles_per_block):
         b_offset = n_base_off + j * n_tile
-        b_j = asc2.load(b_gm, [0, b_offset], [b_shape[0], n_tile], asc2.TensorLocation.L0B)
+        b_j = asc2.copy_in(b_gm, [0, b_offset], [b_shape[0], n_tile], asc2.TensorLocation.L0B)
         for i in range(m_tiles_per_block):
             a_offset = m_base_off + i * m_tile
-            a_i = asc2.load(a_gm, [a_offset, 0], [m_tile, a_shape[1]], asc2.TensorLocation.L0A)
+            a_i = asc2.copy_in(a_gm, [a_offset, 0], [m_tile, a_shape[1]], asc2.TensorLocation.L0A)
             c_ij = a_i @ b_j
-            asc2.store(c_ij, c_gm, [a_offset, b_offset])
+            asc2.copy_out(c_ij, c_gm, [a_offset, b_offset])
 
 
 def eval_tiles(a: torch.Tensor, b: torch.Tensor, core_num, m_tile, n_tile, n_tiles_per_block):

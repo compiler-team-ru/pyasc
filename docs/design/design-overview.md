@@ -82,7 +82,7 @@ A5 adds the following hardware capabilities relative to A2: <sup>[[58]](#ref-58)
   │              PyAsc2 Frontend  (python/asc2/)             │
   │                                                          │
   │  GlobalTensor (GM)  LocalTensor (UB/L0/…)  asc2.range    │
-  │  load / store  arithmetic  reductions  shape ops         │
+  │  copy_in / copy_out  arithmetic  reductions  shape ops   │
   │  atomics  matmul  unary  creation  indexing              │
   └──────────────────────┬───────────────────────────────────┘
                          │  FunctionVisitor (AST → IR)
@@ -142,7 +142,7 @@ A5 adds the following hardware capabilities relative to A2: <sup>[[58]](#ref-58)
 |--|----------|--------|
 | **Memory** | Global Memory (HBM, GM) | On-chip: UB, L0A, L0B, L0C, L1 |
 | **Shape** | ND, may be dynamic (RuntimeInt dims) | ND, must be static (known at JIT time) |
-| **Creation** | `asc2.global_tensor(ptr, shape)` | Returned by `asc2.load(...)` or creation ops |
+| **Creation** | `asc2.global_tensor(ptr, shape)` | Returned by `asc2.copy_in(...)` or creation ops |
 | **Mutability** | Passed to/from kernel; never computed in-kernel | Value semantics; produced by ops, consumed once |
 | **IR type** | `asctile.tensor<shape x dtype>` | `asctile.tile<shape x dtype, location>` |
 
@@ -157,27 +157,27 @@ A5 adds the following hardware capabilities relative to A2: <sup>[[58]](#ref-58)
 | `L0C` | L0 matrix output buffer | Matmul accumulator |
 | `L1` | L1 cache | Intermediate staging |
 
-`load` defaults to `TensorLocation.UB`. Matmul implicitly creates `L0A`/`L0B`/`L0C` tiles; the LowerToL0 pass handles the layout conversion.
+`copy_in` defaults to `TensorLocation.UB`. Matmul implicitly creates `L0A`/`L0B`/`L0C` tiles; the LowerToL0 pass handles the layout conversion.
 
 ### 4.3 Load and store
 
 ```python
 # Load a local tensor from a global tensor:
-tile = asc2.load(tensor, [base], [128])       # explicit element offsets
+tile = asc2.copy_in(tensor, [base], [128])       # explicit element offsets
 
 # Load a scalar (no shape → scalar load)
-scalar = asc2.load(tensor, [i])
+scalar = asc2.copy_in(tensor, [i])
 
 # Optional padding for partial tiles
-tile = asc2.load(tensor, [base], [128], pad_value=0.0)
+tile = asc2.copy_in(tensor, [base], [128], pad_value=0.0)
 
 # Copy a local tensor (or sub-region) into a fresh local tensor, optionally on another location
 clone = asc2.copy(tile)
 sub   = asc2.copy(tile, [0], [64])
 
 # Store local tensor or scalar back
-asc2.store(tile, tensor, [base])
-asc2.store(scalar_value, tensor, [i])
+asc2.copy_out(tile, tensor, [base])
+asc2.copy_out(scalar_value, tensor, [i])
 ```
 
 The last dimension of every local tensor shape must be aligned to `ub_block_size` (32 bytes). This is enforced at JIT time via `check_data_alignment`.
@@ -373,9 +373,9 @@ Once all `asctile` ops are gone, the existing ascendc pipeline takes over:
 
 From the user's perspective, memory management is invisible. The user:
 1. Creates `GlobalTensor` descriptors pointing to HBM buffers.
-2. Calls `load(tensor, shape, offsets=…)` to bring data into a `LocalTensor`.
+2. Calls `copy_in(tensor, shape, offsets=…)` to bring data into a `LocalTensor`.
 3. Applies operations to produce new tiles.
-4. Calls `store(tile, tensor, offsets=…)` to write results back.
+4. Calls `copy_out(tile, tensor, offsets=…)` to write results back.
 
 The compiler is responsible for mapping each `LocalTensor` SSA value to a physical UB region.
 
@@ -424,9 +424,9 @@ def vadd(x_ptr, y_ptr, out_ptr, size: int, tiles_per_block: int, TILE: asc.Const
     base = asc2.block_idx() * tiles_per_block * TILE
     for i in asc2.range(tiles_per_block):
         off = base + i * TILE
-        x   = asc2.load(x_gm, [off], [TILE])
-        y   = asc2.load(y_gm, [off], [TILE])
-        asc2.store(x + y, out_gm, [off])
+        x   = asc2.copy_in(x_gm, [off], [TILE])
+        y   = asc2.copy_in(y_gm, [off], [TILE])
+        asc2.copy_out(x + y, out_gm, [off])
 
 vadd[8](x, y, out, n, asc2.ceildiv(n // 256, 8), TILE=256)
 ```
@@ -440,9 +440,9 @@ def softmax(x_ptr, out_ptr, rows: int, cols: int, TILE: asc.ConstExpr[int]):
     out_gm = asc2.global_tensor(out_ptr, [rows, cols])
 
     for row in asc2.range(asc2.block_idx(), rows, asc2.block_num()):
-        x = asc2.load(x_gm, [row, 0], [1, TILE])
+        x = asc2.copy_in(x_gm, [row, 0], [1, TILE])
         exp_x = asc2.exp(x - x.max())
-        asc2.store(exp_x / exp_x.sum(), out_gm, [row, 0])
+        asc2.copy_out(exp_x / exp_x.sum(), out_gm, [row, 0])
 ```
 
 ---
