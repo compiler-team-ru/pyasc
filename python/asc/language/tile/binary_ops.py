@@ -70,7 +70,7 @@ def op_compare_impl(input: Union[LocalTensor, RuntimeNumeric], other: Union[Loca
 
 
 def set_docstring(name: str, support_dtypes: Tuple[DataType, ...], rhs_scalar_only: bool = False) -> Callable[[T], T]:
-    dtypes_str = ", ".join(f":code:`{dtype}`" for dtype in support_dtypes)
+    dtypes_str = ", ".join(f"``{dtype}``" for dtype in support_dtypes)
     other_type = "scalar" if rhs_scalar_only else "tensor or scalar"
     examples = "" if rhs_scalar_only else f"""
         Compute the {name} between elements of two tensors: ::
@@ -89,7 +89,7 @@ def set_docstring(name: str, support_dtypes: Tuple[DataType, ...], rhs_scalar_on
 
     def decorator(fn: T) -> T:
         doc = f"""
-    Computes the element-wise {name} of :code:`input` and :code:`other`.
+    Computes the element-wise {name} of ``input`` and ``other``.
 
     The supported data types for the inputs are: {dtypes_str}.
 
@@ -101,12 +101,12 @@ def set_docstring(name: str, support_dtypes: Tuple[DataType, ...], rhs_scalar_on
         LocalTensor: The result of {name}
 
     Raises:
-        RuntimeError: If neither operand is a :code:`LocalTensor`
+        RuntimeError: If neither operand is a ``LocalTensor``
 
     Note:
-        At least one of input operands must be :code:`LocalTensor`.
+        At least one of input operands must be ``LocalTensor``.
         Operands are automatically cast to a common data type and broadcast to a common shape.
-        When one operand is a :code:`LocalTensor` and the other is a scalar, the tensor's dtype takes precedence.
+        When one operand is a ``LocalTensor`` and the other is a scalar, the tensor's dtype takes precedence.
         Inputs must either have the same shapes or be broadcastable according to NumPy broadcasting rules.
 
     Examples:
@@ -252,16 +252,16 @@ def check_matmul_arguments(input: LocalTensor, other: LocalTensor, hf32: bool) -
 def matmul(input: LocalTensor, other: LocalTensor, bias: Optional[LocalTensor] = None, *,
            hf32: bool = False) -> LocalTensor:
     """
-    Computes the matrix multiplication of :code:`input` and :code:`other` with optional :code:`bias`.
+    Computes the matrix multiplication of ``input`` and ``other`` with optional ``bias``.
 
     Args:
-        input: The left operand (2D tensor in :code:`L0A`)
-        other: The right operand (2D tensor in :code:`L0B`)
-        bias: Optional bias tensor (1D tensor in :code:`BT`)
-        hf32: Enable the rounding to HF32 for input tensors with :code:`float32` dtype
+        input: The left operand (2D tensor in ``L0A``)
+        other: The right operand (2D tensor in ``L0B``)
+        bias: Optional bias tensor (1D tensor in ``BT``)
+        hf32: Enable the rounding to HF32 for input tensors with ``float32`` dtype
 
     Returns:
-        LocalTensor: The result of the matrix multiplication (2D tensor in :code:`L0C`)
+        LocalTensor: The result of the matrix multiplication (2D tensor in ``L0C``)
 
     Raises:
         TypeError: If input or other is not a LocalTensor
@@ -269,11 +269,10 @@ def matmul(input: LocalTensor, other: LocalTensor, bias: Optional[LocalTensor] =
             or bias has wrong shape/dtype
 
     Note:
-        Input tensors must have either :code:`float16`, :code:`bfloat16`, or :code:`float32` data type
-        and compatible shapes. Result tensor type is always :code:`float32`.
-        Bias must be a 1D tensor of :code:`float16`, :code:`bfloat16`, or :code:`float32` with shape
-        matching the last dimension of the output. Bias with :code:`float16` or :code:`bfloat16` dtype
-        is automatically promoted to :code:`float32` to match the result type.
+        Input tensors must have either ``float16``, ``bfloat16``, or ``float32`` data type and compatible shapes.
+        Result tensor type is always ``float32``. Bias must be a 1D tensor of ``float16``, ``bfloat16``, or ``float32``
+        with shape matching the last dimension of the output.
+        Bias with ``float16`` or ``bfloat16`` dtype is automatically promoted to ``float32`` to match the result type.
 
     Examples:
         Basic matrix multiplication using operator syntax: ::
@@ -311,25 +310,25 @@ def matmul(input: LocalTensor, other: LocalTensor, bias: Optional[LocalTensor] =
 
 def matmul_acc(acc: LocalTensor, input: LocalTensor, other: LocalTensor, *, hf32: bool = False) -> None:
     """
-    Computes the matrix multiplication of :code:`input` and :code:`other` and accumulates the result into :code:`acc`.
+    Computes the matrix multiplication of ``input`` and ``other`` and accumulates the result into ``acc``.
 
-    This function performs in-place accumulation, adding the result of :code:`input @ other` to the existing
-    accumulator values. Use :py:func:`asc2.zeros_acc` to create an accumulator. For simple matrix
-    multiplication without accumulation, use :py:func:`matmul` which returns a new tensor.
+    This function performs in-place accumulation, adding the result of ``input @ other`` to the existing accumulator
+    values. Use :py:func:`asc2.zeros_acc` to create an accumulator. For simple matrix multiplication without
+    accumulation, use :py:func:`matmul` which returns a new tensor.
 
     **Rationale:** Ascend's Cube units operate on a dedicated L0C accumulator register where the accumulator and matmul
     destination are the same physical entity—the hardware accumulates in-place as part of the matmul operation itself.
     Unlike general-purpose memory (UB, L1), L0C is a specialized register file designed for this exact use case. This
-    destination-passing style makes the hardware behavior explicit: you create an accumulator with :code:`zeros_acc`,
+    destination-passing style makes the hardware behavior explicit: you create an accumulator with ``zeros_acc``,
     reuse it across multiple matmul operations, then read the final result. While other frameworks may use functional
-    style (e.g. :code:`acc = matmul(acc, a, b)`), that approach would either require implicit copies from L0C (defeating
+    style (e.g. ``acc = matmul(acc, a, b)``), that approach would either require implicit copies from L0C (defeating
     the purpose of the dedicated accumulator) or obscure the fact that accumulation happens in specialized hardware.
 
     Args:
-        acc: Accumulator tensor (2D tensor in :code:`L0C`). Must be created with :py:func:`asc2.zeros_acc`.
-        input: The left operand (2D tensor in :code:`L0A`)
-        other: The right operand (2D tensor in :code:`L0B`)
-        hf32: Enable the rounding to HF32 for input tensors with :code:`float32` dtype
+        acc: Accumulator tensor (2D tensor in ``L0C``), must be created with :py:func:`asc2.zeros_acc`
+        input: The left operand (2D tensor in ``L0A``)
+        other: The right operand (2D tensor in ``L0B``)
+        hf32: Enable the rounding to HF32 for input tensors with ``float32`` dtype
 
     Raises:
         TypeError: If acc, input, or other is not a LocalTensor
@@ -337,8 +336,8 @@ def matmul_acc(acc: LocalTensor, input: LocalTensor, other: LocalTensor, *, hf32
             or accumulator has wrong shape/dtype
 
     Note:
-        Input tensors must have either :code:`float16`, :code:`bfloat16`, or :code:`float32` data type
-        and compatible shapes. Accumulator tensor type is always :code:`float32`.
+        Input tensors must have either ``float16``, ``bfloat16``, or ``float32`` data type and compatible shapes.
+        Accumulator tensor type is always ``float32``.
 
     Examples:
         Accumulate multiple matrix multiplications (e.g., for K-tiled matmul): ::

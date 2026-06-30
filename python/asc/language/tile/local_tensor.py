@@ -271,7 +271,7 @@ class Binder:
             call_alias = f"input.{name}(...)"
         fn.__doc__ += f"""
     This function can also be called {call_kind} on :py:class:`LocalTensor`,
-    as :code:`{call_alias}` instead of :code:`{call_func}`.
+    as ``{call_alias}`` instead of ``{call_func}``.
         """
         params[0] = params[0].replace(name="self")
         new_sig = sig.replace(parameters=params)

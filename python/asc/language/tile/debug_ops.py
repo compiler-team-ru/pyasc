@@ -25,7 +25,7 @@ def inline_vf(code: str, shape: Tuple[int, ...], dtype: DataType,
     ``__VEC_SCOPE__`` block in the generated Ascend C source.
 
     Tensors are referenced by positional placeholders: ``$0`` is always the output tensor, and ``$1``, ``$2``, ... refer
-    to the input tensors in the order they appear in :code:`inputs`. Zero or more input tensors are allowed. Each
+    to the input tensors in the order they appear in ``inputs``. Zero or more input tensors are allowed. Each
     placeholder will be replaced with a ``LocalTensor`` allocated for a corresponding tensor.
 
     All input tensors must reside in UB memory. The output tensor is always allocated in UB.

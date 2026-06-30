@@ -46,23 +46,23 @@ class CompileOptions:
 
     bisheng_options: Optional[Tuple[str, ...]] = None
     """
-    Append extra arguments to the :code:`bisheng` command line used to produce an object file for the kernel.
-    Please, run :code:`bisheng --help` to get the list of options supported by the compiler.
-    
-    Note: To pass a single argument, use :code:`("-O3",)` (with a trailing comma).
-    Without the comma, :code:`("-O3")` is just a string, not a tuple.
+    Append extra arguments to the ``bisheng`` command line used to produce an object file for the kernel.
+    Please, run ``bisheng --help`` to get the list of options supported by the compiler.
+
+    Note: To pass a single argument, use ``("-O3",)`` (with a trailing comma).
+    Without the comma, ``("-O3")`` is just a string, not a tuple.
     """
 
     opt_level: int = 3
     """
-    Optimization level for the Bisheng compiler. Supported values are :code:`1`, :code:`2`, :code:`3`.
-    Typically, this parameter affects the :code:`-O` argument of the command line for the compiler.
+    Optimization level for the Bisheng compiler. Supported values are ``1``, ``2``, ``3``.
+    Typically, this parameter affects the ``-O`` argument of the command line for the compiler.
     """
 
     run_asc2_passes: bool = False
     """
     Enable PyAsc2 compilation pipeline.
-    **This option is enabled automatically** when :code:`@asc2.jit` decorator is used.
+    **This option is enabled automatically** when ``@asc2.jit`` decorator is used.
     """
 
     densify_load_store: bool = False
@@ -88,7 +88,7 @@ class CompileOptions:
     reuse_ub_in_out: bool = False
     """
     Allow for input/output tiles to be reused alongside intermediate ones.
-    This option only has effect if :code:`reuse_ub` feature is enabled and :code:`densify_load_store` feature is not.
+    This option only has effect if ``reuse_ub`` feature is enabled and ``densify_load_store`` feature is not.
 
     .. warning::
         This is an experimental feature. It might or might not cause functional or performance regressions.
@@ -99,7 +99,7 @@ class CompileOptions:
     Perform static allocation for tiles instead of relying on Ascend C TPipe backend.
     The static allocation feature may help to reduce an overhead caused by scalar code.
 
-    **This feature is enabled by default** on supported platforms (such as :code:`Ascend950PR_9599`).
+    **This feature is enabled by default** on supported platforms (such as ``Ascend950PR_9599``).
     """
 
     vf_fusion: bool = False
@@ -111,7 +111,7 @@ class CompileOptions:
     vf_vec_len: Optional[int] = None
     """
     Vector register length for the C310 architecture.
-    This option is only available on supported platforms (such as :code:`Ascend950PR_9599`). The default value is 256.
+    This option is only available on supported platforms (such as ``Ascend950PR_9599``). The default value is 256.
     """
 
 

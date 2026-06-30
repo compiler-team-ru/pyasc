@@ -39,7 +39,7 @@ def op_unary_impl(input: Union[LocalTensor, RuntimeNumeric], build_float: Callab
 
 
 def set_docstring(name: str, support_dtypes: Tuple[DataType], support_scalar: bool = False) -> Callable[[T], T]:
-    dtypes_str = ", ".join(f":code:`{dtype}`" for dtype in support_dtypes)
+    dtypes_str = ", ".join(f"``{dtype}``" for dtype in support_dtypes)
     tensor_info = "tensor or scalar" if support_scalar else "tensor"
     examples = f"""
         Compute the element-wise {name} of all tensor elements: ::
@@ -56,7 +56,7 @@ def set_docstring(name: str, support_dtypes: Tuple[DataType], support_scalar: bo
 
     def decorator(fn: T) -> T:
         doc = f"""
-    Computes the element-wise {name} of :code:`input`.
+    Computes the element-wise {name} of ``input``.
 
     The supported data types for the input are: {dtypes_str}.
 
@@ -260,12 +260,12 @@ def negative(input: LocalTensor) -> LocalTensor:
 @require_jit
 def softmax(input: LocalTensor) -> LocalTensor:
     """
-    Computes the row-wise softmax of :code:`input`.
+    Computes the row-wise softmax of ``input``.
 
     For 2D tensors, softmax is applied independently along the last dimension for each row.
     For 1D tensors, softmax is applied over all elements.
 
-    The supported data types for the input are: :code:`float16`, :code:`float32`.
+    The supported data types for the input are: ``float16``, ``float32``.
 
     Args:
         input: The input tensor (1D or 2D)
@@ -298,12 +298,12 @@ def softmax(input: LocalTensor) -> LocalTensor:
 @require_jit
 def rms_norm(input: LocalTensor, gamma: LocalTensor, epsilon: RuntimeFloat) -> LocalTensor:
     """
-    Computes Root Mean Square Layer Normalization of :code:`input`.
+    Computes Root Mean Square Layer Normalization of ``input``.
 
-    RMSNorm normalizes the input by the root mean square and scales by learnable parameters :code:`gamma`.
+    RMSNorm normalizes the input by the root mean square and scales by learnable parameters ``gamma``.
     This is commonly used in transformer architectures as an alternative to LayerNorm.
 
-    The supported data types for the inputs are: :code:`float16`, :code:`float32`.
+    The supported data types for the inputs are: ``float16``, ``float32``.
 
     Args:
         input: The input tensor to normalize (1D or 2D)

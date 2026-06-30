@@ -23,8 +23,8 @@ def where(mask: LocalTensor, src0: Union[LocalTensor, RuntimeNumeric], src1: Uni
     """
     Select elements from two sources based on a mask.
 
-    For each element, returns the corresponding element from :code:`src0` if the mask element is true (non-zero),
-    otherwise returns the element from :code:`src1`.
+    For each element, returns the corresponding element from ``src0`` if the mask element is true (non-zero),
+    otherwise returns the element from ``src1``.
 
     The supported data types for ``src0`` and ``src1``: ``int16``, ``int32``, ``float16``, ``bfloat16``, ``float32``.
 
@@ -34,14 +34,14 @@ def where(mask: LocalTensor, src0: Union[LocalTensor, RuntimeNumeric], src1: Uni
         src1: The source for elements where mask is false (tensor or scalar)
 
     Returns:
-        LocalTensor: A tensor with elements selected from :code:`src0` or :code:`src1` based on the mask
+        LocalTensor: A tensor with elements selected from ``src0`` or ``src1`` based on the mask
 
     Raises:
         TypeError: If mask is not a ``LocalTensor``, or if ``src0`` or ``src1`` is not a ``LocalTensor`` or scalar
-        RuntimeError: If mask dtype is not ``int1``, or if :code:`src0` or :code:`src1` dtype is not supported
+        RuntimeError: If mask dtype is not ``int1``, or if ``src0`` or ``src1`` dtype is not supported
 
     Note:
-        At least one of :code:`src0` or :code:`src1` must be a tensor with the same shape as the mask.
+        At least one of ``src0`` or ``src1`` must be a tensor with the same shape as the mask.
         Scalars are broadcast to the mask shape.
 
     Examples:
@@ -90,29 +90,28 @@ def mask(*, count: Optional[RuntimeInt] = None, bits: Optional[Iterable[RuntimeI
 
     Two masking modes are supported:
 
-    1. **Count-based masking**: Apply operations to the first :code:`count` elements along the innermost dimension.
-       Elements beyond :code:`count` are set to :code:`other` (default 0).
+    1. **Count-based masking**: Apply operations to the first ``count`` elements along the innermost dimension.
+       Elements beyond ``count`` are set to ``other`` (default 0).
 
     2. **Bit-based masking**: Apply operations to elements where the bit index (computed from position) falls within the
-       range specified by :code:`bits`. :code:`bits` must contain exactly two integers defining the range.
+       range specified by ``bits``. ``bits`` must contain exactly two integers defining the range.
 
     Args:
-        count: The number of elements to apply operations to (from the start). Mutually exclusive with :code:`bits`.
-        bits: A tuple of two integers defining a bit-based range for masking. Mutually exclusive with :code:`count`.
+        count: The number of elements to apply operations to (from the start). Mutually exclusive with ``bits``.
+        bits: A tuple of two integers defining a bit-based range for masking. Mutually exclusive with ``count``.
         other: The value to use for elements outside the mask. Default is 0.
 
     Raises:
-        TypeError: If :code:`other` is not a scalar, :code:`count` is not an integer,
-                   or :code:`bits` does not contain integers
-        RuntimeError: If :code:`bits` does not contain exactly two integers
-        ValueError: If neither or both of :code:`count` and :code:`bits` are provided
+        TypeError: If ``other`` is not a scalar, ``count`` is not an integer, or ``bits`` does not contain integers
+        RuntimeError: If ``bits`` does not contain exactly two integers
+        ValueError: If neither or both of ``count`` and ``bits`` are provided
 
     Warning:
         This is an experimental API which is not guaranteed to work for every relevant vector operation.
         Its interface, availability, and functional coverage may change in the future.
 
     Note:
-        Exactly one of :code:`count` or :code:`bits` must be provided.
+        Exactly one of ``count`` or ``bits`` must be provided.
         This context manager can only be applied to vector operations (e.g., add, exp), not to load/store operations.
 
     Examples:

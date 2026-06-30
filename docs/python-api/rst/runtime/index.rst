@@ -23,8 +23,8 @@ Attributes from the following classes can be used as keyword arguments in :py:ob
 
 .. tip::
 
-    The user can mix options from different sections. For example, to disable :code:`CodegenOptions.capture_exceptions`
-    and set :code:`CompileOptions.opt_level` to :code:`2`, the kernel function may be decorated as the following:
+    The user can mix options from different sections. For example, to disable ``CodegenOptions.capture_exceptions`` and
+    set ``CompileOptions.opt_level`` to ``2``, the kernel function may be decorated as the following:
 
     .. code-block:: python
 

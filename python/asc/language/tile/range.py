@@ -18,9 +18,9 @@ class range(BaseRange):
     """
     A range loop construct for use in JIT functions.
 
-    This class provides a range-based loop similar to Python's built-in :code:`range`, with additional support for loop
-    unrolling and parallel execution on NPU. In fact, built-in :code:`range` automatically becomes :code:`asc2.range`
-    when used inside JIT function.
+    This class provides a range-based loop similar to Python's built-in ``range``, with additional support for loop
+    unrolling and parallel execution on NPU. In fact, built-in ``range`` automatically becomes ``asc2.range`` when used
+    inside JIT function.
 
     Args:
         start: Start index of the loop (or stop index if only one argument provided).
@@ -31,10 +31,10 @@ class range(BaseRange):
             software pipelining optimizations. Must be False if loop iterations depend on previous iterations.
 
     Raises:
-        ValueError: If :code:`unroll_factor` is less than 1
+        ValueError: If ``unroll_factor`` is less than 1
 
     Note:
-        The :code:`unroll_factor` parameter controls loop unrolling during compilation.
+        The ``unroll_factor`` parameter controls loop unrolling during compilation.
         Higher values can improve performance but increase code size.
 
     Examples:

@@ -30,7 +30,7 @@ def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] 
         shape: The shape of the tensor to create.
         value: The scalar value to fill the tensor with.
         dtype: The data type of the tensor. If None, inferred from the value type.
-        location: The memory location for the tensor. Default is :code:`TensorLocation.UB`.
+        location: The memory location for the tensor. Default is ``TensorLocation.UB``.
 
     Returns:
         LocalTensor: A new tensor filled with the specified value
@@ -79,7 +79,7 @@ def full_like(input: LocalTensor, value: RuntimeNumeric, location: TensorLocatio
     Args:
         input: The input tensor to match shape and dtype.
         value: The scalar value to fill the tensor with.
-        location: The memory location for the tensor. Default is :code:`TensorLocation.UB`.
+        location: The memory location for the tensor. Default is ``TensorLocation.UB``.
 
     Returns:
         LocalTensor: A new tensor filled with the specified value
@@ -107,8 +107,8 @@ def zeros(shape: Iterable[int], dtype: DataType = KT.int32,
 
     Args:
         shape: The shape of the tensor to create.
-        dtype: The data type of the tensor. Default is :code:`int32`.
-        location: The memory location for the tensor. Default is :code:`TensorLocation.UB`.
+        dtype: The data type of the tensor. Default is ``int32``.
+        location: The memory location for the tensor. Default is ``TensorLocation.UB``.
 
     Returns:
         LocalTensor: A new tensor filled with zeros
@@ -138,7 +138,7 @@ def zeros_like(input: LocalTensor, location: TensorLocation = TensorLocation.UB)
 
     Args:
         input: The input tensor to match shape and dtype.
-        location: The memory location for the tensor. Default is :code:`TensorLocation.UB`.
+        location: The memory location for the tensor. Default is ``TensorLocation.UB``.
 
     Returns:
         LocalTensor: A new tensor filled with zeros
@@ -162,18 +162,17 @@ def zeros_acc(shape: Iterable[int], dtype: DataType, *, bias: Optional[LocalTens
     Create a zero-initialized accumulator tensor in L0C memory for matrix multiplication.
 
     This tensor is specifically designed for use with :py:func:`matmul_acc` operations and is always located in
-    :code:`TensorLocation.L0C`.
+    ``TensorLocation.L0C``.
 
     The supported data type is: ``float32``.
 
     Args:
         shape: The shape of the accumulator tensor
         dtype: The data type of the accumulator
-        bias: Optional initialization tensor (1D tensor in :code:`BT`). If provided, the accumulator
-              will be initialized with this value instead of zeros. This is typically used for bias
-              initialization in matrix multiplication. Supported dtypes: :code:`float16`, :code:`bfloat16`,
-              or :code:`float32`. Tensors with :code:`float16` or :code:`bfloat16` are automatically
-              promoted to :code:`float32`.
+        bias: Optional initialization tensor (1D tensor in ``BT``). If provided, the accumulator will be initialized
+              with this value instead of zeros. This is typically used for bias initialization in matrix multiplication.
+              Supported dtypes: ``float16``, ``bfloat16``, or ``float32``. Tensors with ``float16`` or ``bfloat16`` are
+              automatically promoted to ``float32``.
 
     Returns:
         LocalTensor: A new accumulator tensor in L0C memory (zero-initialized or initialized with the provided value)
@@ -255,7 +254,7 @@ def cast(input: Union[LocalTensor, RuntimeNumeric], dtype: DataType,
         TypeError: If input is not a LocalTensor or numeric value, or dtype is not a DataType
 
     Note:
-        This function is also available as the :code:`.to()` method on tensors: :code:`result.to(dtype)`.
+        This function is also available as the ``.to()`` method on tensors: ``result.to(dtype)``.
 
     Examples:
         Cast a tensor from float32 to float16: ::
