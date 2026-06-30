@@ -21,8 +21,8 @@ def transpose_block(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
                     unroll_factor: asc2.ConstExpr[int]):
     total_tiles_w = asc2.ceildiv(width, block_width)
 
-    global_tensor = asc2.tensor(input_ptr, [height, width])
-    result_tensor = asc2.tensor(output_ptr, [width, height])
+    global_tensor = asc2.global_tensor(input_ptr, [height, width])
+    result_tensor = asc2.global_tensor(output_ptr, [width, height])
     for i in asc2.range(asc2.block_idx(), repeat, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
         offset_x = (i % total_tiles_w) * block_width
         offset_y = (i // total_tiles_w) * block_height
@@ -41,8 +41,8 @@ def transpose_column(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddre
                      tile_height: asc2.ConstExpr[int], total_count: asc2.ConstExpr[int],
                      unroll_factor: asc2.ConstExpr[int]):
 
-    global_tensor = asc2.tensor(input_ptr, [height, width])
-    result_tensor = asc2.tensor(output_ptr, [width, height])
+    global_tensor = asc2.global_tensor(input_ptr, [height, width])
+    result_tensor = asc2.global_tensor(output_ptr, [width, height])
     for i in asc2.range(asc2.block_idx(), total_count, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
         offset = i * block_size
         load_width = block_size if block_size < width - offset else width - offset
@@ -57,8 +57,8 @@ def transpose_line(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress
                    height: asc2.ConstExpr[int], block_size: asc2.ConstExpr[int], tile_width: asc2.ConstExpr[int],
                    tile_height: asc2.ConstExpr[int], total_count: asc2.ConstExpr[int],
                    unroll_factor: asc2.ConstExpr[int]):
-    global_tensor = asc2.tensor(input_ptr, [height, width])
-    result_tensor = asc2.tensor(output_ptr, [width, height])
+    global_tensor = asc2.global_tensor(input_ptr, [height, width])
+    result_tensor = asc2.global_tensor(output_ptr, [width, height])
     for i in asc2.range(asc2.block_idx(), total_count, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
         offset = i * block_size
         load_height = block_size if block_size < height - offset else height - offset
@@ -94,8 +94,8 @@ def transpose_nlast_axis(
         store_shape += [load_shape[permute[dim]]]
     inner_total = asc2.ceildiv(input_shape[load_shape_axis], axis_step)
 
-    input_tensor = asc2.tensor(input_ptr, input_shape)
-    output_tensor = asc2.tensor(output_ptr, output_shape)
+    input_tensor = asc2.global_tensor(input_ptr, input_shape)
+    output_tensor = asc2.global_tensor(output_ptr, output_shape)
 
     for i in asc2.range(asc2.block_idx(), block_count, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
         id0 = i % inner_total  # this one walk by step
@@ -191,8 +191,8 @@ def transpose_one_axis(
         output_shape += [input_shape[permute[dim]]]
         ub_store_shape += [ub_load_shape[permute[dim]]]
         store_shape += [load_shape[permute[dim]]]
-    input_tensor = asc2.tensor(input_ptr, input_shape)
-    output_tensor = asc2.tensor(output_ptr, output_shape)
+    input_tensor = asc2.global_tensor(input_ptr, input_shape)
+    output_tensor = asc2.global_tensor(output_ptr, output_shape)
     for i in asc2.range(asc2.block_idx(), block_count, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
         offset = i * axis_step
         read_count = axis_step if offset + axis_step < input_shape[
@@ -261,8 +261,8 @@ def transpose_2_axis(
     load_shape_axis0 = permute[store_axis[0]]
     load_shape_axis1 = permute[store_axis[1]]
 
-    input_tensor = asc2.tensor(input_ptr, input_shape)
-    output_tensor = asc2.tensor(output_ptr, output_shape)
+    input_tensor = asc2.global_tensor(input_ptr, input_shape)
+    output_tensor = asc2.global_tensor(output_ptr, output_shape)
     for i in asc2.range(asc2.block_idx(), block_count, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
         offset0 = i % block_width * axis_step[0]
         offset1 = i // block_width * axis_step[1]

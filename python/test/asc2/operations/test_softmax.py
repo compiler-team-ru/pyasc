@@ -10,8 +10,8 @@ def require_c310_auto(require_c310):
 
 @asc2.jit(always_compile=True)
 def softmax_1d_kernel(dst_ptr, src_ptr, length: asc2.ConstExpr) -> None:
-    dst = asc2.tensor(dst_ptr, [length])
-    src = asc2.tensor(src_ptr, [length])
+    dst = asc2.global_tensor(dst_ptr, [length])
+    src = asc2.global_tensor(src_ptr, [length])
     src_tile = asc2.load(src, [0], [length])
     dst_tile = asc2.softmax(src_tile)
     asc2.store(dst_tile, dst, [0])
@@ -20,8 +20,8 @@ def softmax_1d_kernel(dst_ptr, src_ptr, length: asc2.ConstExpr) -> None:
 
 @asc2.jit(always_compile=True)
 def softmax_2d_kernel(dst_ptr, src_ptr, shape: asc2.ConstExpr) -> None:
-    dst = asc2.tensor(dst_ptr, shape)
-    src = asc2.tensor(src_ptr, shape)
+    dst = asc2.global_tensor(dst_ptr, shape)
+    src = asc2.global_tensor(src_ptr, shape)
     src_tile = asc2.load(src, [0, 0], shape)
     dst_tile = asc2.softmax(src_tile)
     asc2.store(dst_tile, dst, [0, 0])

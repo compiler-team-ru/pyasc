@@ -11,9 +11,9 @@ USE_CORE_NUM = 4
 def kernel(x_ptr: asc2.GlobalAddress, z_ptr: asc2.GlobalAddress, tensor_shape: asc2.ConstExpr,
            tile_length: asc2.ConstExpr, op: asc2.ConstExpr):
     offset_x = asc2.block_idx() * tile_length
-    xt = asc2.load(asc2.tensor(x_ptr, tensor_shape), [offset_x], [tile_length])
+    xt = asc2.load(asc2.global_tensor(x_ptr, tensor_shape), [offset_x], [tile_length])
     xt += 10  # temporary tile to keep TQue synchronization valid
-    op(xt, asc2.tensor(z_ptr, [tile_length]), offsets=[0])
+    op(xt, asc2.global_tensor(z_ptr, [tile_length]), offsets=[0])
 
 
 @pytest.mark.parametrize("dtype", (torch.int16, torch.int32, torch.float16, torch.bfloat16, torch.float32))

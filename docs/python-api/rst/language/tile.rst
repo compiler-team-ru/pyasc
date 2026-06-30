@@ -6,8 +6,8 @@
 .. INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 .. See LICENSE in the root of the software repository for the full text of the License.
 
-Tile API
-========
+Kernel API
+==========
 
 .. currentmodule:: asc2
 
@@ -15,8 +15,8 @@ Tile API
     :toctree: generated
     :nosignatures:
 
-    Tile
-    Tensor
+    LocalTensor
+    GlobalTensor
 
 
 Programming model
@@ -26,7 +26,7 @@ Programming model
     :toctree: generated
     :nosignatures:
 
-    tensor
+    global_tensor
     block_idx
     block_num
 

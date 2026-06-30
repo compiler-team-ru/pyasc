@@ -29,9 +29,9 @@ import torch
 @asc2.jit
 def vadd_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress,
                 size: int, tile_size: asc.ConstExpr[int], tile_per_block: asc.ConstExpr[int]):
-    x_gm   = asc2.tensor(x_ptr,   [size])
-    y_gm   = asc2.tensor(y_ptr,   [size])
-    out_gm = asc2.tensor(out_ptr, [size])
+    x_gm   = asc2.global_tensor(x_ptr,   [size])
+    y_gm   = asc2.global_tensor(y_ptr,   [size])
+    out_gm = asc2.global_tensor(out_ptr, [size])
     base   = asc2.block_idx() * tile_size * tile_per_block
     for i in range(tile_per_block):
         off = base + i * tile_size

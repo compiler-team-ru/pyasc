@@ -22,21 +22,21 @@ from .validation import check_type
 T = TypeVar("T")
 
 RoundMode: TypeAlias = ir.asctile_RoundMode
-TileLocation: TypeAlias = ir.TileLocation
+TensorLocation: TypeAlias = ir.TileLocation
 
 
-class Tile(IRValue):
+class LocalTensor(IRValue):
     """
-    A tile is a multi-dimensional array of values in local memory (Unified Buffer, L1 Cache, etc.)
+    A local tensor is a multi-dimensional array of values in local memory (Unified Buffer, L1 Cache, etc.)
 
     Each element is of :py:attr:`dtype` type and number of elements is defined by :py:attr:`shape` tuple.
     """
 
     dtype: DataType
-    """Tile element type"""
+    """Tensor element type"""
 
     shape: Tuple[int, ...]
-    """Tile shape"""
+    """Tensor shape"""
 
     size: int
     """Number of elements"""
@@ -44,14 +44,14 @@ class Tile(IRValue):
     rank: int
     """Number of dimensions"""
 
-    location: TileLocation
-    """Memory location of a tile"""
+    location: TensorLocation
+    """Memory location of a tensor"""
 
     def __init__(self, handle: IRHandle) -> None:
         """
         This constructor is not called by user.
 
-        Use :py:func:`load`, :py:func:`zeros`, or other functions to create a tile.
+        Use :py:func:`load`, :py:func:`zeros`, or other functions to create a local tensor.
         """
         super().__init__()
         check_type("handle", handle, IRHandle)
@@ -60,7 +60,7 @@ class Tile(IRValue):
         self.dtype: Final = DataType.from_ir(ir.get_element_type(ir_type))
         self.shape: Final = tuple(ir.get_shape(ir_type))
         if len(self.shape) < 1:
-            raise RuntimeError("Tile shape must have at least one dimension")
+            raise RuntimeError("Tensor shape must have at least one dimension")
         self.size: Final = math.prod(self.shape)
         self.rank: Final = len(self.shape)
         self.location: Final = ir.get_tile_location(ir_type)
@@ -79,7 +79,7 @@ class Tile(IRValue):
 
     @property
     def T(self) -> Self:
-        """Transpose a 2D tile by swapping its dimensions (see :py:func:`transpose`)."""
+        """Transpose a 2D tensor by swapping its dimensions (see :py:func:`transpose`)."""
         from .shape_ops import transpose
         return transpose(self)
 
@@ -270,7 +270,7 @@ class Binder:
             call_func = f"{fn_name}(input, ...)"
             call_alias = f"input.{name}(...)"
         fn.__doc__ += f"""
-    This function can also be called {call_kind} on :py:class:`Tile`,
+    This function can also be called {call_kind} on :py:class:`LocalTensor`,
     as :code:`{call_alias}` instead of :code:`{call_func}`.
         """
         params[0] = params[0].replace(name="self")
@@ -293,22 +293,22 @@ class Binder:
 
         wrapper.__signature__ = new_sig
         wrapper.__doc__ = wrapper.__doc__ = f"Forwards to :py:func:`{fn_name}` function."
-        setattr(Tile, name, wrapper)
+        setattr(LocalTensor, name, wrapper)
         return fn
 
 
 @overload
-def bind_tile_method(fn: T) -> T:
+def bind_tensor_method(fn: T) -> T:
     ...
 
 
 @overload
-def bind_tile_method(name: str, binary_op: Optional[str] = None, unary_op: Optional[str] = None) -> Callable[[T], T]:
+def bind_tensor_method(name: str, binary_op: Optional[str] = None, unary_op: Optional[str] = None) -> Callable[[T], T]:
     ...
 
 
-def bind_tile_method(fn: Optional[T] = None, *, name: Optional[str] = None, binary_op: Optional[str] = None,
-                     unary_op: Optional[str] = None):
+def bind_tensor_method(fn: Optional[T] = None, *, name: Optional[str] = None, binary_op: Optional[str] = None,
+                       unary_op: Optional[str] = None):
     binder = Binder(name, binary_op, unary_op)
     if fn is None:
         return binder

@@ -32,9 +32,9 @@ def matrix_multiplication(
     m, k = a_shape
     _, n = b_shape
     # Tensor descriptor is created from `asc2.GlobalAddress` to represent entire tensor.
-    a_gm = asc2.tensor(a_ptr, a_shape)
-    b_gm = asc2.tensor(b_ptr, b_shape)
-    c_gm = asc2.tensor(c_ptr, [m, n])
+    a_gm = asc2.global_tensor(a_ptr, a_shape)
+    b_gm = asc2.global_tensor(b_ptr, b_shape)
+    c_gm = asc2.global_tensor(c_ptr, [m, n])
 
     # Create 2D tile for cube L0C accumulator
     acc = asc2.zeros_acc([single_core_m, single_core_n], dtype=asc2.float32)
@@ -50,17 +50,17 @@ def matrix_multiplication(
     # It is user responsibility to ensure that there are no data dependencies between overlapped iterations.
     for k_outer in range(asc2.ceildiv(k, step_kb), unroll_factor=2, parallel=True):
         # Load B matrix from GM to L1 tile object
-        b_l1 = asc2.load(b_gm, [k_outer * step_kb, n_off], [step_kb, single_core_n], asc2.TileLocation.L1)
+        b_l1 = asc2.load(b_gm, [k_outer * step_kb, n_off], [step_kb, single_core_n], asc2.TensorLocation.L1)
         for k_mid in range(asc2.ceildiv(step_kb, step_ka), unroll_factor=2, parallel=True):
             k_off = k_outer * step_kb + k_mid * step_ka
             # Load A matrix from GM to L1 tile object
-            a_l1 = asc2.load(a_gm, [m_off, k_off], [single_core_m, step_ka], asc2.TileLocation.L1)
+            a_l1 = asc2.load(a_gm, [m_off, k_off], [single_core_m, step_ka], asc2.TensorLocation.L1)
             for k_l0 in range(asc2.ceildiv(step_ka, base_k), unroll_factor=2, parallel=True):
                 # Copy A matrix from L1 to L0A tile object
-                a_l0 = asc2.copy(a_l1, [0, k_l0 * base_k], [single_core_m, base_k], asc2.TileLocation.L0A)
+                a_l0 = asc2.copy(a_l1, [0, k_l0 * base_k], [single_core_m, base_k], asc2.TensorLocation.L0A)
                 # Copy B matrix from L1 to L0B tile object
                 b_l0 = asc2.copy(b_l1, [k_mid * step_ka + k_l0 * base_k, 0], [base_k, single_core_n],
-                                 asc2.TileLocation.L0B)
+                                 asc2.TensorLocation.L0B)
                 # Perform matrix multiplication with updating accumulator
                 asc2.matmul_acc(acc, a_l0, b_l0)
 

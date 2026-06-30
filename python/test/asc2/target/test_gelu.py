@@ -19,8 +19,8 @@ DYNAMIC = "dynamic"
 @asc2.jit(static_alloc=True, reuse_ub=True, reuse_ub_in_out=True)
 def gelu(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length, tile_length: asc2.ConstExpr,
          TANH_APPROX_FACTOR: asc2.ConstExpr, NEG_SQRT_EIGHT_OVER_PI: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
-    in_gm = asc2.tensor(input_ptr, [input_length])
-    out_gm = asc2.tensor(output_ptr, [input_length])
+    in_gm = asc2.global_tensor(input_ptr, [input_length])
+    out_gm = asc2.global_tensor(output_ptr, [input_length])
 
     block_loop_num = asc2.ceildiv(asc2.ceildiv(input_length, asc2.block_num()), tile_length)
     block_length = tile_length * block_loop_num

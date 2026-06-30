@@ -21,9 +21,9 @@ def create_tensor(dtype: torch.dtype) -> torch.Tensor:
 
 @asc2.jit(always_compile=True)
 def where_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, z_ptr: asc2.GlobalAddress, op: asc2.ConstExpr):
-    x = asc2.tensor(x_ptr, [SIZE])
-    y = asc2.tensor(y_ptr, [SIZE])
-    z = asc2.tensor(z_ptr, [SIZE])
+    x = asc2.global_tensor(x_ptr, [SIZE])
+    y = asc2.global_tensor(y_ptr, [SIZE])
+    z = asc2.global_tensor(z_ptr, [SIZE])
     xt = asc2.load(x, [0], [SIZE])
     yt = asc2.load(y, [0], [SIZE])
     zt = asc2.where(op(xt, yt), xt, yt)
@@ -52,8 +52,8 @@ def test_where_ops(require_c310, asc_op, torch_op, dtype):
 
 @asc2.jit(always_compile=True)
 def where_scalar_kernel(x_ptr: asc2.GlobalAddress, scalar, z_ptr: asc2.GlobalAddress, op: asc2.ConstExpr):
-    x = asc2.tensor(x_ptr, [SIZE])
-    z = asc2.tensor(z_ptr, [SIZE])
+    x = asc2.global_tensor(x_ptr, [SIZE])
+    z = asc2.global_tensor(z_ptr, [SIZE])
     xt = asc2.load(x, [0], [SIZE])
     zt = asc2.where(op(xt, scalar), asc2.number(0.0, x_ptr.dtype), asc2.number(1.0, x_ptr.dtype))
     asc2.store(zt, z, [0])
@@ -83,10 +83,10 @@ def test_where_scalar_ops(require_c310, asc_op, torch_op, dtype):
 def where_with_cond_kernel(cond_ptr: asc2.GlobalAddress, x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress,
                            out_ptr: asc2.GlobalAddress, size: asc2.ConstExpr[int], tile_size: asc2.ConstExpr[int],
                            tile_per_block: asc2.ConstExpr[int]):
-    cond_gm = asc2.tensor(cond_ptr, [size])
-    x_gm = asc2.tensor(x_ptr, [size])
-    y_gm = asc2.tensor(y_ptr, [size])
-    out_gm = asc2.tensor(out_ptr, [size])
+    cond_gm = asc2.global_tensor(cond_ptr, [size])
+    x_gm = asc2.global_tensor(x_ptr, [size])
+    y_gm = asc2.global_tensor(y_ptr, [size])
+    out_gm = asc2.global_tensor(out_ptr, [size])
     base_offset = asc2.block_idx() * tile_size * tile_per_block
     for i in range(tile_per_block, unroll_factor=2, parallel=True):
         tile_offset = base_offset + i * tile_size
@@ -101,8 +101,8 @@ def where_with_cond_kernel(cond_ptr: asc2.GlobalAddress, x_ptr: asc2.GlobalAddre
 def where_scalar_source_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, size: asc2.ConstExpr[int],
                                tile_size: asc2.ConstExpr[int], tile_per_block: asc2.ConstExpr[int],
                                scalar_value: asc2.ConstExpr, scalar_on_true: asc2.ConstExpr):
-    x_gm = asc2.tensor(x_ptr, [size])
-    out_gm = asc2.tensor(out_ptr, [size])
+    x_gm = asc2.global_tensor(x_ptr, [size])
+    out_gm = asc2.global_tensor(out_ptr, [size])
     base_offset = asc2.block_idx() * tile_size * tile_per_block
     for i in range(tile_per_block, unroll_factor=2, parallel=True):
         tile_offset = base_offset + i * tile_size

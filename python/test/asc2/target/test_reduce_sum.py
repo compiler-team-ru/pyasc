@@ -19,8 +19,8 @@ DYNAMIC = "dynamic"
 @asc2.jit(static_alloc=True, reuse_ub=True)
 def reduce_sum_rows(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows, input_num_cols,
                     output_length, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
-    in_gm = asc2.tensor(input_ptr, [input_num_rows, input_num_cols])
-    out_gm = asc2.tensor(output_ptr, [output_length])
+    in_gm = asc2.global_tensor(input_ptr, [input_num_rows, input_num_cols])
+    out_gm = asc2.global_tensor(output_ptr, [output_length])
 
     rows_per_block = asc2.ceildiv(input_num_rows, asc2.block_num())
     start_offset = asc2.block_idx() * rows_per_block
@@ -40,8 +40,8 @@ def reduce_sum_rows(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
 @asc2.jit(static_alloc=True, reuse_ub=True)
 def reduce_sum_cols(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows, input_num_cols,
                     output_length, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
-    in_gm = asc2.tensor(input_ptr, [input_num_rows, input_num_cols])
-    out_gm = asc2.tensor(output_ptr, [output_length])
+    in_gm = asc2.global_tensor(input_ptr, [input_num_rows, input_num_cols])
+    out_gm = asc2.global_tensor(output_ptr, [output_length])
 
     cols_per_block = asc2.ceildiv(input_num_cols, asc2.block_num())
     start_offset = asc2.block_idx() * cols_per_block

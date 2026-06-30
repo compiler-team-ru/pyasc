@@ -119,9 +119,9 @@ For a sequence of basic elementwise or reduction vector operations, PyAsc can au
 ```python
 @asc2.jit(vf_fusion=True)
 def kernel(x_ptr, y_ptr, out_ptr, size: int, tile_size: asc2.ConstExpr[int]):
-    x_gm = asc2.tensor(x_ptr, [size])
-    y_gm = asc2.tensor(y_ptr, [size])
-    out_gm = asc2.tensor(out_ptr, [size])
+    x_gm = asc2.global_tensor(x_ptr, [size])
+    y_gm = asc2.global_tensor(y_ptr, [size])
+    out_gm = asc2.global_tensor(out_ptr, [size])
     for i in asc2.range(asc2.ceildiv(size, tile_size)):
         x = asc2.load(x_gm, [i * tile_size], [tile_size])
         y = asc2.load(y_gm, [i * tile_size], [tile_size])
@@ -156,7 +156,7 @@ out = asc2.inline_vf(
     shape=x.shape, dtype=x.dtype, inputs=[x, y, z])
 ```
 
-Inside the code string, `$0` refers to the output tile and `$1`, `$2`, ... refer to input tiles in the order they appear in the `inputs` list. All input tiles must reside in UB memory.
+Inside the code string, `$0` refers to the output tensor and `$1`, `$2`, ... refer to input tensors in the order they appear in the `inputs` list. All input tensors must reside in UB memory.
 
 ---
 

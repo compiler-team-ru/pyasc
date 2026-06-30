@@ -81,7 +81,7 @@ A5 adds the following hardware capabilities relative to A2: <sup>[[58]](#ref-58)
   ┌──────────────────────▼───────────────────────────────────┐
   │              PyAsc2 Frontend  (python/asc2/)             │
   │                                                          │
-  │  Tensor (GM)   Tile (UB/L0/…)   asc2.range   asc2.mask  │
+  │  GlobalTensor (GM)  LocalTensor (UB/L0/…)  asc2.range    │
   │  load / store  arithmetic  reductions  shape ops         │
   │  atomics  matmul  unary  creation  indexing              │
   └──────────────────────┬───────────────────────────────────┘
@@ -90,7 +90,7 @@ A5 adds the following hardware capabilities relative to A2: <sup>[[58]](#ref-58)
   │           asctile MLIR Dialect                           │
   │   TensorType / TileType    LoadOp / StoreOp              │
   │   BinaryOps  UnaryOps  ReductionOps  ShapeOps            │
-  │   AtomicRMWOp  MatmulOp  SoftmaxOp  SelectOp            │
+  │   AtomicRMWOp  MatmulOp  SoftmaxOp  SelectOp             │
   │   CountMaskOp  BitwiseMaskOp                             │
   └──────────────────────┬───────────────────────────────────┘
                          │  AscTile passes (lib/Dialect/AscTile/Transforms/)
@@ -136,19 +136,19 @@ A5 adds the following hardware capabilities relative to A2: <sup>[[58]](#ref-58)
 
 ## 4. Programming Model
 
-### 4.1 The two types: `Tensor` and `Tile`
+### 4.1 The two types: `GlobalTensor` and `LocalTensor`
 
-| | `Tensor` | `Tile` |
+| | `GlobalTensor` | `LocalTensor` |
 |--|----------|--------|
 | **Memory** | Global Memory (HBM, GM) | On-chip: UB, L0A, L0B, L0C, L1 |
 | **Shape** | ND, may be dynamic (RuntimeInt dims) | ND, must be static (known at JIT time) |
-| **Creation** | `asc2.tensor(ptr, shape)` | Returned by `asc2.load(...)` or creation ops |
+| **Creation** | `asc2.global_tensor(ptr, shape)` | Returned by `asc2.load(...)` or creation ops |
 | **Mutability** | Passed to/from kernel; never computed in-kernel | Value semantics; produced by ops, consumed once |
 | **IR type** | `asctile.tensor<shape x dtype>` | `asctile.tile<shape x dtype, location>` |
 
-`Tensor` is a *descriptor* — it holds a pointer and a shape. `Tile` carries `ValueSemantics` in MLIR, meaning instances are value types — self-contained and safe to CSE, copy, and move. Each op produces a new tile SSA value. The compiler is free to map multiple logical tiles to the same physical UB region.
+`GlobalTensor` is a *descriptor* — it holds a pointer and a shape. `LocalTensor` carries `ValueSemantics` in MLIR, meaning instances are value types — self-contained and safe to CSE, copy, and move. Each op produces a new tile SSA value. The compiler is free to map multiple logical tiles to the same physical UB region.
 
-### 4.2 Memory hierarchy (`TileLocation`)
+### 4.2 Memory hierarchy (`TensorLocation`)
 
 | Enum value | Hardware unit | Typical use |
 |------------|--------------|-------------|
@@ -157,12 +157,12 @@ A5 adds the following hardware capabilities relative to A2: <sup>[[58]](#ref-58)
 | `L0C` | L0 matrix output buffer | Matmul accumulator |
 | `L1` | L1 cache | Intermediate staging |
 
-`load` defaults to `TileLocation.UB`. Matmul implicitly creates `L0A`/`L0B`/`L0C` tiles; the LowerToL0 pass handles the layout conversion.
+`load` defaults to `TensorLocation.UB`. Matmul implicitly creates `L0A`/`L0B`/`L0C` tiles; the LowerToL0 pass handles the layout conversion.
 
 ### 4.3 Load and store
 
 ```python
-# Load a tile from N-D tensor:
+# Load a local tensor from a global tensor:
 tile = asc2.load(tensor, [base], [128])       # explicit element offsets
 
 # Load a scalar (no shape → scalar load)
@@ -171,26 +171,26 @@ scalar = asc2.load(tensor, [i])
 # Optional padding for partial tiles
 tile = asc2.load(tensor, [base], [128], pad_value=0.0)
 
-# Copy a tile (or sub-region) into a fresh tile, optionally on another location
+# Copy a local tensor (or sub-region) into a fresh local tensor, optionally on another location
 clone = asc2.copy(tile)
 sub   = asc2.copy(tile, [0], [64])
 
-# Store tile or scalar back
+# Store local tensor or scalar back
 asc2.store(tile, tensor, [base])
 asc2.store(scalar_value, tensor, [i])
 ```
 
-The last dimension of every tile shape must be aligned to `ub_block_size` (32 bytes). This is enforced at JIT time via `check_data_alignment`.
+The last dimension of every local tensor shape must be aligned to `ub_block_size` (32 bytes). This is enforced at JIT time via `check_data_alignment`.
 
 ### 4.4 Operations
 
-All operations produce new `Tile` or scalar values; no mutation.
+All operations produce new `LocalTensor` or scalar values; no mutation.
 
 **Arithmetic / comparison** (tile ⊕ tile, tile ⊕ scalar, scalar ⊕ tile):
 `add`, `sub`, `mul`, `div`, `maximum`, `minimum`, `left_shift`, `right_shift`,
 `equal`, `not_equal`, `greater`, `greater_equal`, `less`, `less_equal`
 
-Operator overloads on `Tile` (`+`, `-`, `*`, `/`, `>`, `==`, …) call the same functions. Dtypes are promoted automatically via `infer_common_dtype`.
+Operator overloads on `LocalTensor` (`+`, `-`, `*`, `/`, `>`, `==`, …) call the same functions. Dtypes are promoted automatically via `infer_common_dtype`.
 
 **Unary**:
 `abs`, `ceil`, `floor`, `negative`, `relu`,
@@ -219,7 +219,7 @@ Operator overloads on `Tile` (`+`, `-`, `*`, `/`, `>`, `==`, …) call the same 
 - `mask(count=…)` / `mask(bits=(hi, lo), other=…)` — context manager that wraps the enclosed operations in a conditional region (`CountMaskOp` / `BitwiseMaskOp`).
 
 **Atomics**:
-`atomic_add`, `atomic_max`, `atomic_min` — write back to a global `Tensor`.
+`atomic_add`, `atomic_max`, `atomic_min` — write back to a global `GlobalTensor`.
 
 ### 4.5 Programming model operations
 
@@ -252,26 +252,26 @@ Defined in `include/ascir/Dialect/AscTile/IR/` using TableGen.
 
 | Type | MLIR syntax | Python proxy |
 |------|------------|--------------|
-| `asctile.tensor<[N,M] x f32>` | ND global descriptor | `Tensor` |
-| `asctile.tile<[128] x f16, UB>` | Fixed-shape local chunk | `Tile` |
+| `asctile.tensor<[N,M] x f32>` | ND global descriptor | `GlobalTensor` |
+| `asctile.tile<[128] x f16, UB>` | Fixed-shape local chunk | `LocalTensor` |
 
-`Tile` carries `ValueSemantics`, meaning instances are value types — self-contained and safe to CSE, copy, and move. Both `Tile` and `Tensor` implement `ShapedTypeInterface`.
+`LocalTensor` carries `ValueSemantics`, meaning instances are value types — self-contained and safe to CSE, copy, and move. Both `LocalTensor` and `GlobalTensor` implement `ShapedTypeInterface`.
 
 **Key operations (from `Ops.td`):**
 
 | Category | Op | Description |
 |----------|----|-------------|
-| Tensor / tile creation | `TensorOp` | Create a `Tensor` from a pointer and shape list |
-| | `DimOp` | Read a dynamic dimension from a `Tensor` at runtime |
+| Tensor creation | `TensorOp` | Create a `GlobalTensor` from a pointer and shape list |
+| | `DimOp` | Read a dynamic dimension from a `GlobalTensor` at runtime |
 | | `SplatOp` | Fill a tile with a scalar constant |
 | | `AccumulatorOp` | Create a zeros tile in L0C (matmul accumulator) |
-| Memory transfer | `LoadOp` | Load tile from `Tensor` with offsets → `Tile` |
-| | `StoreOp` | Store `Tile` to `Tensor` with offsets |
-| | `StoreFixpipeOp` | Store an L0C tile to a `Tensor` via the fixpipe path |
+| Memory transfer | `LoadOp` | Load tile from `GlobalTensor` with offsets → `LocalTensor` |
+| | `StoreOp` | Store `LocalTensor` to `GlobalTensor` with offsets |
+| | `StoreFixpipeOp` | Store an L0C tile to a `GlobalTensor` via the fixpipe path |
 | | `CopyOp` | Copy a tile (or sub-region) into a new tile |
 | | `CopyFixpipeOp` | Copy an L0C tile into another tile via fixpipe |
-| | `GetValueOp` | Scalar load from `Tensor` |
-| | `SetValueOp` | Scalar store to `Tensor` |
+| | `GetValueOp` | Scalar load from `GlobalTensor` |
+| | `SetValueOp` | Scalar store to `GlobalTensor` |
 | Element-wise compute | `CastOp` | Type conversion between tile dtypes |
 | | `ReluOp` | Fused ReLU |
 | | `SelectOp` | Element-wise conditional select (`where`) |
@@ -369,15 +369,15 @@ Once all `asctile` ops are gone, the existing ascendc pipeline takes over:
 
 ## 7. Memory & Resource Model
 
-### 7.1 Tile-level view
+### 7.1 LocalTensor-level view
 
 From the user's perspective, memory management is invisible. The user:
-1. Creates `Tensor` descriptors pointing to HBM buffers.
-2. Calls `load(tensor, shape, offsets=…)` to bring data into a `Tile`.
+1. Creates `GlobalTensor` descriptors pointing to HBM buffers.
+2. Calls `load(tensor, shape, offsets=…)` to bring data into a `LocalTensor`.
 3. Applies operations to produce new tiles.
 4. Calls `store(tile, tensor, offsets=…)` to write results back.
 
-The compiler is responsible for mapping each `Tile` SSA value to a physical UB region.
+The compiler is responsible for mapping each `LocalTensor` SSA value to a physical UB region.
 
 ### 7.2 Compiler-side UB allocation
 
@@ -417,9 +417,9 @@ import asc2
 
 @asc2.jit
 def vadd(x_ptr, y_ptr, out_ptr, size: int, tiles_per_block: int, TILE: asc.ConstExpr[int]):
-    x_gm   = asc2.tensor(x_ptr,   [size])
-    y_gm   = asc2.tensor(y_ptr,   [size])
-    out_gm = asc2.tensor(out_ptr, [size])
+    x_gm   = asc2.global_tensor(x_ptr,   [size])
+    y_gm   = asc2.global_tensor(y_ptr,   [size])
+    out_gm = asc2.global_tensor(out_ptr, [size])
 
     base = asc2.block_idx() * tiles_per_block * TILE
     for i in asc2.range(tiles_per_block):
@@ -436,8 +436,8 @@ vadd[8](x, y, out, n, asc2.ceildiv(n // 256, 8), TILE=256)
 ```python
 @asc2.jit
 def softmax(x_ptr, out_ptr, rows: int, cols: int, TILE: asc.ConstExpr[int]):
-    x_gm   = asc2.tensor(x_ptr,   [rows, cols])
-    out_gm = asc2.tensor(out_ptr, [rows, cols])
+    x_gm   = asc2.global_tensor(x_ptr,   [rows, cols])
+    out_gm = asc2.global_tensor(out_ptr, [rows, cols])
 
     for row in asc2.range(asc2.block_idx(), rows, asc2.block_num()):
         x = asc2.load(x_gm, [row, 0], [1, TILE])

@@ -35,9 +35,9 @@ def vadd_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, out_ptr: a
 Tensor descriptor is created from `asc2.GlobalAddress` to represent entire tensor.
 
 ```python
-x_gm = asc2.tensor(x_ptr, [size])
-y_gm = asc2.tensor(y_ptr, [size])
-out_gm = asc2.tensor(out_ptr, [size])
+x_gm = asc2.global_tensor(x_ptr, [size])
+y_gm = asc2.global_tensor(y_ptr, [size])
+out_gm = asc2.global_tensor(out_ptr, [size])
 ```
 
 Python expressions are used to calculate offset and define the loop iterating over tiles:
@@ -55,7 +55,7 @@ for i in asc2.range(tile_per_block, unroll_factor=2, parallel=True):
 `asc2.load` is used to create tile object which is used for further calculations. Data movement from GM to UB/L1/L0A/L0B happens in this operation. If `location' parameter is set, then the corresponding memory realm is used to load data to. Otherwise it is loaded to UB.
 
 ```python
-x = asc2.load(x_gm, [tile_offset], [tile_size], asc2.TileLocation.UB)
+x = asc2.load(x_gm, [tile_offset], [tile_size], asc2.TensorLocation.UB)
 y = asc2.load(y_gm, [tile_offset], [tile_size])  # location can be omitted
 ```
 
@@ -175,7 +175,7 @@ def kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, out_ptr: asc2.G
         auto input_y = $1;
         auto output = $2;
         int64_t length = $3;
-        
+
         AscendC::GlobalTensor<float> x_gm;
         x_gm.SetGlobalBuffer(input_x);
         AscendC::GlobalTensor<float> y_gm;

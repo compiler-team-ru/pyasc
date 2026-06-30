@@ -20,9 +20,9 @@ DYNAMIC = "dynamic"
 def one_hot(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, arange_ptr: asc2.GlobalAddress,
             on_value: asc2.ConstExpr, off_value: asc2.ConstExpr, input_total, depth: asc2.ConstExpr,
             unroll_factor: asc2.ConstExpr):
-    in_gm = asc2.tensor(input_ptr, [input_total])
-    out_gm = asc2.tensor(output_ptr, [input_total * depth])
-    arange_gm = asc2.tensor(arange_ptr, [depth])
+    in_gm = asc2.global_tensor(input_ptr, [input_total])
+    out_gm = asc2.global_tensor(output_ptr, [input_total * depth])
+    arange_gm = asc2.global_tensor(arange_ptr, [depth])
 
     block_length = asc2.ceildiv(input_total, asc2.block_num())
     block_offset = asc2.block_idx() * block_length

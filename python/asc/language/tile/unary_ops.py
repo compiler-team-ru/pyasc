@@ -11,20 +11,20 @@ from typing import Callable, Optional, Tuple, TypeVar, Union, overload
 from ..core.dtype import DataType, KnownTypes as KT
 from ..core.ir_value import PlainValue, RuntimeFloat, RuntimeNumeric, IRHandle, materialize_ir_value as _mat
 from ..core.utils import global_builder, require_jit
-from .tile import Tile, bind_tile_method
+from .local_tensor import LocalTensor, bind_tensor_method
 from .validation import check_dtype, check_runtime_float, check_type
 
 T = TypeVar("T")
 
 
-def op_unary_impl(input: Union[Tile, RuntimeNumeric], build_float: Callable[..., IRHandle],
+def op_unary_impl(input: Union[LocalTensor, RuntimeNumeric], build_float: Callable[..., IRHandle],
                   build_int: Optional[Callable[..., IRHandle]] = None, support_dtypes: Optional[Tuple[DataType]] = None,
-                  support_scalar: bool = False) -> Union[Tile, PlainValue]:
-    constraint = Union[Tile, RuntimeNumeric] if support_scalar else Tile
+                  support_scalar: bool = False) -> Union[LocalTensor, PlainValue]:
+    constraint = Union[LocalTensor, RuntimeNumeric] if support_scalar else LocalTensor
     check_type("input", input, constraint)
-    if isinstance(input, Tile) and support_dtypes is not None:
+    if isinstance(input, LocalTensor) and support_dtypes is not None:
         check_dtype("input", input, support_dtypes)
-    is_scalar = not isinstance(input, Tile)
+    is_scalar = not isinstance(input, LocalTensor)
     input = _mat(input, KT.float32) if is_scalar else input  # TODO: infer dtype using builders availability
     dtype = input.dtype
     if dtype.is_float() and build_float is not None:
@@ -32,17 +32,17 @@ def op_unary_impl(input: Union[Tile, RuntimeNumeric], build_float: Callable[...,
     elif dtype.is_signed() and build_int is not None:
         handle = build_int(input.to_ir())
     else:
-        raise RuntimeError(f"Input tile dtype is not supported: {dtype}")
+        raise RuntimeError(f"Input tensor dtype is not supported: {dtype}")
     if is_scalar:
         return PlainValue(handle)
-    return Tile(handle)
+    return LocalTensor(handle)
 
 
 def set_docstring(name: str, support_dtypes: Tuple[DataType], support_scalar: bool = False) -> Callable[[T], T]:
     dtypes_str = ", ".join(f":code:`{dtype}`" for dtype in support_dtypes)
-    tile_info = "tile or scalar" if support_scalar else "tile"
+    tensor_info = "tensor or scalar" if support_scalar else "tensor"
     examples = f"""
-        Compute the element-wise {name} of all tile elements: ::
+        Compute the element-wise {name} of all tensor elements: ::
 
             input = asc2.load(tensor, [0, 0], [128, 256])
             result = asc2.{{fn_name}}(input)
@@ -61,10 +61,10 @@ def set_docstring(name: str, support_dtypes: Tuple[DataType], support_scalar: bo
     The supported data types for the input are: {dtypes_str}.
 
     Args:
-        input: The input value ({tile_info})
+        input: The input value ({tensor_info})
 
     Returns:
-        Tile: The result tile
+        LocalTensor: The result tensor
 
     Raises:
         RuntimeError: If the input dtype is not supported for this operation
@@ -78,56 +78,56 @@ def set_docstring(name: str, support_dtypes: Tuple[DataType], support_scalar: bo
     return decorator
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
 @set_docstring("cosine", support_dtypes=(KT.float16, KT.float32))
-def cos(input: Tile) -> Tile:
+def cos(input: LocalTensor) -> LocalTensor:
     builder = global_builder.get_ir_builder()
     return op_unary_impl(input, builder.create_math_CosOp, support_dtypes=(KT.float16, KT.float32))
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
 @set_docstring("sine", support_dtypes=(KT.float16, KT.float32))
-def sin(input: Tile) -> Tile:
+def sin(input: LocalTensor) -> LocalTensor:
     builder = global_builder.get_ir_builder()
     return op_unary_impl(input, builder.create_math_SinOp, support_dtypes=(KT.float16, KT.float32))
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
 @set_docstring("tangent", support_dtypes=(KT.float16, KT.float32))
-def tan(input: Tile) -> Tile:
+def tan(input: LocalTensor) -> LocalTensor:
     builder = global_builder.get_ir_builder()
     return op_unary_impl(input, builder.create_math_TanOp, support_dtypes=(KT.float16, KT.float32))
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
 @set_docstring("hyperbolic sine", support_dtypes=(KT.float16, KT.float32))
-def sinh(input: Tile) -> Tile:
+def sinh(input: LocalTensor) -> LocalTensor:
     builder = global_builder.get_ir_builder()
     return op_unary_impl(input, builder.create_math_SinhOp, support_dtypes=(KT.float16, KT.float32))
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
 @set_docstring("hyperbolic cosine", support_dtypes=(KT.float16, KT.float32))
-def cosh(input: Tile) -> Tile:
+def cosh(input: LocalTensor) -> LocalTensor:
     builder = global_builder.get_ir_builder()
     return op_unary_impl(input, builder.create_math_CoshOp, support_dtypes=(KT.float16, KT.float32))
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
 @set_docstring("hyperbolic tangent", support_dtypes=(KT.float16, KT.float32))
-def tanh(input: Tile) -> Tile:
+def tanh(input: LocalTensor) -> LocalTensor:
     builder = global_builder.get_ir_builder()
     return op_unary_impl(input, builder.create_math_TanhOp, support_dtypes=(KT.float16, KT.float32))
 
 
 @overload
-def exp(input: Tile) -> Tile:
+def exp(input: LocalTensor) -> LocalTensor:
     ...
 
 
@@ -136,58 +136,58 @@ def exp(input: RuntimeFloat) -> PlainValue:
     ...
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
 @set_docstring("exponential", support_dtypes=(KT.float16, KT.float32), support_scalar=True)
-def exp(input: Union[Tile, RuntimeFloat]) -> Union[Tile, PlainValue]:
+def exp(input: Union[LocalTensor, RuntimeFloat]) -> Union[LocalTensor, PlainValue]:
     return op_unary_impl(input,
                          global_builder.get_ir_builder().create_math_ExpOp, support_dtypes=(KT.float16, KT.float32),
                          support_scalar=True)
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
 @set_docstring("natural logarithm", support_dtypes=(KT.float16, KT.float32))
-def log(input: Tile) -> Tile:
+def log(input: LocalTensor) -> LocalTensor:
     return op_unary_impl(input,
                          global_builder.get_ir_builder().create_math_LogOp, support_dtypes=(KT.float16, KT.float32))
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
 @set_docstring("logarithm (base 2)", support_dtypes=(KT.float16, KT.float32))
-def log2(input: Tile) -> Tile:
+def log2(input: LocalTensor) -> LocalTensor:
     return op_unary_impl(input,
                          global_builder.get_ir_builder().create_math_Log2Op, support_dtypes=(KT.float16, KT.float32))
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
 @set_docstring("floor rounding", support_dtypes=(KT.float16, KT.float32))
-def floor(input: Tile) -> Tile:
+def floor(input: LocalTensor) -> LocalTensor:
     return op_unary_impl(input,
                          global_builder.get_ir_builder().create_math_FloorOp, support_dtypes=(KT.float16, KT.float32))
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
 @set_docstring("ceil rounding", support_dtypes=(KT.float16, KT.float32))
-def ceil(input: Tile) -> Tile:
+def ceil(input: LocalTensor) -> LocalTensor:
     return op_unary_impl(input,
                          global_builder.get_ir_builder().create_math_CeilOp, support_dtypes=(KT.float16, KT.float32))
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
 @set_docstring("absolute value", support_dtypes=(KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.float32))
-def abs(input: Tile) -> Tile:
+def abs(input: LocalTensor) -> LocalTensor:
     builder = global_builder.get_ir_builder()
     return op_unary_impl(input, builder.create_math_AbsFOp, builder.create_math_AbsIOp,
                          support_dtypes=(KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.float32))
 
 
 @overload
-def erf(input: Tile) -> Tile:
+def erf(input: LocalTensor) -> LocalTensor:
     ...
 
 
@@ -196,33 +196,33 @@ def erf(input: RuntimeFloat) -> PlainValue:
     ...
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
 @set_docstring("error function", support_dtypes=(KT.float16, KT.float32), support_scalar=True)
-def erf(input: Union[Tile, RuntimeFloat]) -> Union[Tile, PlainValue]:
+def erf(input: Union[LocalTensor, RuntimeFloat]) -> Union[LocalTensor, PlainValue]:
     return op_unary_impl(input,
                          global_builder.get_ir_builder().create_math_ErfOp, support_dtypes=(KT.float16, KT.float32),
                          support_scalar=True)
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
 @set_docstring("exponential (base 2)", support_dtypes=(KT.float16, KT.float32))
-def exp2(input: Tile) -> Tile:
+def exp2(input: LocalTensor) -> LocalTensor:
     return op_unary_impl(input,
                          global_builder.get_ir_builder().create_math_Exp2Op, support_dtypes=(KT.float16, KT.float32))
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
 @set_docstring("inverse square root", support_dtypes=(KT.float16, KT.float32))
-def rsqrt(input: Tile) -> Tile:
+def rsqrt(input: LocalTensor) -> LocalTensor:
     return op_unary_impl(input,
                          global_builder.get_ir_builder().create_math_RsqrtOp, support_dtypes=(KT.float16, KT.float32))
 
 
 @overload
-def sqrt(input: Tile) -> Tile:
+def sqrt(input: LocalTensor) -> LocalTensor:
     ...
 
 
@@ -231,72 +231,72 @@ def sqrt(input: RuntimeFloat) -> PlainValue:
     ...
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
 @set_docstring("square root", support_dtypes=(KT.float16, KT.float32), support_scalar=True)
-def sqrt(input: Union[Tile, RuntimeFloat]) -> Union[Tile, PlainValue]:
+def sqrt(input: Union[LocalTensor, RuntimeFloat]) -> Union[LocalTensor, PlainValue]:
     return op_unary_impl(input,
                          global_builder.get_ir_builder().create_math_SqrtOp, support_dtypes=(KT.float16, KT.float32),
                          support_scalar=True)
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
 @set_docstring("ReLU value", support_dtypes=(KT.float16, KT.float32))
-def relu(input: Tile) -> Tile:
+def relu(input: LocalTensor) -> LocalTensor:
     return op_unary_impl(input,
                          global_builder.get_ir_builder().create_asctile_ReluOp, support_dtypes=(KT.float16, KT.float32))
 
 
-@bind_tile_method(name="__neg__", unary_op="-")
+@bind_tensor_method(name="__neg__", unary_op="-")
 @require_jit
 @set_docstring("negation", support_dtypes=(KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32))
-def negative(input: Tile) -> Tile:
+def negative(input: LocalTensor) -> LocalTensor:
     check_dtype("input", input, (KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32))
     return input * (-1)
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
-def softmax(input: Tile) -> Tile:
+def softmax(input: LocalTensor) -> LocalTensor:
     """
     Computes the row-wise softmax of :code:`input`.
 
-    For 2D tiles, softmax is applied independently along the last dimension for each row.
-    For 1D tiles, softmax is applied over all elements.
+    For 2D tensors, softmax is applied independently along the last dimension for each row.
+    For 1D tensors, softmax is applied over all elements.
 
     The supported data types for the input are: :code:`float16`, :code:`float32`.
 
     Args:
-        input: The input tile (1D or 2D)
+        input: The input tensor (1D or 2D)
 
     Returns:
-        Tile: The result tile with the same shape as input
+        LocalTensor: The result tensor with the same shape as input
 
     Raises:
         RuntimeError: If the input dtype is not supported or input has more than 2 dimensions
 
     Examples:
-        Compute row-wise softmax for a 2D tile: ::
+        Compute row-wise softmax for a 2D tensor: ::
 
             input = asc2.load(x_gm, [0, 0], [64, 1024])
             result = asc2.softmax(input)  # softmax applied independently to each of 64 rows
 
-        Compute softmax for a 1D tile: ::
+        Compute softmax for a 1D tensor: ::
 
             input = asc2.load(x_gm, [0], [1024])
             result = asc2.softmax(input)  # softmax applied over all 1024 elements
     """
-    check_type("input", input, Tile)
+    check_type("input", input, LocalTensor)
     check_dtype("input", input, (KT.float16, KT.float32))
     if len(input.shape) > 2:
         raise RuntimeError("Tensor dimensionality greater than two is not supported")
     handle = global_builder.get_ir_builder().create_asctile_SoftmaxOp(input.to_ir().get_type(), input.to_ir())
-    return Tile(handle)
+    return LocalTensor(handle)
 
 
 @require_jit
-def rms_norm(input: Tile, gamma: Tile, epsilon: RuntimeFloat) -> Tile:
+def rms_norm(input: LocalTensor, gamma: LocalTensor, epsilon: RuntimeFloat) -> LocalTensor:
     """
     Computes Root Mean Square Layer Normalization of :code:`input`.
 
@@ -306,34 +306,34 @@ def rms_norm(input: Tile, gamma: Tile, epsilon: RuntimeFloat) -> Tile:
     The supported data types for the inputs are: :code:`float16`, :code:`float32`.
 
     Args:
-        input: The input tile to normalize (1D or 2D)
-        gamma: The scale parameter tile (1D, same length as last dimension of input)
+        input: The input tensor to normalize (1D or 2D)
+        gamma: The scale parameter tensor (1D, same length as last dimension of input)
         epsilon: Small constant added for numerical stability
 
     Returns:
-        Tile: The normalized tile with same shape as input
+        LocalTensor: The normalized tensor with same shape as input
 
     Raises:
-        TypeError: If input or gamma is not a Tile
+        TypeError: If input or gamma is not a LocalTensor
         RuntimeError: If input dtype is not supported, input has more than 2 dimensions,
             or gamma dtype is not supported
 
     Examples:
-        Apply RMSNorm to a 2D tile: ::
+        Apply RMSNorm to a 2D tensor: ::
 
             input = asc2.load(x_gm, [0, 0], [32, 128])
             gamma = asc2.load(gamma_gm, [0], [128])
             output = asc2.rms_norm(input, gamma, 1e-5)
 
-        Apply RMSNorm to a 1D tile: ::
+        Apply RMSNorm to a 1D tensor: ::
 
             input = asc2.load(x_gm, [0], [128])
             gamma = asc2.load(gamma_gm, [0], [128])
             output = asc2.rms_norm(input, gamma, 1e-6)
     """
-    check_type("input", input, Tile)
+    check_type("input", input, LocalTensor)
     check_dtype("input", input, (KT.float16, KT.float32))
-    check_type("gamma", gamma, Tile)
+    check_type("gamma", gamma, LocalTensor)
     check_dtype("gamma", gamma, (KT.float16, KT.float32))
     check_runtime_float("epsilon", epsilon)
     if len(input.shape) > 2:
@@ -341,4 +341,4 @@ def rms_norm(input: Tile, gamma: Tile, epsilon: RuntimeFloat) -> Tile:
     handle = global_builder.get_ir_builder().create_asctile_RmsNormOp(input.to_ir().get_type(), input.to_ir(),
                                                                       gamma.to_ir(),
                                                                       _mat(epsilon, input.dtype).to_ir())
-    return Tile(handle)
+    return LocalTensor(handle)

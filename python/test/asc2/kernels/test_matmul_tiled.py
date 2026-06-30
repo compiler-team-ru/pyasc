@@ -14,16 +14,16 @@ import torch
 @asc2.jit(always_compile=True)
 def matmul_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr: asc2.GlobalAddress,
                   a_shape: asc2.ConstExpr, b_shape: asc2.ConstExpr, c_shape: asc2.ConstExpr, k_tiles: asc2.ConstExpr):
-    a_gm = asc2.tensor(a_ptr, a_shape)
-    b_gm = asc2.tensor(b_ptr, b_shape)
-    c_gm = asc2.tensor(c_ptr, c_shape)
+    a_gm = asc2.global_tensor(a_ptr, a_shape)
+    b_gm = asc2.global_tensor(b_ptr, b_shape)
+    c_gm = asc2.global_tensor(c_ptr, c_shape)
     acc = asc2.zeros_acc(c_shape, dtype=asc2.float32)
     k_offset = a_shape[1] // k_tiles
-    a_l1 = asc2.load(a_gm, [0, 0], a_shape, asc2.TileLocation.L1)
-    b_l1 = asc2.load(b_gm, [0, 0], b_shape, asc2.TileLocation.L1)
+    a_l1 = asc2.load(a_gm, [0, 0], a_shape, asc2.TensorLocation.L1)
+    b_l1 = asc2.load(b_gm, [0, 0], b_shape, asc2.TensorLocation.L1)
     for i in range(k_tiles, unroll_factor=2, parallel=True):
-        a_i = asc2.copy(a_l1, [0, i * k_offset], [a_shape[0], k_offset], asc2.TileLocation.L0A)
-        b_i = asc2.copy(b_l1, [i * k_offset, 0], [k_offset, b_shape[1]], asc2.TileLocation.L0B)
+        a_i = asc2.copy(a_l1, [0, i * k_offset], [a_shape[0], k_offset], asc2.TensorLocation.L0A)
+        b_i = asc2.copy(b_l1, [i * k_offset, 0], [k_offset, b_shape[1]], asc2.TensorLocation.L0B)
         asc2.matmul_acc(acc, a_i, b_i)
     asc2.store(acc, c_gm, [0, 0])
 

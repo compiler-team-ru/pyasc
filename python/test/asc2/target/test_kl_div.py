@@ -20,9 +20,9 @@ DYNAMIC = "dynamic"
 def kl_div(input_x_ptr: asc2.GlobalAddress, input_target_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
            input_size, tile_length: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     loop_count = asc2.ceildiv(input_size, tile_length)
-    x_gm = asc2.tensor(input_x_ptr, [input_size])
-    target_gm = asc2.tensor(input_target_ptr, [input_size])
-    output_gm = asc2.tensor(output_ptr, [input_size])
+    x_gm = asc2.global_tensor(input_x_ptr, [input_size])
+    target_gm = asc2.global_tensor(input_target_ptr, [input_size])
+    output_gm = asc2.global_tensor(output_ptr, [input_size])
     # Epsilon values for numerical stability
     # For float16: machine epsilon ~1.18e-07
     # For float32: smallest normalized value ~1.18e-38

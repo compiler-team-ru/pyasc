@@ -44,9 +44,9 @@ def test_shape_op(require_c310, asc_op, torch_op, args, shape, dtype: torch.dtyp
     @asc2.jit(always_compile=True, static_alloc=static_alloc)
     def kernel(x_ptr, z_ptr, input_shape: asc2.ConstExpr, output_shape: asc2.ConstExpr, in_offsets: asc2.ConstExpr,
                out_offsets: asc2.ConstExpr, op: asc2.ConstExpr, op_param: asc2.ConstExpr) -> None:
-        xt = asc2.load(asc2.tensor(x_ptr, input_shape), in_offsets, input_shape)
+        xt = asc2.load(asc2.global_tensor(x_ptr, input_shape), in_offsets, input_shape)
         zt = op(xt, *op_param)
-        asc2.store(zt, asc2.tensor(z_ptr, output_shape), out_offsets)
+        asc2.store(zt, asc2.global_tensor(z_ptr, output_shape), out_offsets)
 
     kernel[1](x, z, x.shape, ref_z.shape, in_offsets, out_offsets, asc_op, args)
     torch.testing.assert_close(z, ref_z)
@@ -73,9 +73,9 @@ def test_shape_op_with_list_or_tuple(require_c310, asc_op, torch_op, dst_shape, 
     @asc2.jit(always_compile=True, static_alloc=static_alloc)
     def kernel(x_ptr, z_ptr, input_shape: asc2.ConstExpr, output_shape: asc2.ConstExpr, in_offsets: asc2.ConstExpr,
                out_offsets: asc2.ConstExpr, op: asc2.ConstExpr, op_param: asc2.ConstExpr) -> None:
-        xt = asc2.load(asc2.tensor(x_ptr, input_shape), in_offsets, input_shape)
+        xt = asc2.load(asc2.global_tensor(x_ptr, input_shape), in_offsets, input_shape)
         zt = op(xt, op_param)
-        asc2.store(zt, asc2.tensor(z_ptr, output_shape), out_offsets)
+        asc2.store(zt, asc2.global_tensor(z_ptr, output_shape), out_offsets)
 
     kernel[1](x, z, x.shape, ref_z.shape, in_offsets, out_offsets, asc_op, wrapped_args)
     torch.testing.assert_close(z, ref_z)
@@ -90,7 +90,7 @@ def test_broadcast_dup(require_c310, shape, dtype):
 
     @asc2.jit(always_compile=True)
     def kernel(out_ptr, shape: asc2.ConstExpr, offsets: asc2.ConstExpr):
-        out_tensor = asc2.tensor(out_ptr, shape)
+        out_tensor = asc2.global_tensor(out_ptr, shape)
         out = asc2.full([1], 77, out_tensor.dtype).broadcast_to(*out_tensor.shape)
         asc2.store(out, out_tensor, offsets)
 

@@ -28,7 +28,7 @@ time.
 - **Minimum Value**: `1` (unroll factor must be 1 or greater)
 - **Type**: `int`
 - **Scope**: Only applicable to `asc2.range()` loops
-Recommended value is 2. 
+Recommended value is 2.
 
 ## Usage Examples
 
@@ -39,8 +39,8 @@ import asc2
 # Default unroll_factor=1 (no unrolling)
 @asc2.jit()
 def simple_kernel(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
-    x_gm = asc2.tensor(x, [size])
-    y_gm = asc2.tensor(y, [size])
+    x_gm = asc2.global_tensor(x, [size])
+    y_gm = asc2.global_tensor(y, [size])
 
     for i in asc2.range(size):
         # Loop remains as-is
@@ -54,8 +54,8 @@ def simple_kernel(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
 ```python
 @asc2.jit()
 def unrolled_kernel(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
-    x_gm = asc2.tensor(x, [size])
-    y_gm = asc2.tensor(y, [size])
+    x_gm = asc2.global_tensor(x, [size])
+    y_gm = asc2.global_tensor(y, [size])
 
     for i in asc2.range(size, unroll_factor=2):
         # Loop body will be unrolled 2 times
@@ -73,8 +73,8 @@ and not-unrolled iterations.
 # Combine unrolling with parallel execution
 @asc2.jit()
 def parallel_unroll(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
-    x_gm = asc2.tensor(x, [size])
-    y_gm = asc2.tensor(y, [size])
+    x_gm = asc2.global_tensor(x, [size])
+    y_gm = asc2.global_tensor(y, [size])
 
     for i in asc2.range(size, unroll_factor=2, parallel=True):
         # Loop unrolled and executed in parallel

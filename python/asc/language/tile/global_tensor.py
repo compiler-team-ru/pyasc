@@ -27,7 +27,7 @@ class RuntimeShape:
     """
 
     def __init__(self, ir_tensor: IRHandle, shape: Iterable[int]) -> None:
-        """This constructor is not called by user. Use :code:`shape` attribute of :py:class:`Tensor` object."""
+        """This constructor is not called by user. Use :code:`shape` attribute of :py:class:`GlobalTensor` object."""
         self.ir_tensor = ir_tensor
         self.shape = tuple(shape)
 
@@ -62,9 +62,9 @@ class RuntimeShape:
         return self.shape[index] == ir.dynshape
 
 
-class Tensor(IRValue):
+class GlobalTensor(IRValue):
     """
-    A tensor is a contiguous ND-array of values in Global Memory.
+    A global tensor is a contiguous ND-array of values in Global Memory.
 
     Each element is of :py:attr:`dtype` type and number of elements is defined by :py:attr:`shape` values.
     """
@@ -79,7 +79,7 @@ class Tensor(IRValue):
     """Number of dimensions"""
 
     def __init__(self, *, handle: IRHandle) -> None:
-        """This constructor is not called by user. Use :py:func:`tensor` function to define a tensor."""
+        """This constructor is not called by user. Use :py:func:`global_tensor` function to define a global tensor."""
         super().__init__()
         check_type("handle", handle, IRHandle)
         self.handle = handle
@@ -97,7 +97,7 @@ class Tensor(IRValue):
 
 
 @require_jit
-def tensor(base: GlobalAddress, shape: Iterable[RuntimeInt]) -> Tensor:
+def global_tensor(base: GlobalAddress, shape: Iterable[RuntimeInt]) -> GlobalTensor:
     """
     Define a new tensor descriptor for accessing data in global memory.
 
@@ -109,7 +109,7 @@ def tensor(base: GlobalAddress, shape: Iterable[RuntimeInt]) -> Tensor:
         shape: An iterable of integer-like values representing the number of elements for each dimension
 
     Returns:
-        Tensor: A new tensor descriptor
+        GlobalTensor: A new tensor descriptor
 
     Raises:
         TypeError: If base is not a GlobalAddress or shape contains non-integer values
@@ -118,15 +118,15 @@ def tensor(base: GlobalAddress, shape: Iterable[RuntimeInt]) -> Tensor:
     Examples:
         Create a 1D tensor with static shape: ::
 
-            x_gm = asc2.tensor(x_ptr, [1024])
+            x_gm = asc2.global_tensor(x_ptr, [1024])
 
         Create a 2D tensor with static shape: ::
 
-            x_gm = asc2.tensor(x_ptr, [64, 128])
+            x_gm = asc2.global_tensor(x_ptr, [64, 128])
 
         Create a tensor with dynamic shape (using runtime values): ::
 
-            x_gm = asc2.tensor(x_ptr, [num_rows, num_cols])
+            x_gm = asc2.global_tensor(x_ptr, [num_rows, num_cols])
     """
     check_type("base", base, GlobalAddress)
     shape = verify_runtime_ints(shape, "shape")
@@ -140,4 +140,4 @@ def tensor(base: GlobalAddress, shape: Iterable[RuntimeInt]) -> Tensor:
             dynamic_sizes.append(mat(dim, int32).to_ir())
     ir_type = ir.get_asctile_TensorType(static_sizes, base.dtype.to_ir())
     handle = global_builder.get_ir_builder().create_asctile_TensorOp(ir_type, base.to_ir(), dynamic_sizes)
-    return Tensor.from_ir(handle)
+    return GlobalTensor.from_ir(handle)

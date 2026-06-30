@@ -83,9 +83,9 @@ def test_transpose_onload(permute, input_shape, real_shape, offsets, pad_value, 
     def kernel(input_ptr, result_ptr, input_shape: asc2.ConstExpr, real_shape: asc2.ConstExpr,
                output_shape: asc2.ConstExpr, write_real_shape: asc2.ConstExpr, offsets: asc2.ConstExpr,
                pad_value: asc2.ConstExpr, permute: asc2.ConstExpr):
-        g_input = asc2.tensor(input_ptr, input_shape)
+        g_input = asc2.global_tensor(input_ptr, input_shape)
         tile = asc2.load(g_input, offsets, input_shape, real_shape=real_shape, pad_value=pad_value)
-        g_output = asc2.tensor(result_ptr, output_shape)
+        g_output = asc2.global_tensor(result_ptr, output_shape)
         asc2.store(tile.transpose(*permute), g_output, [0] * len(output_shape))
 
     kernel[1](input, result, input_shape, real_shape, output_shape, write_real_shape, offsets, pad_value, permute)
@@ -108,13 +108,13 @@ def test_transpose_in_ub(input_shape, dtype):
 
     @asc2.jit(always_compile=True)
     def kernel(input_ptr, result_ptr, copy_ptr, input_shape: asc2.ConstExpr):
-        g_input = asc2.tensor(input_ptr, input_shape)
+        g_input = asc2.global_tensor(input_ptr, input_shape)
         # Regular load here
         tile = asc2.load(g_input, offsets=[0] * len(input_shape), shape=input_shape)
         # Transpose in ub
         result = tile.transpose()
-        g_output = asc2.tensor(result_ptr, [input_shape[1], input_shape[0]])
-        g_copy = asc2.tensor(copy_ptr, input_shape)
+        g_output = asc2.global_tensor(result_ptr, [input_shape[1], input_shape[0]])
+        g_copy = asc2.global_tensor(copy_ptr, input_shape)
         asc2.store(result, g_output, offsets=[0] * len(input_shape))
         # 'copy' needs here to disable optimizing load+transpose in single op
         asc2.store(tile, g_copy, offsets=[0] * len(input_shape))

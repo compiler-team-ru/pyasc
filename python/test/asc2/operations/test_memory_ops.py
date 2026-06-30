@@ -41,34 +41,34 @@ tests = [
 @asc2.jit(always_compile=True)
 def kernel_static(x_ptr, y_ptr, z_ptr, tensor_shape: asc2.ConstExpr, tile_shape: asc2.ConstExpr,
                   offsets: asc2.ConstExpr) -> None:
-    xt = asc2.load(asc2.tensor(x_ptr, tensor_shape), offsets, tile_shape)
-    yt = asc2.load(asc2.tensor(y_ptr, tensor_shape), offsets, tile_shape)
+    xt = asc2.load(asc2.global_tensor(x_ptr, tensor_shape), offsets, tile_shape)
+    yt = asc2.load(asc2.global_tensor(y_ptr, tensor_shape), offsets, tile_shape)
     zt = xt + yt
-    asc2.store(zt, asc2.tensor(z_ptr, tensor_shape), offsets)
+    asc2.store(zt, asc2.global_tensor(z_ptr, tensor_shape), offsets)
 
 
 @asc2.jit(always_compile=True)
 def kernel_dynamic_1D(x_ptr, y_ptr, z_ptr, ts0, tile_shape: asc2.ConstExpr, offsets: asc2.ConstExpr) -> None:
-    xt = asc2.load(asc2.tensor(x_ptr, [ts0]), offsets, tile_shape)
-    yt = asc2.load(asc2.tensor(y_ptr, [ts0]), offsets, tile_shape)
+    xt = asc2.load(asc2.global_tensor(x_ptr, [ts0]), offsets, tile_shape)
+    yt = asc2.load(asc2.global_tensor(y_ptr, [ts0]), offsets, tile_shape)
     zt = xt + yt
-    asc2.store(zt, asc2.tensor(z_ptr, [ts0]), offsets)
+    asc2.store(zt, asc2.global_tensor(z_ptr, [ts0]), offsets)
 
 
 @asc2.jit(always_compile=True)
 def kernel_dynamic_2D(x_ptr, y_ptr, z_ptr, ts0, ts1, tile_shape: asc2.ConstExpr, offsets: asc2.ConstExpr) -> None:
-    xt = asc2.load(asc2.tensor(x_ptr, [ts0, ts1]), offsets, tile_shape)
-    yt = asc2.load(asc2.tensor(y_ptr, [ts0, ts1]), offsets, tile_shape)
+    xt = asc2.load(asc2.global_tensor(x_ptr, [ts0, ts1]), offsets, tile_shape)
+    yt = asc2.load(asc2.global_tensor(y_ptr, [ts0, ts1]), offsets, tile_shape)
     zt = xt + yt
-    asc2.store(zt, asc2.tensor(z_ptr, [ts0, ts1]), offsets)
+    asc2.store(zt, asc2.global_tensor(z_ptr, [ts0, ts1]), offsets)
 
 
 @asc2.jit(always_compile=True)
 def kernel_scalar_load_store(x_ptr, y_ptr, z_ptr, tensor_shape: asc2.ConstExpr, offsets: asc2.ConstExpr) -> None:
-    xt = asc2.load(asc2.tensor(x_ptr, tensor_shape), offsets)
-    yt = asc2.load(asc2.tensor(y_ptr, tensor_shape), offsets)
+    xt = asc2.load(asc2.global_tensor(x_ptr, tensor_shape), offsets)
+    yt = asc2.load(asc2.global_tensor(y_ptr, tensor_shape), offsets)
     zt = xt + yt
-    asc2.store(zt, asc2.tensor(z_ptr, tensor_shape), offsets)
+    asc2.store(zt, asc2.global_tensor(z_ptr, tensor_shape), offsets)
 
 
 @pytest.mark.parametrize("dim, tensor_shape, tile_shape, offsets, is_static", tests)
@@ -108,9 +108,9 @@ def test_store_1elem_tile(tensor_shape, offsets):
 
     @asc2.jit(always_compile=True)
     def kernel(x_ptr, y_ptr, tensor_shape: asc2.ConstExpr, offsets: asc2.ConstExpr):
-        x = asc2.tensor(x_ptr, tensor_shape)
+        x = asc2.global_tensor(x_ptr, tensor_shape)
         s = asc2.load(x, offsets)
-        y = asc2.tensor(y_ptr, tensor_shape)
+        y = asc2.global_tensor(y_ptr, tensor_shape)
         asc2.store(asc2.full([1], s), y, offsets)
 
     kernel[1](x, y, tensor_shape, offsets)
@@ -122,8 +122,8 @@ def test_store_1elem_tile(tensor_shape, offsets):
 @asc2.jit(always_compile=True)
 def kernel_load_padding(x_ptr, out_ptr, input_shape: asc2.ConstExpr, tile_shape: asc2.ConstExpr,
                         offsets: asc2.ConstExpr, pad_value: asc2.ConstExpr) -> None:
-    x_gm = asc2.tensor(x_ptr, input_shape)
-    out_gm = asc2.tensor(out_ptr, tile_shape)
+    x_gm = asc2.global_tensor(x_ptr, input_shape)
+    out_gm = asc2.global_tensor(out_ptr, tile_shape)
     tile = asc2.load(x_gm, offsets, tile_shape, pad_value=pad_value)
     asc2.store(tile, out_gm, [0, 0])
 

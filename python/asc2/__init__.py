@@ -57,8 +57,8 @@ __all__ += [
     "static_range",
 ]
 
-from asc.language.tile.tensor import Tensor, tensor
-from asc.language.tile.tile import RoundMode, Tile, TileLocation
+from asc.language.tile.global_tensor import GlobalTensor, global_tensor
+from asc.language.tile.local_tensor import LocalTensor, RoundMode, TensorLocation
 from asc.language.tile.range import range
 
 # Tile operations
@@ -149,13 +149,13 @@ from asc.language.tile.reduction_ops import (
 from .jit import jit
 
 __all__ += [
-    # tensor
-    "Tensor",
-    "tensor",
-    # tile
+    # global_tensor
+    "GlobalTensor",
+    "global_tensor",
+    # local_tensor
+    "LocalTensor",
     "RoundMode",
-    "Tile",
-    "TileLocation",
+    "TensorLocation",
     # range
     "range",
     # atomic_ops

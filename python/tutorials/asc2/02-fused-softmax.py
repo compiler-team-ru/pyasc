@@ -32,8 +32,8 @@ def fused_softmax(
         tile_shape: asc2.ConstExpr):
 
     # Tensor descriptor is created from `asc2.GlobalAddress` to represent entire tensor.
-    in_gm = asc2.tensor(input_ptr, [num_rows, num_cols])
-    out_gm = asc2.tensor(output_ptr, [num_rows, num_cols])
+    in_gm = asc2.global_tensor(input_ptr, [num_rows, num_cols])
+    out_gm = asc2.global_tensor(output_ptr, [num_rows, num_cols])
 
     # Python expressions are used to calculate offset:
     # `asc2.block_num()` function provides number of AICOREs launched.

@@ -16,8 +16,8 @@ import torch
 @asc2.jit(always_compile=True, vf_fusion=True)
 def gelu_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, num_rows: asc2.ConstExpr,
                 num_columns: asc2.ConstExpr, tile_size: asc2.ConstExpr, approximate: asc2.ConstExpr):
-    x_gm = asc2.tensor(x_ptr, [num_rows, num_columns])
-    out_gm = asc2.tensor(out_ptr, [num_rows, num_columns])
+    x_gm = asc2.global_tensor(x_ptr, [num_rows, num_columns])
+    out_gm = asc2.global_tensor(out_ptr, [num_rows, num_columns])
     for i in range(asc2.block_idx(), num_rows, asc2.block_num(), parallel=True):
         row = asc2.load(x_gm, [i, 0], [1, tile_size])
         if approximate:

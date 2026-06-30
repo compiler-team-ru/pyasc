@@ -17,9 +17,9 @@ DYNAMIC = "dynamic"
 @asc2.jit(static_alloc=True, reuse_ub=True)
 def split_v(input_ptr: asc2.GlobalAddress, output0_ptr: asc2.GlobalAddress, output1_ptr: asc2.GlobalAddress,
             input_length, split_boundary, tile_length, ub_chunk_size: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
-    in_gm = asc2.tensor(input_ptr, [input_length])
-    out0_gm = asc2.tensor(output0_ptr, [split_boundary])
-    out1_gm = asc2.tensor(output1_ptr, [input_length - split_boundary])
+    in_gm = asc2.global_tensor(input_ptr, [input_length])
+    out0_gm = asc2.global_tensor(output0_ptr, [split_boundary])
+    out1_gm = asc2.global_tensor(output1_ptr, [input_length - split_boundary])
 
     block_loop_num = asc2.ceildiv(asc2.ceildiv(input_length, asc2.block_num()), tile_length)
     block_length = tile_length * block_loop_num
