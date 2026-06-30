@@ -27,7 +27,7 @@ def block_idx() -> PlainValue:
 
             idx = asc2.block_idx()
             offset = idx * TILE_SIZE
-            tile = asc2.load(x_gm, [offset], [TILE_SIZE])
+            tile = asc2.copy_in(x_gm, [offset], [TILE_SIZE])
     """
     return get_block_idx()
 

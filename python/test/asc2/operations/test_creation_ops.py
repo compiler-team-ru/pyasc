@@ -19,7 +19,7 @@ def test_full_1d(require_c310, dtype: torch.dtype):
     def kernel(out_ptr, shape: asc2.ConstExpr, value: asc2.ConstExpr):
         out_gm = asc2.global_tensor(out_ptr, shape)
         tile = asc2.full(shape, value, dtype=out_gm.dtype)
-        asc2.store(tile, out_gm, [0])
+        asc2.copy_out(tile, out_gm, [0])
 
     out = torch.zeros(shape, dtype=dtype)
     kernel[1](out, shape, fill_value)
@@ -37,7 +37,7 @@ def test_full_2d(dtype: torch.dtype):
     def kernel(out_ptr, shape: asc2.ConstExpr, value: asc2.ConstExpr):
         out_gm = asc2.global_tensor(out_ptr, shape)
         tile = asc2.full(shape, value, dtype=out_gm.dtype)
-        asc2.store(tile, out_gm, [0, 0])
+        asc2.copy_out(tile, out_gm, [0, 0])
 
     out = torch.zeros(shape, dtype=dtype)
     kernel[1](out, shape, fill_value)
@@ -57,9 +57,9 @@ def test_full_like(require_c310, dtype: torch.dtype):
     def kernel(in_ptr, out_ptr, shape: asc2.ConstExpr, value: asc2.ConstExpr):
         in_gm = asc2.global_tensor(in_ptr, shape)
         out_gm = asc2.global_tensor(out_ptr, shape)
-        src = asc2.load(in_gm, [0], shape)
+        src = asc2.copy_in(in_gm, [0], shape)
         tile = asc2.full_like(src, value)
-        asc2.store(tile, out_gm, [0])
+        asc2.copy_out(tile, out_gm, [0])
 
     inp = torch.ones(shape, dtype=dtype)
     out = torch.zeros(shape, dtype=dtype)
@@ -75,9 +75,9 @@ def test_full_like_2d():
     def kernel(in_ptr, out_ptr, shape: asc2.ConstExpr):
         in_gm = asc2.global_tensor(in_ptr, shape)
         out_gm = asc2.global_tensor(out_ptr, shape)
-        src = asc2.load(in_gm, [0, 0], shape)
+        src = asc2.copy_in(in_gm, [0, 0], shape)
         tile = asc2.full_like(src, 7)
-        asc2.store(tile, out_gm, [0, 0])
+        asc2.copy_out(tile, out_gm, [0, 0])
 
     inp = torch.ones(shape, dtype=torch.int32)
     out = torch.zeros(shape, dtype=torch.int32)
@@ -97,7 +97,7 @@ def test_zeros_1d(require_c310, dtype: torch.dtype):
     def kernel(out_ptr, shape: asc2.ConstExpr):
         out_gm = asc2.global_tensor(out_ptr, shape)
         tile = asc2.zeros(shape, dtype=out_gm.dtype)
-        asc2.store(tile, out_gm, [0])
+        asc2.copy_out(tile, out_gm, [0])
 
     out = torch.ones(shape, dtype=dtype)
     kernel[1](out, shape)
@@ -114,7 +114,7 @@ def test_zeros_2d(dtype: torch.dtype):
     def kernel(out_ptr, shape: asc2.ConstExpr):
         out_gm = asc2.global_tensor(out_ptr, shape)
         tile = asc2.zeros(shape, dtype=out_gm.dtype)
-        asc2.store(tile, out_gm, [0, 0])
+        asc2.copy_out(tile, out_gm, [0, 0])
 
     out = torch.ones(shape, dtype=dtype)
     kernel[1](out, shape)
@@ -129,7 +129,7 @@ def test_zeros_default_dtype():
     def kernel(out_ptr, shape: asc2.ConstExpr):
         out_gm = asc2.global_tensor(out_ptr, shape)
         tile = asc2.zeros(shape)
-        asc2.store(tile, out_gm, [0])
+        asc2.copy_out(tile, out_gm, [0])
 
     out = torch.ones(shape, dtype=torch.int32)
     kernel[1](out, shape)
@@ -148,9 +148,9 @@ def test_zeros_like(require_c310, dtype: torch.dtype):
     def kernel(in_ptr, out_ptr, shape: asc2.ConstExpr):
         in_gm = asc2.global_tensor(in_ptr, shape)
         out_gm = asc2.global_tensor(out_ptr, shape)
-        src = asc2.load(in_gm, [0], shape)
+        src = asc2.copy_in(in_gm, [0], shape)
         tile = asc2.zeros_like(src)
-        asc2.store(tile, out_gm, [0])
+        asc2.copy_out(tile, out_gm, [0])
 
     inp = torch.ones(shape, dtype=dtype)
     out = torch.ones(shape, dtype=dtype)
@@ -166,9 +166,9 @@ def test_zeros_like_2d():
     def kernel(in_ptr, out_ptr, shape: asc2.ConstExpr):
         in_gm = asc2.global_tensor(in_ptr, shape)
         out_gm = asc2.global_tensor(out_ptr, shape)
-        src = asc2.load(in_gm, [0, 0], shape)
+        src = asc2.copy_in(in_gm, [0, 0], shape)
         tile = asc2.zeros_like(src)
-        asc2.store(tile, out_gm, [0, 0])
+        asc2.copy_out(tile, out_gm, [0, 0])
 
     inp = torch.ones(shape, dtype=torch.float32)
     out = torch.ones(shape, dtype=torch.float32)
@@ -189,10 +189,10 @@ def test_concat_two_tiles_1d(require_c310, dtype: torch.dtype):
         a_gm = asc2.global_tensor(a_ptr, shape_a)
         b_gm = asc2.global_tensor(b_ptr, shape_b)
         out_gm = asc2.global_tensor(out_ptr, out_shape)
-        tile_a = asc2.load(a_gm, [0], shape_a)
-        tile_b = asc2.load(b_gm, [0], shape_b)
+        tile_a = asc2.copy_in(a_gm, [0], shape_a)
+        tile_b = asc2.copy_in(b_gm, [0], shape_b)
         result = asc2.concat(tile_a, tile_b)
-        asc2.store(result, out_gm, [0])
+        asc2.copy_out(result, out_gm, [0])
 
     a = torch.arange(16, dtype=dtype)
     b = torch.arange(16, 32, dtype=dtype)
@@ -216,11 +216,11 @@ def test_concat_three_tiles_1d(require_c310):
         b_gm = asc2.global_tensor(b_ptr, shape_b)
         c_gm = asc2.global_tensor(c_ptr, shape_c)
         out_gm = asc2.global_tensor(out_ptr, out_shape)
-        tile_a = asc2.load(a_gm, [0], shape_a)
-        tile_b = asc2.load(b_gm, [0], shape_b)
-        tile_c = asc2.load(c_gm, [0], shape_c)
+        tile_a = asc2.copy_in(a_gm, [0], shape_a)
+        tile_b = asc2.copy_in(b_gm, [0], shape_b)
+        tile_c = asc2.copy_in(c_gm, [0], shape_c)
         result = asc2.concat(tile_a, tile_b, tile_c)
-        asc2.store(result, out_gm, [0])
+        asc2.copy_out(result, out_gm, [0])
 
     a = torch.arange(8, dtype=torch.float32)
     b = torch.arange(8, 16, dtype=torch.float32)
@@ -244,10 +244,10 @@ def test_concat_two_tiles_2d(require_c310, dtype: torch.dtype):
         a_gm = asc2.global_tensor(a_ptr, shape_a)
         b_gm = asc2.global_tensor(b_ptr, shape_b)
         out_gm = asc2.global_tensor(out_ptr, out_shape)
-        tile_a = asc2.load(a_gm, [0, 0], shape_a)
-        tile_b = asc2.load(b_gm, [0, 0], shape_b)
+        tile_a = asc2.copy_in(a_gm, [0, 0], shape_a)
+        tile_b = asc2.copy_in(b_gm, [0, 0], shape_b)
         result = asc2.concat(tile_a, tile_b)
-        asc2.store(result, out_gm, [0, 0])
+        asc2.copy_out(result, out_gm, [0, 0])
 
     a = torch.arange(2 * last_dim, dtype=dtype).reshape(2, last_dim)
     b = torch.arange(2 * last_dim, 4 * last_dim, dtype=dtype).reshape(2, last_dim)
@@ -268,10 +268,10 @@ def test_concat_different_first_dim(require_c310):
         a_gm = asc2.global_tensor(a_ptr, shape_a)
         b_gm = asc2.global_tensor(b_ptr, shape_b)
         out_gm = asc2.global_tensor(out_ptr, out_shape)
-        tile_a = asc2.load(a_gm, [0], shape_a)
-        tile_b = asc2.load(b_gm, [0], shape_b)
+        tile_a = asc2.copy_in(a_gm, [0], shape_a)
+        tile_b = asc2.copy_in(b_gm, [0], shape_b)
         result = asc2.concat(tile_a, tile_b)
-        asc2.store(result, out_gm, [0])
+        asc2.copy_out(result, out_gm, [0])
 
     a = torch.arange(4, dtype=torch.float32)
     b = torch.arange(4, 16, dtype=torch.float32)

@@ -35,9 +35,9 @@ def vadd_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, out_ptr: asc
     base   = asc2.block_idx() * tile_size * tile_per_block
     for i in range(tile_per_block):
         off = base + i * tile_size
-        x   = asc2.load(x_gm, [tile_size], offsets=[off])
-        y   = asc2.load(y_gm, [tile_size], offsets=[off])
-        asc2.store(x + y, out_gm, offsets=[off])
+        x   = asc2.copy_in(x_gm, [tile_size], offsets=[off])
+        y   = asc2.copy_in(y_gm, [tile_size], offsets=[off])
+        asc2.copy_out(x + y, out_gm, offsets=[off])
 
 # Create tensors
 x = torch.rand(8192, dtype=torch.float32)

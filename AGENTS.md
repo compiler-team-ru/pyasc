@@ -116,9 +116,9 @@ For runtime environment setup: @docs/installation/setup-runtime-env.rst
 ```python
 # Tensor creation and loading
 x_gm = asc2.global_tensor(x_ptr, [size])
-tile = asc2.load(tensor, shape=[128], offsets=[base])  # explicit element offsets
-scalar = asc2.load(tensor, offsets=[i])
-asc2.store(tile, tensor, offsets=[base])
+tile = asc2.copy_in(tensor, shape=[128], offsets=[base])  # explicit element offsets
+scalar = asc2.copy_in(tensor, offsets=[i])
+asc2.copy_out(tile, tensor, offsets=[base])
 
 # Arithmetic: add, sub, mul, div, maximum, minimum, left_shift, right_shift
 # Comparison: equal, not_equal, greater, greater_equal, less, less_equal

@@ -44,10 +44,10 @@ def simple_kernel(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
 
     for i in asc2.range(size):
         # Loop remains as-is
-        x_val = asc2.load(x_gm, [i], [1])
-        y_val = asc2.load(y_gm, [i], [1])
+        x_val = asc2.copy_in(x_gm, [i], [1])
+        y_val = asc2.copy_in(y_gm, [i], [1])
         result = x_val + y_val
-        asc2.store(result, y_gm, [i])
+        asc2.copy_out(result, y_gm, [i])
 ```
 
 ### Example 2: Recomended unrolling
@@ -59,10 +59,10 @@ def unrolled_kernel(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
 
     for i in asc2.range(size, unroll_factor=2):
         # Loop body will be unrolled 2 times
-        x_val = asc2.load(x_gm, [i], [1])
-        y_val = asc2.load(y_gm, [i], [1])
+        x_val = asc2.copy_in(x_gm, [i], [1])
+        y_val = asc2.copy_in(y_gm, [i], [1])
         result = x_val + y_val
-        asc2.store(result, y_gm, [i])
+        asc2.copy_out(result, y_gm, [i])
 ```
 
 ### Example 3: Unrolling with Parallel Execution
@@ -78,10 +78,10 @@ def parallel_unroll(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
 
     for i in asc2.range(size, unroll_factor=2, parallel=True):
         # Loop unrolled and executed in parallel
-        x_val = asc2.load(x_gm, [i], [1])
-        y_val = asc2.load(y_gm, [i], [1])
+        x_val = asc2.copy_in(x_gm, [i], [1])
+        y_val = asc2.copy_in(y_gm, [i], [1])
         result = x_val + y_val
-        asc2.store(result, y_gm, [i])
+        asc2.copy_out(result, y_gm, [i])
 ```
 
 ### Limitations & Recommendations

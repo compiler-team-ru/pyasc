@@ -90,7 +90,7 @@ def full_like(input: LocalTensor, value: RuntimeNumeric, location: TensorLocatio
     Examples:
         Create a tensor filled with a value, matching another tensor's shape and dtype: ::
 
-            src = asc2.load(x_gm, [0], [128])
+            src = asc2.copy_in(x_gm, [0], [128])
             result = asc2.full_like(src, 255)
     """
     check_type("input", input, LocalTensor)
@@ -149,7 +149,7 @@ def zeros_like(input: LocalTensor, location: TensorLocation = TensorLocation.UB)
     Examples:
         Create a zero-filled tensor matching another tensor's shape and dtype: ::
 
-            src = asc2.load(x_gm, [0], [128])
+            src = asc2.copy_in(x_gm, [0], [128])
             result = asc2.zeros_like(src)
     """
     check_type("input", input, LocalTensor)
@@ -187,20 +187,20 @@ def zeros_acc(shape: Iterable[int], dtype: DataType, *, bias: Optional[LocalTens
 
             acc = asc2.zeros_acc([64, 256], dtype=asc2.float32)
             for k in range(k_tiles):
-                a_k = asc2.load(a_gm, [0, k * 32], [64, 32], asc2.TensorLocation.L0A)
-                b_k = asc2.load(b_gm, [k * 32, 0], [32, 256], asc2.TensorLocation.L0B)
+                a_k = asc2.copy_in(a_gm, [0, k * 32], [64, 32], asc2.TensorLocation.L0A)
+                b_k = asc2.copy_in(b_gm, [k * 32, 0], [32, 256], asc2.TensorLocation.L0B)
                 asc2.matmul_acc(acc, a_k, b_k)
-            asc2.store(acc, c_gm, [0, 0])
+            asc2.copy_out(acc, c_gm, [0, 0])
 
         Create a bias-initialized accumulator: ::
 
-            bias = asc2.load(bias_gm, [0], [256], asc2.TensorLocation.BT)
+            bias = asc2.copy_in(bias_gm, [0], [256], asc2.TensorLocation.BT)
             acc = asc2.zeros_acc([64, 256], dtype=asc2.float32, bias=bias)
             for k in range(k_tiles):
-                a_k = asc2.load(a_gm, [0, k * 32], [64, 32], asc2.TensorLocation.L0A)
-                b_k = asc2.load(b_gm, [k * 32, 0], [32, 256], asc2.TensorLocation.L0B)
+                a_k = asc2.copy_in(a_gm, [0, k * 32], [64, 32], asc2.TensorLocation.L0A)
+                b_k = asc2.copy_in(b_gm, [k * 32, 0], [32, 256], asc2.TensorLocation.L0B)
                 asc2.matmul_acc(acc, a_k, b_k)
-            asc2.store(acc, c_gm, [0, 0])
+            asc2.copy_out(acc, c_gm, [0, 0])
     """
     check_type("dtype", dtype, DataType)
     check_dtype("dtype", dtype, KT.float32)
@@ -259,17 +259,17 @@ def cast(input: Union[LocalTensor, RuntimeNumeric], dtype: DataType,
     Examples:
         Cast a tensor from float32 to float16: ::
 
-            input = asc2.load(x_gm, [0], [128])
+            input = asc2.copy_in(x_gm, [0], [128])
             result_fp16 = asc2.cast(input, asc2.float16)
 
         Cast with explicit rounding mode: ::
 
-            input = asc2.load(x_gm, [0], [128])
+            input = asc2.copy_in(x_gm, [0], [128])
             result_int32 = asc2.cast(input, asc2.int32, round_mode=asc2.RoundMode.Floor)
 
         Cast using the .to() method (equivalent): ::
 
-            input = asc2.load(x_gm, [0], [128])
+            input = asc2.copy_in(x_gm, [0], [128])
             result_fp16 = input.to(asc2.float16)
 
         Cast a scalar value: ::
@@ -281,7 +281,7 @@ def cast(input: Union[LocalTensor, RuntimeNumeric], dtype: DataType,
             acc = asc2.zeros_acc([64, 128], dtype=asc2.float32)
             # ... accumulate matmul results ...
             result_fp16 = acc.to(asc2.float16)
-            asc2.store(result_fp16, out_gm, [0, 0])
+            asc2.copy_out(result_fp16, out_gm, [0, 0])
     """
     check_type("input", input, (LocalTensor, RuntimeNumeric))
     check_type("dtype", dtype, DataType)
@@ -319,14 +319,14 @@ def concat(*inputs: LocalTensor) -> LocalTensor:
     Examples:
         Concatenate two tensors along the first dimension: ::
 
-            input_a = asc2.load(x_gm, [0, 0], [64, 32])
-            input_b = asc2.load(y_gm, [64, 0], [64, 32])
+            input_a = asc2.copy_in(x_gm, [0, 0], [64, 32])
+            input_b = asc2.copy_in(y_gm, [64, 0], [64, 32])
             result = asc2.concat(input_a, input_b)  # shape: [128, 32]
 
         Concatenate multiple tensors: ::
 
-            tensors = [asc2.load(x_gm, [0, 0], [32, 16]), asc2.load(x_gm, [32, 0], [16, 16]),
-                       asc2.load(x_gm, [64, 0], [8, 16]), asc2.maximum(input_a, input_b)]
+            tensors = [asc2.copy_in(x_gm, [0, 0], [32, 16]), asc2.copy_in(x_gm, [32, 0], [16, 16]),
+                       asc2.copy_in(x_gm, [64, 0], [8, 16]), asc2.maximum(input_a, input_b)]
             result = asc2.concat(*tensors)  # shape: [120, 16]
     """
     if not inputs or not all(isinstance(inp, LocalTensor) for inp in inputs):

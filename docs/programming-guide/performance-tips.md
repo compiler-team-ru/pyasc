@@ -29,18 +29,18 @@ Each core processes its own slice of data in parallel — doubling active cores 
 
 ### 2. Bigger Tiles = Better Performance, Less Transfer Overhead
 
-Every `asc2.load` / `asc2.store` is a DMA transfer between global memory (HBM) and on-chip UB. **Larger tiles amortize transfer latency and reduce the total number of transfers.**
+Every `asc2.copy_in` / `asc2.copy_out` is a DMA transfer between global memory (HBM) and on-chip UB. **Larger tiles amortize transfer latency and reduce the total number of transfers.**
 
 ```python
 # Good: large tile, fewer transfers
 tile_length = 10496  # ~40 KB for fp32 — fills UB well
 for i in asc2.range(loop_count, ...):
-    xt = asc2.load(in_gm, [tile_length], ...)
+    xt = asc2.copy_in(in_gm, [tile_length], ...)
 
 # Bad: small tile, many transfers, high overhead
 tile_length = 128  # only 512 bytes — mostly waiting on DMA
 for i in asc2.range(huge_loop_count, ...):
-    xt = asc2.load(in_gm, [tile_length], ...)
+    xt = asc2.copy_in(in_gm, [tile_length], ...)
 ```
 
 **Rule of thumb**: make tiles as large as UB memory allows (typically ~256 KB total, shared among all live tiles). The test suite uses tiles of 10496–18752 elements for fp32 kernels (40–75 KB per tile).
@@ -100,9 +100,9 @@ These parameters control how loops are compiled and executed:
 ```python
 # Recommended pattern: unroll + parallel for outer tile loop
 for i in asc2.range(loop_count, unroll_factor=2, parallel=True):
-    xt = asc2.load(in_gm, [tile_length], ...)
+    xt = asc2.copy_in(in_gm, [tile_length], ...)
     zt = xt + yt
-    asc2.store(zt, out_gm, ...)
+    asc2.copy_out(zt, out_gm, ...)
 
 # For nested loops: parallel on outer, sequential on inner
 for i in asc2.range(row_iters, unroll_factor=2, parallel=True):
@@ -123,11 +123,11 @@ def kernel(x_ptr, y_ptr, out_ptr, size: int, tile_size: asc2.ConstExpr[int]):
     y_gm = asc2.global_tensor(y_ptr, [size])
     out_gm = asc2.global_tensor(out_ptr, [size])
     for i in asc2.range(asc2.ceildiv(size, tile_size)):
-        x = asc2.load(x_gm, [i * tile_size], [tile_size])
-        y = asc2.load(y_gm, [i * tile_size], [tile_size])
+        x = asc2.copy_in(x_gm, [i * tile_size], [tile_size])
+        y = asc2.copy_in(y_gm, [i * tile_size], [tile_size])
         # These elementwise ops are fused into a single VF block
         result = (x + y) * x - y
-        asc2.store(result, out_gm, [i * tile_size])
+        asc2.copy_out(result, out_gm, [i * tile_size])
 ```
 
 The automatic fusion handles straightforward chains of built-in arithmetic and reduction operations. For more complex patterns — such as custom register-level logic, specialized masking, or operations not expressible through the standard API — use {py:func}`asc2.inline_vf` to embed raw Ascend C register code directly as a VF block:

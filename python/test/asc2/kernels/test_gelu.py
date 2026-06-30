@@ -19,7 +19,7 @@ def gelu_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, num_rows
     x_gm = asc2.global_tensor(x_ptr, [num_rows, num_columns])
     out_gm = asc2.global_tensor(out_ptr, [num_rows, num_columns])
     for i in range(asc2.block_idx(), num_rows, asc2.block_num(), parallel=True):
-        row = asc2.load(x_gm, [i, 0], [1, tile_size])
+        row = asc2.copy_in(x_gm, [i, 0], [1, tile_size])
         if approximate:
             pi = 3.141592653589793238462643383279502884
             k1 = 2 * asc2.sqrt(2 / pi)
@@ -29,7 +29,7 @@ def gelu_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, num_rows
         else:
             k = asc2.sqrt(0.5)
             out = row * (asc2.erf(row * k) + 1) * 0.5
-        asc2.store(out, out_gm, [i, 0])
+        asc2.copy_out(out, out_gm, [i, 0])
 
 
 def gelu_launch(x: torch.Tensor, approximate: bool):

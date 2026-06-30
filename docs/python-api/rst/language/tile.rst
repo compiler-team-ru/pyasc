@@ -66,8 +66,8 @@ Memory operations
     :nosignatures:
 
     copy
-    load
-    store
+    copy_in
+    copy_out
 
 
 Arithmetic operations

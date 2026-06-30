@@ -38,14 +38,14 @@ def verify_real_shape(real_shape: Iterable[RuntimeInt], shape: Tuple[int, ...]) 
 def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape: Optional[Iterable[int]] = None,
          location: TensorLocation = TensorLocation.UB) -> LocalTensor:
     """
-    Copy a tensor to a new tensor, optionally reshaping and relocating.
+    Copy a local tensor to a new local tensor, optionally reshaping and relocating.
 
     **Rationale:** Unlike frameworks with simpler memory hierarchies (e.g., CUDA's global/shared/registers), Ascend NPUs
-    expose multiple local memory levels (L1, L0A, L0B, L0C, UB) where local-to-local transfers are common. ``load``
-    and ``store`` have clear directional semantics when one endpoint is global memory ("load from global", "store to
-    global"), but this breaks down for local-to-local transfers: the same L0C→L1 operation is a "store" from L0C's
-    perspective yet a "load" from L1's. ``copy`` eliminates this ambiguity by providing a direction-agnostic
-    operation that clearly expresses intent regardless of which memory level you're reasoning from.
+    expose multiple local memory levels (L1, L0A, L0B, L0C, UB) where local-to-local transfers are common. ``copy_in``
+    and ``copy_out`` have clear directional semantics when one endpoint is global memory ("copy in = to local", "copy
+    out = to global"), but this breaks down for local-to-local transfers: the same L0C→L1 operation is a "copy out" from
+    L0C's perspective yet a "copy in" from L1's. Local ``copy`` eliminates this ambiguity by providing
+    a direction-agnostic operation that clearly expresses intent regardless of which memory level you're reasoning from.
 
     Args:
         src: The source tensor to copy.
@@ -65,17 +65,17 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
     Examples:
         Copy a tensor with the same shape: ::
 
-            src = asc2.load(x_gm, [0], [128])
+            src = asc2.copy_in(x_gm, [0], [128])
             result = asc2.copy(src)
 
         Copy a sub-tensor from a larger tensor with explicit shape and offsets: ::
 
-            src = asc2.load(x_gm, [0, 0], [64, 64])
+            src = asc2.copy_in(x_gm, [0, 0], [64, 64])
             result = asc2.copy(src, [16, 16], [32, 32])
 
         Copy a tensor to a different memory location (e.g., L0A for matrix multiplication): ::
 
-            a_l1 = asc2.load(a_gm, [0, 0], [64, 128], asc2.TensorLocation.L1)
+            a_l1 = asc2.copy_in(a_gm, [0, 0], [64, 128], asc2.TensorLocation.L1)
             a_l0a = asc2.copy(a_l1, [0, 0], [64, 32], asc2.TensorLocation.L0A)
             b_l0b = asc2.copy(b_l1, [0, 0], [32, 64], asc2.TensorLocation.L0B)
 
@@ -103,23 +103,23 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
 
 
 @overload
-def load(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Iterable[int],
-         location: TensorLocation = TensorLocation.UB, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
-         pad_value: RuntimeNumeric = 0) -> LocalTensor:
+def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Iterable[int],
+            location: TensorLocation = TensorLocation.UB, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
+            pad_value: RuntimeNumeric = 0) -> LocalTensor:
     ...
 
 
 @overload
-def load(src: GlobalTensor, offsets: Iterable[RuntimeInt]) -> PlainValue:
+def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt]) -> PlainValue:
     ...
 
 
 @require_jit
-def load(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[Iterable[int]] = None,
-         location: TensorLocation = TensorLocation.UB, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
-         pad_value: RuntimeNumeric = 0) -> Union[LocalTensor, PlainValue]:
+def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[Iterable[int]] = None,
+            location: TensorLocation = TensorLocation.UB, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
+            pad_value: RuntimeNumeric = 0) -> Union[LocalTensor, PlainValue]:
     """
-    Load data from a global tensor into a local tensor or scalar value.
+    Copy data from a global tensor into a local tensor or scalar value.
 
     This function supports two modes of operation:
 
@@ -156,30 +156,30 @@ def load(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[Itera
         Only 1D and 2D tensors are fully supported and stable; higher-dimensional support is experimental.
 
     Examples:
-        Load a 1D tensor using explicit offsets: ::
+        Copy a 1D tensor using explicit offsets: ::
 
             x_gm = asc2.global_tensor(x_ptr, [1024])
-            result = asc2.load(x_gm, [256], [128])
+            result = asc2.copy_in(x_gm, [256], [128])
 
-        Load a 2D tensor from a 2D global tensor: ::
+        Copy a 2D tensor from a 2D global tensor: ::
 
             x_gm = asc2.global_tensor(x_ptr, [64, 128])
-            result = asc2.load(x_gm, [8, 16], [16, 32])
+            result = asc2.copy_in(x_gm, [8, 16], [16, 32])
 
-        Load a scalar value: ::
+        Copy a scalar value: ::
 
             x_gm = asc2.global_tensor(x_ptr, [1024])
-            scalar = asc2.load(x_gm, [42])
+            scalar = asc2.copy_in(x_gm, [42])
 
-        Load a 1D tensor with padding (load fewer elements than tensor shape): ::
+        Copy a 1D tensor with padding (load fewer elements than tensor shape): ::
 
             x_gm = asc2.global_tensor(x_ptr, [256])
-            result = asc2.load(x_gm, [200], [128], pad_value=2.0)
+            result = asc2.copy_in(x_gm, [200], [128], pad_value=2.0)
 
-        Load a 2D tensor with real_shape and padding (load fewer elements than tensor shape): ::
+        Copy a 2D tensor with real_shape and padding (load fewer elements than tensor shape): ::
 
             x_gm = asc2.global_tensor(x_ptr, [100, 100])
-            result = asc2.load(x_gm, [0, 0], [16, 16], real_shape=[12, 12], pad_value=-1.0)
+            result = asc2.copy_in(x_gm, [0, 0], [16, 16], real_shape=[12, 12], pad_value=-1.0)
             # result has shape [16, 16], but only 12x12 elements loaded from global tensor, rest padded with -1.0
     """
     check_type("src", src, GlobalTensor)
@@ -200,21 +200,21 @@ def load(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[Itera
 
 
 @overload
-def store(src: LocalTensor, dst: GlobalTensor, offsets: Iterable[RuntimeInt], *,
-          real_shape: Optional[Iterable[RuntimeInt]] = None) -> None:
+def copy_out(src: LocalTensor, dst: GlobalTensor, offsets: Iterable[RuntimeInt], *,
+             real_shape: Optional[Iterable[RuntimeInt]] = None) -> None:
     ...
 
 
 @overload
-def store(src: RuntimeNumeric, dst: GlobalTensor, offsets: Iterable[RuntimeInt]) -> None:
+def copy_out(src: RuntimeNumeric, dst: GlobalTensor, offsets: Iterable[RuntimeInt]) -> None:
     ...
 
 
 @require_jit
-def store(src: Union[LocalTensor, RuntimeNumeric], dst: GlobalTensor, offsets: Iterable[RuntimeInt], *,
-          real_shape: Optional[Iterable[RuntimeInt]] = None) -> None:
+def copy_out(src: Union[LocalTensor, RuntimeNumeric], dst: GlobalTensor, offsets: Iterable[RuntimeInt], *,
+             real_shape: Optional[Iterable[RuntimeInt]] = None) -> None:
     """
-    Store data from a local tensor or scalar value to a global tensor.
+    Copy data from a local tensor or scalar value to a global tensor.
 
     This function supports two modes of operation:
 
@@ -243,36 +243,36 @@ def store(src: Union[LocalTensor, RuntimeNumeric], dst: GlobalTensor, offsets: I
         Only 1D and 2D tensors are fully supported and stable; higher-dimensional support is experimental.
 
     Examples:
-        Store a 1D tensor using explicit offsets: ::
+        Copy a 1D tensor using explicit offsets: ::
 
             out_gm = asc2.global_tensor(out_ptr, [1024])
-            src = asc2.load(x_gm, [0], [128])
-            asc2.store(src, out_gm, [256])
+            src = asc2.copy_in(x_gm, [0], [128])
+            asc2.copy_out(src, out_gm, [256])
 
-        Store a 2D tensor to a 2D global tensor: ::
+        Copy a 2D tensor to a 2D global tensor: ::
 
             out_gm = asc2.global_tensor(out_ptr, [64, 128])
-            src = asc2.load(x_gm, [0, 0], [16, 32])
-            asc2.store(src, out_gm, [8, 16])
+            src = asc2.copy_in(x_gm, [0, 0], [16, 32])
+            asc2.copy_out(src, out_gm, [8, 16])
 
-        Store a scalar value: ::
+        Copy a scalar value: ::
 
             out_gm = asc2.global_tensor(out_ptr, [1024])
-            asc2.store(42.0, out_gm, [0])
+            asc2.copy_out(42.0, out_gm, [0])
 
-        Store a 2D tensor with explicit real_shape (store fewer elements than tensor shape): ::
+        Copy a 2D tensor with explicit real_shape (store fewer elements than tensor shape): ::
 
             out_gm = asc2.global_tensor(out_ptr, [100, 100])
-            src = asc2.load(x_gm, [0, 0], [16, 16])
-            asc2.store(src, out_gm, [0, 0], real_shape=[12, 12])
+            src = asc2.copy_in(x_gm, [0, 0], [16, 16])
+            asc2.copy_out(src, out_gm, [0, 0], real_shape=[12, 12])
             # src has shape [16, 16], but only 12x12 elements stored to global tensor
 
-        Store an accumulator tensor (from L0C) directly to global memory: ::
+        Copy an accumulator tensor (from L0C) directly to global memory: ::
 
             acc = asc2.zeros_acc([64, 128], dtype=asc2.float32)
             asc2.matmul_acc(acc, a_l0a, b_l0b)
             out_gm = asc2.global_tensor(out_ptr, [64, 128])
-            asc2.store(acc, out_gm, [0, 0])
+            asc2.copy_out(acc, out_gm, [0, 0])
     """
     check_type("src", src, (LocalTensor, RuntimeNumeric))
     check_type("dst", dst, GlobalTensor)

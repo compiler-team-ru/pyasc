@@ -102,7 +102,7 @@ def global_tensor(base: GlobalAddress, shape: Iterable[RuntimeInt]) -> GlobalTen
     Define a new tensor descriptor for accessing data in global memory.
 
     Tensors represent contiguous ND-arrays in global memory and are used to transfer data between global and local
-    memory via :py:func:`load` and :py:func:`store` operations.
+    memory via :py:func:`copy_in` and :py:func:`copy_out` operations.
 
     Args:
         base: The base address of an array in global memory representing the tensor

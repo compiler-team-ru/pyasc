@@ -67,7 +67,7 @@ class CompileOptions:
 
     densify_load_store: bool = False
     """
-    Densify :py:obj:`asc2.load` and :py:obj:`asc2.store` statements by grouping them together.
+    Densify :py:obj:`asc2.copy_in` and :py:obj:`asc2.copy_out` statements by grouping them together.
 
     .. warning::
         This is an experimental feature. It might or might not cause functional or performance regressions.

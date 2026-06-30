@@ -31,10 +31,10 @@ def reduce_sum_rows(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
         row_start_offset = start_offset + i * tile_shape[0]
         cache = asc2.zeros([tile_shape[0]], dtype=asc2.float32)
         for j in asc2.range(column_iters, parallel=False):
-            tensor_part = asc2.load(in_gm, [row_start_offset, j * tile_shape[1]], tile_shape, pad_value=0)
+            tensor_part = asc2.copy_in(in_gm, [row_start_offset, j * tile_shape[1]], tile_shape, pad_value=0)
             output = asc2.reduce_sum(tensor_part, 1)
             cache = output + cache
-        asc2.store(cache, out_gm, [row_start_offset])
+        asc2.copy_out(cache, out_gm, [row_start_offset])
 
 
 @asc2.jit(static_alloc=True, reuse_ub=True)
@@ -52,10 +52,10 @@ def reduce_sum_cols(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
         col_start_offset = start_offset + j * tile_shape[1]
         cache = asc2.zeros([tile_shape[1]], dtype=asc2.float32)
         for i in asc2.range(row_iters, parallel=False):
-            tensor_part = asc2.load(in_gm, [i * tile_shape[0], col_start_offset], tile_shape)
+            tensor_part = asc2.copy_in(in_gm, [i * tile_shape[0], col_start_offset], tile_shape)
             output = asc2.reduce_sum(tensor_part, 0)
             cache = output + cache
-        asc2.store(cache, out_gm, [col_start_offset])
+        asc2.copy_out(cache, out_gm, [col_start_offset])
 
 
 @pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])

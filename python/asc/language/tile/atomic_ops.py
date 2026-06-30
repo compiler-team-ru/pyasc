@@ -48,7 +48,7 @@ def atomic_add(src: LocalTensor, dst: GlobalTensor, offsets: Iterable[RuntimeInt
     Examples:
         Atomically add local tensor elements to a global tensor: ::
 
-            src = asc2.load(x_gm, [0], [128])
+            src = asc2.copy_in(x_gm, [0], [128])
             asc2.atomic_add(src, out_gm, [0])
     """
     return op_atomic_impl(src, dst, offsets, ir.AtomicKind.Add)
@@ -76,7 +76,7 @@ def atomic_max(src: LocalTensor, dst: GlobalTensor, offsets: Iterable[RuntimeInt
     Examples:
         Atomically compute the maximum between local tensor and global tensor elements: ::
 
-            src = asc2.load(x_gm, [0], [128])
+            src = asc2.copy_in(x_gm, [0], [128])
             asc2.atomic_max(src, out_gm, [0])
     """
     return op_atomic_impl(src, dst, offsets, ir.AtomicKind.Max)
@@ -104,7 +104,7 @@ def atomic_min(src: LocalTensor, dst: GlobalTensor, offsets: Iterable[RuntimeInt
     Examples:
         Atomically compute the minimum between local tensor and global tensor elements: ::
 
-            src = asc2.load(x_gm, [0], [128])
+            src = asc2.copy_in(x_gm, [0], [128])
             asc2.atomic_min(src, out_gm, [0])
     """
     return op_atomic_impl(src, dst, offsets, ir.AtomicKind.Min)
