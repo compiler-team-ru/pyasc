@@ -11,7 +11,7 @@ Ascend CANN
 -----------
 
 1. Download installation package from `the download center <https://www.hiascend.com/cann/download>`__
-   (recommended version is :code:`9.0.0`) **depending on the host platform**:
+   (recommended version is ``9.0.0``) **depending on the host platform**:
 
    .. code:: bash
 

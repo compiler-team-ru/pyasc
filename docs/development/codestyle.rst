@@ -16,33 +16,33 @@ General conventions for C++ files
 
 1. **File Extensions**:
 
-   - Header files must have the :code:`.h` extension.
-   - Implementation (library) files must have the :code:`.cpp` extension.
+   - Header files must have the ``.h`` extension.
+   - Implementation (library) files must have the ``.cpp`` extension.
 
 2. **Include Guards**:
 
-   - All header files must include traditional include guards (e.g., :code:`#ifndef HEADER_H`, :code:`#define HEADER_H`, :code:`#endif`).
-   - **Note**: The use of :code:`#pragma once` is **not allowed**.
+   - All header files must include traditional include guards (e.g., ``#ifndef HEADER_H``, ``#define HEADER_H``, ``#endif``).
+   - **Note**: The use of ``#pragma once`` is **not allowed**.
 
 3. **Indentation**: The code should use **4 spaces** for indentation (no tabs). Case/default labels should be indented relative to switch statement.
 
 4. **Naming Conventions**:
 
-   - **PascalCase**: Used for naming types such as classes, structs, enums, and typedefs. Example: :code:`MyClass`, :code:`MyEnum`.
-   - **camelCase**: Used for variables (local and global), functions, and class members. Example: :code:`myFunction`, :code:`myVariable`.
-   - **UPPER_SNAKE_CASE**: Typically used for macros. Example: :code:`MY_CONSTANT`, :code:`MAX_BUFFER_SIZE`.
-   - **kebab-case**: Not commonly used in code, but may be used in filenames for tests and other resources. Example: :code:`my-test-case`.
+   - **PascalCase**: Used for naming types such as classes, structs, enums, and typedefs. Example: ``MyClass``, ``MyEnum``.
+   - **camelCase**: Used for variables (local and global), functions, and class members. Example: ``myFunction``, ``myVariable``.
+   - **UPPER_SNAKE_CASE**: Typically used for macros. Example: ``MY_CONSTANT``, ``MAX_BUFFER_SIZE``.
+   - **kebab-case**: Not commonly used in code, but may be used in filenames for tests and other resources. Example: ``my-test-case``.
 
 5. **Namespace Declarations**:
 
-   - After closing a namespace, add a comment :code:`// namespace <namespace_name>`. If the namespace is anonymous, omit the name.
-   - **Note**: Do not use :code:`using namespace` in header files.
+   - After closing a namespace, add a comment ``// namespace <namespace_name>``. If the namespace is anonymous, omit the name.
+   - **Note**: Do not use ``using namespace`` in header files.
 
 6. **Brace Placement**: Opening brace on new line for function definitions, same line for classes/structs/enums/namespaces. Empty functions can be single-line.
 
 7. **Short Statements**: Single-line if/loops not allowed. Only empty blocks can be single-line. Inline functions can be single-line.
 
-8. **Spacing**: Pointers/references aligned left (e.g., :code:`int* ptr`). Space before control statement parentheses. Space before C++11 braced lists. No space in empty parentheses, C-style casts, regular parentheses, or square brackets.
+8. **Spacing**: Pointers/references aligned left (e.g., ``int* ptr``). Space before control statement parentheses. Space before C++11 braced lists. No space in empty parentheses, C-style casts, regular parentheses, or square brackets.
 
 9. **Templates**: Always break before template declarations.
 
@@ -51,17 +51,17 @@ General conventions for C++ files
 11. **Macro Definitions**:
 
    - Defining macros in header files is **discouraged**, unless absolutely necessary.
-   - To define a global constant, :code:`constexpr` syntax and **camelCase** naming should be used.
+   - To define a global constant, ``constexpr`` syntax and **camelCase** naming should be used.
 
 12. **Include Ordering**:
 
-   - The order of :code:`#include` statements should follow this pattern:
+   - The order of ``#include`` statements should follow this pattern:
 
      1. Local project includes.
      2. (An empty line).
      3. MLIR/LLVM/Clang includes.
      4. (An empty line).
-     5. Standard library includes (:code:`<optional>`, :code:`<vector>`, etc.).
+     5. Standard library includes (``<optional>``, ``<vector>``, etc.).
 
    - Within each subsection, statements should be sorted alphabetically by file name.
    - Example:
@@ -79,13 +79,13 @@ General conventions for C++ files
         #include <unordered_map>
 
 
-13. **Anonymous Namespace**: If a class or function is defined and declared in a :code:`.cpp` file but not used elsewhere in the project, it should be placed inside an anonymous namespace. It should **not** be marked as :code:`static`.
+13. **Anonymous Namespace**: If a class or function is defined and declared in a ``.cpp`` file but not used elsewhere in the project, it should be placed inside an anonymous namespace. It should **not** be marked as ``static``.
 
 14. **Template Argument Naming**:
 
-   - Template typename arguments should follow **PascalCase**. Example: :code:`typename AttrT`.
-   - Non-type template arguments should follow **camelCase**. Example: :code:`size_t size`.
-   - Always use :code:`typename` instead of :code:`class` for template arguments.
+   - Template typename arguments should follow **PascalCase**. Example: ``typename AttrT``.
+   - Non-type template arguments should follow **camelCase**. Example: ``size_t size``.
+   - Always use ``typename`` instead of ``class`` for template arguments.
 
 Conventions for MLIR dialects
 -----------------------------
@@ -95,28 +95,28 @@ Definitions of operations, types, attributes, interfaces, and other entities sho
 Conventions for MLIR passes
 ----------------------------
 
-1. **Pass File Organization**: Each MLIR pass should be placed in a **separate** :code:`.cpp` file under the :code:`Transforms` directory, within the directory corresponding to the specific MLIR dialect.
+1. **Pass File Organization**: Each MLIR pass should be placed in a **separate** ``.cpp`` file under the ``Transforms`` directory, within the directory corresponding to the specific MLIR dialect.
 
-2. **File Naming**: The name of the :code:`.cpp` file should match the name of the pass **without the "Pass" suffix**. For example, the file for the :code:`FoldVariablePass` pass should be named :code:`FoldVariable.cpp`.
+2. **File Naming**: The name of the ``.cpp`` file should match the name of the pass **without the "Pass" suffix**. For example, the file for the ``FoldVariablePass`` pass should be named ``FoldVariable.cpp``.
 
-3. **Pass Declarations**: In the :code:`Passes.td` file, in :code:`CMakeLists.txt`, and in the constructor functions header :code:`Passes.h`, pass names should be listed in **alphabetical order**.
+3. **Pass Declarations**: In the ``Passes.td`` file, in ``CMakeLists.txt``, and in the constructor functions header ``Passes.h``, pass names should be listed in **alphabetical order**.
 
 Conventions for LIT tests
 --------------------------
 
 1. **Test Directory Structure**:
 
-   - Tests are placed in the :code:`test` directory.
-   - Filenames for test files should use **kebab-case**. Example: :code:`my-test-case.mlir`.
+   - Tests are placed in the ``test`` directory.
+   - Filenames for test files should use **kebab-case**. Example: ``my-test-case.mlir``.
 
-2. **Test File Format**: The first line of the test file should generally contain one or more :code:`// RUN:` commands that specify how the test should be executed.
+2. **Test File Format**: The first line of the test file should generally contain one or more ``// RUN:`` commands that specify how the test should be executed.
 
 3. **Test File Organization**:
 
-   - When adding a new MLIR operation, type, or attribute, a test for that feature should be added under the :code:`IR` directory within the appropriate dialect's directory.
-   - When adding a new MLIR pass, a set of tests (typically multiple :code:`func.func` operations) should be added under the :code:`Transforms` directory of the corresponding dialect where the pass is introduced. Name of file should correspond to a pass name.
-   - For the emission of a new operation, a test should be placed under the :code:`Target` directory.
-   - End-to-end tests for tools should be located under the :code:`Tools` directory.
+   - When adding a new MLIR operation, type, or attribute, a test for that feature should be added under the ``IR`` directory within the appropriate dialect's directory.
+   - When adding a new MLIR pass, a set of tests (typically multiple ``func.func`` operations) should be added under the ``Transforms`` directory of the corresponding dialect where the pass is introduced. Name of file should correspond to a pass name.
+   - For the emission of a new operation, a test should be placed under the ``Target`` directory.
+   - End-to-end tests for tools should be located under the ``Tools`` directory.
 
 Additional considerations
 -------------------------
@@ -139,18 +139,18 @@ To help ensure that the code adheres to the coding style conventions automatical
 
 1. **clang-format**:
 
-   - :code:`clang-format` is a powerful tool for automatic code formatting, which can be configured to follow the project's coding style guide.
-   - The :code:`.clang-format` configuration files are already set up in the project repository, therefore you can format a file with :code:`clang-format` by running:
+   - ``clang-format`` is a powerful tool for automatic code formatting, which can be configured to follow the project's coding style guide.
+   - The ``.clang-format`` configuration files are already set up in the project repository, therefore you can format a file with ``clang-format`` by running:
 
      .. code-block:: bash
 
         clang-format -i <filename>
 
-   - Integrating :code:`clang-format` into your IDE or editor can help you format code automatically on save. For example, there is `Clang-Format extension <https://marketplace.visualstudio.com/items?itemName=xaver.clang-format>`__ for Visual Studio Code.
+   - Integrating ``clang-format`` into your IDE or editor can help you format code automatically on save. For example, there is `Clang-Format extension <https://marketplace.visualstudio.com/items?itemName=xaver.clang-format>`__ for Visual Studio Code.
 
 2. **clang-tidy**:
 
-   - :code:`clang-tidy` is a static analysis tool that helps catch common issues and enforces coding standards and best practices. It works by checking your code against predefined or custom checks.
-   - :code:`clang-tidy` can help identify issues related to code quality, unused variables, potential bugs, and performance improvements. It is recommended to check an output log of *clang-tidy* tool and address issues before merge.
+   - ``clang-tidy`` is a static analysis tool that helps catch common issues and enforces coding standards and best practices. It works by checking your code against predefined or custom checks.
+   - ``clang-tidy`` can help identify issues related to code quality, unused variables, potential bugs, and performance improvements. It is recommended to check an output log of *clang-tidy* tool and address issues before merge.
 
 This style guide serves to maintain consistency across the codebase, making it easier to read, maintain, and extend. Adhering to these conventions will improve collaboration, reduce errors, and make it easier for new contributors to get up to speed.

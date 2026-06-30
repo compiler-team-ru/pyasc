@@ -39,8 +39,8 @@ It is recommended to activate `a virtual environment <https://docs.python.org/3/
 Install build dependencies
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-PyAsc requires either :code:`gcc` or :code:`clang` compiler and the compatible linker.
-Optionally, :code:`ccache` can be installed to speed up the development flow.
+PyAsc requires either ``gcc`` or ``clang`` compiler and the compatible linker.
+Optionally, ``ccache`` can be installed to speed up the development flow.
 
 .. hint::
 
@@ -58,27 +58,27 @@ Build and install
 
 The following environment variables can be **exported** to configure the installation process:
 
-:code:`LLVM_INSTALL_PREFIX=<path>` (required)
+``LLVM_INSTALL_PREFIX=<path>`` (required)
     provide the directory with pre-built LLVM binaries (preliminarily download and unpack the archive for
     `x64 <https://oaitriton.blob.core.windows.net/public/llvm-builds/llvm-86b69c31-ubuntu-x64.tar.gz>`__ or
     `arm64 <https://oaitriton.blob.core.windows.net/public/llvm-builds/llvm-86b69c31-ubuntu-arm64.tar.gz>`__ platform)
 
-:code:`PYASC_SETUP_BUILD_DIR=<path>` (optional)
-    provide the directory for the temporary build files (default: :code:`build`)
+``PYASC_SETUP_BUILD_DIR=<path>`` (optional)
+    provide the directory for the temporary build files (default: ``build``)
 
-:code:`PYASC_SETUP_CCACHE=1` (optional)
+``PYASC_SETUP_CCACHE=1`` (optional)
     enable ccache to speed up the repetitive build flow
 
-:code:`PYASC_SETUP_CLANG_LLD=1` (optional)
+``PYASC_SETUP_CLANG_LLD=1`` (optional)
     use clang and lld instead of the default toolchain
 
-:code:`PYASC_SETUP_CONFIG=<config>` (optional)
-    build configuration for CMake (default: :code:`Release`)
+``PYASC_SETUP_CONFIG=<config>`` (optional)
+    build configuration for CMake (default: ``Release``)
 
-:code:`PYASC_HOME=<path>` (optional)
+``PYASC_HOME=<path>`` (optional)
     provide the directory that should be used to store pre-built dependencies (default: user home directory)
 
-Also, :code:`-v` option can be added to pip arguments to increase the output verbosity.
+Also, ``-v`` option can be added to pip arguments to increase the output verbosity.
 This will allow to see e.g. CMake and C++ compiler commands.
 
 
@@ -111,11 +111,11 @@ It allows to enable :doc:`development tools <../development/tools>`.
 
 These environment variables can be exported additionally to configure the installation process:
 
-:code:`PYASC_SETUP_DEVTOOLS=1` (optional)
+``PYASC_SETUP_DEVTOOLS=1`` (optional)
     build and install development tools
 
-:code:`PYASC_SETUP_DOCS=1` (optional)
-    render markdown documentation for IR entities in :code:`build/cmake*/docs` directory
+``PYASC_SETUP_DOCS=1`` (optional)
+    render markdown documentation for IR entities in ``build/cmake*/docs`` directory
 
 .. code-block:: bash
 
@@ -127,7 +127,7 @@ Option 2: Install the editable package
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This option is recommended for the project developers since it allows to modify internal Python files without the need to perform the PyAsc re-installation.
-The :code:`--no-build-isolation` argument can be added too.
+The ``--no-build-isolation`` argument can be added too.
 However, the development tools will not be available on path automatically when using this approach.
 
 .. code-block:: bash

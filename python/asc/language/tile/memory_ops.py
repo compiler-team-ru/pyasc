@@ -41,18 +41,18 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
     Copy a tensor to a new tensor, optionally reshaping and relocating.
 
     **Rationale:** Unlike frameworks with simpler memory hierarchies (e.g., CUDA's global/shared/registers), Ascend NPUs
-    expose multiple local memory levels (L1, L0A, L0B, L0C, UB) where local-to-local transfers are common. :code:`load`
-    and :code:`store` have clear directional semantics when one endpoint is global memory ("load from global", "store to
+    expose multiple local memory levels (L1, L0A, L0B, L0C, UB) where local-to-local transfers are common. ``load``
+    and ``store`` have clear directional semantics when one endpoint is global memory ("load from global", "store to
     global"), but this breaks down for local-to-local transfers: the same L0C→L1 operation is a "store" from L0C's
-    perspective yet a "load" from L1's. :code:`copy` eliminates this ambiguity by providing a direction-agnostic
+    perspective yet a "load" from L1's. ``copy`` eliminates this ambiguity by providing a direction-agnostic
     operation that clearly expresses intent regardless of which memory level you're reasoning from.
 
     Args:
         src: The source tensor to copy.
         offsets: The offsets into the source tensor for each dimension. Default is zeros.
         shape: The shape of the resulting tensor. If None, uses the source tensor's shape.
-            Must contain static values (e.g., :code:`ConstExpr` or compile-time constants).
-        location: The memory location for the destination tensor. Default is :code:`TensorLocation.UB`.
+            Must contain static values (e.g., ``ConstExpr`` or compile-time constants).
+        location: The memory location for the destination tensor. Default is ``TensorLocation.UB``.
             Supported location transfers: ``L1`` to ``L0A``, ``L1`` to ``L0B``, ``L1`` to ``BT``, ``L0C`` to ``L1``.
 
     Returns:
@@ -132,20 +132,20 @@ def load(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[Itera
         src: The source global tensor.
         offsets: The offsets into the global tensor for each dimension.
         shape: The shape of the local tensor to load. If None, loads a scalar value.
-            Must contain static values (e.g., :code:`ConstExpr` or compile-time constants).
-            For 1D tensors, any shape is supported. For 2D+ tensors in :code:`UB`, the last dimension
-            must be aligned to 32 bytes (e.g., 8 elements for float32, 16 elements for float16).
-        location: The memory location for the local tensor. Default is :code:`TensorLocation.UB`.
-            Available locations: :code:`UB`, :code:`L1`, :code:`L0A`, :code:`L0B`, :code:`BT`.
+            Must contain static values (e.g., ``ConstExpr`` or compile-time constants).
+            For 1D tensors, any shape is supported. For 2D+ tensors in ``UB``, the last dimension must be aligned to 32
+            bytes (e.g., 8 elements for float32, 16 elements for float16).
+        location: The memory location for the local tensor. Default is ``TensorLocation.UB``.
+            Available locations: ``UB``, ``L1``, ``L0A``, ``L0B``, ``BT``.
         real_shape: Explicitly specify how many elements to load from the global tensor.
-            The local tensor will have the given :code:`shape`, but only :code:`real_shape` elements are loaded;
-            remaining elements are filled with :code:`pad_value`. Must match the rank of :code:`shape`
-            and each dimension must not exceed the corresponding tensor dimension.
-        pad_value: The value to use for padding when :code:`real_shape` is provided. Default is 0.
+            The local tensor will have the given ``shape``, but only ``real_shape`` elements are loaded;
+            remaining elements are filled with ``pad_value``. Must match the rank of ``shape`` and each dimension must
+            not exceed the corresponding tensor dimension.
+        pad_value: The value to use for padding when ``real_shape`` is provided. Default is 0.
 
     Returns:
-        LocalTensor: A local tensor loaded from the global tensor (when :code:`shape` is provided)
-        PlainValue: A scalar value loaded from the global tensor (when :code:`shape` is None)
+        LocalTensor: A local tensor loaded from the global tensor (when ``shape`` is provided)
+        PlainValue: A scalar value loaded from the global tensor (when ``shape`` is None)
 
     Raises:
         TypeError: If src is not a GlobalTensor or location is not a TensorLocation
@@ -224,22 +224,22 @@ def store(src: Union[LocalTensor, RuntimeNumeric], dst: GlobalTensor, offsets: I
 
     Args:
         src: The source value to store. Can be a local tensor, a scalar value, or a local tensor with one element.
-            For 1D tensors, any shape is supported. For 2D+ tensors in :code:`UB`, the last dimension
+            For 1D tensors, any shape is supported. For 2D+ tensors in ``UB``, the last dimension
             must be aligned to 32 bytes (e.g., 8 elements for float32, 16 elements for float16).
         dst: The destination global tensor.
         offsets: The offsets into the global tensor for each dimension.
         real_shape: Explicitly specify how many elements to store to the global tensor.
-            The local tensor has its full shape, but only :code:`real_shape` elements are written to the global tensor.
+            The local tensor has its full shape, but only ``real_shape`` elements are written to the global tensor.
             Must match the rank of the local tensor and each dimension must not exceed the corresponding tensor
             dimension. Cannot be used for scalar stores.
 
     Raises:
         TypeError: If src is not a LocalTensor or numeric, or dst is not a GlobalTensor
-        ValueError: If :code:`real_shape` is used with scalar stores
+        ValueError: If ``real_shape`` is used with scalar stores
         RuntimeError: If data alignment check fails, offsets rank mismatch, or real_shape exceeds tensor shape
 
     Note:
-        Local tensors from :code:`UB` and :code:`L0C` memory locations can be stored to global memory.
+        Local tensors from ``UB`` and ``L0C`` memory locations can be stored to global memory.
         Only 1D and 2D tensors are fully supported and stable; higher-dimensional support is experimental.
 
     Examples:

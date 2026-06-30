@@ -127,7 +127,7 @@ def ravel(input: LocalTensor) -> LocalTensor:
     """
     Flatten a tensor into a 1D tensor.
 
-    This is equivalent to :code:`reshape(input, input.size)`.
+    This is equivalent to ``reshape(input, input.size)``.
 
     The supported data types are: ``int8``, ``int16``, ``int32``, ``int64``, ``float16``, ``bfloat16``, ``float32``,
     ``float64``.

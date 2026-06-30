@@ -67,10 +67,10 @@ def reduce_sum(input: LocalTensor) -> PlainValue:
 @require_jit
 def reduce_sum(input: LocalTensor, *dims: int, keep_dims: bool = False) -> Union[LocalTensor, PlainValue]:
     """
-    Returns the sum of each row of the :code:`input` tensor in the given dimensions :code:`dims`.
+    Returns the sum of each row of the ``input`` tensor in the given dimensions ``dims``.
 
-    Dimensions :code:`dims` are squeezed, resulting the output tensor having fewer dimensions than input,
-    unless :code:`keep_dims=True` is provided.
+    Dimensions ``dims`` are squeezed, resulting the output tensor having fewer dimensions than input,
+    unless ``keep_dims=True`` is provided.
     When dimension is not specified, the entire tensor is reduced to a single scalar value.
 
     The supported data types for the input are: ``int32``, ``int64``, ``float32``.
@@ -82,8 +82,8 @@ def reduce_sum(input: LocalTensor, *dims: int, keep_dims: bool = False) -> Union
         keep_dims: If set to True, then reduced dimensions are kept in the result shape with size of 1
 
     Raises:
-        TypeError: If input is not a :code:`LocalTensor`, keep_dims is not a bool, or dims contains non-integer values
-        RuntimeError: If input dtype is not supported, or if :code:`dims` explicitly lists all dimensions
+        TypeError: If input is not a ``LocalTensor``, keep_dims is not a bool, or dims contains non-integer values
+        RuntimeError: If input dtype is not supported, or if ``dims`` explicitly lists all dimensions
 
     Examples:
         Reduce tensor by first (outermost) dimension, resulting tensor having the shape [256],
@@ -115,10 +115,10 @@ def reduce_max(input: LocalTensor) -> PlainValue:
 @require_jit
 def reduce_max(input: LocalTensor, *dims: int, keep_dims: bool = False) -> Union[LocalTensor, PlainValue]:
     """
-    Returns the maximum value of each row of the :code:`input` tensor in the given dimensions :code:`dims`.
+    Returns the maximum value of each row of the ``input`` tensor in the given dimensions ``dims``.
 
-    Dimensions :code:`dims` are squeezed, resulting the output tensor having fewer dimensions than input,
-    unless :code:`keep_dims=True` is provided.
+    Dimensions ``dims`` are squeezed, resulting the output tensor having fewer dimensions than input,
+    unless ``keep_dims=True`` is provided.
     When dimension is not specified, the entire tensor is reduced to a single scalar value.
 
     The supported data types for the input are:
@@ -132,8 +132,8 @@ def reduce_max(input: LocalTensor, *dims: int, keep_dims: bool = False) -> Union
         keep_dims: If set to True, then reduced dimensions are kept in the result shape with size of 1
 
     Raises:
-        TypeError: If input is not a :code:`LocalTensor`, keep_dims is not a bool, or dims contains non-integer values
-        RuntimeError: If input dtype is not supported, or if :code:`dims` explicitly lists all dimensions
+        TypeError: If input is not a ``LocalTensor``, keep_dims is not a bool, or dims contains non-integer values
+        RuntimeError: If input dtype is not supported, or if ``dims`` explicitly lists all dimensions
 
     Examples:
         Reduce tensor by first (outermost) dimension, resulting tensor having the shape [256],
@@ -166,10 +166,10 @@ def reduce_min(input: LocalTensor) -> PlainValue:
 @require_jit
 def reduce_min(input: LocalTensor, *dims: int, keep_dims: bool = False) -> Union[LocalTensor, PlainValue]:
     """
-    Returns the minimum value of each row of the :code:`input` tensor in the given dimensions :code:`dims`.
+    Returns the minimum value of each row of the ``input`` tensor in the given dimensions ``dims``.
 
-    Dimensions :code:`dims` are squeezed, resulting the output tensor having fewer dimensions than input,
-    unless :code:`keep_dims=True` is provided.
+    Dimensions ``dims`` are squeezed, resulting the output tensor having fewer dimensions than input,
+    unless ``keep_dims=True`` is provided.
     When dimension is not specified, the entire tensor is reduced to a single scalar value.
 
     The supported data types for the input are:
@@ -183,8 +183,8 @@ def reduce_min(input: LocalTensor, *dims: int, keep_dims: bool = False) -> Union
         keep_dims: If set to True, then reduced dimensions are kept in the result shape with size of 1
 
     Raises:
-        TypeError: If input is not a :code:`LocalTensor`, keep_dims is not a bool, or dims contains non-integer values
-        RuntimeError: If input dtype is not supported, or if :code:`dims` explicitly lists all dimensions
+        TypeError: If input is not a ``LocalTensor``, keep_dims is not a bool, or dims contains non-integer values
+        RuntimeError: If input dtype is not supported, or if ``dims`` explicitly lists all dimensions
 
     Examples:
         Reduce tensor by first (outermost) dimension, resulting tensor having the shape [256],
@@ -207,10 +207,10 @@ def reduce_min(input: LocalTensor, *dims: int, keep_dims: bool = False) -> Union
 @require_jit
 def reduce_prod(input: LocalTensor, *dims: int, keep_dims: bool = False) -> LocalTensor:
     """
-    Returns the product of each row of the :code:`input` tensor in the given dimensions :code:`dims`.
+    Returns the product of each row of the ``input`` tensor in the given dimensions ``dims``.
 
-    Dimensions :code:`dims` are squeezed, resulting the output tensor having fewer dimensions than input,
-    unless :code:`keep_dims=True` is provided.
+    Dimensions ``dims`` are squeezed, resulting the output tensor having fewer dimensions than input,
+    unless ``keep_dims=True`` is provided.
 
     The supported data types for the input are: ``float32``.
     Reduction to a single scalar value is not supported.
@@ -221,8 +221,8 @@ def reduce_prod(input: LocalTensor, *dims: int, keep_dims: bool = False) -> Loca
         keep_dims: If set to True, then reduced dimensions are kept in the result shape with size of 1
 
     Raises:
-        TypeError: If input is not a :code:`LocalTensor`, keep_dims is not a bool, or dims contains non-integer values
-        RuntimeError: If input dtype is not supported, if :code:`dims` explicitly lists all dimensions,
+        TypeError: If input is not a ``LocalTensor``, keep_dims is not a bool, or dims contains non-integer values
+        RuntimeError: If input dtype is not supported, if ``dims`` explicitly lists all dimensions,
                       or if reducing to a scalar (no dims provided)
 
     Examples:

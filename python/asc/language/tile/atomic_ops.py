@@ -31,8 +31,8 @@ def atomic_add(src: LocalTensor, dst: GlobalTensor, offsets: Iterable[RuntimeInt
     """
     Atomically add local tensor elements to a global tensor at specified offsets.
 
-    Performs an atomic read-modify-write operation, adding each element of :code:`src` to the corresponding element in
-    :code:`dst` at the given :code:`offsets`.
+    Performs an atomic read-modify-write operation, adding each element of ``src`` to the corresponding element in
+    ``dst`` at the given ``offsets``.
 
     The supported data types for the inputs are: ``int16``, ``int32``, ``float16``, ``bfloat16``, ``float32``.
 
@@ -59,8 +59,8 @@ def atomic_max(src: LocalTensor, dst: GlobalTensor, offsets: Iterable[RuntimeInt
     """
     Atomically compute the maximum between local tensor elements and global tensor elements at specified offsets.
 
-    Performs an atomic read-modify-write operation, storing the maximum of each element in :code:`src` and the
-    corresponding element in :code:`dst` at the given :code:`offsets`.
+    Performs an atomic read-modify-write operation, storing the maximum of each element in ``src`` and the
+    corresponding element in ``dst`` at the given ``offsets``.
 
     The supported data types for the inputs are: ``int16``, ``int32``, ``float16``, ``bfloat16``, ``float32``.
 
@@ -87,8 +87,8 @@ def atomic_min(src: LocalTensor, dst: GlobalTensor, offsets: Iterable[RuntimeInt
     """
     Atomically compute the minimum between local tensor elements and global tensor elements at specified offsets.
 
-    Performs an atomic read-modify-write operation, storing the minimum of each element in :code:`src` and the
-    corresponding element in :code:`dst` at the given :code:`offsets`.
+    Performs an atomic read-modify-write operation, storing the minimum of each element in ``src`` and the
+    corresponding element in ``dst`` at the given ``offsets``.
 
     The supported data types for the inputs are: ``int16``, ``int32``, ``float16``, ``bfloat16``, ``float32``.
 

@@ -163,9 +163,9 @@ For iterative matrix multiplication (e.g., tiling along K dimension), use the ac
 Bias Support
 ~~~~~~~~~~~~
 
-Both :func:`~asc2.matmul` and :func:`~asc2.zeros_acc` support optional bias initialization. Bias tiles must be 1D tiles in :code:`BT` location with shape matching the last dimension of the output.
+Both :func:`~asc2.matmul` and :func:`~asc2.zeros_acc` support optional bias initialization. Bias tiles must be 1D tiles in ``BT`` location with shape matching the last dimension of the output.
 
-**Supported bias dtypes:** :code:`float16`, :code:`bfloat16`, or :code:`float32`. Bias with :code:`float16` or :code:`bfloat16` dtype is automatically promoted to :code:`float32` to match the accumulator/result type.
+**Supported bias dtypes:** ``float16``, ``bfloat16``, or ``float32``. Bias with ``float16`` or ``bfloat16`` dtype is automatically promoted to ``float32`` to match the accumulator/result type.
 
 **Using bias with matmul:**
 

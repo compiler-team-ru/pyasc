@@ -54,7 +54,7 @@ class LaunchOptions:
     """
     Kernel launch and device runtime options.
 
-    These options can also be used as positional arguments in :code:`[` brackets :code:`]` when launch JIT function:
+    These options can also be used as positional arguments in ``[`` brackets ``]`` when launch JIT function:
 
     .. code-block:: python
 

@@ -27,7 +27,7 @@ class RuntimeShape:
     """
 
     def __init__(self, ir_tensor: IRHandle, shape: Iterable[int]) -> None:
-        """This constructor is not called by user. Use :code:`shape` attribute of :py:class:`GlobalTensor` object."""
+        """This constructor is not called by user. Use ``shape`` attribute of :py:class:`GlobalTensor` object."""
         self.ir_tensor = ir_tensor
         self.shape = tuple(shape)
 
