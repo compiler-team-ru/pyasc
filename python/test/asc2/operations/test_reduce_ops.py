@@ -18,8 +18,8 @@ import torch
 def kernel(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, reduce_dim: asc2.ConstExpr,
            input_shape: asc2.ConstExpr, input_offsets: asc2.ConstExpr, output_shape: asc2.ConstExpr,
            output_offsets: asc2.ConstExpr, op: asc2.ConstExpr) -> None:
-    g_input = asc2.tensor(input_ptr, input_shape)
-    g_output = asc2.tensor(output_ptr, output_shape)
+    g_input = asc2.global_tensor(input_ptr, input_shape)
+    g_output = asc2.global_tensor(output_ptr, output_shape)
     input = asc2.load(g_input, input_offsets, input_shape)
     output = op(input, reduce_dim)
     if output.size == 1:
@@ -31,8 +31,8 @@ def kernel(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, reduce
 def kernel_all(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_shape: asc2.ConstExpr,
                input_offsets: asc2.ConstExpr, output_shape: asc2.ConstExpr, output_offsets: asc2.ConstExpr,
                op: asc2.ConstExpr) -> None:
-    g_input = asc2.tensor(input_ptr, input_shape)
-    g_output = asc2.tensor(output_ptr, output_shape)
+    g_input = asc2.global_tensor(input_ptr, input_shape)
+    g_output = asc2.global_tensor(output_ptr, output_shape)
     input = asc2.load(g_input, input_offsets, input_shape)
     scalar = op(input)
     output = asc2.full(output_shape, scalar, dtype=input.dtype)
@@ -98,8 +98,8 @@ def test_reduce(require_c310, asc_op, torch_op, dtype: torch.dtype, shape, dim):
 @asc2.jit(always_compile=True)
 def reduce_tile_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, size: int,
                        tile_size: asc2.ConstExpr[int]):
-    x_gm = asc2.tensor(x_ptr, [size])
-    out_gm = asc2.tensor(out_ptr, [1])
+    x_gm = asc2.global_tensor(x_ptr, [size])
+    out_gm = asc2.global_tensor(out_ptr, [1])
     tile = asc2.load(x_gm, [0], [tile_size])
     max_val = asc2.reduce_max(tile)
     result = asc2.full([1], max_val, dtype=tile.dtype)

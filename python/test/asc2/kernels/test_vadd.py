@@ -13,9 +13,9 @@ import numpy as np
 @asc2.jit(always_compile=True)
 def vadd_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, size: int,
                 tile_size: asc2.ConstExpr[int], tile_per_block: asc2.ConstExpr[int]):
-    x_gm = asc2.tensor(x_ptr, [size])
-    y_gm = asc2.tensor(y_ptr, [size])
-    out_gm = asc2.tensor(out_ptr, [size])
+    x_gm = asc2.global_tensor(x_ptr, [size])
+    y_gm = asc2.global_tensor(y_ptr, [size])
+    out_gm = asc2.global_tensor(out_ptr, [size])
     base_offset = asc2.block_idx() * tile_size * tile_per_block
     for i in range(tile_per_block):
         tile_offset = base_offset + i * tile_size

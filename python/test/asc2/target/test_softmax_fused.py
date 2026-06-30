@@ -20,8 +20,8 @@ DYNAMIC = "dynamic"
 @asc2.jit(static_alloc=True, reuse_ub=True)
 def softmax_fused(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows, input_num_cols,
                   rows_per_core, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
-    in_gm = asc2.tensor(input_ptr, [input_num_rows, input_num_cols])
-    out_gm = asc2.tensor(output_ptr, [input_num_rows, input_num_cols])
+    in_gm = asc2.global_tensor(input_ptr, [input_num_rows, input_num_cols])
+    out_gm = asc2.global_tensor(output_ptr, [input_num_rows, input_num_cols])
 
     # rows_per_block = asc2.ceildiv(input_num_rows, asc2.block_num())
     rows_per_block = rows_per_core

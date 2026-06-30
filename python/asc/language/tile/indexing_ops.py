@@ -12,13 +12,14 @@ from typing import Any, Generator, Iterable, Optional, Union, overload
 from ..core.dtype import KnownTypes as KT
 from ..core.ir_value import RuntimeInt, RuntimeNumeric, materialize_ir_value as _mat
 from ..core.utils import global_builder, require_jit
-from .tile import Tile
+from .local_tensor import LocalTensor
 from .utils import create_tile, infer_common_dtype
 from .validation import check_dtype, check_runtime_int, check_type, verify_runtime_ints
 
 
 @require_jit
-def where(mask: Tile, src0: Union[Tile, RuntimeNumeric], src1: Union[Tile, RuntimeNumeric]) -> Tile:
+def where(mask: LocalTensor, src0: Union[LocalTensor, RuntimeNumeric], src1: Union[LocalTensor,
+                                                                                   RuntimeNumeric]) -> LocalTensor:
     """
     Select elements from two sources based on a mask.
 
@@ -28,43 +29,43 @@ def where(mask: Tile, src0: Union[Tile, RuntimeNumeric], src1: Union[Tile, Runti
     The supported data types for ``src0`` and ``src1``: ``int16``, ``int32``, ``float16``, ``bfloat16``, ``float32``.
 
     Args:
-        mask: A boolean tile specifying which elements to select
-        src0: The source for elements where mask is true (tile or scalar)
-        src1: The source for elements where mask is false (tile or scalar)
+        mask: A boolean tensor specifying which elements to select
+        src0: The source for elements where mask is true (tensor or scalar)
+        src1: The source for elements where mask is false (tensor or scalar)
 
     Returns:
-        Tile: A tile with elements selected from :code:`src0` or :code:`src1` based on the mask
+        LocalTensor: A tensor with elements selected from :code:`src0` or :code:`src1` based on the mask
 
     Raises:
-        TypeError: If mask is not a :code:`Tile`, or if :code:`src0` or :code:`src1` is not a :code:`Tile` or scalar
+        TypeError: If mask is not a ``LocalTensor``, or if ``src0`` or ``src1`` is not a ``LocalTensor`` or scalar
         RuntimeError: If mask dtype is not ``int1``, or if :code:`src0` or :code:`src1` dtype is not supported
 
     Note:
-        At least one of :code:`src0` or :code:`src1` must be a tile with the same shape as the mask.
+        At least one of :code:`src0` or :code:`src1` must be a tensor with the same shape as the mask.
         Scalars are broadcast to the mask shape.
 
     Examples:
-        Select elements from two tiles based on a mask: ::
+        Select elements from two tensors based on a mask: ::
 
-            mask = tile_a > tile_b
-            result = asc2.where(mask, tile_a, tile_b)
+            mask = tensor_a > tensor_b
+            result = asc2.where(mask, tensor_a, tensor_b)
 
-        Select elements from a tile or a scalar based on a mask: ::
+        Select elements from a tensor or a scalar based on a mask: ::
 
-            mask = tile > 0
-            result = asc2.where(mask, tile, 0)
+            mask = tensor > 0
+            result = asc2.where(mask, tensor, 0)
     """
-    check_type("mask", mask, Tile)
+    check_type("mask", mask, LocalTensor)
     check_dtype("mask", mask, KT.int1)
     for name, value in ("src0", src0), ("src1", src1):
-        check_type(name, value, (Tile, RuntimeNumeric))
+        check_type(name, value, (LocalTensor, RuntimeNumeric))
         check_dtype(name, value, (KT.int16, KT.int32, KT.float16, KT.bfloat16, KT.float32))
     src_dtype = infer_common_dtype(src0, src1)
     src0 = create_tile(src0, src_dtype, mask.shape)
     src1 = create_tile(src1, src_dtype, mask.shape)
     handle = global_builder.get_ir_builder().create_asctile_SelectOp(src0.to_ir().get_type(), mask.to_ir(),
                                                                      src0.to_ir(), src1.to_ir())
-    return Tile(handle)
+    return LocalTensor(handle)
 
 
 @overload
@@ -82,7 +83,7 @@ def mask(*, bits: Iterable[RuntimeInt], other: Optional[RuntimeNumeric] = None) 
 def mask(*, count: Optional[RuntimeInt] = None, bits: Optional[Iterable[RuntimeInt]] = None,
          other: Optional[RuntimeNumeric] = None) -> Generator[None, Any, None]:
     """
-    [Experimental] A context manager for masked operations on tiles.
+    [Experimental] A context manager for masked operations on tensors.
 
     Within the mask context, operations are applied only to the specified elements, with other elements optionally set
     to a different value.
@@ -118,12 +119,12 @@ def mask(*, count: Optional[RuntimeInt] = None, bits: Optional[Iterable[RuntimeI
         Apply addition only to first 8 elements, others set to 0: ::
 
             with asc2.mask(count=8, other=0):
-                result = tile_a + tile_b
+                result = tensor_a + tensor_b
 
         Apply exp only to elements within bit range, others set to -1: ::
 
             with asc2.mask(bits=[0, 64], other=-1):
-                result = asc2.exp(tile)
+                result = asc2.exp(tensor)
     """
     builder = global_builder.get_ir_builder()
     if other is not None:

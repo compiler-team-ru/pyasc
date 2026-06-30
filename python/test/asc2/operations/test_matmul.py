@@ -20,11 +20,11 @@ def require_c310_auto(require_c310):
 def matmul_relu_quant_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr: asc2.GlobalAddress,
                              a_shape: asc2.ConstExpr, b_shape: asc2.ConstExpr, c_shape: asc2.ConstExpr,
                              tile_a: asc2.ConstExpr, tile_b: asc2.ConstExpr, quant_type: asc2.ConstExpr):
-    a_gm = asc2.tensor(a_ptr, a_shape)
-    b_gm = asc2.tensor(b_ptr, b_shape)
-    c_gm = asc2.tensor(c_ptr, c_shape)
-    a = asc2.load(a_gm, [0, 0], tile_a, asc2.TileLocation.L0A)
-    b = asc2.load(b_gm, [0, 0], tile_b, asc2.TileLocation.L0B)
+    a_gm = asc2.global_tensor(a_ptr, a_shape)
+    b_gm = asc2.global_tensor(b_ptr, b_shape)
+    c_gm = asc2.global_tensor(c_ptr, c_shape)
+    a = asc2.load(a_gm, [0, 0], tile_a, asc2.TensorLocation.L0A)
+    b = asc2.load(b_gm, [0, 0], tile_b, asc2.TensorLocation.L0B)
     c = a @ b
     c = asc2.relu(c).to(quant_type)
     asc2.store(c, c_gm, [0, 0])
@@ -53,11 +53,11 @@ def test_matmul_relu_quant(m, k, n, dtype, tile_a, tile_b, quant_type, quant_typ
 def matmul_hf32_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr: asc2.GlobalAddress,
                        a_shape: asc2.ConstExpr, b_shape: asc2.ConstExpr, c_shape: asc2.ConstExpr,
                        tile_a: asc2.ConstExpr, tile_b: asc2.ConstExpr):
-    a_gm = asc2.tensor(a_ptr, a_shape)
-    b_gm = asc2.tensor(b_ptr, b_shape)
-    c_gm = asc2.tensor(c_ptr, c_shape)
-    a = asc2.load(a_gm, [0, 0], tile_a, asc2.TileLocation.L0A)
-    b = asc2.load(b_gm, [0, 0], tile_b, asc2.TileLocation.L0B)
+    a_gm = asc2.global_tensor(a_ptr, a_shape)
+    b_gm = asc2.global_tensor(b_ptr, b_shape)
+    c_gm = asc2.global_tensor(c_ptr, c_shape)
+    a = asc2.load(a_gm, [0, 0], tile_a, asc2.TensorLocation.L0A)
+    b = asc2.load(b_gm, [0, 0], tile_b, asc2.TensorLocation.L0B)
     c = asc2.matmul(a, b, hf32=True)
     asc2.store(c, c_gm, [0, 0])
 
@@ -75,15 +75,15 @@ def test_matmul_hf32():
 def matmul_l0c_l1_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr: asc2.GlobalAddress,
                          a_shape: asc2.ConstExpr, b_shape: asc2.ConstExpr, c_shape: asc2.ConstExpr,
                          dtype: asc2.ConstExpr):
-    a_gm = asc2.tensor(a_ptr, a_shape)
-    b_gm = asc2.tensor(b_ptr, b_shape)
-    c_gm = asc2.tensor(c_ptr, c_shape)
-    a = asc2.load(a_gm, [0, 0], a_shape, asc2.TileLocation.L0A)
-    b = asc2.load(b_gm, [0, 0], b_shape, asc2.TileLocation.L0B)
+    a_gm = asc2.global_tensor(a_ptr, a_shape)
+    b_gm = asc2.global_tensor(b_ptr, b_shape)
+    c_gm = asc2.global_tensor(c_ptr, c_shape)
+    a = asc2.load(a_gm, [0, 0], a_shape, asc2.TensorLocation.L0A)
+    b = asc2.load(b_gm, [0, 0], b_shape, asc2.TensorLocation.L0B)
     c = a @ b
     c = c.to(dtype)
-    c_l1 = asc2.copy(c, [0, 0], c_shape, asc2.TileLocation.L1)
-    c_l0a = asc2.copy(c_l1, [0, 0], c_shape, asc2.TileLocation.L0A)
+    c_l1 = asc2.copy(c, [0, 0], c_shape, asc2.TensorLocation.L1)
+    c_l0a = asc2.copy(c_l1, [0, 0], c_shape, asc2.TensorLocation.L0A)
     result = c_l0a @ b
     asc2.store(result, c_gm, [0, 0])
 
@@ -106,14 +106,14 @@ def test_matmul_l0c_l1(m, k, n, torch_dtype, pyasc_dtype):
 def matmul_transpose_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr: asc2.GlobalAddress,
                             a_shape: asc2.ConstExpr, b_shape: asc2.ConstExpr, c_shape: asc2.ConstExpr,
                             tile_a: asc2.ConstExpr, tile_b: asc2.ConstExpr):
-    a_gm = asc2.tensor(a_ptr, a_shape)
-    b_gm = asc2.tensor(b_ptr, b_shape)
-    c_gm = asc2.tensor(c_ptr, c_shape)
-    a = asc2.load(a_gm, [0, 0], tile_a, asc2.TileLocation.L1)
-    b = asc2.load(b_gm, [0, 0], tile_b, asc2.TileLocation.L1)
-    a_0 = asc2.copy(a, [0, 0], location=asc2.TileLocation.L0A)
+    a_gm = asc2.global_tensor(a_ptr, a_shape)
+    b_gm = asc2.global_tensor(b_ptr, b_shape)
+    c_gm = asc2.global_tensor(c_ptr, c_shape)
+    a = asc2.load(a_gm, [0, 0], tile_a, asc2.TensorLocation.L1)
+    b = asc2.load(b_gm, [0, 0], tile_b, asc2.TensorLocation.L1)
+    a_0 = asc2.copy(a, [0, 0], location=asc2.TensorLocation.L0A)
     a_0_transpose = asc2.transpose(a_0)
-    b_0 = asc2.copy(b, [0, 0], location=asc2.TileLocation.L0B).T
+    b_0 = asc2.copy(b, [0, 0], location=asc2.TensorLocation.L0B).T
     c = a_0_transpose @ b_0
     asc2.store(c, c_gm, [0, 0])
 
@@ -139,14 +139,14 @@ def test_matmul_transpose(m, k, n, dtype, tile_a, tile_b):
 def matmul_bias_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, bias_ptr: asc2.GlobalAddress,
                        c_ptr: asc2.GlobalAddress, a_shape: asc2.ConstExpr, b_shape: asc2.ConstExpr,
                        bias_shape: asc2.ConstExpr, c_shape: asc2.ConstExpr):
-    a_gm = asc2.tensor(a_ptr, a_shape)
-    b_gm = asc2.tensor(b_ptr, b_shape)
-    bias_gm = asc2.tensor(bias_ptr, bias_shape)
-    c_gm = asc2.tensor(c_ptr, c_shape)
-    a = asc2.load(a_gm, [0, 0], a_shape, asc2.TileLocation.L0A)
-    b = asc2.load(b_gm, [0, 0], b_shape, asc2.TileLocation.L0B)
-    bias_c1 = asc2.load(bias_gm, [0], bias_shape, asc2.TileLocation.L1)
-    bias = asc2.copy(bias_c1, [0], bias_shape, asc2.TileLocation.BT)
+    a_gm = asc2.global_tensor(a_ptr, a_shape)
+    b_gm = asc2.global_tensor(b_ptr, b_shape)
+    bias_gm = asc2.global_tensor(bias_ptr, bias_shape)
+    c_gm = asc2.global_tensor(c_ptr, c_shape)
+    a = asc2.load(a_gm, [0, 0], a_shape, asc2.TensorLocation.L0A)
+    b = asc2.load(b_gm, [0, 0], b_shape, asc2.TensorLocation.L0B)
+    bias_c1 = asc2.load(bias_gm, [0], bias_shape, asc2.TensorLocation.L1)
+    bias = asc2.copy(bias_c1, [0], bias_shape, asc2.TensorLocation.BT)
     c = asc2.matmul(a, b, bias)
     asc2.store(c, c_gm, [0, 0])
 
@@ -170,19 +170,19 @@ def test_matmul_with_bias(m, k, n, dtype, bias_dtype):
 def matmul_acc_bias_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, bias_ptr: asc2.GlobalAddress,
                            c_ptr: asc2.GlobalAddress, a_shape: asc2.ConstExpr, b_shape: asc2.ConstExpr,
                            bias_shape: asc2.ConstExpr, c_shape: asc2.ConstExpr, k_tiles: asc2.ConstExpr):
-    a_gm = asc2.tensor(a_ptr, a_shape)
-    b_gm = asc2.tensor(b_ptr, b_shape)
-    bias_gm = asc2.tensor(bias_ptr, bias_shape)
-    c_gm = asc2.tensor(c_ptr, c_shape)
-    bias_c1 = asc2.load(bias_gm, [0], bias_shape, asc2.TileLocation.L1)
-    bias = asc2.copy(bias_c1, [0], bias_shape, asc2.TileLocation.BT)
+    a_gm = asc2.global_tensor(a_ptr, a_shape)
+    b_gm = asc2.global_tensor(b_ptr, b_shape)
+    bias_gm = asc2.global_tensor(bias_ptr, bias_shape)
+    c_gm = asc2.global_tensor(c_ptr, c_shape)
+    bias_c1 = asc2.load(bias_gm, [0], bias_shape, asc2.TensorLocation.L1)
+    bias = asc2.copy(bias_c1, [0], bias_shape, asc2.TensorLocation.BT)
     acc = asc2.zeros_acc(c_shape, dtype=asc2.float32, bias=bias)
     k_offset = a_shape[1] // k_tiles
-    a_l1 = asc2.load(a_gm, [0, 0], a_shape, asc2.TileLocation.L1)
-    b_l1 = asc2.load(b_gm, [0, 0], b_shape, asc2.TileLocation.L1)
+    a_l1 = asc2.load(a_gm, [0, 0], a_shape, asc2.TensorLocation.L1)
+    b_l1 = asc2.load(b_gm, [0, 0], b_shape, asc2.TensorLocation.L1)
     for i in range(k_tiles, unroll_factor=1, parallel=True):
-        a_i = asc2.copy(a_l1, [0, i * k_offset], [a_shape[0], k_offset], asc2.TileLocation.L0A)
-        b_i = asc2.copy(b_l1, [i * k_offset, 0], [k_offset, b_shape[1]], asc2.TileLocation.L0B)
+        a_i = asc2.copy(a_l1, [0, i * k_offset], [a_shape[0], k_offset], asc2.TensorLocation.L0A)
+        b_i = asc2.copy(b_l1, [i * k_offset, 0], [k_offset, b_shape[1]], asc2.TensorLocation.L0B)
         asc2.matmul_acc(acc, a_i, b_i)
     asc2.store(acc, c_gm, [0, 0])
 

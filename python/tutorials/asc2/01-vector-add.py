@@ -31,9 +31,9 @@ def vector_add(
         tile_size: asc2.ConstExpr):
 
     # Tensor descriptor is created from `asc2.GlobalAddress` to represent entire tensor.
-    x_gm = asc2.tensor(x_ptr, [size])
-    y_gm = asc2.tensor(y_ptr, [size])
-    out_gm = asc2.tensor(out_ptr, [size])
+    x_gm = asc2.global_tensor(x_ptr, [size])
+    y_gm = asc2.global_tensor(y_ptr, [size])
+    out_gm = asc2.global_tensor(out_ptr, [size])
 
     # Python expressions are used to calculate offset and define the loop iterating over tiles:
     # `asc2.block_num()` function provides number of AICOREs launched.

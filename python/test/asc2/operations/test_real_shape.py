@@ -17,8 +17,8 @@ DYNAMIC = "dynamic"
 @asc2.jit(always_compile=True)
 def load_real_shape_1d_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, size: int,
                               tile_size: asc2.ConstExpr, real_size: int, offset: asc2.ConstExpr):
-    x_gm = asc2.tensor(x_ptr, [size])
-    out_gm = asc2.tensor(out_ptr, [1])
+    x_gm = asc2.global_tensor(x_ptr, [size])
+    out_gm = asc2.global_tensor(out_ptr, [1])
     tile = asc2.load(x_gm, [offset], [tile_size], real_shape=[real_size], pad_value=float('-inf'))
     max_val = asc2.reduce_max(tile)
     result = asc2.full([1], max_val, dtype=tile.dtype)
@@ -50,8 +50,8 @@ def test_load_real_shape_1d(kernel_type, size, tile_size, real_size, offset):
 @asc2.jit(always_compile=True)
 def load_real_shape_2d_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, rows: int, cols: int,
                               real_rows: int, real_cols: int, tile_shape: asc2.ConstExpr, offsets: asc2.ConstExpr):
-    x_gm = asc2.tensor(x_ptr, [rows, cols])
-    out_gm = asc2.tensor(out_ptr, [1])
+    x_gm = asc2.global_tensor(x_ptr, [rows, cols])
+    out_gm = asc2.global_tensor(out_ptr, [1])
     tile = asc2.load(x_gm, offsets, tile_shape, real_shape=[real_rows, real_cols], pad_value=float('-inf'))
     max_val = asc2.reduce_max(tile)
     result = asc2.full([1], max_val, dtype=tile.dtype)
@@ -95,9 +95,9 @@ def test_load_real_shape_2d(require_c310, kernel_type, shape, tile_shape, real_s
 def store_real_shape_2d_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress,
                                in_rows: int, in_cols: int, out_rows: int, out_cols: int, real_rows: int, real_cols: int,
                                tile_shape: asc2.ConstExpr, offsets: asc2.ConstExpr):
-    x_gm = asc2.tensor(x_ptr, [in_rows, in_cols])
-    y_gm = asc2.tensor(y_ptr, [in_rows, in_cols])
-    out_gm = asc2.tensor(out_ptr, [out_rows, out_cols])
+    x_gm = asc2.global_tensor(x_ptr, [in_rows, in_cols])
+    y_gm = asc2.global_tensor(y_ptr, [in_rows, in_cols])
+    out_gm = asc2.global_tensor(out_ptr, [out_rows, out_cols])
     x_tile = asc2.load(x_gm, offsets, tile_shape)
     y_tile = asc2.load(y_gm, offsets, tile_shape)
     result = x_tile + y_tile

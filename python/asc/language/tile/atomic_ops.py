@@ -12,99 +12,99 @@ from ..._C import ir
 from ..core.dtype import KnownTypes as KT
 from ..core.ir_value import RuntimeInt, materialize_ir_value as _mat
 from ..core.utils import global_builder, require_jit
-from .tensor import Tensor
-from .tile import Tile
+from .global_tensor import GlobalTensor
+from .local_tensor import LocalTensor
 from .validation import check_dtype, check_type, verify_runtime_ints
 
 
-def op_atomic_impl(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt], kind: ir.AtomicKind) -> None:
-    check_type("tile", tile, Tile)
-    check_type("tensor", tensor, Tensor)
-    check_dtype("tensor", tensor, (KT.int16, KT.int32, KT.float16, KT.bfloat16, KT.float32))
-    check_dtype("tile", tile, (tensor.dtype, ))
+def op_atomic_impl(src: LocalTensor, dst: GlobalTensor, offsets: Iterable[RuntimeInt], kind: ir.AtomicKind) -> None:
+    check_type("src", src, LocalTensor)
+    check_type("dst", dst, GlobalTensor)
+    check_dtype("dst", dst, (KT.int16, KT.int32, KT.float16, KT.bfloat16, KT.float32))
+    check_dtype("src", src, (dst.dtype, ))
     offsets = [_mat(v, KT.int32).to_ir() for v in verify_runtime_ints(offsets, "offsets")]
-    global_builder.get_ir_builder().create_asctile_AtomicRMWOp(tile.to_ir(), tensor.to_ir(), offsets, kind)
+    global_builder.get_ir_builder().create_asctile_AtomicRMWOp(src.to_ir(), dst.to_ir(), offsets, kind)
 
 
 @require_jit
-def atomic_add(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt]) -> None:
+def atomic_add(src: LocalTensor, dst: GlobalTensor, offsets: Iterable[RuntimeInt]) -> None:
     """
-    Atomically add tile elements to a tensor at specified offsets.
+    Atomically add local tensor elements to a global tensor at specified offsets.
 
-    Performs an atomic read-modify-write operation, adding each element of :code:`tile` to the corresponding element in
-    :code:`tensor` at the given :code:`offsets`.
+    Performs an atomic read-modify-write operation, adding each element of :code:`src` to the corresponding element in
+    :code:`dst` at the given :code:`offsets`.
 
     The supported data types for the inputs are: ``int16``, ``int32``, ``float16``, ``bfloat16``, ``float32``.
 
     Args:
-        tile: The source tile whose elements will be added
-        tensor: The destination tensor in global memory
-        offsets: The offsets into the tensor for each dimension
+        src: The source local tensor whose elements will be added
+        dst: The destination global tensor
+        offsets: The offsets into the global tensor for each dimension
 
     Raises:
-        TypeError: If tile is not a Tile, tensor is not a Tensor, or offsets contains non-integer values
-        RuntimeError: If tile or tensor dtype is not supported, or offsets is empty
+        TypeError: If src is not a LocalTensor, dst is not a GlobalTensor, or offsets contains non-integer values
+        RuntimeError: If src or dst dtype is not supported, or offsets is empty
 
     Examples:
-        Atomically add tile elements to a tensor: ::
+        Atomically add local tensor elements to a global tensor: ::
 
-            tile = asc2.load(x_gm, [0], [128])
-            asc2.atomic_add(tile, out_gm, [0])
+            src = asc2.load(x_gm, [0], [128])
+            asc2.atomic_add(src, out_gm, [0])
     """
-    return op_atomic_impl(tile, tensor, offsets, ir.AtomicKind.Add)
+    return op_atomic_impl(src, dst, offsets, ir.AtomicKind.Add)
 
 
 @require_jit
-def atomic_max(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt]) -> None:
+def atomic_max(src: LocalTensor, dst: GlobalTensor, offsets: Iterable[RuntimeInt]) -> None:
     """
-    Atomically compute the maximum between tile elements and tensor elements at specified offsets.
+    Atomically compute the maximum between local tensor elements and global tensor elements at specified offsets.
 
-    Performs an atomic read-modify-write operation, storing the maximum of each element in :code:`tile` and the
-    corresponding element in :code:`tensor` at the given :code:`offsets`.
+    Performs an atomic read-modify-write operation, storing the maximum of each element in :code:`src` and the
+    corresponding element in :code:`dst` at the given :code:`offsets`.
 
     The supported data types for the inputs are: ``int16``, ``int32``, ``float16``, ``bfloat16``, ``float32``.
 
     Args:
-        tile: The source tile containing comparison values
-        tensor: The destination tensor in global memory
-        offsets: The offsets into the tensor for each dimension
+        src: The source local tensor containing comparison values
+        dst: The destination global tensor
+        offsets: The offsets into the global tensor for each dimension
 
     Raises:
-        TypeError: If tile is not a Tile, tensor is not a Tensor, or offsets contains non-integer values
-        RuntimeError: If tile or tensor dtype is not supported, or offsets is empty
+        TypeError: If src is not a LocalTensor, dst is not a GlobalTensor, or offsets contains non-integer values
+        RuntimeError: If src or dst dtype is not supported, or offsets is empty
 
     Examples:
-        Atomically compute the maximum between tile and tensor elements: ::
+        Atomically compute the maximum between local tensor and global tensor elements: ::
 
-            tile = asc2.load(x_gm, [0], [128])
-            asc2.atomic_max(tile, out_gm, [0])
+            src = asc2.load(x_gm, [0], [128])
+            asc2.atomic_max(src, out_gm, [0])
     """
-    return op_atomic_impl(tile, tensor, offsets, ir.AtomicKind.Max)
+    return op_atomic_impl(src, dst, offsets, ir.AtomicKind.Max)
 
 
 @require_jit
-def atomic_min(tile: Tile, tensor: Tensor, offsets: Iterable[RuntimeInt]) -> None:
+def atomic_min(src: LocalTensor, dst: GlobalTensor, offsets: Iterable[RuntimeInt]) -> None:
     """
-    Atomically compute the minimum between tile elements and tensor elements at specified offsets.
+    Atomically compute the minimum between local tensor elements and global tensor elements at specified offsets.
 
-    Performs an atomic read-modify-write operation, storing the minimum of each element in :code:`tile` and the
-    corresponding element in :code:`tensor` at the given :code:`offsets`.
+    Performs an atomic read-modify-write operation, storing the minimum of each element in :code:`src` and the
+    corresponding element in :code:`dst` at the given :code:`offsets`.
 
     The supported data types for the inputs are: ``int16``, ``int32``, ``float16``, ``bfloat16``, ``float32``.
 
     Args:
-        tile: The source tile containing comparison values
-        tensor: The destination tensor in global memory
-        offsets: The offsets into the tensor for each dimension
+        src: The source local tensor containing comparison values
+        dst: The destination global tensor
+        offsets: The offsets into the global tensor for each dimension
 
     Raises:
-        TypeError: If tile is not a Tile, tensor is not a Tensor, or offsets contains non-integer values
-        RuntimeError: If tile or tensor dtype is not supported, or offsets is empty
+        TypeError: If src is not a LocalTensor, dst is not a GlobalTensor, or offsets contains non-integer values
+        RuntimeError: If src or dst dtype is not supported, or offsets is empty
 
     Examples:
-        Atomically compute the minimum between tile and tensor elements: ::
+        Atomically compute the minimum between local tensor and global tensor elements: ::
 
-            tile = asc2.load(x_gm, [0], [128])
-            asc2.atomic_min(tile, out_gm, [0])
+            src = asc2.load(x_gm, [0], [128])
+            asc2.atomic_min(src, out_gm, [0])
     """
-    return op_atomic_impl(tile, tensor, offsets, ir.AtomicKind.Min)
+    return op_atomic_impl(src, dst, offsets, ir.AtomicKind.Min)

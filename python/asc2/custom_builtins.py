@@ -16,7 +16,7 @@ from asc.codegen.function_visitor import CustomBuiltins
 from asc.language.core.ir_value import PlainValue, RuntimeNumeric
 from asc.language.tile.binary_ops import maximum, minimum
 from asc.language.tile.range import range as custom_range
-from asc.language.tile.tile import Tile
+from asc.language.tile.local_tensor import LocalTensor
 
 
 class SplitAccumulation:
@@ -59,10 +59,10 @@ class SplitAccumulation:
         return result
 
 
-def custom_accumulator(iterable: Iterable, *, ir_tile_fn: Callable[..., Tile], ir_scalar_fn: Callable[..., PlainValue],
-                       builtin_fn: Callable, **kwargs) -> Any:
+def custom_accumulator(iterable: Iterable, *, ir_tile_fn: Callable[..., LocalTensor],
+                       ir_scalar_fn: Callable[..., PlainValue], builtin_fn: Callable, **kwargs) -> Any:
     split_acc = SplitAccumulation(
-        (lambda arg: isinstance(arg, Tile), ir_tile_fn),
+        (lambda arg: isinstance(arg, LocalTensor), ir_tile_fn),
         (lambda arg: isinstance(arg, PlainValue), ir_scalar_fn),
         (lambda _: True, builtin_fn),
     )
@@ -90,7 +90,7 @@ def custom_min(*args: Any, **kwargs) -> Any:
 
 
 @functools.wraps(sum)
-def custom_sum(iterable: Iterable, /, start: Union[Tile, RuntimeNumeric] = 0) -> Any:
+def custom_sum(iterable: Iterable, /, start: Union[LocalTensor, RuntimeNumeric] = 0) -> Any:
     return custom_accumulator(itertools.chain((start, ), iterable), ir_tile_fn=operator.add, ir_scalar_fn=operator.add,
                               builtin_fn=operator.add)
 

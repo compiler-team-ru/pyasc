@@ -16,19 +16,19 @@ def matmul_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr: a
                   a_shape: asc2.ConstExpr, b_shape: asc2.ConstExpr, c_shape: asc2.ConstExpr,
                   m_tile: asc2.ConstExpr[int], m_tiles_per_block: asc2.ConstExpr[int], n_tile: asc2.ConstExpr[int],
                   n_tiles_per_block: asc2.ConstExpr[int]):
-    a_gm = asc2.tensor(a_ptr, a_shape)
-    b_gm = asc2.tensor(b_ptr, b_shape)
-    c_gm = asc2.tensor(c_ptr, c_shape)
+    a_gm = asc2.global_tensor(a_ptr, a_shape)
+    b_gm = asc2.global_tensor(b_ptr, b_shape)
+    c_gm = asc2.global_tensor(c_ptr, c_shape)
     blockId = asc2.block_idx()
     m_elems_per_block = m_tile * m_tiles_per_block
     m_base_off = (m_elems_per_block * blockId) % a_shape[0]
     n_base_off = ((m_elems_per_block * blockId) // a_shape[0]) * (n_tile * n_tiles_per_block)
     for j in range(n_tiles_per_block):
         b_offset = n_base_off + j * n_tile
-        b_j = asc2.load(b_gm, [0, b_offset], [b_shape[0], n_tile], asc2.TileLocation.L0B)
+        b_j = asc2.load(b_gm, [0, b_offset], [b_shape[0], n_tile], asc2.TensorLocation.L0B)
         for i in range(m_tiles_per_block):
             a_offset = m_base_off + i * m_tile
-            a_i = asc2.load(a_gm, [a_offset, 0], [m_tile, a_shape[1]], asc2.TileLocation.L0A)
+            a_i = asc2.load(a_gm, [a_offset, 0], [m_tile, a_shape[1]], asc2.TensorLocation.L0A)
             c_ij = a_i @ b_j
             asc2.store(c_ij, c_gm, [a_offset, b_offset])
 

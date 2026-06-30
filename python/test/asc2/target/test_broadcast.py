@@ -19,8 +19,8 @@ DYNAMIC = "dynamic"
 @asc2.jit(static_alloc=False, reuse_ub=True)
 def broadcast_scalar(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length, output_num_rows,
                      output_num_cols, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
-    in_gm = asc2.tensor(input_ptr, [input_length])
-    out_gm = asc2.tensor(output_ptr, [output_num_rows, output_num_cols])
+    in_gm = asc2.global_tensor(input_ptr, [input_length])
+    out_gm = asc2.global_tensor(output_ptr, [output_num_rows, output_num_cols])
 
     cols_per_block = asc2.ceildiv(output_num_cols, asc2.block_num())
     start_offset = asc2.block_idx() * cols_per_block
@@ -35,8 +35,8 @@ def broadcast_scalar(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddre
 @asc2.jit(static_alloc=False, reuse_ub=True)
 def broadcast_first_dim(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length, output_num_rows,
                         output_num_cols, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
-    in_gm = asc2.tensor(input_ptr, [input_length])
-    out_gm = asc2.tensor(output_ptr, [output_num_rows, output_num_cols])
+    in_gm = asc2.global_tensor(input_ptr, [input_length])
+    out_gm = asc2.global_tensor(output_ptr, [output_num_rows, output_num_cols])
 
     rows_per_block = asc2.ceildiv(output_num_rows, asc2.block_num())
     start_offset = asc2.block_idx() * rows_per_block
@@ -56,8 +56,8 @@ def broadcast_first_dim(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAd
 @asc2.jit(static_alloc=False, reuse_ub=True)
 def broadcast_last_dim(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length, output_num_rows,
                        output_num_cols, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
-    in_gm = asc2.tensor(input_ptr, [input_length])
-    out_gm = asc2.tensor(output_ptr, [output_num_rows, output_num_cols])
+    in_gm = asc2.global_tensor(input_ptr, [input_length])
+    out_gm = asc2.global_tensor(output_ptr, [output_num_rows, output_num_cols])
 
     rows_per_block = asc2.ceildiv(output_num_rows, asc2.block_num())
     start_offset = asc2.block_idx() * rows_per_block

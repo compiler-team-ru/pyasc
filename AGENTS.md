@@ -107,15 +107,15 @@ For runtime environment setup: @docs/installation/setup-runtime-env.rst
 ## PyAsc2 Programming Model
 
 ### Core Concepts
-- **Tensor**: Global memory (HBM) descriptor with pointer and shape (dynamic shapes)
-- **Tile**: On-chip memory (UB, L0A, L0B, L0C, L1) with fixed static shape (known at JIT time)
+- **GlobalTensor**: Global memory (HBM) descriptor with pointer and shape (dynamic shapes)
+- **LocalTensor** (tile-like): On-chip memory (UB, L0A, L0B, L0C, L1) with fixed static shape (known at JIT time)
 - Tiles use value semantics - each operation produces a new tile
-- Memory hierarchy (Ascend NPU related): `TileLocation.UB` (default), `TileLocation.L0A`/`L0B`/`L0C`, `TileLocation.L1`
+- Memory hierarchy (Ascend NPU related): `TensorLocation.UB` (default), `TensorLocation.L0A`/`L0B`/`L0C`, `TensorLocation.L1`
 
 ### PyAsc2 API Patterns
 ```python
 # Tensor creation and loading
-x_gm = asc2.tensor(x_ptr, [size])
+x_gm = asc2.global_tensor(x_ptr, [size])
 tile = asc2.load(tensor, shape=[128], offsets=[base])  # explicit element offsets
 scalar = asc2.load(tensor, offsets=[i])
 asc2.store(tile, tensor, offsets=[base])
@@ -149,9 +149,9 @@ with asc2.mask(count=8, other=0):
 ```python
 @asc2.jit  # or with options: @asc2.jit(always_compile=True, ...)
 def kernel(x_ptr, y_ptr, out_ptr, size: int, TILE: asc.ConstExpr[int]):
-    x_gm = asc2.tensor(x_ptr, [size])
-    y_gm = asc2.tensor(y_ptr, [size])
-    out_gm = asc2.tensor(out_ptr, [size])
+    x_gm = asc2.global_tensor(x_ptr, [size])
+    y_gm = asc2.global_tensor(y_ptr, [size])
+    out_gm = asc2.global_tensor(out_ptr, [size])
     # ... kernel implementation
 
 x = torch.rand_like(..., device="cpu")  # Initialize tensors with numpy or torch

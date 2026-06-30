@@ -12,7 +12,7 @@ from typing import Iterable, Tuple
 from ..._C import ir
 from ..core.dtype import KnownTypes as KT
 from ..core.utils import global_builder, require_jit
-from .tile import Tile, bind_tile_method
+from .local_tensor import LocalTensor, bind_tensor_method
 from .validation import check_dtype, check_type, verify_shape, check_data_alignment
 
 
@@ -31,11 +31,11 @@ def normalize_shape_args(args: tuple) -> Tuple[int, ...]:
     return tuple(args[0]) if len(args) == 1 and isinstance(args[0], Iterable) else args
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
-def broadcast_to(input: Tile, *shape: int) -> Tile:
+def broadcast_to(input: LocalTensor, *shape: int) -> LocalTensor:
     """
-    Creates new tile of a given shape broadcasting data from the input tensor.
+    Creates new tensor of a given shape broadcasting data from the input tensor.
 
     The supported data types are: ``int8``, ``int16``, ``int32``, ``int64``, ``float16``, ``bfloat16``, ``float32``.
 
@@ -44,14 +44,14 @@ def broadcast_to(input: Tile, *shape: int) -> Tile:
         shape: The target shape (can be passed as separate integers or as an iterable, e.g. list or tuple)
 
     Returns:
-        Tile: A new tile with the broadcasted shape
+        LocalTensor: A new tensor with the broadcasted shape
 
     Raises:
-        TypeError: If input is not a Tile or shape contains non-integer values
-        RuntimeError: If the input tile shape cannot be broadcasted to the target shape or shape values are not positive
+        TypeError: If input is not a LocalTensor or shape contains non-integer values
+        RuntimeError: If the input tensor shape cannot be broadcasted to the target one or shape values are not positive
 
     Examples:
-        Broadcast tile to the provided shape: ::
+        Broadcast tensor to the provided shape: ::
 
             input = asc2.load(x, [0], [256])
             result = input.broadcast_to([16,256])
@@ -61,71 +61,71 @@ def broadcast_to(input: Tile, *shape: int) -> Tile:
             input:   [0,1,2,3,4, ... 255]
             result:  [[0,1,2,...255], [0,1,2,...255] ... [0,1,2,..255]]
     """
-    check_type("input", input, Tile)
+    check_type("input", input, LocalTensor)
     check_dtype("input", input, (KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32))
     shape = normalize_shape_args(shape)
     shape = verify_shape(shape)
     if input.shape == shape:
         return input
     if not shapes_match(input.shape, shape):
-        raise RuntimeError(f"Cannot broadcast tile with shape {input.shape} to {shape}")
+        raise RuntimeError(f"Cannot broadcast tensor with shape {input.shape} to {shape}")
     result_type = ir.clone_shaped_type(input.to_ir().get_type(), shape)
     handle = global_builder.get_ir_builder().create_asctile_BroadcastOp(result_type, input.to_ir())
-    return Tile(handle)
+    return LocalTensor(handle)
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
-def reshape(input: Tile, *shape: int) -> Tile:
+def reshape(input: LocalTensor, *shape: int) -> LocalTensor:
     """
-    Reshape a tile to a new shape without changing its data.
+    Reshape a tensor to a new shape without changing its data.
 
-    The total number of elements in the new shape must match the total number of elements in the input tile.
+    The total number of elements in the new shape must match the total number of elements in the input tensor.
 
     The supported data types are: ``int8``, ``int16``, ``int32``, ``int64``, ``float16``, ``bfloat16``, ``float32``,
     ``float64``.
 
     Args:
-        input: The input tile
+        input: The input tensor
         shape: The target shape (can be passed as separate integers or as an iterable, e.g. list or tuple)
 
     Returns:
-        Tile: A tile with the new shape
+        LocalTensor: A tensor with the new shape
 
     Raises:
-        TypeError: If input is not a Tile or shape contains non-integer values
+        TypeError: If input is not a LocalTensor or shape contains non-integer values
         RuntimeError: If the total number of elements doesn't match or shape values are not positive
 
     Examples:
-        Reshape a 1D tile to 2D: ::
+        Reshape a 1D tensor to 2D: ::
 
             input = asc2.load(x, [0], [256])
             result = input.reshape([16, 16])
 
-        Reshape a 2D tile to 1D: ::
+        Reshape a 2D tensor to 1D: ::
 
             input = asc2.load(x, [0, 0], [32, 16])
             result = input.reshape([512])
     """
-    check_type("input", input, Tile)
+    check_type("input", input, LocalTensor)
     check_dtype("input", input,
                 (KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32, KT.float64))
     shape = normalize_shape_args(shape)
     shape = verify_shape(shape)
     if math.prod(input.shape) != math.prod(shape):
-        raise RuntimeError(f"Reshaping tile of shape {input.shape} with {math.prod(input.shape)} elements not match "
+        raise RuntimeError(f"Reshaping tensor of shape {input.shape} with {math.prod(input.shape)} elements not match "
                            f"output shape {shape} with {math.prod(shape)} elements")
     builder = global_builder.get_ir_builder()
     ir_type = ir.clone_shaped_type(input.to_ir().get_type(), shape)
     handle = builder.create_asctile_ReshapeOp(ir_type, input.to_ir())
-    return Tile(handle)
+    return LocalTensor(handle)
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
-def ravel(input: Tile) -> Tile:
+def ravel(input: LocalTensor) -> LocalTensor:
     """
-    Flatten a tile into a 1D tile.
+    Flatten a tensor into a 1D tensor.
 
     This is equivalent to :code:`reshape(input, input.size)`.
 
@@ -133,16 +133,16 @@ def ravel(input: Tile) -> Tile:
     ``float64``.
 
     Args:
-        input: The input tile
+        input: The input tensor
 
     Returns:
-        Tile: A 1D tile with all elements from the input
+        LocalTensor: A 1D tensor with all elements from the input
 
     Raises:
-        TypeError: If input is not a Tile
+        TypeError: If input is not a LocalTensor
 
     Examples:
-        Flatten a 2D tile to 1D: ::
+        Flatten a 2D tensor to 1D: ::
 
             input = asc2.load(x, [0, 0], [32, 16])
             result = input.ravel()
@@ -150,9 +150,9 @@ def ravel(input: Tile) -> Tile:
     return reshape(input, math.prod(input.shape))
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
-def expand_dims(input: Tile, *axis: int) -> Tile:
+def expand_dims(input: LocalTensor, *axis: int) -> LocalTensor:
     """
     Insert new dimensions of size 1 at the specified positions.
 
@@ -160,14 +160,14 @@ def expand_dims(input: Tile, *axis: int) -> Tile:
     ``float64``.
 
     Args:
-        input: The input tile
+        input: The input tensor
         axis: The positions where new dimensions should be inserted (0-based)
 
     Returns:
-        Tile: A tile with the new dimensions inserted
+        LocalTensor: A tensor with the new dimensions inserted
 
     Raises:
-        TypeError: If input is not a Tile
+        TypeError: If input is not a LocalTensor
 
     Note:
         Multiple axes can be specified. Axes are processed in sorted order.
@@ -183,7 +183,7 @@ def expand_dims(input: Tile, *axis: int) -> Tile:
             input = asc2.load(x, [0, 0], [32, 16])
             result = input.expand_dims(0, 2)  # shape becomes [1, 32, 1, 16]
     """
-    check_type("input", input, Tile)
+    check_type("input", input, LocalTensor)
     shape = list(input.shape)
     axis = sorted(set(axis))
     for ax in axis:
@@ -191,24 +191,24 @@ def expand_dims(input: Tile, *axis: int) -> Tile:
     return reshape(input, *shape)
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
-def squeeze(input: Tile, *axis: int) -> Tile:
+def squeeze(input: LocalTensor, *axis: int) -> LocalTensor:
     """
-    Remove dimensions of size 1 from the tile.
+    Remove dimensions of size 1 from the tensor.
 
     The supported data types are: ``int8``, ``int16``, ``int32``, ``int64``, ``float16``, ``bfloat16``, ``float32``,
     ``float64``.
 
     Args:
-        input: The input tile.
+        input: The input tensor.
         axis: The positions of dimensions to remove (0-based). If not provided, all dimensions of size 1 are removed.
 
     Returns:
-        Tile: A tile with the specified dimensions removed
+        LocalTensor: A tensor with the specified dimensions removed
 
     Raises:
-        TypeError: If input is not a Tile
+        TypeError: If input is not a LocalTensor
         RuntimeError: If attempting to squeeze a dimension that is not of size 1
 
     Examples:
@@ -222,7 +222,7 @@ def squeeze(input: Tile, *axis: int) -> Tile:
             input = asc2.load(x, [0, 0, 0], [1, 32, 16])
             result = input.squeeze(0)  # shape becomes [32, 16]
     """
-    check_type("input", input, Tile)
+    check_type("input", input, LocalTensor)
     shape = []
     axis = set(axis if axis else (i for i, dim in enumerate(input.shape) if dim == 1))
     for i, dim in enumerate(input.shape):
@@ -234,36 +234,37 @@ def squeeze(input: Tile, *axis: int) -> Tile:
     return reshape(input, *shape)
 
 
-@bind_tile_method
+@bind_tensor_method
 @require_jit
-def transpose(input: Tile, *axis: int) -> Tile:
+def transpose(input: LocalTensor, *axis: int) -> LocalTensor:
     """
-    Rearrange tile dimensions in specific order.
-    The supported data types are: ``int8``, ``int16``, ``int32``, ``int64``, ``float16``, ``bfloat16``, ``float32``, ``float64``.
+    Rearrange tensor dimensions in specific order.
+    The supported data types are: ``int8``, ``int16``, ``int32``, ``int64``, ``float16``, ``bfloat16``, ``float32``,
+    ``float64``.
 
     Args:
-        input: The input tile
+        input: The input tensor
         axis: Order of input dimensions in result. Swaps two last dimensions when no axis provided
 
     Returns:
-        Tile: The transposed tile with swapped dimensions
+        LocalTensor: The transposed tensor with swapped dimensions
 
     Raises:
-        TypeError: If input is not a Tile
-        RuntimeError: If the input tile dtype is not supported or axis is incorrect
+        TypeError: If input is not a LocalTensor
+        RuntimeError: If the input tensor dtype is not supported or axis is incorrect
 
     Examples:
-        Transpose a 2D tile: ::
+        Transpose a 2D tensor: ::
 
             input = asc2.load(x, [0, 0, 0], [32, 16])
             result = input.transpose()  # shape becomes [32, 16], same as input.transpose(1, 0)
 
-        Transpose a 3D tile with specific order: ::
+        Transpose a 3D tensor with specific order: ::
 
             input = asc2.load(x, [0, 0, 0], [32, 64, 16])
             result = input.transpose(2, 0, 1)  # shape becomes [16, 32, 64]
     """
-    check_type("input", input, Tile)
+    check_type("input", input, LocalTensor)
     check_dtype("input", input,
                 (KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32, KT.float64))
     rank = len(input.shape)
@@ -271,11 +272,11 @@ def transpose(input: Tile, *axis: int) -> Tile:
         axis = list(range(0, rank))
         axis[-1], axis[-2] = axis[-2], axis[-1]
     if len(axis) != rank:
-        raise RuntimeError(f"Transpose axis count {len(axis)} should match count of tensors dimensions {rank}")
+        raise RuntimeError(f"Transpose axis count {len(axis)} should match count of tensor dimensions {rank}")
     if list(axis) == list(range(0, rank)):  # Identity transformation
         return input
     if set(axis) != set(range(0, rank)):
-        raise RuntimeError(f"Wrong dimensions rearrangement {axis} for tile of {rank} dimensions")
+        raise RuntimeError(f"Wrong dimensions rearrangement {axis} for tensor of {rank} dimensions")
     result_shape = [input.shape[i] for i in axis]
     check_data_alignment(result_shape, input.dtype)
 
@@ -283,4 +284,4 @@ def transpose(input: Tile, *axis: int) -> Tile:
     handle = global_builder.get_ir_builder().create_asctile_TransposeOp(
         ir_type, input.to_ir(),
         global_builder.get_ir_builder().get_i32_array_attr(axis))
-    return Tile(handle)
+    return LocalTensor(handle)

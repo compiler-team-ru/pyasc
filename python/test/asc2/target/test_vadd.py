@@ -19,9 +19,9 @@ DYNAMIC = "dynamic"
 @asc2.jit(static_alloc=True, reuse_ub=True)
 def add(input_x_ptr: asc2.GlobalAddress, input_y_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length,
         tile_length: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
-    x = asc2.tensor(input_x_ptr, [input_length])
-    y = asc2.tensor(input_y_ptr, [input_length])
-    z = asc2.tensor(output_ptr, [input_length])
+    x = asc2.global_tensor(input_x_ptr, [input_length])
+    y = asc2.global_tensor(input_y_ptr, [input_length])
+    z = asc2.global_tensor(output_ptr, [input_length])
 
     block_loop_num = asc2.ceildiv(asc2.ceildiv(input_length, asc2.block_num()), tile_length)
     block_length = tile_length * block_loop_num

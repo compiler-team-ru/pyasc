@@ -15,9 +15,9 @@ import torch
 def rms_norm_kernel(input_ptr: asc2.GlobalAddress, gamma_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress,
                     eps: asc2.ConstExpr, size: int, tile_size: asc2.ConstExpr, total_blocks: int,
                     num_blocks: asc2.ConstExpr, norm_shape: asc2.ConstExpr):
-    input_gm = asc2.tensor(input_ptr, [size])
-    gamma_gm = asc2.tensor(gamma_ptr, [norm_shape])
-    out_gm = asc2.tensor(out_ptr, [size])
+    input_gm = asc2.global_tensor(input_ptr, [size])
+    gamma_gm = asc2.global_tensor(gamma_ptr, [norm_shape])
+    out_gm = asc2.global_tensor(out_ptr, [size])
     gamma = asc2.load(gamma_gm, [0], [norm_shape])
     loop_num = asc2.ceildiv(asc2.ceildiv(total_blocks, asc2.block_num()), num_blocks)
     block_offset = asc2.block_idx() * tile_size * loop_num

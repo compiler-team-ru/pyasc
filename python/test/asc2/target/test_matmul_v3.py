@@ -33,11 +33,11 @@ def matmul_v3_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr
         n = b_shape[1]
     else:
         n = b_shape[0]
-    a_gm = asc2.tensor(a_ptr, a_shape)
-    b_gm = asc2.tensor(b_ptr, b_shape)
-    c_gm = asc2.tensor(c_ptr, [m, n])
+    a_gm = asc2.global_tensor(a_ptr, a_shape)
+    b_gm = asc2.global_tensor(b_ptr, b_shape)
+    c_gm = asc2.global_tensor(c_ptr, [m, n])
     if has_bias:
-        bias_gm = asc2.tensor(bias_ptr, [n])
+        bias_gm = asc2.global_tensor(bias_ptr, [n])
     m_blocks = asc2.ceildiv(m, m_L1)
     n_blocks = asc2.ceildiv(n, n_L1)
     tiles_num = m_blocks * n_blocks
@@ -52,7 +52,7 @@ def matmul_v3_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr
         else:
             shape = [tile_k, tile_m]
             real_shape = [k, m]
-        a_l1 = asc2.load(a_gm, [0, 0], shape, real_shape=real_shape, location=asc2.TileLocation.L1)
+        a_l1 = asc2.load(a_gm, [0, 0], shape, real_shape=real_shape, location=asc2.TensorLocation.L1)
     elif is_B_full_load:
         tile_k = asc2.ceildiv(k, k_L1) * k_L1
         tile_n = asc2.ceildiv(n, base_n) * base_n
@@ -62,7 +62,7 @@ def matmul_v3_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr
         else:
             shape = [tile_n, tile_k]
             real_shape = [n, k]
-        b_l1 = asc2.load(b_gm, [0, 0], shape, real_shape=real_shape, location=asc2.TileLocation.L1)
+        b_l1 = asc2.load(b_gm, [0, 0], shape, real_shape=real_shape, location=asc2.TensorLocation.L1)
     tile_uf, m_uf, n_uf, k_l1_uf, k_l0_uf = double_buffering
     for tile_id in range(asc2.block_idx(), tiles_num, asc2.block_num(), unroll_factor=tile_uf, parallel=True):
         m_tile_off = m_L1 * (tile_id / n_blocks)
@@ -78,7 +78,7 @@ def matmul_v3_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr
                 if is_B_full_load:
                     n_l0_off = n_gm_off
                 if has_bias:
-                    bias = asc2.load(bias_gm, [n_gm_off], [base_n], asc2.TileLocation.BT)
+                    bias = asc2.load(bias_gm, [n_gm_off], [base_n], asc2.TensorLocation.BT)
                     acc = asc2.zeros_acc([base_m, base_n], dtype=asc2.float32, bias=bias)
                 else:
                     acc = asc2.zeros_acc([base_m, base_n], dtype=asc2.float32)
@@ -89,17 +89,17 @@ def matmul_v3_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr
                     if not is_A_full_load:
                         if not is_a_transpose:
                             a_l1 = asc2.load(a_gm, [m_gm_off, k_gm_off], [base_m, k_L1], real_shape=[base_m, actual_k],
-                                             location=asc2.TileLocation.L1)
+                                             location=asc2.TensorLocation.L1)
                         else:
                             a_l1 = asc2.load(a_gm, [k_gm_off, m_gm_off], [k_L1, base_m], real_shape=[actual_k, base_m],
-                                             location=asc2.TileLocation.L1)
+                                             location=asc2.TensorLocation.L1)
                     if not is_B_full_load:
                         if not is_b_transpose:
                             b_l1 = asc2.load(b_gm, [k_gm_off, n_gm_off], [k_L1, base_n], real_shape=[actual_k, base_n],
-                                             location=asc2.TileLocation.L1)
+                                             location=asc2.TensorLocation.L1)
                         else:
                             b_l1 = asc2.load(b_gm, [n_gm_off, k_gm_off], [base_n, k_L1], real_shape=[base_n, actual_k],
-                                             location=asc2.TileLocation.L1)
+                                             location=asc2.TensorLocation.L1)
                     for inner_k in range(asc2.ceildiv(k_L1, base_k), unroll_factor=k_l0_uf, parallel=True):
                         ka_off = inner_k * base_k
                         kb_off = inner_k * base_k
@@ -108,13 +108,13 @@ def matmul_v3_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr
                         elif is_B_full_load:
                             kb_off += k_gm_off
                         if not is_a_transpose:
-                            a_l0 = asc2.copy(a_l1, [m_l0_off, ka_off], [base_m, base_k], asc2.TileLocation.L0A)
+                            a_l0 = asc2.copy(a_l1, [m_l0_off, ka_off], [base_m, base_k], asc2.TensorLocation.L0A)
                         else:
-                            a_l0 = asc2.copy(a_l1, [ka_off, m_l0_off], [base_k, base_m], asc2.TileLocation.L0A).T
+                            a_l0 = asc2.copy(a_l1, [ka_off, m_l0_off], [base_k, base_m], asc2.TensorLocation.L0A).T
                         if not is_b_transpose:
-                            b_l0 = asc2.copy(b_l1, [kb_off, n_l0_off], [base_k, base_n], asc2.TileLocation.L0B)
+                            b_l0 = asc2.copy(b_l1, [kb_off, n_l0_off], [base_k, base_n], asc2.TensorLocation.L0B)
                         else:
-                            b_l0 = asc2.copy(b_l1, [n_l0_off, kb_off], [base_n, base_k], asc2.TileLocation.L0B).T
+                            b_l0 = asc2.copy(b_l1, [n_l0_off, kb_off], [base_n, base_k], asc2.TensorLocation.L0B).T
                         asc2.matmul_acc(acc, a_l0, b_l0, hf32=enable_hf32_mode)
                 asc2.store(acc.to(quant_type), c_gm, offsets=[m_gm_off, n_gm_off])
 

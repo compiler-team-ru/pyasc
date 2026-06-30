@@ -20,8 +20,8 @@ DYNAMIC = "dynamic"
 def cast_direct(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length, block_loop_num,
                 block_loop_num_tail, block_length, tile_length: asc2.ConstExpr, dst_dtype: asc2.ConstExpr,
                 unroll_factor: asc2.ConstExpr):
-    x_gm = asc2.tensor(input_ptr, [input_length])
-    out_gm = asc2.tensor(output_ptr, [input_length])
+    x_gm = asc2.global_tensor(input_ptr, [input_length])
+    out_gm = asc2.global_tensor(output_ptr, [input_length])
 
     # block_loop_num = asc2.ceildiv(asc2.ceildiv(input_length, asc2.block_num()), tile_length)
     # block_length = tile_length * block_loop_num
@@ -38,8 +38,8 @@ def cast_direct(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, i
 def cast_two(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length, block_loop_num,
              block_loop_num_tail, block_length, tile_length: asc2.ConstExpr, intermediate_dtype: asc2.ConstExpr,
              dst_dtype: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
-    x_gm = asc2.tensor(input_ptr, [input_length])
-    out_gm = asc2.tensor(output_ptr, [input_length])
+    x_gm = asc2.global_tensor(input_ptr, [input_length])
+    out_gm = asc2.global_tensor(output_ptr, [input_length])
 
     # block_loop_num = asc2.ceildiv(asc2.ceildiv(input_length, asc2.block_num()), tile_length)
     # block_length = tile_length * block_loop_num

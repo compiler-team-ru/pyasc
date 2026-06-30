@@ -22,9 +22,9 @@ def one_hot_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, arange_
                    on_value: asc2.ConstExpr, off_value: asc2.ConstExpr, input_total: asc2.ConstExpr,
                    depth: asc2.ConstExpr, block_length: asc2.ConstExpr, block_length_tail: asc2.ConstExpr,
                    unroll_factor: asc2.ConstExpr):
-    x = asc2.tensor(x_ptr, [input_total])
-    y = asc2.tensor(y_ptr, [input_total * depth])
-    arange_gm = asc2.tensor(arange_ptr, [depth])
+    x = asc2.global_tensor(x_ptr, [input_total])
+    y = asc2.global_tensor(y_ptr, [input_total * depth])
+    arange_gm = asc2.global_tensor(arange_ptr, [depth])
 
     block_offset = asc2.block_idx() * block_length
     loop_count = block_length

@@ -18,23 +18,23 @@ def matmul_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr: a
                   base_k: asc2.ConstExpr, quant_type: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     m, k = a_shape
     _, n = b_shape
-    a_gm = asc2.tensor(a_ptr, a_shape)
-    b_gm = asc2.tensor(b_ptr, b_shape)
-    c_gm = asc2.tensor(c_ptr, [m, n])
+    a_gm = asc2.global_tensor(a_ptr, a_shape)
+    b_gm = asc2.global_tensor(b_ptr, b_shape)
+    c_gm = asc2.global_tensor(c_ptr, [m, n])
     acc = asc2.zeros_acc([single_core_m, single_core_n], dtype=asc2.float32)
     block_idx = asc2.block_idx()
     n_blocks = asc2.ceildiv(n, single_core_n)
     m_off = single_core_m * (block_idx / n_blocks)
     n_off = single_core_n * (block_idx % n_blocks)
     for k_outer in range(asc2.ceildiv(k, step_kb), unroll_factor=unroll_factor, parallel=True):
-        b_l1 = asc2.load(b_gm, [k_outer * step_kb, n_off], [step_kb, single_core_n], asc2.TileLocation.L1)
+        b_l1 = asc2.load(b_gm, [k_outer * step_kb, n_off], [step_kb, single_core_n], asc2.TensorLocation.L1)
         for k_mid in range(asc2.ceildiv(step_kb, step_ka), unroll_factor=unroll_factor, parallel=True):
             k_off = k_outer * step_kb + k_mid * step_ka
-            a_l1 = asc2.load(a_gm, [m_off, k_off], [single_core_m, step_ka], asc2.TileLocation.L1)
+            a_l1 = asc2.load(a_gm, [m_off, k_off], [single_core_m, step_ka], asc2.TensorLocation.L1)
             for k_l0 in range(asc2.ceildiv(step_ka, base_k), unroll_factor=unroll_factor, parallel=True):
-                a_l0 = asc2.copy(a_l1, [0, k_l0 * base_k], [single_core_m, base_k], asc2.TileLocation.L0A)
+                a_l0 = asc2.copy(a_l1, [0, k_l0 * base_k], [single_core_m, base_k], asc2.TensorLocation.L0A)
                 b_l0 = asc2.copy(b_l1, [k_mid * step_ka + k_l0 * base_k, 0], [base_k, single_core_n],
-                                 asc2.TileLocation.L0B)
+                                 asc2.TensorLocation.L0B)
                 asc2.matmul_acc(acc, a_l0, b_l0)
     acc = acc.to(quant_type)
     asc2.store(acc, c_gm, [m_off, n_off])

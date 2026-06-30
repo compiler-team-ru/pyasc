@@ -13,8 +13,8 @@ import torch
 @asc2.jit(always_compile=True, vf_fusion=True)
 def softmax_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, num_rows: int, num_cols: int,
                    tile_size: asc2.ConstExpr[int]):
-    x_gm = asc2.tensor(x_ptr, [num_rows, num_cols])
-    out_gm = asc2.tensor(out_ptr, [num_rows, num_cols])
+    x_gm = asc2.global_tensor(x_ptr, [num_rows, num_cols])
+    out_gm = asc2.global_tensor(out_ptr, [num_rows, num_cols])
     for i in range(asc2.block_idx(), num_rows, asc2.block_num(), parallel=True):
         row = asc2.load(x_gm, [i, 0], [1, tile_size])
         row_minus_max = row - asc2.reduce_max(row)

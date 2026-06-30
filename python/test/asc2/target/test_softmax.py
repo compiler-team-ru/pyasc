@@ -20,8 +20,8 @@ DYNAMIC = "dynamic"
 @asc2.jit(static_alloc=True, reuse_ub=True)
 def softmax(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows, input_num_cols,
             tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
-    in_gm = asc2.tensor(input_ptr, [input_num_rows, input_num_cols])
-    out_gm = asc2.tensor(output_ptr, [input_num_rows, input_num_cols])
+    in_gm = asc2.global_tensor(input_ptr, [input_num_rows, input_num_cols])
+    out_gm = asc2.global_tensor(output_ptr, [input_num_rows, input_num_cols])
 
     for i in range(asc2.block_idx(), input_num_rows, asc2.block_num(), unroll_factor=unroll_factor, parallel=True):
         row = asc2.load(in_gm, [i, 0], [1, tile_shape[1]], pad_value=float('-inf'))
