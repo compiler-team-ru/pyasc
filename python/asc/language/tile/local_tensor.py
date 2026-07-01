@@ -63,7 +63,7 @@ class LocalTensor(IRValue):
             raise RuntimeError("Tensor shape must have at least one dimension")
         self.size: Final = math.prod(self.shape)
         self.rank: Final = len(self.shape)
-        self.location: Final = ir.get_tile_location(ir_type)
+        self.location: Final = ir.get_tensor_location(ir_type)
 
     @classmethod
     def from_ir(cls, handle: IRHandle) -> Self:

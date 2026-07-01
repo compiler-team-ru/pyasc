@@ -97,7 +97,7 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
         offsets = verify_offsets(offsets, src.rank)
     if location == TensorLocation.UB:
         check_data_alignment(shape, src.dtype)
-    ir_type = ir.get_asctile_TileType(list(shape), src.dtype.to_ir(), location)
+    ir_type = ir.get_asctile_LocalTensorType(list(shape), src.dtype.to_ir(), location)
     handle = global_builder.get_ir_builder().create_asctile_CopyOp(ir_type, src.to_ir(), to_ir_list(offsets))
     return LocalTensor(handle)
 
@@ -192,7 +192,7 @@ def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[It
     shape = verify_shape(shape, src.rank)
     if location == TensorLocation.UB:
         check_data_alignment(shape, src.dtype)
-    ir_type = ir.get_asctile_TileType(list(shape), src.dtype.to_ir(), location)
+    ir_type = ir.get_asctile_LocalTensorType(list(shape), src.dtype.to_ir(), location)
     pad_value = _mat(pad_value, src.dtype).to_ir() if pad_value is not None else None
     real_shape = [] if real_shape is None else to_ir_list(verify_real_shape(real_shape, shape))
     handle = builder.create_asctile_LoadOp(ir_type, src.to_ir(), offsets, pad_value, real_shape)

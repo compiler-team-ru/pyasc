@@ -27,6 +27,7 @@ class AscTile_EnumAttr<EnumAttrInfo info, string name = "">
   let assemblyFormat = "`<` $value `>`";
 }
 
+// TODO: rename to TensorLocation
 def AscTile_TileLocationAttr : I32EnumAttr<"TileLocation", "tile location", [
   I32EnumAttrCase<"L0A", 23>,
   I32EnumAttrCase<"L0B", 24>,
@@ -94,5 +95,15 @@ def AscTile_RoundMode : I32EnumAttr<"RoundMode", "cast rounding mode", [
 }
 
 def AscTile_RoundModeAttr : AscTile_EnumAttr<AscTile_RoundMode, "round_mode">;
+
+def AscTile_GlobalTensorAttr : AscTile_Attr<"GlobalTensor", "global"> {
+  let summary = "An encoding for a global tensor";
+}
+
+def AscTile_LocalTensorAttr : AscTile_Attr<"LocalTensor", "local"> {
+  let summary = "An encoding for a local tensor";
+  let parameters = (ins "TileLocation":$loc);
+  let assemblyFormat = "`<` $loc `>`";
+}
 
 #endif // ASCTILE_ATTRIBUTES_TD

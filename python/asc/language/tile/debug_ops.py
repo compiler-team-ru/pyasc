@@ -77,6 +77,6 @@ def inline_vf(code: str, shape: Tuple[int, ...], dtype: DataType,
             if tensor.location != TensorLocation.UB:
                 raise RuntimeError(f"{tensor_name} tensor must have UB location, got {tensor.location.name}")
             ir_tiles.append(tensor.to_ir())
-    ir_type = ir.get_asctile_TileType(shape, dtype.to_ir(), TensorLocation.UB)
+    ir_type = ir.get_asctile_LocalTensorType(shape, dtype.to_ir(), TensorLocation.UB)
     handle = global_builder.get_ir_builder().create_asctile_InlineVFOp(ir_type, ir_tiles, code)
     return LocalTensor(handle)

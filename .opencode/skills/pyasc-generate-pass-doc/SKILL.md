@@ -311,7 +311,7 @@ Keep examples concise. Use comments to explain, not verbose prose.
 
 **Pseudo-MLIR guidelines**: Examples should use simplified, readable IR rather than exact test case syntax:
 - Use placeholder operation names (e.g., `op.x`, `op.y`) if actual names are verbose
-- Simplify types to focus on the transformation (e.g., `tile` instead of full `!asctile.tile` signatures)
+- Simplify types to focus on the transformation (e.g., `tensor<..., UB>` or `tensor` instead of full `tensor<..., #asctile.local<UB>>` signatures)
 - Omit boilerplate (function signatures, module wrappers) unless relevant
 - Focus on the key IR elements that change
 

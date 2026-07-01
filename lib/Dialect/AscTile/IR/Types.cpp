@@ -20,109 +20,44 @@
 using namespace mlir;
 using namespace mlir::asctile;
 
-//===----------------------------------------------------------------------===//
-// Custom assembly format
-//===----------------------------------------------------------------------===//
-
-namespace {
-
-ParseResult parseShapeXType(AsmParser& odsParser, SmallVectorImpl<int64_t>& shape, Type& elementType)
-{
-    if (odsParser.parseOptionalStar()) {
-        // No '*' consumed => shaped type is ranked (i.e. has shape)
-        if (odsParser.parseDimensionList(shape)) {
-            odsParser.emitError(
-                odsParser.getNameLoc(), "either dimension list (ranked) or '*' symbol (unranked) must "
-                                        "be declared");
-            return ParseResult::failure();
-        }
-    } else if (odsParser.parseXInDimensionList()) {
-        return ParseResult::failure();
-    }
-    if (odsParser.parseType(elementType)) {
-        return ParseResult::failure();
-    }
-    return ParseResult::success();
-}
-
-void printShapeXType(AsmPrinter& odsPrinter, ArrayRef<int64_t> shape, Type elementType)
-{
-    if (shape.empty()) {
-        odsPrinter << "*x";
-    } else {
-        for (int64_t dim : shape) {
-            if (ShapedType::isDynamic(dim))
-                odsPrinter << "?";
-            else
-                odsPrinter << dim;
-            odsPrinter << "x";
-        }
-    }
-    odsPrinter << elementType;
-}
-
-ParseResult parseTileLocation(AsmParser& odsParser, TileLocationAttr& loc)
-{
-    StringRef name;
-    if (odsParser.parseKeyword(&name))
-        return ParseResult::failure();
-    auto maybeLoc = symbolizeTileLocation(name);
-    if (!maybeLoc)
-        return ParseResult::failure();
-    loc = TileLocationAttr::get(odsParser.getContext(), *maybeLoc);
-    return ParseResult::success();
-}
-
-void printTileLocation(AsmPrinter& odsPrinter, TileLocationAttr loc)
-{
-    odsPrinter << stringifyTileLocation(loc.getValue());
-}
-
-} // namespace
-
 #define GET_TYPEDEF_CLASSES
 #include "ascir/Dialect/AscTile/IR/AscTileTypes.cpp.inc"
 
 //===----------------------------------------------------------------------===//
-// TensorType
+// GlobalTensorType
 //===----------------------------------------------------------------------===//
 
-using AscTensorType = mlir::asctile::TensorType;
-
-AscTensorType AscTensorType::get(ArrayRef<int64_t> shape, Type elementType)
+RankedTensorType GlobalTensorType::get(ArrayRef<int64_t> shape, Type elementType)
 {
-    return AscTensorType::get(elementType.getContext(), shape, elementType);
+    return RankedTensorType::get(shape, elementType, GlobalTensorAttr::get(elementType.getContext()));
 }
 
-ShapedType AscTensorType::cloneWith(std::optional<ArrayRef<int64_t>> shape, Type elementType) const
-{
-    if (shape)
-        return AscTensorType::get(*shape, elementType);
-    return AscTensorType::get(getShape(), elementType);
-}
+TypeID GlobalTensorType::resolveTypeID() { return TypeID::get<RankedTensorType>(); }
 
-bool AscTensorType::hasRank() const { return !getShape().empty(); }
+bool GlobalTensorType::classof(Type type)
+{
+    auto base = llvm::dyn_cast<RankedTensorType>(type);
+    return base && llvm::isa<GlobalTensorAttr>(base.getEncoding());
+}
 
 //===----------------------------------------------------------------------===//
-// TileType
+// LocalTensorType
 //===----------------------------------------------------------------------===//
 
-TileType TileType::get(ArrayRef<int64_t> shape, Type elementType, TileLocation loc)
+TileLocation LocalTensorType::getLoc() const { return llvm::cast<LocalTensorAttr>(getEncoding()).getLoc(); }
+
+RankedTensorType LocalTensorType::get(ArrayRef<int64_t> shape, Type elementType, TileLocation loc)
 {
-    auto* ctx = elementType.getContext();
-    return TileType::get(ctx, shape, elementType, TileLocationAttr::get(ctx, loc));
+    return RankedTensorType::get(shape, elementType, LocalTensorAttr::get(elementType.getContext(), loc));
 }
 
-ShapedType TileType::cloneWith(std::optional<ArrayRef<int64_t>> shape, Type elementType) const
+TypeID LocalTensorType::resolveTypeID() { return TypeID::get<RankedTensorType>(); }
+
+bool LocalTensorType::classof(Type type)
 {
-    if (shape)
-        return TileType::get(*shape, elementType, getLoc());
-    return TileType::get(getShape(), elementType, getLoc());
+    auto base = llvm::dyn_cast<RankedTensorType>(type);
+    return base && llvm::isa<LocalTensorAttr>(base.getEncoding());
 }
-
-bool TileType::hasRank() const { return !getShape().empty(); }
-
-TileLocation TileType::getLoc() const { return getLocAttr().getValue(); }
 
 //===----------------------------------------------------------------------===//
 // AscTileDialect

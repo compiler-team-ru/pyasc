@@ -20,35 +20,15 @@ class AscTile_Type<string name, string typeMnemonic, list<Trait> traits = []>
   let mnemonic = typeMnemonic;
 }
 
-def Tensor : AscTile_Type<"Tensor", "tensor",
-                       [DeclareTypeInterfaceMethods<ShapedTypeInterface>]> {
-  let parameters = (ins ArrayRefParameter<"int64_t">:$shape,
-                        "Type":$elementType);
-  let builders = [
-    TypeBuilderWithInferredContext<(ins
-      "ArrayRef<int64_t>":$shape, "Type":$elementType)>,
-  ];
-  let assemblyFormat = "`<` custom<ShapeXType>($shape, $elementType) `>`";
-}
+// TODO: rename to GlobalTensor
+def Tensor : Type<
+  CPred<"::llvm::isa<::mlir::asctile::GlobalTensorType>($_self)">,
+  "global tensor", "::mlir::asctile::GlobalTensorType">;
 
-def Tile : AscTile_Type<"Tile", "tile", [
-  DeclareTypeInterfaceMethods<ShapedTypeInterface>, ValueSemantics
-]> {
-  let parameters = (ins ArrayRefParameter<"int64_t">:$shape,
-                        "Type":$elementType, "TileLocationAttr":$locAttr);
-  let builders = [
-    TypeBuilderWithInferredContext<(ins
-      "ArrayRef<int64_t>":$shape, "Type":$elementType,
-      CArg<"TileLocation", "TileLocation::UB">:$loc)>,
-  ];
-  let assemblyFormat = [{
-    `<` custom<ShapeXType>($shape, $elementType) `,`
-    custom<TileLocation>($locAttr) `>`
-  }];
-  let extraClassDeclaration = [{
-    TileLocation getLoc() const;
-  }];
-}
+// TODO: rename to LocalTensor
+def Tile : Type<
+  CPred<"::llvm::isa<::mlir::asctile::LocalTensorType>($_self)">,
+  "local tensor", "::mlir::asctile::LocalTensorType">;
 
 def IsTileTypePred : And<[
   CPred<"::llvm::isa<::mlir::asctile::TileType>($_self)">,

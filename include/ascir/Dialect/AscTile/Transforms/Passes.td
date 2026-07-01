@@ -444,11 +444,11 @@ def VectorTransposeToLoad : Pass<"asctile-vector-transpose-to-load", "func::Func
     Example:
     ```mlir
     // Before:
-    %1 = asctile.load : !asctile.tile<16x32xf32, UB>
-    %2 = asctile.transpose %1 : !asctile.tile<16x32xf32, UB> to !asctile.tile<32x16xf32, UB>
+    %1 = asctile.load : tensor<16x32xf32, UB>
+    %2 = asctile.transpose %1 : tensor<16x32xf32, UB> to tensor<32x16xf32, UB>
 
     // After:
-    %2 = asctile.load {asctile.transpose_dims = [1, 0]} : !asctile.tile<32x16xf32, UB>
+    %2 = asctile.load {asctile.transpose_dims = [1, 0]} : tensor<32x16xf32, UB>
     ```
   }];
 }
