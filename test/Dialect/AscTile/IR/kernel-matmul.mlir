@@ -8,19 +8,19 @@ module {
     %c2_i32 = arith.constant 2 : i32
     %cst = arith.constant 0.000000e+00 : f16
     %c0_i32 = arith.constant 0 : i32
-    %0 = asctile.tensor %arg0() : memref<*xf16, 22>, !asctile.tensor<64x128xf16>
-    %1 = asctile.tensor %arg1() : memref<*xf16, 22>, !asctile.tensor<128x256xf16>
-    %2 = asctile.tensor %arg2() : memref<*xf32, 22>, !asctile.tensor<64x256xf32>
-    %3 = asctile.accumulator : !asctile.tile<64x256xf32, L0C>
-    %4 = asctile.load %0[%c0_i32, %c0_i32], %cst : !asctile.tensor<64x128xf16>, !asctile.tile<64x128xf16, L1>
-    %5 = asctile.load %1[%c0_i32, %c0_i32], %cst : !asctile.tensor<128x256xf16>, !asctile.tile<128x256xf16, L1>
+    %0 = asctile.tensor %arg0() : memref<*xf16, 22>, tensor<64x128xf16, #asctile.global>
+    %1 = asctile.tensor %arg1() : memref<*xf16, 22>, tensor<128x256xf16, #asctile.global>
+    %2 = asctile.tensor %arg2() : memref<*xf32, 22>, tensor<64x256xf32, #asctile.global>
+    %3 = asctile.accumulator : tensor<64x256xf32, #asctile.local<L0C>>
+    %4 = asctile.load %0[%c0_i32, %c0_i32], %cst : tensor<64x128xf16, #asctile.global>, tensor<64x128xf16, #asctile.local<L1>>
+    %5 = asctile.load %1[%c0_i32, %c0_i32], %cst : tensor<128x256xf16, #asctile.global>, tensor<128x256xf16, #asctile.local<L1>>
     scf.for %arg3 = %c0_i32 to %c2_i32 step %c1_i32  : i32 {
       %6 = arith.muli %arg3, %c64_i32 : i32
-      %7 = asctile.copy %4[%c0_i32, %6] : !asctile.tile<64x128xf16, L1>, !asctile.tile<64x64xf16, L0A>
-      %8 = asctile.copy %5[%6, %c0_i32] : !asctile.tile<128x256xf16, L1>, !asctile.tile<64x256xf16, L0B>
-      asctile.matmul_acc %3, %7, %8 : <64x256xf32, L0C>, <64x64xf16, L0A>, <64x256xf16, L0B>
+      %7 = asctile.copy %4[%c0_i32, %6] : tensor<64x128xf16, #asctile.local<L1>>, tensor<64x64xf16, #asctile.local<L0A>>
+      %8 = asctile.copy %5[%6, %c0_i32] : tensor<128x256xf16, #asctile.local<L1>>, tensor<64x256xf16, #asctile.local<L0B>>
+      asctile.matmul_acc %3, %7, %8 : tensor<64x256xf32, #asctile.local<L0C>>, tensor<64x64xf16, #asctile.local<L0A>>, tensor<64x256xf16, #asctile.local<L0B>>
     } {asctile.parallel, asctile.unroll_factor = 2 : index}
-    asctile.store %3, %2[%c0_i32, %c0_i32] : !asctile.tile<64x256xf32, L0C>, !asctile.tensor<64x256xf32>
+    asctile.store %3, %2[%c0_i32, %c0_i32] : tensor<64x256xf32, #asctile.local<L0C>>, tensor<64x256xf32, #asctile.global>
     return
   }
 }

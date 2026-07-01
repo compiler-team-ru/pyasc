@@ -25,6 +25,36 @@
 #define GET_ATTRDEF_CLASSES
 #include "ascir/Dialect/AscTile/IR/AscTileAttributes.h.inc"
 
+namespace mlir {
+namespace asctile {
+
+class GlobalTensorType : public RankedTensorType {
+public:
+    using RankedTensorType::RankedTensorType;
+
+    static RankedTensorType get(ArrayRef<int64_t> shape, Type elementType);
+    static TypeID resolveTypeID();
+    static bool classof(Type type);
+};
+
+using TensorType = GlobalTensorType; // TODO: remove compatibility alias
+
+class LocalTensorType : public RankedTensorType {
+public:
+    using RankedTensorType::RankedTensorType;
+
+    TileLocation getLoc() const;
+
+    static RankedTensorType get(ArrayRef<int64_t> shape, Type elementType, TileLocation loc = TileLocation::UB);
+    static TypeID resolveTypeID();
+    static bool classof(Type type);
+};
+
+using TileType = LocalTensorType; // TODO: remove compatibility alias
+
+} // namespace asctile
+} // namespace mlir
+
 #define GET_TYPEDEF_CLASSES
 #include "ascir/Dialect/AscTile/IR/AscTileTypes.h.inc"
 

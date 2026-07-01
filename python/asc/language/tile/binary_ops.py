@@ -302,7 +302,7 @@ def matmul(input: LocalTensor, other: LocalTensor, bias: Optional[LocalTensor] =
     check_matmul_arguments(input, other, hf32)
     check_bias(bias, other.shape[1])
     builder = global_builder.get_ir_builder()
-    ir_type = ir.get_asctile_TileType([input.shape[0], other.shape[1]], KT.float32.to_ir(), TensorLocation.L0C)
+    ir_type = ir.get_asctile_LocalTensorType([input.shape[0], other.shape[1]], KT.float32.to_ir(), TensorLocation.L0C)
     bias_ir = bias.to_ir() if bias is not None else None
     handle = builder.create_asctile_MatmulOp(ir_type, input.to_ir(), other.to_ir(), bias_ir, hf32)
     return LocalTensor(handle)

@@ -235,14 +235,14 @@ In most cases, all **CHECK** directives should be placed before the function def
 
 ```mlir
 // CHECK-LABEL: func.func @test_pattern_match
-// CHECK-NEXT: asctile.adds %arg0, %cst : !asctile.tile<16xf32, UB>  // OK if no constants between
+// CHECK-NEXT: asctile.adds %arg0, %cst : tensor<16xf32, #asctile.local<UB>>  // OK if no constants between
 // CHECK-NEXT: return
 // CHECK-NEXT:}
-func.func @test_pattern_match(%arg0: !asctile.tile<16xf32, UB>) -> !asctile.tile<16xf32, UB> {
+func.func @test_pattern_match(%arg0: tensor<16xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>> {
   %cst = arith.constant 0.0 : f32
-  %tile = asctile.splat %cst : !asctile.tile<16xf32, UB>
-  %result = arith.addf %arg0, %tile : !asctile.tile<16xf32, UB>
-  return %result : !asctile.tile<16xf32, UB>
+  %tile = asctile.splat %cst : tensor<16xf32, #asctile.local<UB>>
+  %result = arith.addf %arg0, %tile : tensor<16xf32, #asctile.local<UB>>
+  return %result : tensor<16xf32, #asctile.local<UB>>
 }
 ```
 
@@ -255,8 +255,8 @@ func.func @test_pattern_match(%arg0: !asctile.tile<16xf32, UB>) -> !asctile.tile
 // CHECK-NEXT: return
 // CHECK-NEXT:}
 func.func @test_walk_transform(%arg0: memref<1024xf32>, %arg1: memref<1024xf32>) {
-  %tile = asctile.load %arg0[0] : !asctile.tile<128xf32>
-  asctile.store %tile, %arg1[0] : !asctile.tile<128xf32>
+  %tile = asctile.load %arg0[0] : tensor<128xf32, #asctile.local<UB>>
+  asctile.store %tile, %arg1[0] : tensor<128xf32, #asctile.local<UB>>
   return
 }
 ```
@@ -270,7 +270,7 @@ func.func @test_walk_transform(%arg0: memref<1024xf32>, %arg1: memref<1024xf32>)
 // CHECK-NEXT: return
 // CHECK-NEXT:}
 func.func @test_attribute_handling(%arg0: memref<1024xf32>) {
-  %tile = asctile.load %arg0[0] {unroll_factor = 4 : i64} : !asctile.tile<128xf32>
+  %tile = asctile.load %arg0[0] {unroll_factor = 4 : i64} : tensor<128xf32, #asctile.local<UB>>
   return
 }
 ```

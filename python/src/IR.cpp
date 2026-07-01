@@ -422,23 +422,23 @@ void bindAscTileType(py::module& m)
     using namespace pybind11::literals;
 
     m.def(
-        "get_asctile_TensorType",
-        [](std::vector<int64_t>& shape, Type& elementType) -> Type {
-            return asctile::TensorType::get(shape, elementType);
+        "get_asctile_GlobalTensorType",
+        [](const std::vector<int64_t>& shape, Type elementType) -> Type {
+            return asctile::GlobalTensorType::get(shape, elementType);
         },
         "shape"_a, "element_type"_a);
     m.def(
-        "get_asctile_TileType",
-        [](std::vector<int64_t>& shape, Type& elementType, asctile::TileLocation loc) -> Type {
-            return asctile::TileType::get(shape, elementType, loc);
+        "get_asctile_LocalTensorType",
+        [](const std::vector<int64_t>& shape, Type elementType, asctile::TileLocation loc) -> Type {
+            return asctile::LocalTensorType::get(shape, elementType, loc);
         },
         "shape"_a, "element_type"_a, "loc"_a = asctile::TileLocation::UB);
     m.def(
-        "get_tile_location",
-        [](const Type& type) -> asctile::TileLocation {
-            auto tileType = llvm::dyn_cast_if_present<asctile::TileType>(type);
+        "get_tensor_location",
+        [](Type type) -> asctile::TileLocation {
+            auto tileType = llvm::dyn_cast_if_present<asctile::LocalTensorType>(type);
             if (!tileType)
-                throw std::runtime_error("get_tile_location(): must be TileType");
+                throw std::runtime_error("get_tensor_location(): must be LocalTensorType");
             return tileType.getLoc();
         },
         "type"_a);

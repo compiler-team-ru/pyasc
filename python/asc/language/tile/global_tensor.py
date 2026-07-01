@@ -138,6 +138,6 @@ def global_tensor(base: GlobalAddress, shape: Iterable[RuntimeInt]) -> GlobalTen
         else:
             static_sizes.append(ir.dynshape)
             dynamic_sizes.append(mat(dim, int32).to_ir())
-    ir_type = ir.get_asctile_TensorType(static_sizes, base.dtype.to_ir())
+    ir_type = ir.get_asctile_GlobalTensorType(static_sizes, base.dtype.to_ir())
     handle = global_builder.get_ir_builder().create_asctile_TensorOp(ir_type, base.to_ir(), dynamic_sizes)
     return GlobalTensor.from_ir(handle)

@@ -206,7 +206,7 @@ def zeros_acc(shape: Iterable[int], dtype: DataType, *, bias: Optional[LocalTens
     check_dtype("dtype", dtype, KT.float32)
     check_bias(bias, shape[1])
     shape = verify_shape(shape)
-    ir_type = ir.get_asctile_TileType(list(shape), dtype.to_ir(), TensorLocation.L0C)
+    ir_type = ir.get_asctile_LocalTensorType(list(shape), dtype.to_ir(), TensorLocation.L0C)
     bias_ir = bias.to_ir() if bias is not None else None
     handle = global_builder.get_ir_builder().create_asctile_AccumulatorOp(ir_type, bias_ir)
     return LocalTensor(handle)
@@ -342,6 +342,6 @@ def concat(*inputs: LocalTensor) -> LocalTensor:
     except ValueError:
         raise RuntimeError("LocalTensor dtype size must fit an integer number of bytes")
     result_shape = [sum(inp.shape[0] for inp in inputs), *same_shape]
-    ir_type = ir.get_asctile_TileType(result_shape, dtype.to_ir(), TensorLocation.UB)
+    ir_type = ir.get_asctile_LocalTensorType(result_shape, dtype.to_ir(), TensorLocation.UB)
     handle = global_builder.get_ir_builder().create_asctile_ConcatOp(ir_type, [inp.to_ir() for inp in inputs])
     return LocalTensor.from_ir(handle)

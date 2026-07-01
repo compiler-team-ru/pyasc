@@ -34,7 +34,7 @@ def constant_tile(value: Real, shape: TensorShape, dtype: DataType,
     attr_builder = attr_builders.get(str(dtype))
     if attr_builder is None:
         raise ValueError(f"Unsupported dtype: {dtype}")
-    ir_type = ir.get_asctile_TileType(shape, dtype.to_ir(), loc)
+    ir_type = ir.get_asctile_LocalTensorType(shape, dtype.to_ir(), loc)
     splat_attr = ir.get_splat_attr(ir_type, attr_builder(value))
     handle = builder.create_arith_ConstantOp(splat_attr)
     return LocalTensor.from_ir(handle)
@@ -42,7 +42,7 @@ def constant_tile(value: Real, shape: TensorShape, dtype: DataType,
 
 def splat_tile(value: PlainValue, shape: TensorShape, dtype: DataType,
                loc: TensorLocation = TensorLocation.UB) -> LocalTensor:
-    ir_type = ir.get_asctile_TileType(shape, dtype.to_ir(), loc)
+    ir_type = ir.get_asctile_LocalTensorType(shape, dtype.to_ir(), loc)
     handle = global_builder.get_ir_builder().create_asctile_SplatOp(ir_type, value.cast(dtype).to_ir())
     return LocalTensor.from_ir(handle)
 
