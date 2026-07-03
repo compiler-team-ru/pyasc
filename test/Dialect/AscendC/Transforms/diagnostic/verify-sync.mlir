@@ -104,3 +104,16 @@ func.func @no_warning_for_correct_two_que_binds(%que_bind1 : !ascendc.que_bind<g
   ascendc.que_bind.free_tensor %que_bind2, %tensor4 : !ascendc.que_bind<gm, vecin, 1>, !ascendc.local_tensor<*xf16>
   return
 }
+
+// -----
+
+// The queue's pending op list holds an EnQue op ahead of the matching AllocTensor,
+// so FreeTensor must skip the non-alloc op (dyn_cast returns null) before finding its alloc.
+// expected-note@below {{queue declared here}}
+func.func @free_skips_non_alloc_op_in_queue(%que_bind : !ascendc.que_bind<gm, vecin, 1>, %other_tensor: !ascendc.local_tensor<*xf16>) {
+  // expected-warning@below {{EnQue: there is no corresponding call to DeQue for this tensor}}
+  ascendc.que_bind.enque_tensor %que_bind, %other_tensor : !ascendc.que_bind<gm, vecin, 1>, !ascendc.local_tensor<*xf16>
+  %tensor1 = ascendc.que_bind.alloc_tensor %que_bind : !ascendc.que_bind<gm, vecin, 1>, !ascendc.local_tensor<*xf16>
+  ascendc.que_bind.free_tensor %que_bind, %tensor1 : !ascendc.que_bind<gm, vecin, 1>, !ascendc.local_tensor<*xf16>
+  return
+}
