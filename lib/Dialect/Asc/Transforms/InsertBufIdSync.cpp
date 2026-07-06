@@ -48,6 +48,9 @@ class InsertBufIdSync {
         if (isa<ascendc::CopyToL0Op>(op)) {
             return ascendc::Pipe::PIPE_MTE1;
         }
+        if (isa<ascendc::FillOp>(op)) {
+            return ascendc::Pipe::PIPE_MTE2;
+        }
         if (isa<ascendc::FixpipeOp>(op)) {
             return ascendc::Pipe::PIPE_FIX;
         }
