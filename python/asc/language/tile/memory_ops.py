@@ -140,7 +140,7 @@ def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[It
         real_shape: Explicitly specify how many elements to load from the global tensor.
             The local tensor will have the given ``shape``, but only ``real_shape`` elements are loaded;
             remaining elements are filled with ``pad_value``. Must match the rank of ``shape`` and each dimension must
-            not exceed the corresponding tensor dimension.
+            not exceed the corresponding tensor dimension. Not supported for ``TensorLocation.L1``, ``L0A``, or ``L0B``.
         pad_value: The value to use for padding when ``real_shape`` is provided. Default is 0.
 
     Returns:
@@ -150,7 +150,7 @@ def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[It
     Raises:
         TypeError: If src is not a GlobalTensor or location is not a TensorLocation
         RuntimeError: If shape is invalid, data alignment check fails, offsets rank mismatch,
-            or real_shape exceeds tensor shape
+            real_shape exceeds tensor shape, or ``real_shape`` is used with ``TensorLocation.L1``, ``L0A``, or ``L0B``
 
     Note:
         Only 1D and 2D tensors are fully supported and stable; higher-dimensional support is experimental.
@@ -184,6 +184,8 @@ def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[It
     """
     check_type("src", src, GlobalTensor)
     check_type("location", location, TensorLocation)
+    if real_shape is not None and location in (TensorLocation.L1, TensorLocation.L0A, TensorLocation.L0B):
+        raise RuntimeError(f"'real_shape' argument is not supported for {location} in copy_in")
     builder = global_builder.get_ir_builder()
     offsets = to_ir_list(verify_offsets(offsets, src.rank))
     if shape is None:

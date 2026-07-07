@@ -427,14 +427,14 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
         bool isTransposeB = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeB);
         auto dstShapeCols = rewriter.create<arith::MinSIOp>(loc, srcInfo.shape[1], consts.i32(dstShape[1]));
         auto dstShapeRows = rewriter.create<arith::MinSIOp>(loc, srcInfo.shape[0], consts.i32(dstShape[0]));
-        Value nValue = dstShapeRows;
-        Value dValue = dstShapeCols;
-        if (auto realShape = op.getRealShape(); !realShape.empty()) {
-            Value realRows = rewriter.getRemappedValue(realShape[0]);
-            Value realCols = rewriter.getRemappedValue(realShape[1]);
-            nValue = rewriter.create<arith::MinSIOp>(loc, dstShapeRows, realRows);
-            dValue = rewriter.create<arith::MinSIOp>(loc, dstShapeCols, realCols);
-        }
+        auto offsets = op.getOffsets();
+        assert(offsets.size() == 2);
+        Value availableRows = rewriter.create<arith::MaxSIOp>(
+            loc, const0, rewriter.create<arith::SubIOp>(loc, srcInfo.shape[0], offsets[0]));
+        Value availableCols = rewriter.create<arith::MaxSIOp>(
+            loc, const0, rewriter.create<arith::SubIOp>(loc, srcInfo.shape[1], offsets[1]));
+        Value nValue = rewriter.create<arith::MinSIOp>(loc, dstShapeRows, availableRows);
+        Value dValue = rewriter.create<arith::MinSIOp>(loc, dstShapeCols, availableCols);
         constexpr int64_t maxSrcDValue = 65535;
         auto dstRowStride = consts.i32(dstShape[0]);
         auto needsLoop =

@@ -48,21 +48,17 @@ def matmul_v3_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr
         tile_k = asc2.ceildiv(k, k_L1) * k_L1
         if not is_a_transpose:
             shape = [tile_m, tile_k]
-            real_shape = [m, k]
         else:
             shape = [tile_k, tile_m]
-            real_shape = [k, m]
-        a_l1 = asc2.copy_in(a_gm, [0, 0], shape, real_shape=real_shape, location=asc2.TensorLocation.L1)
+        a_l1 = asc2.copy_in(a_gm, [0, 0], shape, location=asc2.TensorLocation.L1)
     elif is_B_full_load:
         tile_k = asc2.ceildiv(k, k_L1) * k_L1
         tile_n = asc2.ceildiv(n, base_n) * base_n
         if not is_b_transpose:
             shape = [tile_k, tile_n]
-            real_shape = [k, n]
         else:
             shape = [tile_n, tile_k]
-            real_shape = [n, k]
-        b_l1 = asc2.copy_in(b_gm, [0, 0], shape, real_shape=real_shape, location=asc2.TensorLocation.L1)
+        b_l1 = asc2.copy_in(b_gm, [0, 0], shape, location=asc2.TensorLocation.L1)
     tile_uf, m_uf, n_uf, k_l1_uf, k_l0_uf = double_buffering
     for tile_id in range(asc2.block_idx(), tiles_num, asc2.block_num(), unroll_factor=tile_uf, parallel=True):
         m_tile_off = m_L1 * (tile_id / n_blocks)
@@ -84,22 +80,20 @@ def matmul_v3_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr
                     acc = asc2.zeros_acc([base_m, base_n], dtype=asc2.float32)
                 for outer_k in range(asc2.ceildiv(k, k_L1), unroll_factor=k_l1_uf, parallel=True):
                     k_gm_off = outer_k * k_L1
-                    remaining_k = k - k_gm_off
-                    actual_k = min(k_L1, remaining_k)
                     if not is_A_full_load:
                         if not is_a_transpose:
                             a_l1 = asc2.copy_in(a_gm, [m_gm_off, k_gm_off], [base_m, k_L1],
-                                                real_shape=[base_m, actual_k], location=asc2.TensorLocation.L1)
+                                                location=asc2.TensorLocation.L1)
                         else:
                             a_l1 = asc2.copy_in(a_gm, [k_gm_off, m_gm_off], [k_L1, base_m],
-                                                real_shape=[actual_k, base_m], location=asc2.TensorLocation.L1)
+                                                location=asc2.TensorLocation.L1)
                     if not is_B_full_load:
                         if not is_b_transpose:
                             b_l1 = asc2.copy_in(b_gm, [k_gm_off, n_gm_off], [k_L1, base_n],
-                                                real_shape=[actual_k, base_n], location=asc2.TensorLocation.L1)
+                                                location=asc2.TensorLocation.L1)
                         else:
                             b_l1 = asc2.copy_in(b_gm, [n_gm_off, k_gm_off], [base_n, k_L1],
-                                                real_shape=[base_n, actual_k], location=asc2.TensorLocation.L1)
+                                                location=asc2.TensorLocation.L1)
                     for inner_k in range(asc2.ceildiv(k_L1, base_k), unroll_factor=k_l0_uf, parallel=True):
                         ka_off = inner_k * base_k
                         kb_off = inner_k * base_k
