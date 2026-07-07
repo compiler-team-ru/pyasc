@@ -37,7 +37,7 @@ def vbilinear_kernel(x: asc.GlobalAddress, x0: asc.GlobalAddress, y: asc.GlobalA
     pipe.init_buffer(que=in_queue_x0, num=1, len=src0_offset_len * x0.dtype.sizeof())
     pipe.init_buffer(que=in_queue_y, num=1, len=src1_len * y.dtype.sizeof())
     pipe.init_buffer(que=out_queue_z, num=1, len=dst_len * z.dtype.sizeof())
-    pipe.init_buffer(buf=tmp_buf, num=(src0_len + src1_len) * x.dtype.sizeof())
+    pipe.init_buffer(buf=tmp_buf, len=(src0_len + src1_len) * x.dtype.sizeof())
     copy_in(x_gm, x0_gm, y_gm, in_queue_x, in_queue_x0, in_queue_y, src0_len, src0_offset_len, src1_len)
     compute(in_queue_x, in_queue_x0, in_queue_y, out_queue_z, tmp_buf, h_repeat, repeat_mode, dst_blk_stride,
             v_r_offset, v_repeat)

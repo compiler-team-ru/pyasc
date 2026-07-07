@@ -1213,7 +1213,7 @@ class TPipeDocstring:
             pipe = asc.Tpipe()
             buf = asc.TBuf(asc.TPosition.A1)
             len = 128
-            pipe.init_buffer(buf=buf, num=len)
+            pipe.init_buffer(buf=buf, len=len)
 
         """
 

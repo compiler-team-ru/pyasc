@@ -306,6 +306,7 @@ pip install pyasc
   pip3 list | grep -w "pyasc"
   ```
 
+<a name="envvar-config"></a>
 ## ⚙️ 运行环境变量配置
 
 > [!NOTE] 使用前须知
@@ -336,9 +337,10 @@ unset LD_PRELOAD
 
 **注意：若环境中已安装多个版本的CANN软件包，设置上述环境变量时，请确保路径指向的是配套版本软件包的目录。**
 
+<a name="example-verification"></a>
 ## ▶️ 样例运行验证
 
-开发者使用Ascend C Python编程语言实现自定义算子后，可以进行算子功能验证。本代码仓提供了部分算子实现的样例，具体请参考[tutorials](../python/tutorials/)目录下的样例，样例均采用torch输入输出tensor，请确保已经完成[安装PyTorch框架和torch_npu插件](#torch_install)步骤和[运行环境变量配置](#⚙️-运行环境变量配置)步骤。
+开发者使用Ascend C Python编程语言实现自定义算子后，可以进行算子功能验证。本代码仓提供了部分算子实现的样例，具体请参考[examples](../examples)目录下的样例，样例均采用torch输入输出tensor，请确保已经完成[安装PyTorch框架和torch_npu插件](#torch_install)步骤和[运行环境变量配置](#envvar-config)步骤。
 
 - 安装PyTorch框架和torch_npu插件<a name="torch_install"></a>
 
@@ -377,11 +379,11 @@ unset LD_PRELOAD
    以Add算子为例，执行如下命令可进行功能验证。
    ```bash
    cd pyasc
-   python3 ./python/tutorials/01_add/add.py
+   python3 ./examples/01_add/add.py
    ```
-   注：完整的运行命令如下所示，通过参数[RUN_MODE]配置运行模式、参数[SOC_VERSION]配置运行环境，具体请参考[编译执行](../python/tutorials/01_add/README.md/#编译执行)。若缺省参数[RUN_MODE]默认是仿真器模式，缺省参数[SOC_VERSION]，仿真器模式下默认是`Ascend910B1`环境，NPU上板模式下默认自动检测。若选择仿真器模式，请确认相关环境变量已正确配置。
+   注：完整的运行命令如下所示，通过参数[RUN_MODE]配置运行模式、参数[SOC_VERSION]配置运行环境，具体请参考[编译执行](../examples/01_add/README.md#编译执行)。若缺省参数[RUN_MODE]默认是仿真器模式，缺省参数[SOC_VERSION]，仿真器模式下默认是`Ascend910B1`环境，NPU上板模式下默认自动检测。若选择仿真器模式，请确认相关环境变量已正确配置。
    ```bash
-   python3 ./python/tutorials/01_add/add.py -r [RUN_MODE] -v [SOC_VERSION]
+   python3 ./examples/01_add/add.py -r [RUN_MODE] -v [SOC_VERSION]
    ```
 
 ## 🧪 UT测试

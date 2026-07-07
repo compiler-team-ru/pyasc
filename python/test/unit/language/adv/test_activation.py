@@ -29,3 +29,21 @@ def test_softmax(mock_launcher_run):
 
     kernel_softmax[1]()
     assert mock_launcher_run.call_count == 1
+
+
+def test_swiglu(mock_launcher_run):
+
+    @asc.jit
+    def kernel_swiglu() -> None:
+        dst = asc.LocalTensor(dtype=asc.float32)
+        src0 = asc.LocalTensor(dtype=asc.float32)
+        src1 = asc.LocalTensor(dtype=asc.float32)
+        tmp = asc.LocalTensor(dtype=asc.uint8)
+
+        asc.adv.swiglu(dst, src0, src1)
+        asc.adv.swiglu(dst, src0, src1, cal_count=128)
+        asc.adv.swiglu(dst, src0, src1, shared_tmp_buffer=tmp)
+        asc.adv.swiglu(dst, src0, src1, shared_tmp_buffer=tmp, cal_count=128)
+
+    kernel_swiglu[1]()
+    assert mock_launcher_run.call_count == 1

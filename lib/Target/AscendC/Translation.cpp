@@ -97,7 +97,7 @@ using PrintableOpTypes = std::tuple<
 
     // Adv
     // Activation operations
-    ascendc::SimpleSoftMaxOp, ascendc::SoftMaxOp,
+    ascendc::SimpleSoftMaxOp, ascendc::SoftMaxOp, ascendc::SwiGLUOp,
     // Kfc operations
     ascendc::KfcInitOp, ascendc::KfcInitObjOp, ascendc::KfcIsRunOp, ascendc::KfcRunOp, ascendc::KfcQuitOp,
     // Math

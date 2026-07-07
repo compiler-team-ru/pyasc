@@ -225,3 +225,32 @@ func.func @emit_extract(%arg0: memref<?xui64, 22>){
   ascendc.extract %3, %4, %5, %c8_i32 : !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xui32>, !ascendc.local_tensor<*xf16>, i32
   return
 }
+
+// CHECK-LABEL: void emit_swiglu(__gm__ uint64_t* v1) {
+// CHECK-NEXT:   set_ffts_base_addr(*v1);
+// CHECK-NEXT:   constexpr float c1_f32 = (float)1.000000000e+00;
+// CHECK-NEXT:   constexpr int32_t c128_i32 = 128;
+// CHECK-NEXT:   AscendC::LocalTensor<float> v2;
+// CHECK-NEXT:   AscendC::LocalTensor<float> v3;
+// CHECK-NEXT:   AscendC::LocalTensor<float> v4;
+// CHECK-NEXT:   AscendC::LocalTensor<uint8_t> v5;
+// CHECK-NEXT:   AscendC::SwiGLU<float>(v2, v3, v4, c1_f32);
+// CHECK-NEXT:   AscendC::SwiGLU<float>(v2, v3, v4, c1_f32, c128_i32);
+// CHECK-NEXT:   AscendC::SwiGLU<float>(v2, v3, v4, c1_f32, v5);
+// CHECK-NEXT:   AscendC::SwiGLU<float>(v2, v3, v4, c1_f32, v5, c128_i32);
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+func.func @emit_swiglu(%arg0: memref<?xui64, 22>){
+  ascendc.set_ffts_base_addr %arg0 : memref<?xui64, 22>
+  %cst = arith.constant 1.000000e+00 : f32
+  %c128_i32 = arith.constant 128 : i32
+  %0 = ascendc.local_tensor : !ascendc.local_tensor<*xf32>
+  %1 = ascendc.local_tensor : !ascendc.local_tensor<*xf32>
+  %2 = ascendc.local_tensor : !ascendc.local_tensor<*xf32>
+  %3 = ascendc.local_tensor : !ascendc.local_tensor<*xui8>
+  ascendc.swiglu %0, %1, %2, %cst {operandSegmentSizes = array<i32: 1, 1, 1, 1, 0, 0>} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, f32
+  ascendc.swiglu %0, %1, %2, %cst, %c128_i32 {operandSegmentSizes = array<i32: 1, 1, 1, 1, 0, 1>} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, f32, i32
+  ascendc.swiglu %0, %1, %2, %cst, %3 {operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 0>} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, f32, !ascendc.local_tensor<*xui8>
+  ascendc.swiglu %0, %1, %2, %cst, %3, %c128_i32 {operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 1>} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, f32, !ascendc.local_tensor<*xui8>, i32
+  return
+}

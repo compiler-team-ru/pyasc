@@ -20,6 +20,8 @@ LogicalResult printOperation(CodeEmitter& emitter, ascendc::SimpleSoftMaxOp op);
 
 LogicalResult printOperation(CodeEmitter& emitter, ascendc::SoftMaxOp op);
 
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::SwiGLUOp op);
+
 } // namespace ascendc
 } // namespace mlir
 

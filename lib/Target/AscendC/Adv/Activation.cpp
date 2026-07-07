@@ -43,3 +43,22 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::SoftM
     os << ")";
     return success();
 }
+
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::SwiGLUOp op)
+{
+    auto& os = emitter.ostream();
+    os << ascNamespace << "::" << op.getAPIName() << "<";
+    if (failed(emitter.emitType(op.getLoc(), op.getDst().getType().getElementType()))) {
+        return failure();
+    }
+    os << ">(" << emitter.getOrCreateName(op.getDst()) << ", " << emitter.getOrCreateName(op.getSrcTensor0()) << ", "
+       << emitter.getOrCreateName(op.getSrcTensor1()) << ", " << emitter.getOrCreateName(op.getScalarValue());
+    if (auto stb = op.getSharedTmpBuffer()) {
+        os << ", " << emitter.getOrCreateName(stb);
+    }
+    if (auto cc = op.getCalCount()) {
+        os << ", " << emitter.getOrCreateName(cc);
+    }
+    os << ")";
+    return success();
+}

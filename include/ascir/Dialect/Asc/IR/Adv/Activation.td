@@ -42,4 +42,12 @@ def AscendC_SoftMaxOp : APIOp<"softmax", "SoftMax", [AttrSizedOperandSegments, O
                    AscendC_SoftMaxTiling:$tiling,
                    Optional<AnyType>:$softmaxShapeInfo);
 }
+def AscendC_SwiGLUOp : APIOp<"swiglu", "SwiGLU", [AttrSizedOperandSegments, OpWithDstInterface]> {
+  let arguments = (ins AscendC_LocalTensor:$dst,
+                   AscendC_LocalTensor:$srcTensor0,
+                   AscendC_LocalTensor:$srcTensor1,
+                   AnyType:$scalarValue,
+                   Optional<AscendC_LocalTensor>:$sharedTmpBuffer,
+                   Optional<AnyType>:$calCount);
+}
 #endif //ASC_ADV_ACTIVATION_TD

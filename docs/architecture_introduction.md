@@ -26,20 +26,14 @@
     │   │   │   └── runtime               #### 对于acl runtime接口的封装
     │   │   └── runtime                 ### python前端编译和运行代码
     │   ├── src                       ## pybind相关代码，cpp格式
-    │   ├── test                      ## python格式的测试用例集
-    │   │   ├── generalization          ### 泛化测试用例，一类接口创建一个端到端的用例进行泛化测试，使用npu或model执行，校验结果正确性
-    │   │   ├── kernels                 ### 基础测试用例，一类接口创建一个端到端的用例进行基础测试，使用npu或model执行，校验结果正确性
-    │   │   └── unit                    ### 单元测试用例，应该尽量覆盖所有的python api，能够正常生成合法的AscendC代码即可。
-    │   │       ├── codegen               #### 测试python/asc/codegen目录下的接口
-    │   │       ├── language              #### 测试python/asc/language目录下的接口
-    │   │       ├── lib                   #### 测试python/asc/lib目录下的接口
-    │   │       └── runtime               #### 测试python/asc/runtime目录下的接口
-    │   └── tutorials                 ## 供用户参考的示例代码，需要校验运行结果
-    │       ├── 01_add                  ### 手动插入同步流水的Add算子
-    │       ├── 02_add_framework        ### 通过Ascend C框架插入流水同步的Add算子
-    │       ├── 03_matmul_mix           ### MIX模式（包含矩阵计算和矢量计算）下的Matmul算子
-    │       ├── 04_matmul_cube_only     ### 纯Cube模式（只有矩阵计算）的Matmul算子
-    │       └── 05_matmul_leakyrelu     ### MatmulLeakyRelu算子
+    │   └── test                      ## python格式的测试用例集
+    │       ├── generalization          ### 泛化测试用例，一类接口创建一个端到端的用例进行泛化测试，使用npu或model执行，校验结果正确性
+    │       ├── kernels                 ### 基础测试用例，一类接口创建一个端到端的用例进行基础测试，使用npu或model执行，校验结果正确性
+    │       └── unit                    ### 单元测试用例，应该尽量覆盖所有的python api，能够正常生成合法的AscendC代码即可。
+    │           ├── codegen               #### 测试python/asc/codegen目录下的接口
+    │           ├── language              #### 测试python/asc/language目录下的接口
+    │           ├── lib                   #### 测试python/asc/lib目录下的接口
+    │           └── runtime               #### 测试python/asc/runtime目录下的接口
     ```
 
 - 后端模块目录结构说明
