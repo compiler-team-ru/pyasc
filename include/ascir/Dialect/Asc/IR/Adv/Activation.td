@@ -32,12 +32,16 @@ def AscendC_SimpleSoftMaxOp : VectorOp<"simple_softmax", "SimpleSoftMax", [
                    AscendC_SoftMaxTiling:$tiling,
                    Optional<AnyType>:$softmaxShapeInfo);
   let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getDstTensors()
+    {
+        SmallVector<Value> dstTensors{getDst()};
+        if (auto tensor = getSharedTmpBuffer())
+            dstTensors.emplace_back(tensor);
+        return dstTensors;
+    }
     SmallVector<Value> getSrcTensors()
     {
-        SmallVector<Value> srcTensors{getSrc(), getSumTensor(), getMaxTensor()};
-        if (auto tensor = getSharedTmpBuffer())
-            srcTensors.emplace_back(tensor);
-        return srcTensors;
+        return {getSumTensor(), getMaxTensor(), getSrc()};
     }
   }];
 }
@@ -54,17 +58,18 @@ def AscendC_SoftMaxOp : VectorOp<"softmax", "SoftMax", [
                    AscendC_SoftMaxTiling:$tiling,
                    Optional<AnyType>:$softmaxShapeInfo);
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getSrcTensors()
+    SmallVector<Value> getDstTensors()
     {
-        SmallVector<Value> srcTensors{getSrc()};
+        SmallVector<Value> dstTensors{getDst()};
         if (auto tensor = getSumTensor())
-            srcTensors.emplace_back(tensor);
+            dstTensors.emplace_back(tensor);
         if (auto tensor = getMaxTensor())
-            srcTensors.emplace_back(tensor);
+            dstTensors.emplace_back(tensor);
         if (auto tensor = getSharedTmpBuffer())
-            srcTensors.emplace_back(tensor);
-        return srcTensors;
+            dstTensors.emplace_back(tensor);
+        return dstTensors;
     }
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
   }];
 }
 def AscendC_SwiGLUOp : APIOp<"swiglu", "SwiGLU", [AttrSizedOperandSegments, OpWithDstInterface]> {
