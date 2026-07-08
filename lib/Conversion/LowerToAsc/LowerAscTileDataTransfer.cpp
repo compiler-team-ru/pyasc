@@ -861,20 +861,8 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
         const int64_t cubeKBlockSize = cubeKBlockBytes / ascendc::getElementTypeSize(opType);
         const int64_t cubeBlockCols = !isBNoTransF32 ? cubeKBlockSize : ascendc::cubeBlockSize;
         // TODO: use LoadDataParamsV2.mStartPosition/kStartPosition instead of manual offset evaluation.
-        int64_t dstNzC0StrideElements, dValue;
-        if (isBNoTransF32) {
-            dstNzC0StrideElements = static_cast<int64_t>(llvm::alignTo(dstShape[1], ascendc::cubeBlockSize));
-            dValue = cubeKBlockSize;
-        } else if (isTensorA && isTransposeA) {
-            dstNzC0StrideElements = static_cast<int64_t>(llvm::alignTo(dstShape[1], cubeKBlockSize));
-            dValue = cubeBlockCols;
-        } else if (!isTensorA && isTransposeB) {
-            dstNzC0StrideElements = static_cast<int64_t>(llvm::alignTo(dstShape[1], ascendc::cubeBlockSize));
-            dValue = cubeBlockCols;
-        } else {
-            dstNzC0StrideElements = dstShape[0];
-            dValue = cubeBlockCols;
-        }
+        int64_t dstNzC0StrideElements = static_cast<int64_t>(llvm::alignTo(srcShape[0], cubeKBlockSize));
+        int64_t dValue = cubeKBlockSize;
         Value colOffset = rewriter.create<arith::MulIOp>(loc, consts.i32(dstNzC0StrideElements), offsets[1]);
         Value rowOffset = rewriter.create<arith::MulIOp>(loc, offsets[0], consts.i32(dValue));
         Value linearOffset = rewriter.create<arith::AddIOp>(loc, colOffset, rowOffset);
