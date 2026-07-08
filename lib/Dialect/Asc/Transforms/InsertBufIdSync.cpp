@@ -203,10 +203,12 @@ public:
             return;
         }
         if (auto opWithDst = dyn_cast<ascendc::OpWithDst>(op)) {
-            insertSync(op, opWithDst.getDst());
+            for (auto dst : opWithDst.getDstTensors()) {
+                insertSync(op, dst);
+            }
         }
         if (auto opWithSrc = dyn_cast<ascendc::OpWithSrc>(op)) {
-            for (auto& src : opWithSrc.getSrcTensors()) {
+            for (auto src : opWithSrc.getSrcTensors()) {
                 insertSync(op, src);
             }
         }

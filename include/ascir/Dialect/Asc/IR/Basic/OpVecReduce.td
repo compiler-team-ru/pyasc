@@ -260,7 +260,8 @@ def AscendC_ReduceMaxL0Op : VectorOp<"reduce_max_l0", "ReduceMax", [
   );
   let paramTypeLists = [0, 0, 0, 0, 0, 0, 0];
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getSrcTensors() { return {getSrc(), getSharedTmpBuffer()}; }
+    SmallVector<Value> getDstTensors() { return {getDst(), getSharedTmpBuffer()}; }
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
   }];
 }
 
@@ -290,7 +291,8 @@ def AscendC_ReduceMaxL2Op : VectorOp<"reduce_max_l2", "ReduceMax", [
   );
   let paramTypeLists = [0, 0, 0, 0, 0];
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getSrcTensors() { return {getSrc(), getSharedTmpBuffer()}; }
+    SmallVector<Value> getDstTensors() { return {getDst(), getSharedTmpBuffer()}; }
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
   }];
 }
 
@@ -313,7 +315,8 @@ def AscendC_ReduceMinL0Op : VectorOp<"reduce_min_l0", "ReduceMin", [
   );
   let paramTypeLists = [0, 0, 0, 0, 0, 0, 0];
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getSrcTensors() { return {getSrc(), getSharedTmpBuffer()}; }
+    SmallVector<Value> getDstTensors() { return {getDst(), getSharedTmpBuffer()}; }
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
   }];
 }
 
@@ -343,7 +346,8 @@ def AscendC_ReduceMinL2Op : VectorOp<"reduce_min_l2", "ReduceMin", [
   );
   let paramTypeLists = [0, 0, 0, 0, 0];
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getSrcTensors() { return {getSrc(), getSharedTmpBuffer()}; }
+    SmallVector<Value> getDstTensors() { return {getDst(), getSharedTmpBuffer()}; }
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
   }];
 }
 
@@ -365,7 +369,8 @@ def AscendC_ReduceSumL0Op : VectorOp<"reduce_sum_l0", "ReduceSum", [
   );
   let paramTypeLists = [0, 0, 0, 0, 0, 0];
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getSrcTensors() { return {getSrc(), getSharedTmpBuffer()}; }
+    SmallVector<Value> getDstTensors() { return {getDst(), getSharedTmpBuffer()}; }
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
   }];
 }
 
@@ -393,7 +398,8 @@ def AscendC_ReduceSumL2Op : VectorOp<"reduce_sum_l2", "ReduceSum", [
   );
   let paramTypeLists = [0, 0, 0, 0];
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getSrcTensors() { return {getSrc(), getSharedTmpBuffer()}; }
+    SmallVector<Value> getDstTensors() { return {getDst(), getSharedTmpBuffer()}; }
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
   }];
 }
 

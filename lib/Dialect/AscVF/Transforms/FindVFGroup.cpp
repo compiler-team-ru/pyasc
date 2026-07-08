@@ -151,7 +151,7 @@ ValueVector getInputLocalTensors(ArrayRef<Operation*> group)
     ValueMap<bool> isInputLocalTensor;
     for (auto* op : group) {
         if (auto opWithSrc = dyn_cast<ascendc::OpWithSrc>(op)) {
-            for (auto& src : opWithSrc.getSrcTensors()) {
+            for (auto src : opWithSrc.getSrcTensors()) {
                 isInputLocalTensor.try_emplace(src, true);
             }
         } else if (auto duplicateOp = dyn_cast<ascendc::DuplicateL2Op>(op)) {
@@ -159,7 +159,9 @@ ValueVector getInputLocalTensors(ArrayRef<Operation*> group)
             isInputLocalTensor.try_emplace(duplicateOp.getScalar(), true);
         }
         if (auto opWithDst = dyn_cast<ascendc::OpWithDst>(op)) {
-            isInputLocalTensor.try_emplace(opWithDst.getDst(), false);
+            for (auto dst : opWithDst.getDstTensors()) {
+                isInputLocalTensor.try_emplace(dst, false);
+            }
         }
     }
     ValueVector inputLocalTensors;
