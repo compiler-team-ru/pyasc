@@ -54,7 +54,7 @@ for i in asc2.range(huge_loop_count, ...):
 
 ```python
 # Good: all tiling params are ConstExpr → static, optimized code
-@asc2.jit(static_alloc=True, reuse_ub=True)
+@asc2.jit(static_alloc=True, reuse_alloc=1)
 def kernel(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
            input_length: asc2.ConstExpr, tile_length: asc2.ConstExpr,
            unroll_factor: asc2.ConstExpr):
@@ -76,8 +76,7 @@ def kernel(input_ptr, output_ptr, input_length: int, tile_length: int):
 | Option | Purpose | Recommended Usage |
 |--------|---------|-------------------|
 | `static_alloc` | Static UB allocation at compile time | Enabling recommended for most kernels. Leads to faster execution, no runtime memory management. Requires all tile shapes to be `ConstExpr`. When disabled provides TPipe-managed dynamic UB allocation. Use only for complex control flow with variable tile sizes. Slower but more flexible. |
-| `reuse_ub` | Reuse freed UB regions across iterations | Enabling recommended for most kernels. Reduces peak UB consumption by reusing memory. |
-| `reuse_ub_in_out` | Reuse input/output UB slots | Enable when input/output tiles can share memory (e.g., in-place operations). |
+| `reuse_alloc` | Reuse freed UB regions across iterations | Setting to `1` recommended for most kernels. Reduces peak UB consumption by reusing memory. |
 | `vf_fusion` | Enable vector fusion (experimental) | Advanced option, when enabled lowering generated code to register level API. Experimental feature. May improve performance for element-wise chains. |
 | `always_compile` | Cached kernels usage | When enabled ignores cached kernels, provides recompilation. |
 

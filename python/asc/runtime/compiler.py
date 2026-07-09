@@ -14,7 +14,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Tuple, final
+from typing import List, Literal, Optional, Tuple, final
 
 from .._C import ir, passes, translation
 from ..lib.runtime import CoreType, get_soc_version
@@ -68,6 +68,7 @@ class CompileOptions:
     densify_load_store: bool = False
     """
     Densify :py:obj:`asc2.copy_in` and :py:obj:`asc2.copy_out` statements by grouping them together.
+    This feature cannot be enabled at the same time as ``reuse_alloc``.
 
     .. warning::
         This is an experimental feature. It might or might not cause functional or performance regressions.
@@ -79,19 +80,20 @@ class CompileOptions:
     **This feature is enabled by default**, which is usually a must, but may be disabled for the debugging purposes.
     """
 
-    reuse_ub: bool = False
+    reuse_alloc: Literal[0, 1, 2] = 0
     """
-    Try to reduce the UB memory usage by replacing the tiles with those allocated earlier but became unused.
-    Having this feature enabled may help to avoid UB overflow but may introduce performance regressions.
-    """
+    Try to reduce the on-chip memory usage by replacing the tensors with those allocated earlier but became unused.
+    Having this feature enabled may help to avoid memory overflow but may introduce performance regressions.
 
-    reuse_ub_in_out: bool = False
-    """
-    Allow for input/output tiles to be reused alongside intermediate ones.
-    This option only has effect if ``reuse_ub`` feature is enabled and ``densify_load_store`` feature is not.
+    ===== ======
+    Value Effect
+    ===== ======
+    ``0`` Disable the feature (default)
+    ``1`` Enable the feature, use a legacy implementation (recommended)
+    ``2`` Enable the feature, use an experimental implementation
+    ===== ======
 
-    .. warning::
-        This is an experimental feature. It might or might not cause functional or performance regressions.
+    This feature cannot be enabled at the same time as ``densify_load_store``.
     """
 
     static_alloc: Optional[bool] = None
@@ -149,14 +151,12 @@ class Compiler:
         self.soc_version = get_soc_version()
         if not self._check_compile_options():
             raise RuntimeError("Please check input compile option")
+        if self.options.densify_load_store and self.options.reuse_alloc:
+            raise RuntimeError("'densify_load_store' and 'reuse_alloc' cannot be enabled at the same time")
+        if self.options.reuse_alloc not in (0, 1, 2):
+            raise RuntimeError("'reuse_alloc' is only allowed to be 0, 1, 2")
         self.arch = platform_to_arch(self.soc_version)
         if self.options.vf_vec_len is not None and self.arch != CompilationArch.C310:
-            raise RuntimeError(f"The vector register length option is not supported for the {self.arch} architecture")
-        if self.options.vf_vec_len is None and self.arch == CompilationArch.C310:
-            self.options.vf_vec_len = 256
-        self.dump_dir: Optional[Path] = None
-        self.arch = platform_to_arch(self.soc_version)
-        if self.options.vf_fusion and self.arch != CompilationArch.C310:
             raise RuntimeError(f"The vector register length option is not supported for the {self.arch} architecture")
         if self.options.vf_fusion and self.arch != CompilationArch.C310:
             raise RuntimeError(f"The vf fusion option is not supported for the {self.arch} architecture")
@@ -164,6 +164,7 @@ class Compiler:
             self.options.vf_vec_len = 256
         if self.options.static_alloc is None:
             self.options.static_alloc = self.arch == CompilationArch.C310
+        self.dump_dir: Optional[Path] = None
         dump_dir = os.environ.get("PYASC_DUMP_PATH", None)
         if dump_dir is not None:
             try:
@@ -187,13 +188,12 @@ class Compiler:
 
     @staticmethod
     def add_unroll_loop(pm: passes.PassManager) -> None:
-        passes.asctile.add_unroll_loop(pm)
+        passes.asctile.add_unroll_loop(pm, annotate=True)
         passes.common.add_canonicalizer(pm)
         passes.common.add_cse(pm)
 
     def _schedule_lowering(self, pm: passes.PassManager) -> None:
         arch_c310 = self.arch == CompilationArch.C310
-        reuse_ub_in_out = not self.options.densify_load_store and self.options.reuse_ub and self.options.reuse_ub_in_out
         passes.ascendc.add_privatize_func(pm)
         passes.common.add_inliner(pm)
         passes.common.add_symbol_dce(pm)
@@ -201,9 +201,8 @@ class Compiler:
         passes.common.add_reconcile_unrealized_casts(pm)
         if self.options.run_asc2_passes:
             passes.asctile.add_tag_unroll_groups(pm)
-            if not reuse_ub_in_out:
-                self.add_unroll_loop(pm)
             if self.options.densify_load_store:
+                self.add_unroll_loop(pm)
                 passes.asctile.add_promote_pure_operations(pm)
                 passes.common.add_canonicalizer(pm)
                 passes.asctile.add_densify_unroll_groups(pm)
@@ -237,12 +236,18 @@ class Compiler:
             passes.ascendc.add_fill_asc_operands(pm)
             passes.ascendc.add_fixup_mmad_acc_params_pass(pm)
         passes.ascendc.add_input_output_tensor(pm)
-        if self.options.reuse_ub and reuse_ub_in_out:
+        if not self.options.densify_load_store:
+            self.add_unroll_loop(pm)
+        if self.options.reuse_alloc == 1:
             passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=True)
             self.add_unroll_loop(pm)
-        passes.ascendc.add_hoist_ub_allocation(pm, exclude_in_out=not arch_c310)
-        if self.options.reuse_ub:
+            passes.ascendc.add_hoist_ub_allocation(pm, exclude_in_out=not arch_c310)
             passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=False)
+        elif self.options.reuse_alloc == 2:
+            passes.ascendc.add_hoist_ub_allocation(pm, exclude_in_out=not arch_c310)
+            passes.ascendc.add_reuse_tensor_allocation(pm)
+        else:
+            passes.ascendc.add_hoist_ub_allocation(pm, exclude_in_out=not arch_c310)
         passes.common.add_canonicalizer(pm)
         if self.options.vf_fusion:
             passes.ascvf.add_find_vf_group(pm)

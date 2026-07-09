@@ -17,7 +17,7 @@ DYNAMIC = "dynamic"
 
 
 # The current implementation works for columns as long as the shape specified in asc2.copy_in fits in UB.
-@asc2.jit(static_alloc=True, reuse_ub=True)
+@asc2.jit(static_alloc=True, reuse_alloc=1)
 def softmax(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows, input_num_cols,
             tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     in_gm = asc2.global_tensor(input_ptr, [input_num_rows, input_num_cols])

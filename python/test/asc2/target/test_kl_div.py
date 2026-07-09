@@ -16,7 +16,7 @@ STATIC = "static"
 DYNAMIC = "dynamic"
 
 
-@asc2.jit(static_alloc=True, reuse_ub=True, reuse_ub_in_out=True, vf_fusion=True)
+@asc2.jit(static_alloc=True, reuse_alloc=1, vf_fusion=True)
 def kl_div(input_x_ptr: asc2.GlobalAddress, input_target_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
            input_size, tile_length: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     loop_count = asc2.ceildiv(input_size, tile_length)

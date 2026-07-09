@@ -392,7 +392,7 @@ Two strategies, selected per compilation:
 
 **UB pressure reduction (both modes):**
 - `HoistUBAllocation` — move allocations above loops so one allocation covers all iterations.
-- `ReuseUBAllocation` (`reuse_ub=True`) — when a tile's lifetime ends before a new one is needed, reuse its UB region. `reuse_ub_in_out=True` extends this to input/output tiles (experimental).
+- `ReuseUBAllocation` (`reuse_alloc=1`) — when a tile's lifetime ends before a new one is needed, reuse its UB region.
 - `ComputeMemoryConsumption` — sums all live tile sizes per `TPosition` and fails the compilation if UB limits are exceeded.
 
 ### 7.3 Synchronization
@@ -479,8 +479,7 @@ _TODO: to be filled in._
 | `run_asc2_passes` | `True` | Enable AscTile + AscLower pipeline |
 | `insert_sync` | `True` | Auto-insert sync barriers |
 | `static_alloc` | `None` → arch-dependent (`True` on 910_95, `False` on 910B / 910_93) | Static vs TPipe-managed UB allocation |
-| `reuse_ub` | `False` | Reuse freed UB regions |
-| `reuse_ub_in_out` | `False` | Extend reuse to I/O tiles (experimental) |
+| `reuse_alloc` | `0` | Reuse freed UB regions |
 | `densify_load_store` | `False` | Densify load/store groups (experimental) |
 | `vf_fusion` | `False` | Fuse consecutive vector ops into Ascend C MicroAPI VF blocks |
 | `verify_sync` | `False` | Run `VerifySync` pass after sync insertion |

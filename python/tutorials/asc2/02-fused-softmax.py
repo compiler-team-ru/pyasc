@@ -20,7 +20,7 @@ import torch
 # The functions which are executed on Ascend NPU must be marked with `@asc2.jit` decorator.
 # Available parameters for @asc2.jit decorator can be seen in the documentation:
 # https://compiler-team-ru.github.io/pyasc/python-api/rst/runtime/index.html
-@asc2.jit(reuse_ub=True)
+@asc2.jit(reuse_alloc=1)
 def fused_softmax(
         # Pointers to input and output tensors should have `asc2.GlobalAddress` type.
         input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
