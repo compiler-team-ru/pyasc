@@ -112,6 +112,8 @@ class InsertBufIdSync {
             bufIds.insert(visitedOps[defOp].begin(), visitedOps[defOp].end());
             if (bufIds.empty()) {
                 visitedOps[defOp].insert(bufId);
+                Builder builder(defOp->getContext());
+                defOp->setAttr(ascendc::attr::bufId, builder.getI32IntegerAttr(bufId));
                 updateBufId();
                 bufIds = visitedOps[defOp];
             }
@@ -227,7 +229,7 @@ public:
         Builder builder(context);
         for (const auto& [op, bufIdSet] : bufIdMap) {
             SmallVector<int32_t> bufIdVec(bufIdSet.begin(), bufIdSet.end());
-            op->setAttr(ascendc::attr::bufId, builder.getI32ArrayAttr(bufIdVec));
+            op->setAttr(ascendc::attr::bufIds, builder.getI32ArrayAttr(bufIdVec));
         }
     }
 };

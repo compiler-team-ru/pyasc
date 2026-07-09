@@ -19,6 +19,7 @@ namespace attr {
 LITERAL aicore = "ascendc.aicore";
 LITERAL api = "ascendc.api";
 LITERAL bufId = "ascendc.buf_id";
+LITERAL bufIds = "ascendc.buf_ids";
 LITERAL calCountSet = "asc.cal_count_set";
 LITERAL compilationArch = "asc.compilation_arch";
 LITERAL emitAsUnsigned = "ascendc.emit_as_unsigned";
