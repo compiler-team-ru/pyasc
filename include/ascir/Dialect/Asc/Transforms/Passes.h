@@ -33,6 +33,7 @@ std::unique_ptr<Pass> createGenerateBoilerplatePass();
 std::unique_ptr<Pass> createHoistQueBindPass();
 std::unique_ptr<Pass> createHoistUBAllocationPass(bool excludeInOut = false);
 std::unique_ptr<Pass> createInputOutputTensorPass();
+std::unique_ptr<Pass> createInsertBiasBufIdSyncPass();
 std::unique_ptr<Pass> createInsertBufIdSyncPass();
 std::unique_ptr<Pass> createInsertSyncPass();
 std::unique_ptr<Pass> createLegalizeKernelArgsPass(bool setFftsAddr = false);
@@ -41,6 +42,7 @@ std::unique_ptr<Pass> createMaterializeTensorPass(bool alwaysBuf = false);
 std::unique_ptr<Pass> createNoopPass();
 std::unique_ptr<Pass> createPrivatizeFuncPass();
 std::unique_ptr<Pass> createReuseUBAllocationPass(bool reuseInOut = false);
+std::unique_ptr<Pass> createUnifyBiasTensorPass();
 std::unique_ptr<Pass> createUnifyPipePass();
 std::unique_ptr<Pass> createVerifySyncPass();
 
