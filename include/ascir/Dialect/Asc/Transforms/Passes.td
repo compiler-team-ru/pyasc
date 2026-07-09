@@ -413,6 +413,37 @@ def PrivatizeFunc : Pass<"ascendc-privatize-func", "ModuleOp"> {
   }];
 }
 
+def ReuseTensorAllocation : Pass<"ascendc-reuse-tensor-allocation", "func::FuncOp"> {
+  let summary = "Reuse freed on-chip allocations based on unroll_iter lifetime analysis";
+  let constructor = "mlir::ascendc::createReuseTensorAllocationPass()";
+  let description = [{
+    Reuses freed on-chip buffer allocations by inserting `LocalTensorReinterpretCastOp`.
+    Covers VECCALC (UB), A1 (L1), A2 (L0A), B2 (L0B), and CO1 (L0C) positions.
+    Reuse is restricted to tensors of the same position, since each position maps to
+    a distinct hardware buffer.
+
+    Reuse decisions are based on `asctile.unroll_iter` attribute: if top tensor's max
+    unroll_iter is less than bottom tensor's min unroll_iter, their lifetimes don't
+    overlap and reuse is valid.
+
+    Input/output tensors cannot be reused across different unroll_iters because each
+    iteration loads/stores different data. Reusing would cause data races. Input/output
+    tensors can only be reused with tensors that have the same unroll_iter or no
+    unroll_iter at all.
+
+    For in/out tensors: all users share the same unroll_iter (guaranteed by upstream passes),
+    so max == min. Two in/out tensors at different iterations can reuse each other.
+    Two in/out tensors at the same iteration overlap and cannot reuse.
+
+    For tensors without unroll_iter: fall back to position-based ordering within their scope.
+
+    For cube positions (A1, A2, B2), allocation size is computed with cube-block alignment
+    to match the downstream AllocateTensor pass.
+
+    When reusing: larger tensor wraps smaller via reinterpret_cast, or smaller moved before larger and cast.
+  }];
+}
+
 def ReuseUBAllocation : Pass<"ascendc-reuse-ub-allocation", "func::FuncOp"> {
   let summary = "Reuse freed UB allocations via reinterpret_cast to reduce memory consumption";
   let constructor = "mlir::ascendc::createReuseUBAllocationPass()";

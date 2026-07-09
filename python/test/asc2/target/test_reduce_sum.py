@@ -16,7 +16,7 @@ STATIC = "static"
 DYNAMIC = "dynamic"
 
 
-@asc2.jit(static_alloc=True, reuse_ub=True)
+@asc2.jit(static_alloc=True, reuse_alloc=1)
 def reduce_sum_rows(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows, input_num_cols,
                     output_length, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     in_gm = asc2.global_tensor(input_ptr, [input_num_rows, input_num_cols])
@@ -37,7 +37,7 @@ def reduce_sum_rows(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
         asc2.copy_out(cache, out_gm, [row_start_offset])
 
 
-@asc2.jit(static_alloc=True, reuse_ub=True)
+@asc2.jit(static_alloc=True, reuse_alloc=1)
 def reduce_sum_cols(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows, input_num_cols,
                     output_length, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     in_gm = asc2.global_tensor(input_ptr, [input_num_rows, input_num_cols])

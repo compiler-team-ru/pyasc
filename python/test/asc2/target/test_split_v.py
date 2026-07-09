@@ -14,7 +14,7 @@ STATIC = "static"
 DYNAMIC = "dynamic"
 
 
-@asc2.jit(static_alloc=True, reuse_ub=True)
+@asc2.jit(static_alloc=True, reuse_alloc=1)
 def split_v(input_ptr: asc2.GlobalAddress, output0_ptr: asc2.GlobalAddress, output1_ptr: asc2.GlobalAddress,
             input_length, split_boundary, tile_length, ub_chunk_size: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     in_gm = asc2.global_tensor(input_ptr, [input_length])

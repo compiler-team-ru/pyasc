@@ -160,8 +160,8 @@ kernel[8](x, y, out, size, TILE=256)    # Launch with 8 cores
 
 ### JIT Compile Options
 - `run_asc2_passes=True`: Enable AscTile + AscLower pipeline (enabled by default when using `@asc2.jit`)
-- `static_alloc=False`: Static vs TPipe-managed UB allocation
-- `reuse_ub=False`: Reuse freed UB regions
+- `static_alloc=True`: Static vs TPipe-managed UB allocation
+- `reuse_alloc=0`: Reuse freed UB regions (`1` to enable)
 - `always_compile=False`: Bypass cache, recompile every call
 - `opt_level=3`: Bisheng optimization level (1-3)
 Other options in @python/asc/runtime/compiler.py (CompileOptions dataclass).
