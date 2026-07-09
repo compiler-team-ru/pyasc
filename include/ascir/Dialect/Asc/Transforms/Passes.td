@@ -247,6 +247,27 @@ def InsertBufIdSync : Pass<"ascendc-insert-bufid-sync", "func::FuncOp"> {
   }];
 }
 
+def InsertBiasBufIdSync : Pass<"ascendc-insert-bias-bufid-sync", "func::FuncOp"> {
+  let summary = "Insert get_buf/rls_buf synchronization around MmadOp for bias tensors copied to BT";
+  let constructor = "mlir::ascendc::createInsertBiasBufIdSyncPass()";
+  let dependentDialects = ["ascendc::AscendCDialect"];
+  let description = [{
+    Inserts buffer synchronization (`get_buf`/`rls_buf`) around `MmadOp` operations that use bias tensors
+    in C2 position (bias tensor memory).
+    
+    This pass ensures proper synchronization between bias tensor access and matrix multiplication operations
+    on Ascend 910_95 hardware. The pass:
+    1. Finds `LocalTensorV3Op` in C2 position with a `bufId` attribute
+    2. Extracts the `bufId` value from this tensor
+    3. For each `MmadOp` with `cmatrixSource` parameter:
+       - Inserts `get_buf pipe_m, <bufId>` before the `MmadOp`
+       - Inserts `rls_buf pipe_m, <bufId>` after the `MmadOp`
+    
+    **Important**: This pass assumes there is only one bias tensor with `bufId` per function. The `UnifyBiasTensor`
+    pass consolidates all C2 tensors into a single tensor, ensuring only one `bufId` exists.
+  }];
+}
+
 def InsertSync : Pass<"ascendc-insert-sync", "func::FuncOp"> {
   let summary = "Insert TQueBind enqueue/dequeue synchronization and scalar get/set_value barriers";
   let constructor = "mlir::ascendc::createInsertSyncPass()";
@@ -436,6 +457,23 @@ def ReuseUBAllocation : Pass<"ascendc-reuse-ub-allocation", "func::FuncOp"> {
     scf.for { use %output }
     scf.for { use %input }
     ```
+  }];
+}
+
+def UnifyBiasTensor : Pass<"ascendc-unify-bias-tensor", "func::FuncOp"> {
+  let summary = "Unify C2 (bias) tensor with identical type and size, setting addr to 0";
+  let constructor = "mlir::ascendc::createUnifyBiasTensorPass()";
+  let description = [{
+    Consolidates all `LocalTensorV3Op` operations in C2 position (bias tensor memory) into a single tensor.
+    
+    When multiple C2 tensors exist (typically created during loop unrolling or tiling), this pass:
+    1. Keeps the first encountered C2 tensor
+    2. Replaces all uses of subsequent C2 tensors with the first tensor
+    3. Erases the duplicate tensor operations
+    4. Sets the address of the unified tensor to 0
+    
+    This optimization ensures a single bias tensor allocation per function, which is required for
+    correct `bufId`-based synchronization in `InsertBiasBufIdSync` pass.
   }];
 }
 

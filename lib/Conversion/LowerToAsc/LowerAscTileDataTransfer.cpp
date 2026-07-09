@@ -840,10 +840,14 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
                 return failure();
             }
             auto dst = createTensorOp(rewriter, loc, opType).getResult();
+            auto dstShape = opType.getShape();
             if (srcShape.size() != 1)
                 return op.emitError() << "bias must have 1D shape";
-            int64_t typeSize = ascendc::getElementTypeSize(opType);
-            int64_t blockLen = (srcShape[0] * typeSize) / ascendc::ubBlockSize;
+            if (!offsets.empty()) {
+                src = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcType, src, offsets[0]);
+            }
+            int64_t typeSize = ascendc::getElementTypeSize(base.getType());
+            int64_t blockLen = (dstShape[0] * typeSize) / cubeKBlockBytes;
             auto dataCopyParams = rewriter.create<ascendc::ConstructOp>(
                 loc, rewriter.getType<ascendc::DataCopyParamsType>(),
                 ValueRange{consts.i32(1), consts.i32(blockLen), consts.i32(0), consts.i32(0)});

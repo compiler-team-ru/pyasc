@@ -20,6 +20,7 @@ add_mlir_dialect_library(MLIRAscTransforms
   HoistQueBind.cpp
   HoistTensorAllocation.cpp
   InputOutputTensor.cpp
+  InsertBiasBufIdSync.cpp
   InsertBufIdSync.cpp
   InsertSync.cpp
   LegalizeKernelArgs.cpp
@@ -28,6 +29,7 @@ add_mlir_dialect_library(MLIRAscTransforms
   Noop.cpp
   PrivatizeFunc.cpp
   ReuseUBAllocation.cpp
+  UnifyBiasTensor.cpp
   UnifyPipe.cpp
   VerifySync.cpp
   DetectEnableDebugPass.cpp

@@ -257,6 +257,7 @@ class Compiler:
             passes.ascvf.add_materialize_load_store(pm)
         if self.options.static_alloc:
             passes.ascendc.add_allocate_tensor(pm)
+            passes.ascendc.add_unify_bias_tensor(pm)
         else:
             passes.ascendc.add_materialize_tensor(pm, always_buf=arch_c310)
         passes.ascendc.add_unify_pipe(pm)
@@ -274,6 +275,7 @@ class Compiler:
                 passes.ascendc.add_insert_sync(pm)
             else:
                 passes.ascendc.add_insert_bufid_sync(pm)
+                passes.ascendc.add_insert_bias_bufid_sync(pm)
                 passes.common.add_canonicalizer(pm)
                 passes.ascendc.add_fuse_bufid_sync(pm)
             passes.ascendc.add_unify_pipe(pm)
