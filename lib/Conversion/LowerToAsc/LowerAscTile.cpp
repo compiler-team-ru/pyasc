@@ -768,6 +768,10 @@ struct ConvertTransposeUB : ConvertOp<asctile::TransposeOp> {
         int64_t loopStep = axis ? blockWidth : blockHeight;
         int64_t loopCount = ((axis ? width : height) + loopStep - 1) / loopStep;
 
+        auto i1Type = rewriter.getI1Type();
+        auto ui8Type = rewriter.getIntegerType(8, false);
+        auto ui16Type = rewriter.getIntegerType(16, false);
+
         for (int64_t i = 0; i < loopCount; ++i) {
             int64_t srcStride = width * elementSize;
             int64_t dstStride = height * elementSize;
@@ -798,9 +802,10 @@ struct ConvertTransposeUB : ConvertOp<asctile::TransposeOp> {
                 Value params = rewriter.create<ascendc::ConstructOp>(
                     loc, rewriter.getType<ascendc::TransDataTo5HDParamsType>(),
                     ValueRange{
-                        consts.i1(false), consts.i1(false), consts.i8(blockCount),
+                        consts.i1(false), consts.i1(false), consts.i32(blockCount),
                         consts.i16(blockCount == 1 ? 0 : dstBlockStride / oneBlkSize),
-                        consts.i16(blockCount == 1 ? 0 : srcBlockStride / oneBlkSize)});
+                        consts.i16(blockCount == 1 ? 0 : srcBlockStride / oneBlkSize)},
+                    rewriter.getTypeArrayAttr({i1Type, i1Type, ui8Type, ui16Type, ui16Type}));
                 rewriter.create<ascendc::TransDataTo5HDTensorOp>(loc, dst, src, dstList, srcList, params);
             } else {
                 int64_t srcOffsetH = srcOffset + width * transDataBlockSize;
@@ -816,9 +821,10 @@ struct ConvertTransposeUB : ConvertOp<asctile::TransposeOp> {
                     Value params = rewriter.create<ascendc::ConstructOp>(
                         loc, rewriter.getType<ascendc::TransDataTo5HDParamsType>(),
                         ValueRange{
-                            dstHighHalf, srcHighHalf, consts.i8(blockCount),
+                            dstHighHalf, srcHighHalf, consts.i32(blockCount),
                             consts.i16(blockCount == 1 ? 0 : dstBlockStride / oneBlkSize),
-                            consts.i16(blockCount == 1 ? 0 : srcBlockStride / oneBlkSize)});
+                            consts.i16(blockCount == 1 ? 0 : srcBlockStride / oneBlkSize)},
+                        rewriter.getTypeArrayAttr({i1Type, i1Type, ui8Type, ui16Type, ui16Type}));
                     rewriter.create<ascendc::TransDataTo5HDTensorOp>(
                         loc, dst, src, i % 2 == 0 ? dstListLow : dstListHigh, i / 2 == 0 ? srcListLow : srcListHigh,
                         params);
