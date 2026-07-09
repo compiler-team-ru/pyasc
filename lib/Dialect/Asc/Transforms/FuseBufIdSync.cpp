@@ -56,7 +56,7 @@ void eraseSync(SmallVectorImpl<Operation*>& fuseGroup)
     if (fuseGroup.size() <= 1)
         return;
     for (size_t i = 0; i < fuseGroup.size(); i++) {
-        auto bufIdVec = dyn_cast<ArrayAttr>(fuseGroup[i]->getAttr(ascendc::attr::bufId));
+        auto bufIdVec = dyn_cast<ArrayAttr>(fuseGroup[i]->getAttr(ascendc::attr::bufIds));
         if (!bufIdVec)
             break;
         auto numElements = bufIdVec.size();
@@ -78,8 +78,8 @@ void processOp(Operation* op, SmallVectorImpl<Operation*>& fuseGroup, ascendc::P
     if (state == currentPipe) {
         if (fuseGroup.empty())
             return;
-        auto bufIdAttr = op->getAttr(ascendc::attr::bufId);
-        auto fuseGroupAttr = fuseGroup.back()->getAttr(ascendc::attr::bufId);
+        auto bufIdAttr = op->getAttr(ascendc::attr::bufIds);
+        auto fuseGroupAttr = fuseGroup.back()->getAttr(ascendc::attr::bufIds);
         if (!bufIdAttr || !fuseGroupAttr)
             return;
         if (bufIdAttr == fuseGroupAttr) {
@@ -123,7 +123,10 @@ void fuseBufIdSync(func::FuncOp funcOp)
 
 void removeBufIdAttr(func::FuncOp funcOp)
 {
-    funcOp.walk([](Operation* op) { op->removeAttr(ascendc::attr::bufId); });
+    funcOp.walk([](Operation* op) {
+        op->removeAttr(ascendc::attr::bufIds);
+        op->removeAttr(ascendc::attr::bufId);
+    });
 }
 
 class FuseBufIdSyncPass : public ascendc::impl::FuseBufIdSyncBase<FuseBufIdSyncPass> {

@@ -23,13 +23,13 @@
 func.func @fuse_same_bufid(%arg0: !ascendc.local_tensor<*xf32>) {
   %c256 = arith.constant 256 : i32
   ascendc.get_buf pipe_v, 0
-  ascendc.add_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_id = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+  ascendc.add_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_ids = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.rls_buf pipe_v, 0
   ascendc.get_buf pipe_v, 0
-  ascendc.mul_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_id = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+  ascendc.mul_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_ids = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.rls_buf pipe_v, 0
   ascendc.get_buf pipe_v, 0
-  ascendc.sub_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_id = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+  ascendc.sub_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_ids = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.rls_buf pipe_v, 0
   return
 }
@@ -49,13 +49,13 @@ func.func @fuse_same_bufid(%arg0: !ascendc.local_tensor<*xf32>) {
 func.func @different_pipe_no_fuse(%arg0: !ascendc.local_tensor<*xf32>, %arg1: !ascendc.global_tensor<*xf32>, %arg2: !ascendc.global_tensor<*xf32>) {
   %c256 = arith.constant 256 : i32
   ascendc.get_buf pipe_mte2, 0
-  ascendc.data_copy_l2 %arg0, %arg1, %c256 {ascendc.buf_id = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.global_tensor<*xf32>, i32
+  ascendc.data_copy_l2 %arg0, %arg1, %c256 {ascendc.buf_ids = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.global_tensor<*xf32>, i32
   ascendc.rls_buf pipe_mte2, 0
   ascendc.get_buf pipe_v, 1
-  ascendc.add_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_id = [1 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+  ascendc.add_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_ids = [1 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.rls_buf pipe_v, 1
   ascendc.get_buf pipe_mte3, 2
-  ascendc.data_copy_l2 %arg2, %arg0, %c256 {ascendc.buf_id = [2 : i32]} : !ascendc.global_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+  ascendc.data_copy_l2 %arg2, %arg0, %c256 {ascendc.buf_ids = [2 : i32]} : !ascendc.global_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.rls_buf pipe_mte3, 2
   return
 }
@@ -77,12 +77,12 @@ func.func @different_bufid_no_fuse(%arg0: !ascendc.local_tensor<*xf32>, %arg1: !
   %c256 = arith.constant 256 : i32
   ascendc.get_buf pipe_v, 0
   ascendc.get_buf pipe_v, 1
-  ascendc.add_l2 %arg0, %arg0, %arg1, %c256 {ascendc.buf_id = [0, 1 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+  ascendc.add_l2 %arg0, %arg0, %arg1, %c256 {ascendc.buf_ids = [0, 1 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.rls_buf pipe_v, 1
   ascendc.rls_buf pipe_v, 0
   ascendc.get_buf pipe_v, 2
   ascendc.get_buf pipe_v, 3
-  ascendc.mul_l2 %arg1, %arg0, %arg1, %c256 {ascendc.buf_id = [2, 3 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+  ascendc.mul_l2 %arg1, %arg0, %arg1, %c256 {ascendc.buf_ids = [2, 3 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.rls_buf pipe_v, 3
   ascendc.rls_buf pipe_v, 2
   return
@@ -104,11 +104,11 @@ func.func @for_loop_breaks_fusion(%arg0: !ascendc.local_tensor<*xf32>) {
   %c1 = arith.constant 1 : i32
   %c10 = arith.constant 10 : i32
   ascendc.get_buf pipe_v, 0
-  ascendc.add_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_id = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+  ascendc.add_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_ids = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.rls_buf pipe_v, 0
   scf.for %arg1 = %c0 to %c10 step %c1 : i32 {
     ascendc.get_buf pipe_v, 1
-    ascendc.mul_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_id = [1 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+    ascendc.mul_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_ids = [1 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
     ascendc.rls_buf pipe_v, 1
   }
   return
@@ -128,11 +128,11 @@ func.func @if_op_breaks_fusion(%arg0: !ascendc.local_tensor<*xf32>) {
   %c256 = arith.constant 256 : i32
   %true = arith.constant true
   ascendc.get_buf pipe_v, 0
-  ascendc.add_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_id = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+  ascendc.add_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_ids = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.rls_buf pipe_v, 0
   scf.if %true {
     ascendc.get_buf pipe_v, 1
-    ascendc.mul_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_id = [1 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+    ascendc.mul_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_ids = [1 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
     ascendc.rls_buf pipe_v, 1
   }
   return
@@ -147,7 +147,7 @@ func.func @if_op_breaks_fusion(%arg0: !ascendc.local_tensor<*xf32>) {
 func.func @single_op_no_fusion(%arg0: !ascendc.local_tensor<*xf32>) {
   %c256 = arith.constant 256 : i32
   ascendc.get_buf pipe_v, 0
-  ascendc.add_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_id = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+  ascendc.add_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_ids = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.rls_buf pipe_v, 0
   return
 }
@@ -164,10 +164,10 @@ func.func @single_op_no_fusion(%arg0: !ascendc.local_tensor<*xf32>) {
 func.func @fuse_data_copy_mte2(%arg0: !ascendc.local_tensor<*xf32>, %arg1: !ascendc.local_tensor<*xf32>, %arg2: !ascendc.global_tensor<*xf32>, %arg3: !ascendc.global_tensor<*xf32>) {
   %c256 = arith.constant 256 : i32
   ascendc.get_buf pipe_mte2, 0
-  ascendc.data_copy_l2 %arg0, %arg2, %c256 {ascendc.buf_id = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.global_tensor<*xf32>, i32
+  ascendc.data_copy_l2 %arg0, %arg2, %c256 {ascendc.buf_ids = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.global_tensor<*xf32>, i32
   ascendc.rls_buf pipe_mte2, 0
   ascendc.get_buf pipe_mte2, 0
-  ascendc.data_copy_l2 %arg1, %arg3, %c256 {ascendc.buf_id = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.global_tensor<*xf32>, i32
+  ascendc.data_copy_l2 %arg1, %arg3, %c256 {ascendc.buf_ids = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.global_tensor<*xf32>, i32
   ascendc.rls_buf pipe_mte2, 0
   return
 }
@@ -184,10 +184,10 @@ func.func @fuse_data_copy_mte2(%arg0: !ascendc.local_tensor<*xf32>, %arg1: !asce
 func.func @fuse_data_copy_mte3(%arg0: !ascendc.global_tensor<*xf32>, %arg1: !ascendc.global_tensor<*xf32>, %arg2: !ascendc.local_tensor<*xf32>, %arg3: !ascendc.local_tensor<*xf32>) {
   %c256 = arith.constant 256 : i32
   ascendc.get_buf pipe_mte3, 0
-  ascendc.data_copy_l2 %arg0, %arg2, %c256 {ascendc.buf_id = [0 : i32]} : !ascendc.global_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+  ascendc.data_copy_l2 %arg0, %arg2, %c256 {ascendc.buf_ids = [0 : i32]} : !ascendc.global_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.rls_buf pipe_mte3, 0
   ascendc.get_buf pipe_mte3, 0
-  ascendc.data_copy_l2 %arg1, %arg3, %c256 {ascendc.buf_id = [0 : i32]} : !ascendc.global_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+  ascendc.data_copy_l2 %arg1, %arg3, %c256 {ascendc.buf_ids = [0 : i32]} : !ascendc.global_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.rls_buf pipe_mte3, 0
   return
 }
@@ -213,19 +213,19 @@ func.func @fuse_data_copy_mte3(%arg0: !ascendc.global_tensor<*xf32>, %arg1: !asc
 func.func @complex_sequence(%arg0: !ascendc.local_tensor<*xf32>, %arg1: !ascendc.local_tensor<*xf32>, %arg2: !ascendc.global_tensor<*xf32>, %arg3: !ascendc.global_tensor<*xf32>) {
   %c256 = arith.constant 256 : i32
   ascendc.get_buf pipe_mte2, 0
-  ascendc.data_copy_l2 %arg0, %arg2, %c256 {ascendc.buf_id = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.global_tensor<*xf32>, i32
+  ascendc.data_copy_l2 %arg0, %arg2, %c256 {ascendc.buf_ids = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.global_tensor<*xf32>, i32
   ascendc.rls_buf pipe_mte2, 0
   ascendc.get_buf pipe_v, 1
-  ascendc.add_l2 %arg0, %arg0, %arg1, %c256 {ascendc.buf_id = [1 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+  ascendc.add_l2 %arg0, %arg0, %arg1, %c256 {ascendc.buf_ids = [1 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.rls_buf pipe_v, 1
   ascendc.get_buf pipe_v, 1
-  ascendc.mul_l2 %arg0, %arg0, %arg1, %c256 {ascendc.buf_id = [1 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+  ascendc.mul_l2 %arg0, %arg0, %arg1, %c256 {ascendc.buf_ids = [1 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.rls_buf pipe_v, 1
   ascendc.get_buf pipe_v, 1
-  ascendc.sub_l2 %arg0, %arg0, %arg1, %c256 {ascendc.buf_id = [1 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+  ascendc.sub_l2 %arg0, %arg0, %arg1, %c256 {ascendc.buf_ids = [1 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.rls_buf pipe_v, 1
   ascendc.get_buf pipe_mte3, 2
-  ascendc.data_copy_l2 %arg3, %arg0, %c256 {ascendc.buf_id = [2 : i32]} : !ascendc.global_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+  ascendc.data_copy_l2 %arg3, %arg0, %c256 {ascendc.buf_ids = [2 : i32]} : !ascendc.global_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.rls_buf pipe_mte3, 2
   return
 }
@@ -246,11 +246,11 @@ func.func @yield_breaks_fusion(%arg0: !ascendc.local_tensor<*xf32>) {
   %c1 = arith.constant 1 : i32
   %c10 = arith.constant 10 : i32
   ascendc.get_buf pipe_v, 0
-  ascendc.add_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_id = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+  ascendc.add_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_ids = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.rls_buf pipe_v, 0
   scf.for %arg1 = %c0 to %c10 step %c1 : i32 {
     ascendc.get_buf pipe_v, 1
-    ascendc.mul_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_id = [1 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+    ascendc.mul_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_ids = [1 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
     ascendc.rls_buf pipe_v, 1
     scf.yield
   }
@@ -266,7 +266,7 @@ func.func @yield_breaks_fusion(%arg0: !ascendc.local_tensor<*xf32>) {
 func.func @return_breaks_fusion(%arg0: !ascendc.local_tensor<*xf32>) {
   %c256 = arith.constant 256 : i32
   ascendc.get_buf pipe_v, 0
-  ascendc.add_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_id = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
+  ascendc.add_l2 %arg0, %arg0, %arg0, %c256 {ascendc.buf_ids = [0 : i32]} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
   ascendc.rls_buf pipe_v, 0
   return
 }
