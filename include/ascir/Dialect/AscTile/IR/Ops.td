@@ -20,18 +20,15 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 
-class AscTile_Op<string mnemonic, list<Trait> traits = []>
-    : Op<AscTile_Dialect, mnemonic, traits> {
+class AscTile_Op<string mnemonic, list<Trait> traits = []> : Op<AscTile_Dialect, mnemonic, traits> {
   let cppNamespace = "::mlir::asctile";
 }
 
 def AccumulatorOp : AscTile_Op<"accumulator"> {
-  let summary = "Create a zeros tile in L0C or initialize with bias";
-  let arguments = (ins Optional<TileOfRankAndType<[1], [BF16, F16, F32]>>:$bias);
-  let results = (outs NumericTile:$result);
-  let assemblyFormat = [{
-    ($bias^)? attr-dict `:` qualified(type($result)) (`,` type($bias)^)?
-  }];
+  let summary = "Create a zeros tensor in L0C or initialize with bias";
+  let arguments = (ins Optional<LocalTensorOfRankAndType<[1], [BF16, F16, F32]>>:$bias);
+  let results = (outs NumericLocalTensor:$result);
+  let assemblyFormat = "($bias^)? attr-dict `:` qualified(type($result)) (`,` type($bias)^)?";
   let hasCanonicalizeMethod = 1;
   let hasVerifier = 1;
 }
@@ -39,103 +36,74 @@ def AccumulatorOp : AscTile_Op<"accumulator"> {
 def TensorOp : AscTile_Op<"tensor", [Pure]> {
   let summary = "Create tensor";
   let arguments = (ins AnyRankedOrUnrankedMemRef:$base, Variadic<I32>:$sizes);
-  let results = (outs Tensor:$result);
-  let assemblyFormat = [{
-    $base `(` $sizes `)` attr-dict `:` qualified(type($base)) `,`
-    qualified(type($result))
-  }];
+  let results = (outs GlobalTensor:$result);
+  let assemblyFormat = "$base `(` $sizes `)` attr-dict `:` qualified(type($base)) `,` qualified(type($result))";
   let hasVerifier = 1;
 }
 
 def DimOp : AscTile_Op<"dim", [Pure]> {
   let summary = "Obtain dimension of given tensor";
-  let arguments = (ins Tensor:$base, I32Attr:$index);
+  let arguments = (ins GlobalTensor:$base, I32Attr:$index);
   let results = (outs I32:$result);
   let assemblyFormat = "$base `,` $index attr-dict `:` qualified(type($base))";
   let hasFolder = 1;
   let hasVerifier = 1;
 }
 
-def SplatOp
-    : AscTile_Op<"splat", [Pure, ShapedMatchElemType<"result", "value">]> {
-  let summary = "Create a tile filled with splat value";
+def SplatOp : AscTile_Op<"splat", [Pure, ShapedMatchElemType<"result", "value">]> {
+  let summary = "Create a tensor filled with splat value";
   let arguments = (ins AscTile_Numeric:$value);
-  let results = (outs NumericTile:$result);
+  let results = (outs NumericLocalTensor:$result);
   let assemblyFormat = "$value attr-dict `:` qualified(type($result))";
   let hasFolder = 1;
 }
 
-def CopyOp : AscTile_Op<"copy", [
-  AllElementTypesMatch<["base", "result"]>,
-]> {
-  let summary = "Copy from a tile into a new subtile";
-  let arguments = (ins NumericTile:$base, Variadic<I32>:$offsets);
-  let results = (outs NumericTile:$result);
+def CopyOp : AscTile_Op<"copy", [AllElementTypesMatch<["base", "result"]>]> {
+  let summary = "Copy from a tensor into a new sub-tensor";
+  let arguments = (ins NumericLocalTensor:$base, Variadic<I32>:$offsets);
+  let results = (outs NumericLocalTensor:$result);
+  let assemblyFormat = "$base `[` $offsets `]` attr-dict `:` qualified(type($base)) `,` qualified(type($result))";
+  let hasCanonicalizeMethod = 1;
+}
+
+def LoadOp : AscTile_Op<"load", [AttrSizedOperandSegments, AllElementTypesMatch<["base", "result"]>,
+  OptionalShapedMatchElemType<"result", "padValue">, MemoryEffectsOpInterface]> {
+  let summary = "Load from the global tensor into a new local tensor";
+  let arguments = (ins Arg<GlobalTensor, "tensor to load from", [MemRead]>:$base, Variadic<I32>:$offsets,
+                   Optional<AscTile_Numeric>:$padValue, Variadic<I32>:$realShape);
+  let results = (outs NumericLocalTensor:$result);
   let assemblyFormat = [{
-    $base `[` $offsets `]` attr-dict `:` qualified(type($base)) `,`
+    $base `[` $offsets `]` (`,` $padValue^)? (`,` `(` $realShape^ `)`)? attr-dict `:` qualified(type($base)) `,`
     qualified(type($result))
   }];
   let hasCanonicalizeMethod = 1;
-}
-
-def LoadOp : AscTile_Op<"load", [
-  AttrSizedOperandSegments,
-  AllElementTypesMatch<["base", "result"]>,
-  OptionalShapedMatchElemType<"result", "padValue">,
-  MemoryEffectsOpInterface,
-]> {
-  let summary = "Load from the tensor into a new tile";
-  let arguments = (ins Arg<Tensor, "tensor to load from", [MemRead]>:$base,
-                   Variadic<I32>:$offsets, Optional<AscTile_Numeric>:$padValue,
-                   Variadic<I32>:$realShape);
-  let results = (outs NumericTile:$result);
-  let assemblyFormat = [{
-    $base `[` $offsets `]` (`,` $padValue^)? (`,` `(` $realShape^ `)`)? attr-dict `:`
-    qualified(type($base)) `,` qualified(type($result))
-  }];
-  let hasCanonicalizeMethod = 1;
   let hasVerifier = 1;
 }
 
-def StoreOp : AscTile_Op<"store", [
-  AttrSizedOperandSegments,
-  AllElementTypesMatch<["base", "value"]>, MemoryEffectsOpInterface
-]> {
-  let summary = "Store a tile into a tensor";
-  let arguments = (ins NumericTile:$value,
-                   Arg<Tensor, "tensor to store to", [MemWrite]>:$base,
+def StoreOp : AscTile_Op<"store", [AttrSizedOperandSegments, AllElementTypesMatch<["base", "value"]>,
+  MemoryEffectsOpInterface]> {
+  let summary = "Store a local tensor into a global tensor";
+  let arguments = (ins NumericLocalTensor:$value, Arg<GlobalTensor, "tensor to store to", [MemWrite]>:$base,
                    Variadic<I32>:$offsets, Variadic<I32>:$realShape);
   let assemblyFormat = [{
-    $value `,` $base `[` $offsets `]` (`,` `(` $realShape^ `)`)? attr-dict `:`
-    qualified(type($value)) `,` qualified(type($base))
+    $value `,` $base `[` $offsets `]` (`,` `(` $realShape^ `)`)? attr-dict `:` qualified(type($value)) `,`
+    qualified(type($base))
   }];
   let hasVerifier = 1;
 }
 
-def GetValueOp : AscTile_Op<"get_value", [
-  ShapedMatchElemType<"base", "result">, MemoryEffectsOpInterface
-]> {
-  let summary = "Load value from tensor";
-  let arguments = (ins Arg<Tensor, "tensor to read from", [MemRead]>:$base,
-                   Variadic<I32>:$offsets);
+def GetValueOp : AscTile_Op<"get_value", [ShapedMatchElemType<"base", "result">, MemoryEffectsOpInterface]> {
+  let summary = "Load value from a global tensor";
+  let arguments = (ins Arg<GlobalTensor, "tensor to read from", [MemRead]>:$base, Variadic<I32>:$offsets);
   let results = (outs AscTile_Numeric:$result);
-  let assemblyFormat = [{
-    $base `[` $offsets `]` attr-dict `:` qualified(type($base))
-  }];
+  let assemblyFormat = "$base `[` $offsets `]` attr-dict `:` qualified(type($base))";
 }
 
-def SetValueOp : AscTile_Op<"set_value", [
-  AllElementTypesMatch<["base", "value"]>, MemoryEffectsOpInterface
-]> {
-  let summary = "Store value into a tensor";
-  let arguments = (ins AnyTypeOf<[AscTile_Numeric,
-                   TileOfLengthAndType<[1], [AscTile_Numeric]>]>:$value,
-                   Arg<Tensor, "tensor to be updated", [MemWrite]>:$base,
-                   Variadic<I32>:$offsets);
-  let assemblyFormat = [{
-    $value `,` $base `[` $offsets `]` attr-dict `:` type($value) `,`
-    qualified(type($base))
-  }];
+def SetValueOp : AscTile_Op<"set_value", [AllElementTypesMatch<["base", "value"]>, MemoryEffectsOpInterface]> {
+  let summary = "Store value into a global tensor";
+  let arguments = (ins AnyTypeOf<[AscTile_Numeric, LocalTensorOfLengthAndType<[1], [AscTile_Numeric]>]>:$value,
+                   Arg<GlobalTensor, "tensor to be updated", [MemWrite]>:$base, Variadic<I32>:$offsets);
+  let assemblyFormat = "$value `,` $base `[` $offsets `]` attr-dict `:` type($value) `,` qualified(type($base))";
 }
 
 def YieldOp : AscTile_Op<"yield", [Terminator]> {
@@ -143,50 +111,33 @@ def YieldOp : AscTile_Op<"yield", [Terminator]> {
   let assemblyFormat = "attr-dict";
 }
 
-def CountMaskOp
-    : AscTile_Op<"count_mask", [SingleBlockImplicitTerminator<"YieldOp">]> {
+def CountMaskOp : AscTile_Op<"count_mask", [SingleBlockImplicitTerminator<"YieldOp">]> {
   let summary = "Apply mask (count mode) to nested operations";
   let arguments = (ins I64:$count, Optional<AscTile_Numeric>:$other);
   let regions = (region SizedRegion<1>:$region);
-  let assemblyFormat = [{
-    $count (`,` $other^ `:` type($other))? $region attr-dict
-  }];
+  let assemblyFormat = "$count (`,` $other^ `:` type($other))? $region attr-dict";
 }
 
-def BitwiseMaskOp
-    : AscTile_Op<"bitwise_mask", [SingleBlockImplicitTerminator<"YieldOp">]> {
+def BitwiseMaskOp : AscTile_Op<"bitwise_mask", [SingleBlockImplicitTerminator<"YieldOp">]> {
   let summary = "Apply mask (bit mode) to nested operations";
-  let arguments = (ins I64:$highBits, I64:$lowBits,
-                   Optional<AscTile_Numeric>:$other);
+  let arguments = (ins I64:$highBits, I64:$lowBits, Optional<AscTile_Numeric>:$other);
   let regions = (region SizedRegion<1>:$region);
-  let assemblyFormat = [{
-    $highBits `,` $lowBits (`,` $other^ `:` type($other))? $region attr-dict
-  }];
+  let assemblyFormat = "$highBits `,` $lowBits (`,` $other^ `:` type($other))? $region attr-dict";
 }
 
-def CmpOp : AscTile_Op<"cmp", [
-  Pure,
-  SameTypeOperands,
-  TypesMatchWith<
-    "result type has i1 element type and same shape as operands",
-    "lhs", "result", "::getI1SameShape($_self)">,
-]> {
+def CmpOp : AscTile_Op<"cmp", [Pure, SameTypeOperands, TypesMatchWith<
+    "result type has i1 element type and same shape as operands", "lhs", "result", "::getI1SameShape($_self)">]> {
   let summary = "Compute element-wise comparison of two tiles";
-  let arguments = (ins NumericTile:$lhs, NumericTile:$rhs,
-                   AscTile_CompareModeAttr:$cmpMode);
-  let results = (outs TileOf<[I1]>:$result);
-  let assemblyFormat = [{
-    $cmpMode $lhs `,` $rhs attr-dict `:` qualified(type($lhs))
-  }];
+  let arguments = (ins NumericLocalTensor:$lhs, NumericLocalTensor:$rhs, AscTile_CompareModeAttr:$cmpMode);
+  let results = (outs LocalTensorOf<[I1]>:$result);
+  let assemblyFormat = "$cmpMode $lhs `,` $rhs attr-dict `:` qualified(type($lhs))";
 }
 
-class AscTile_VecScalarOp<string mnemonic, string kind, list<Trait> traits = []>
-    : AscTile_Op<mnemonic, traits # [
-  Pure, AllTypesMatch<["base", "result"]>, ShapedMatchElemType<"base", "value">
-]> {
-  let summary = "Compute element-wise " # kind # " of tile and scalar";
-  let arguments = (ins NumericTile:$base, AscTile_Numeric:$value);
-  let results = (outs NumericTile:$result);
+class AscTile_VecScalarOp<string mnemonic, string kind, list<Trait> traits = []> : AscTile_Op<mnemonic, traits # [
+  Pure, AllTypesMatch<["base", "result"]>, ShapedMatchElemType<"base", "value">]> {
+  let summary = "Compute element-wise " # kind # " of tensor and scalar";
+  let arguments = (ins NumericLocalTensor:$base, AscTile_Numeric:$value);
+  let results = (outs NumericLocalTensor:$result);
   let assemblyFormat = "$base `,` $value attr-dict `:` qualified(type($base))";
 }
 
@@ -199,232 +150,159 @@ def DivSOp : AscTile_VecScalarOp<"divs", "division">;
 def MinSOp : AscTile_VecScalarOp<"mins", "minimum value">;
 def MaxSOp : AscTile_VecScalarOp<"maxs", "maximum value">;
 
-def CmpSOp : AscTile_Op<"cmps", [
-  Pure,
-  ShapedMatchElemType<"base", "value">,
-  TypesMatchWith<
-    "result type has i1 element type and same shape as operands",
-    "base", "result", "::getI1SameShape($_self)">
-]> {
-  let summary = "Compute element-wise comparison of tile and scalar";
-  let arguments = (ins NumericTile:$base, AscTile_Numeric:$value,
-                   AscTile_CompareModeAttr:$cmpMode);
-  let results = (outs TileOf<[I1]>:$result);
-  let assemblyFormat = [{
-    $cmpMode $base `,` $value attr-dict `:` qualified(type($base))
-  }];
+def CmpSOp : AscTile_Op<"cmps", [Pure, ShapedMatchElemType<"base", "value">, TypesMatchWith<
+    "result type has i1 element type and same shape as operands", "base", "result", "::getI1SameShape($_self)">]> {
+  let summary = "Compute element-wise comparison of tensor and scalar";
+  let arguments = (ins NumericLocalTensor:$base, AscTile_Numeric:$value, AscTile_CompareModeAttr:$cmpMode);
+  let results = (outs LocalTensorOf<[I1]>:$result);
+  let assemblyFormat = "$cmpMode $base `,` $value attr-dict `:` qualified(type($base))";
 }
 
 def ReluOp : AscTile_Op<"relu", [Pure, AllTypesMatch<["operand", "result"]>]> {
-  let summary = "Compute element-wise ReLU value of tile";
-  let arguments = (ins NumericTile:$operand);
-  let results = (outs NumericTile:$result);
+  let summary = "Compute element-wise ReLU value of tensor";
+  let arguments = (ins NumericLocalTensor:$operand);
+  let results = (outs NumericLocalTensor:$result);
   let assemblyFormat = "$operand attr-dict `:` qualified(type($result))";
 }
 
-def CastOp : AscTile_Op<"cast", [
-  Pure, SameOperandsAndResultShape, DeclareOpInterfaceMethods<CastOpInterface>
-]> {
-  let summary = "Cast tile elements to other data type";
-  let arguments = (ins NumericTile:$in, AscTile_RoundModeAttr:$roundMode);
-  let results = (outs NumericTile:$out);
-  let assemblyFormat = [{
-    $roundMode $in attr-dict `:` qualified(type($in)) `to` qualified(type($out))
-  }];
+def CastOp : AscTile_Op<"cast", [Pure, SameOperandsAndResultShape, DeclareOpInterfaceMethods<CastOpInterface>]> {
+  let summary = "Cast tensor elements to other data type";
+  let arguments = (ins NumericLocalTensor:$in, AscTile_RoundModeAttr:$roundMode);
+  let results = (outs NumericLocalTensor:$out);
+  let assemblyFormat = "$roundMode $in attr-dict `:` qualified(type($in)) `to` qualified(type($out))";
   let hasFolder = 1;
 }
 
-def ReshapeOp : AscTile_Op<"reshape", [
-  Pure, SameOperandsAndResultElementType, DeclareOpInterfaceMethods<CastOpInterface>
-]> {
-  let summary = "Create tile with same data but different shape";
-  let arguments = (ins NumericTile:$in);
-  let results = (outs NumericTile:$out);
-  let assemblyFormat = [{
-    $in attr-dict `:` qualified(type($in)) `to` qualified(type($out))
-  }];
+def ReshapeOp : AscTile_Op<"reshape", [Pure, SameOperandsAndResultElementType,
+  DeclareOpInterfaceMethods<CastOpInterface>]> {
+  let summary = "Create tensor with same data but different shape";
+  let arguments = (ins NumericLocalTensor:$in);
+  let results = (outs NumericLocalTensor:$out);
+  let assemblyFormat = "$in attr-dict `:` qualified(type($in)) `to` qualified(type($out))";
   let hasFolder = 1;
 }
 
-def SelectOp : AscTile_Op<"select", [
-  Pure,
-  AllTypesMatch<["src0", "src1", "result"]>,
-  TypesMatchWith<
-    "mask type has i1 element type and same shape as operands and result",
-    "result", "selMask", "::getI1SameShape($_self)">
-]> {
+def SelectOp : AscTile_Op<"select", [Pure, AllTypesMatch<["src0", "src1", "result"]>, TypesMatchWith<
+    "mask type has i1 element type and same shape as operands and result", "result", "selMask",
+    "::getI1SameShape($_self)">]> {
   let summary = "Select elements from two tiles depending on a mask";
-  let arguments = (ins TileOf<[I1]>:$selMask, NumericTile:$src0,
-                   NumericTile:$src1);
-  let results = (outs NumericTile:$result);
-  let assemblyFormat = [{
-    $selMask `,` $src0 `,` $src1 attr-dict `:` qualified(type($result))
-  }];
+  let arguments = (ins LocalTensorOf<[I1]>:$selMask, NumericLocalTensor:$src0, NumericLocalTensor:$src1);
+  let results = (outs NumericLocalTensor:$result);
+  let assemblyFormat = "$selMask `,` $src0 `,` $src1 attr-dict `:` qualified(type($result))";
 }
 
-def ReduceAs1dOp : AscTile_Op<"reduce_as_1d", [
-  Pure, AllElementTypesMatch<["operand", "result"]>
-]> {
-  let summary = "Reduce tile to 1-element tile or a scalar value";
-  let arguments = (ins NumericTile:$operand, AscTile_ReduceKindAttr:$kind);
-  let results = (outs AnyTypeOf<[AscTile_Numeric,
-                 TileOfLengthAndType<[1], [AscTile_Numeric]>]>:$result);
-  let assemblyFormat = [{
-    $kind $operand attr-dict `:` qualified(type($operand)) `,` type($result)
-  }];
+def ReduceAs1dOp : AscTile_Op<"reduce_as_1d", [Pure, AllElementTypesMatch<["operand", "result"]>]> {
+  let summary = "Reduce tensor to 1-element tensor or a scalar value";
+  let arguments = (ins NumericLocalTensor:$operand, AscTile_ReduceKindAttr:$kind);
+  let results = (outs AnyTypeOf<[AscTile_Numeric, LocalTensorOfLengthAndType<[1], [AscTile_Numeric]>]>:$result);
+  let assemblyFormat = "$kind $operand attr-dict `:` qualified(type($operand)) `,` type($result)";
 }
 
-def AtomicRMWOp : AscTile_Op<"atomic_rmw", [
-  AllElementTypesMatch<["base", "value"]>, MemoryEffectsOpInterface
-]> {
-  let summary = "Atomic accumulation the tile data into a tensor";
-  let arguments = (ins NumericTile:$value,
-                   Arg<Tensor, "tensor to store to", [MemWrite]>:$base,
+def AtomicRMWOp : AscTile_Op<"atomic_rmw", [AllElementTypesMatch<["base", "value"]>, MemoryEffectsOpInterface]> {
+  let summary = "Atomic accumulation the tensor data into a tensor";
+  let arguments = (ins NumericLocalTensor:$value, Arg<GlobalTensor, "tensor to store to", [MemWrite]>:$base,
                    Variadic<I32>:$offsets, AscTile_AtomicKindAttr:$kind);
   let assemblyFormat = [{
-    `<` $kind `>` $value `,` $base `[` $offsets `]` attr-dict `:`
-    qualified(type($value)) `,` qualified(type($base))
+    `<` $kind `>` $value `,` $base `[` $offsets `]` attr-dict `:` qualified(type($value)) `,` qualified(type($base))
   }];
 }
 
-def SoftmaxOp
-    : AscTile_Op<"softmax", [Pure, AllTypesMatch<["operand", "result"]>]> {
-  let summary = "Compute row-wise softmax of 1D or 2D tile";
-  Type allowedTileType = TileOfRankAndType<[1, 2], [AscTile_Numeric]>;
-  let arguments = (ins allowedTileType:$operand);
-  let results = (outs allowedTileType:$result);
+def SoftmaxOp : AscTile_Op<"softmax", [Pure, AllTypesMatch<["operand", "result"]>]> {
+  let summary = "Compute row-wise softmax of 1D or 2D tensor";
+  Type allowedType = LocalTensorOfRankAndType<[1, 2], [AscTile_Numeric]>;
+  let arguments = (ins allowedType:$operand);
+  let results = (outs allowedType:$result);
   let assemblyFormat = "$operand attr-dict `:` qualified(type($result))";
 }
 
-def RmsNormOp : AscTile_Op<"rms_norm", [
-  Pure,
-  AllElementTypesMatch<["input", "gamma"]>,
-  AllTypesMatch<["input", "result"]>,
-  ShapedMatchElemType<"input", "epsilon">,
-]> {
-  let summary = "Compute RmsNorm function over a tile";
-  let arguments = (ins FloatTile:$input, FloatTile:$gamma,
-                   AscTile_Float:$epsilon);
-  let results = (outs FloatTile:$result);
+def RmsNormOp : AscTile_Op<"rms_norm", [Pure, AllElementTypesMatch<["input", "gamma"]>,
+  AllTypesMatch<["input", "result"]>, ShapedMatchElemType<"input", "epsilon">]> {
+  let summary = "Compute RmsNorm function over a tensor";
+  let arguments = (ins FloatLocalTensor:$input, FloatLocalTensor:$gamma, AscTile_Float:$epsilon);
+  let results = (outs FloatLocalTensor:$result);
   let assemblyFormat = [{
-    $input `,` $gamma `,` $epsilon attr-dict `:` qualified(type($input)) `,`
-    qualified(type($gamma))
+    $input `,` $gamma `,` $epsilon attr-dict `:` qualified(type($input)) `,` qualified(type($gamma))
   }];
 }
 
-def MatmulOp : AscTile_Op<"matmul", [
-  Pure, AllElementTypesMatch<["matrixA", "matrixB"]>
-]> {
+def MatmulOp : AscTile_Op<"matmul", [Pure, AllElementTypesMatch<["matrixA", "matrixB"]>]> {
   let summary = "Compute matrix multiplication on 2D tiles with optional bias";
-  Type inputTileType = TileOfRankAndType<[2], [AscTile_Float]>;
-  let arguments = (ins inputTileType:$matrixA, inputTileType:$matrixB,
-                   Optional<TileOfRankAndType<[1], [BF16, F16, F32]>>:$bias,
-                   UnitAttr:$hf32);
-  let results = (outs TileOfRankAndType<[2], [F32]>:$result);
+  Type inputType = LocalTensorOfRankAndType<[2], [AscTile_Float]>;
+  let arguments = (ins inputType:$matrixA, inputType:$matrixB,
+                   Optional<LocalTensorOfRankAndType<[1], [BF16, F16, F32]>>:$bias, UnitAttr:$hf32);
+  let results = (outs LocalTensorOfRankAndType<[2], [F32]>:$result);
   let assemblyFormat = [{
-    $matrixA `,` $matrixB (`,` $bias^)? attr-dict `:` type($matrixA) `,`
-    type($matrixB) (`,` type($bias)^)? `->` type($result)
+    $matrixA `,` $matrixB (`,` $bias^)? attr-dict `:` type($matrixA) `,` type($matrixB) (`,` type($bias)^)? `->`
+    type($result)
   }];
   let hasVerifier = 1;
 }
 
-def MatmulAccOp : AscTile_Op<"matmul_acc", [
-  AllElementTypesMatch<["matrixA", "matrixB"]>, MemoryEffectsOpInterface,
-]> {
+def MatmulAccOp : AscTile_Op<"matmul_acc", [AllElementTypesMatch<["matrixA", "matrixB"]>, MemoryEffectsOpInterface]> {
   let summary = "Compute matrix multiplication with accumulator on 2D tiles";
-  Type inputTileType = TileOfRankAndType<[2], [AscTile_Float]>;
-  let arguments = (ins Arg<TileOfRankAndType<[2], [F32]>, "tile to store to",
-                   [MemWrite]>:$acc, inputTileType:$matrixA, inputTileType:$matrixB,
-                   UnitAttr:$hf32);
-  let assemblyFormat = [{
-    $acc `,` $matrixA `,` $matrixB attr-dict `:` type($acc) `,` type($matrixA)
-    `,` type($matrixB)
-  }];
+  Type inputType = LocalTensorOfRankAndType<[2], [AscTile_Float]>;
+  let arguments = (ins Arg<LocalTensorOfRankAndType<[2], [F32]>, "tensor to store to", [MemWrite]>:$acc,
+                   inputType:$matrixA, inputType:$matrixB, UnitAttr:$hf32);
+  let assemblyFormat = "$acc `,` $matrixA `,` $matrixB attr-dict `:` type($acc) `,` type($matrixA) `,` type($matrixB)";
   let hasVerifier = 1;
 }
 
-def BroadcastOp : AscTile_Op<"broadcast", [
-  Pure, AllElementTypesMatch<["operand", "result"]>
-]> {
-  let summary = "Broadcast tile to the provided shape";
-  let arguments = (ins NumericTile:$operand);
-  let results = (outs NumericTile:$result);
-  let assemblyFormat = [{
-    $operand attr-dict `:` qualified(type($operand)) `to` qualified(type($result))
-  }];
+def BroadcastOp : AscTile_Op<"broadcast", [Pure, AllElementTypesMatch<["operand", "result"]>]> {
+  let summary = "Broadcast tensor to the provided shape";
+  let arguments = (ins NumericLocalTensor:$operand);
+  let results = (outs NumericLocalTensor:$result);
+  let assemblyFormat = "$operand attr-dict `:` qualified(type($operand)) `to` qualified(type($result))";
   let hasFolder = 1;
 }
 
-def ReduceOp : AscTile_Op<"reduce", [
-  Pure, AllElementTypesMatch<["operand", "result"]>
-]> {
-  let summary = "Reduce tile to the provided shape";
-  let arguments = (ins NumericTile:$operand, I32ArrayAttr:$dims,
-                   AscTile_ReduceKindAttr:$kind);
-  let results = (outs NumericTile:$result);
-  let assemblyFormat = [{
-    $kind $operand attr-dict `:` qualified(type($operand)) `,`
-    qualified(type($result))
-  }];
+def ReduceOp : AscTile_Op<"reduce", [Pure, AllElementTypesMatch<["operand", "result"]>]> {
+  let summary = "Reduce tensor to the provided shape";
+  let arguments = (ins NumericLocalTensor:$operand, I32ArrayAttr:$dims, AscTile_ReduceKindAttr:$kind);
+  let results = (outs NumericLocalTensor:$result);
+  let assemblyFormat = "$kind $operand attr-dict `:` qualified(type($operand)) `,` qualified(type($result))";
 }
 
-def StoreFixpipeOp : AscTile_Op<"store_fixpipe", [
-  AttrSizedOperandSegments, MemoryEffectsOpInterface
-]> {
-  let summary = "Store a tile into a tensor";
-  let arguments = (ins NumericTile:$value,
-                   Arg<Tensor, "tensor to store to", [MemWrite]>:$base,
-                   Variadic<I32>:$offsets, Variadic<I32>:$realShape,
-                   UnitAttr:$relu, UnitAttr:$quantize);
+def StoreFixpipeOp : AscTile_Op<"store_fixpipe", [AttrSizedOperandSegments, MemoryEffectsOpInterface]> {
+  let summary = "Store a local tensor into a global tensor via FixPipe";
+  let arguments = (ins NumericLocalTensor:$value, Arg<GlobalTensor, "tensor to store to", [MemWrite]>:$base,
+                   Variadic<I32>:$offsets, Variadic<I32>:$realShape, UnitAttr:$relu, UnitAttr:$quantize);
   let assemblyFormat = [{
-    $value `,` $base `[` $offsets `]` (`,` `(` $realShape^ `)`)? attr-dict `:`
-    qualified(type($value)) `,` qualified(type($base))
+    $value `,` $base `[` $offsets `]` (`,` `(` $realShape^ `)`)? attr-dict `:` qualified(type($value)) `,`
+    qualified(type($base))
   }];
   let hasVerifier = 1;
 }
 
 def ConcatOp : AscTile_Op<"concat", [Pure, SameOperandsAndResultElementType]> {
   let summary = "Concatenates the sequence of tiles along the first dimension";
-  let arguments = (ins Variadic<NumericTile>);
-  let results = (outs NumericTile:$result);
-  let assemblyFormat = [{
-    operands attr-dict `:` type(operands) `->` qualified(type($result))
-  }];
+  let arguments = (ins Variadic<NumericLocalTensor>);
+  let results = (outs NumericLocalTensor:$result);
+  let assemblyFormat = "operands attr-dict `:` type(operands) `->` qualified(type($result))";
   let hasFolder = 1;
   let hasVerifier = 1;
 }
 
 def CopyFixpipeOp : AscTile_Op<"copy_fixpipe"> {
-  let summary = "Store a tile into a tile";
-  let arguments = (ins NumericTile:$base,
-                   Variadic<I32>:$offsets, UnitAttr:$relu,
-                   UnitAttr:$quantize);
-  let results = (outs NumericTile:$result);
-  let assemblyFormat = [{
-    $base `[` $offsets `]` attr-dict `:`
-    qualified(type($base)) `,` qualified(type($result))
-  }];
+  let summary = "Store a tensor into a sub-tensor via FixPipe";
+  let arguments = (ins NumericLocalTensor:$base, Variadic<I32>:$offsets, UnitAttr:$relu, UnitAttr:$quantize);
+  let results = (outs NumericLocalTensor:$result);
+  let assemblyFormat = "$base `[` $offsets `]` attr-dict `:` qualified(type($base)) `,` qualified(type($result))";
   let hasVerifier = 1;
   let hasCanonicalizeMethod = 1;
 }
 
-def TransposeOp
-    : AscTile_Op<"transpose", [Pure, SameOperandsAndResultElementType]> {
-  let summary = "Transpose a tile";
-  let arguments = (ins NumericTile:$operand, I32ArrayAttr:$dims);
-  let results = (outs NumericTile:$result);
-  let assemblyFormat = [{
-      $operand `,` $dims attr-dict `:` qualified(type($operand)) `to` qualified(type($result))
-  }];
+def TransposeOp : AscTile_Op<"transpose", [Pure, SameOperandsAndResultElementType]> {
+  let summary = "Transpose a tensor";
+  let arguments = (ins NumericLocalTensor:$operand, I32ArrayAttr:$dims);
+  let results = (outs NumericLocalTensor:$result);
+  let assemblyFormat = "$operand `,` $dims attr-dict `:` qualified(type($operand)) `to` qualified(type($result))";
 }
 
 def InlineVFOp : AscTile_Op<"inline_vf", [Pure]> {
   let summary = "Declare vector function provided as C++ code";
-  let arguments = (ins Variadic<NumericTile>:$inputs, StrAttr:$code);
-  let results = (outs NumericTile:$result);
-  let assemblyFormat = [{
-    `(` $inputs `)` $code attr-dict `:` functional-type($inputs, results)
-  }];
+  let arguments = (ins Variadic<NumericLocalTensor>:$inputs, StrAttr:$code);
+  let results = (outs NumericLocalTensor:$result);
+  let assemblyFormat = "`(` $inputs `)` $code attr-dict `:` functional-type($inputs, results)";
 }
 
 #endif // ASCTILE_OPS_TD
