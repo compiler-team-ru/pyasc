@@ -203,7 +203,7 @@ void defineLowerToAscPasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_math", createLowerMathPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_scf", createLowerSCFPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_realize_conversion_cast", createRealizeConversionCastPass);
-    DEFINE_ADD_PASS_ON(func::FuncOp, "add_redress_i1_tile", createRedressI1TilePass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_redress_i1_tensor", createRedressI1TensorPass);
 }
 
 } // namespace

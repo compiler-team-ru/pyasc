@@ -62,7 +62,7 @@ def LowerArith : Pass<"asclower-arith", "func::FuncOp"> {
   let constructor = "mlir::asclower::createLowerArithPass()";
   let dependentDialects = ["ascendc::AscendCDialect"];
   let description = [{
-    Converts selected arithmetic operations on tile types to Ascend C equivalents:
+    Converts selected arithmetic operations on tensor types to Ascend C equivalents:
     - **Splat constants**: Creates `LocalTensorAutoOp` + `DuplicateL2Op` to broadcast scalar to all elements
     - **Dense non-splat constants**: Creates tensor + series of `LocalTensorSetValueOp` for each element
     - **Bitcast**: Converts to `LocalTensorReinterpretCastOp` for type reinterpretation
@@ -77,7 +77,7 @@ def LowerArithBinary : Pass<"asclower-arith-binary", "func::FuncOp"> {
   let constructor = "mlir::asclower::createLowerArithBinaryPass()";
   let dependentDialects = ["arith::ArithDialect", "ascendc::AscendCDialect"];
   let description = [{
-    Converts binary arithmetic operations on tile types to Ascend C L2-level vector operations.
+    Converts binary arithmetic operations on tensor types to Ascend C L2-level vector operations.
     Supports floating-point and integer arithmetic (add, sub, mul, div, max, min variants).
     For bitwise operations (andi, ori), performs reinterpret casting to i8 elements if needed since
     the hardware processes bitwise ops on 8-bit granularity.
@@ -93,7 +93,7 @@ def LowerAscTile : Pass<"asclower-asctile", "func::FuncOp"> {
     "arith::ArithDialect", "ascvf::AscVFDialect", "ascendc::AscendCDialect", "emitasc::EmitAscDialect",
   ];
   let description = [{
-    Converts AscTile tile operations to Ascend C equivalents:
+    Converts AscTile tensor operations to Ascend C equivalents:
     - **TensorOp**: Creates `GlobalTensorOp` with buffer pointer setup
     - **SplatOp**: Creates `DuplicateL2Op` to broadcast scalar
     - **ReluOp, CastOp**: Creates corresponding L2 unary ops
@@ -102,7 +102,7 @@ def LowerAscTile : Pass<"asclower-asctile", "func::FuncOp"> {
     - **BroadcastOp**: Creates `DuplicateL2Op` for 1-element tiles or `BroadcastOp` for larger tiles
     - **SoftmaxOp/RmsNormOp**: Creates library ops with tiling/shape info params
     - **ReduceAs1dOp/ReduceOp**: Creates reduction ops with pattern-based shape decomposition
-    - **Scalar-tile ops (adds, subs, muls, divs, mins, maxs, shls, shrs)**: Creates L2 scalar variants
+    - **Scalar-tensor ops (adds, subs, muls, divs, mins, maxs, shls, shrs)**: Creates L2 scalar variants
     - **AccumulatorOp/MatmulAccOp**: Sets up L0C accumulator for matrix multiplication accumulation
   }];
 }
@@ -133,10 +133,10 @@ def LowerAscTileI1 : Pass<"asclower-asctile-i1", "func::FuncOp"> {
   let constructor = "mlir::asclower::createLowerAscTileI1Pass()";
   let dependentDialects = ["arith::ArithDialect", "ascendc::AscendCDialect"];
   let description = [{
-    Converts i1 (boolean) tile operations to Ascend C L0-level operations with packed i8 representation:
+    Converts i1 (boolean) tensor operations to Ascend C L0-level operations with packed i8 representation:
     - **CmpOp**: Creates `CompareL0Op` with packed i8 destination (8 boolean values per i8 byte)
       - For integer comparisons on non-C310 targets, casts operands to float first
-    - **CmpSOp**: Creates `CompareScalarL0Op` for tile-scalar comparisons
+    - **CmpSOp**: Creates `CompareScalarL0Op` for tensor-scalar comparisons
     - **SelectOp**: Creates `SelectL0Op` with VSEL_TENSOR_TENSOR mode
 
     Boolean tiles (i1 elements) are represented as packed i8 tensors (8 bits per byte), enabling hardware
@@ -164,7 +164,7 @@ def LowerMath : Pass<"asclower-math", "func::FuncOp"> {
   let constructor = "mlir::asclower::createLowerMathPass()";
   let dependentDialects = ["ascendc::AscendCDialect"];
   let description = [{
-    Converts math dialect unary operations on tile types to Ascend C equivalents.
+    Converts math dialect unary operations on tensor types to Ascend C equivalents.
     Library operations (log, erf, trigonometric functions, ceil, floor, round) use Ascend C's
     high-precision library calls with optional shared temporary buffer.
     Direct L2 operations (abs, exp, sqrt, rsqrt) map to hardware-accelerated vector instructions.
@@ -174,17 +174,17 @@ def LowerMath : Pass<"asclower-math", "func::FuncOp"> {
 }
 
 def LowerSCF : Pass<"asclower-scf", "func::FuncOp"> {
-  let summary = "Convert tile type operands and results in scf control flow operations to local tensor types";
+  let summary = "Convert tensor type operands and results in scf control flow operations to local tensor types";
   let constructor = "mlir::asclower::createLowerSCFPass()";
   let dependentDialects = ["ascendc::AscendCDialect", "scf::SCFDialect"];
   let description = [{
-    Uses MLIR's `populateSCFStructuralTypeConversionsAndLegality` to convert scf operations with tile types:
-    - **scf.if**: Result types converted from `TileType` to `LocalTensorType`, yield ops updated
+    Uses MLIR's `populateSCFStructuralTypeConversionsAndLegality` to convert scf operations with tensor types:
+    - **scf.if**: Result types converted from `asctile::LocalTensorType` to `ascendc::LocalTensorType`
     - **scf.for**: Iter argument types converted, loop body operations wrapped with conversion casts
     - **scf.while**: Before/after region argument types converted
 
     This enables scf control flow to work with converted tensor types after AscTile lowering.
-    Uses `TensorTypeConverter` to map `TileType` → `LocalTensorType`.
+    Uses `TensorTypeConverter` to map `asctile::LocalTensorType` → `ascendc::LocalTensorType`.
   }];
 }
 
@@ -204,13 +204,13 @@ def RealizeConversionCast : Pass<"asclower-realize-conversion-cast", "func::Func
   }];
 }
 
-def RedressI1Tile : Pass<"asclower-redress-i1-tile", "func::FuncOp"> {
-  let summary = "Convert i1 tile types to packed i8 representation and adjust constants accordingly";
-  let constructor = "mlir::asclower::createRedressI1TilePass()";
+def RedressI1Tensor : Pass<"asclower-redress-i1-tensor", "func::FuncOp"> {
+  let summary = "Convert i1 tensor types to packed i8 representation and adjust constants accordingly";
+  let constructor = "mlir::asclower::createRedressI1TensorPass()";
   let dependentDialects = ["arith::ArithDialect", "asctile::AscTileDialect"];
   let description = [{
-    Rewrites i1 (boolean) tile types to use packed i8 representation before lowering:
-    - **TileType conversion**: `tile<Nxi1>` → `tile<ceil(N/8)xi8>` (8 boolean values packed per byte)
+    Rewrites i1 (boolean) tensor types to use packed i8 representation before lowering:
+    - **LocalTensorType conversion**: `tensor<Nxi1>` → `tensor<ceil(N/8)xi8>` (8 boolean values packed per byte)
     - **Splat constants**: `dense<true>` → `dense<-1>` (all bits set), `dense<false>` → `dense<0>`
     - **Dense constants**: Bit-packed representation where bit index corresponds to original element index
 

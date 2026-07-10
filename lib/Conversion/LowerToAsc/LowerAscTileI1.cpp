@@ -63,7 +63,7 @@ struct ConvertCmp : public ConvertOp<asctile::CmpOp> {
         if (isa<IntegerType>(srcType.getElementType()) && !ascendc::isTargetArchC310(op)) {
             unsigned bitWidth = srcType.getElementTypeBitWidth();
             if (bitWidth != 16 && bitWidth != 32)
-                return op.emitOpError("can only be lowered with i16 or i32 tile operands");
+                return op.emitOpError("can only be lowered with i16 or i32 tensor operands");
             auto castToType = bitWidth == 16 ? rewriter.getF16Type() : rewriter.getF32Type();
             auto src0Casted = createTensorOp(rewriter, loc, srcType.getShape(), castToType);
             auto src1Casted = createTensorOp(rewriter, loc, srcType.getShape(), castToType);

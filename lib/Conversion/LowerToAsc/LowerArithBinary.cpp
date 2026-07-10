@@ -58,7 +58,7 @@ struct ConvertBitwiseToL2 : public ConvertOp<ArithOp> {
     LogicalResult matchAndRewrite(ArithOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
-        auto shapedTy = cast<asctile::TileType>(op.getType());
+        auto shapedTy = cast<asctile::LocalTensorType>(op.getType());
         auto resType = shapedTy.getElementType();
         I1ReplacementType replType(op.getContext());
         auto supportedElemTy = replType.iType;

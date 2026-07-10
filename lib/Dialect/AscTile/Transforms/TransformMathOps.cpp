@@ -52,7 +52,7 @@ struct ScalarizeArithOp : OpRewritePattern<ArithOp> {
 
     LogicalResult matchAndRewrite(ArithOp op, PatternRewriter& rewriter) const override
     {
-        if (!isa<asctile::TileType>(op.getType()))
+        if (!isa<asctile::LocalTensorType>(op.getType()))
             return failure();
         Value newLhs, newRhs;
         if (auto splat = materializeSplatValue(rewriter, op.getLhs())) {
@@ -76,7 +76,7 @@ struct ScalarizeArithRhsOp : OpRewritePattern<ArithOp> {
     LogicalResult matchAndRewrite(ArithOp op, PatternRewriter& rewriter) const override
     {
         auto type = op.getType();
-        if (!isa<asctile::TileType>(type))
+        if (!isa<asctile::LocalTensorType>(type))
             return failure();
         if (auto splat = materializeSplatValue(rewriter, op.getRhs())) {
             rewriter.replaceOpWithNewOp<TileOp>(op, type, op.getLhs(), splat);
@@ -112,7 +112,7 @@ struct MaxWithZeroToReluOp : OpRewritePattern<MaxOp> {
     LogicalResult matchAndRewrite(MaxOp op, PatternRewriter& rewriter) const override
     {
         auto type = op.getType();
-        if (!isa<asctile::TileType>(type))
+        if (!isa<asctile::LocalTensorType>(type))
             return failure();
         Value operand;
         if (isZero(op.getLhs())) {
@@ -174,7 +174,7 @@ struct ScalarizeShL : OpRewritePattern<arith::ShLIOp> {
 
     LogicalResult matchAndRewrite(arith::ShLIOp op, PatternRewriter& rewriter) const override
     {
-        if (!isa<asctile::TileType>(op.getType()))
+        if (!isa<asctile::LocalTensorType>(op.getType()))
             return failure();
 
         Value scalar = materializeSplatValue(rewriter, op.getRhs());
@@ -192,7 +192,7 @@ struct ScalarizeShR : OpRewritePattern<arith::ShRSIOp> {
 
     LogicalResult matchAndRewrite(arith::ShRSIOp op, PatternRewriter& rewriter) const override
     {
-        if (!isa<asctile::TileType>(op.getType()))
+        if (!isa<asctile::LocalTensorType>(op.getType()))
             return failure();
 
         Value scalar = materializeSplatValue(rewriter, op.getRhs());

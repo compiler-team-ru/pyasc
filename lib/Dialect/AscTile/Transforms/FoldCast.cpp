@@ -70,7 +70,7 @@ bool isCastSupported(Type srcType, Type dstType)
     return false;
 }
 
-bool isCastSupported(asctile::TileType srcType, asctile::TileType dstType)
+bool isCastSupported(asctile::LocalTensorType srcType, asctile::LocalTensorType dstType)
 {
     return isCastSupported(getElementTypeOrSelf(srcType), getElementTypeOrSelf(dstType));
 }

@@ -72,7 +72,7 @@ struct CubeTransposeToLoad : OpRewritePattern<asctile::TransposeOp> {
         rewriter.finalizeOpModification(loadOp);
         auto copyOpType = copyOp.getType();
         auto shape = copyOpType.getShape();
-        Type newType = TileType::get({shape[1], shape[0]}, opType.getElementType(), copyOpType.getLoc());
+        Type newType = LocalTensorType::get({shape[1], shape[0]}, opType.getElementType(), copyOpType.getLoc());
         auto newCopyOp = rewriter.create<asctile::CopyOp>(op.getLoc(), newType, copyOp.getBase(), copyOp.getOffsets());
         rewriter.replaceOp(copyOp, newCopyOp);
         rewriter.startOpModification(newCopyOp);

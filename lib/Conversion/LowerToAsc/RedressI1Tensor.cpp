@@ -22,7 +22,7 @@
 
 namespace mlir {
 namespace asclower {
-#define GEN_PASS_DEF_REDRESSI1TILE
+#define GEN_PASS_DEF_REDRESSI1TENSOR
 #include "ascir/Conversion/LowerToAsc/Passes.h.inc"
 } // namespace asclower
 } // namespace mlir
@@ -35,7 +35,7 @@ namespace {
 struct RedressTypeConverter : public LoweringTypeConverter {
     RedressTypeConverter()
     {
-        addConversion([](asctile::TileType type) {
+        addConversion([](asctile::LocalTensorType type) {
             auto elType = type.getElementType();
             SmallVector<int64_t> shape(type.getShape());
             if (elType.isInteger(1)) {
@@ -44,7 +44,7 @@ struct RedressTypeConverter : public LoweringTypeConverter {
                 shape = {numElements};
                 elType = replType.iType;
             }
-            return asctile::TileType::get(shape, elType, type.getLoc());
+            return asctile::LocalTensorType::get(shape, elType, type.getLoc());
         });
     }
 };
@@ -56,7 +56,7 @@ struct RedressSplatConstant : ConvertOp<arith::ConstantOp> {
     {
         if (!isa_and_present<SplatElementsAttr>(op.getValue()))
             return failure();
-        auto oldType = cast<asctile::TileType>(op.getType());
+        auto oldType = cast<asctile::LocalTensorType>(op.getType());
         assert(oldType.getElementType().isInteger(1));
         auto dense = dyn_cast<SplatElementsAttr>(op.getValue());
         I1ReplacementType replType(op.getContext());
@@ -91,7 +91,7 @@ struct RedressDenseConstant : ConvertOp<arith::ConstantOp> {
     }
 };
 
-struct RedressI1TilePass : public asclower::impl::RedressI1TileBase<RedressI1TilePass> {
+struct RedressI1TensorPass : public asclower::impl::RedressI1TensorBase<RedressI1TensorPass> {
     void runOnOperation() override
     {
         func::FuncOp funcOp = getOperation();
@@ -101,7 +101,7 @@ struct RedressI1TilePass : public asclower::impl::RedressI1TileBase<RedressI1Til
         target.addLegalDialect<arith::ArithDialect, memref::MemRefDialect, vector::VectorDialect>();
         target.addDynamicallyLegalOp<arith::ConstantOp, vector::BroadcastOp>([](Operation* op) {
             assert(op->getNumResults() == 1);
-            if (auto type = dyn_cast<asctile::TileType>(op->getResult(0).getType())) {
+            if (auto type = dyn_cast<asctile::LocalTensorType>(op->getResult(0).getType())) {
                 return !type.getElementType().isInteger(1);
             }
             return true;
@@ -115,4 +115,4 @@ struct RedressI1TilePass : public asclower::impl::RedressI1TileBase<RedressI1Til
 
 } // namespace
 
-std::unique_ptr<Pass> mlir::asclower::createRedressI1TilePass() { return std::make_unique<RedressI1TilePass>(); }
+std::unique_ptr<Pass> mlir::asclower::createRedressI1TensorPass() { return std::make_unique<RedressI1TensorPass>(); }

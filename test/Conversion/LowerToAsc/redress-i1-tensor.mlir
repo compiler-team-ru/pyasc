@@ -1,4 +1,4 @@
-// RUN: ascir-opt --asclower-redress-i1-tile -allow-unregistered-dialect %s | FileCheck %s
+// RUN: ascir-opt --asclower-redress-i1-tensor -allow-unregistered-dialect %s | FileCheck %s
 
 // CHECK-LABEL: func.func @redress_splat_constant(%arg0: tensor<16xf32, #asctile.local<UB>>, %arg1: tensor<16xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>> {
 // CHECK-NEXT:  %cst = arith.constant dense<-1> : tensor<2xi8, #asctile.local<UB>>

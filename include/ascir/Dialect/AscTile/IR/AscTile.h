@@ -37,8 +37,6 @@ public:
     static bool classof(Type type);
 };
 
-using TensorType = GlobalTensorType; // TODO: remove compatibility alias
-
 class LocalTensorType : public RankedTensorType {
 public:
     using RankedTensorType::RankedTensorType;
@@ -49,8 +47,6 @@ public:
     static TypeID resolveTypeID();
     static bool classof(Type type);
 };
-
-using TileType = LocalTensorType; // TODO: remove compatibility alias
 
 } // namespace asctile
 } // namespace mlir

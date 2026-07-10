@@ -529,7 +529,7 @@ struct ConvertReduceAs1d : ConvertOp<asctile::ReduceAs1dOp> {
             rewriter.create<ascendc::ReduceMinL2Op>(loc, dst, src, tmpBuff, count, consts.i64(0));
         else
             return op.emitOpError() << "with " << asctile::stringifyReduceKind(kind) << " is not supported";
-        if (isa<asctile::TileType>(op.getType()))
+        if (isa<asctile::LocalTensorType>(op.getType()))
             rewriter.replaceOp(op, dst);
         else
             rewriter.replaceOpWithNewOp<ascendc::LocalTensorGetValueOp>(op, elemType, dst, consts.i64(0));

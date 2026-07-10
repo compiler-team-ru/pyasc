@@ -95,19 +95,21 @@ LogicalResult ConcatOp::verify()
 {
     if (getNumOperands() < 1)
         return emitOpError("must have at least one operand");
-    if (!llvm::all_of(
-            getOperands(), [](Value opnd) { return cast<TileType>(opnd.getType()).getLoc() == TileLocation::UB; }))
-        return emitOpError("tile operands must have UB tile location");
+    if (!llvm::all_of(getOperands(), [](Value opnd) {
+            return cast<LocalTensorType>(opnd.getType()).getLoc() == TileLocation::UB;
+        }))
+        return emitOpError("tensor operands must have UB tile location");
     if (!llvm::all_equal(llvm::map_range(getOperands(), [](Value opnd) {
-            return cast<TileType>(opnd.getType()).getShape().drop_front();
+            return cast<LocalTensorType>(opnd.getType()).getShape().drop_front();
         })))
-        return emitOpError("tile operands must have the same shape except their first dimension");
-    SmallVector<int64_t> firstDims(
-        llvm::map_range(getOperands(), [](Value opnd) { return cast<TileType>(opnd.getType()).getShape().front(); }));
-    SmallVector<int64_t> resultShape(cast<TileType>(getOperand(0).getType()).getShape());
+        return emitOpError("tensor operands must have the same shape except their first dimension");
+    SmallVector<int64_t> firstDims(llvm::map_range(getOperands(), [](Value opnd) {
+        return cast<LocalTensorType>(opnd.getType()).getShape().front();
+    }));
+    SmallVector<int64_t> resultShape(cast<LocalTensorType>(getOperand(0).getType()).getShape());
     resultShape.front() = std::accumulate(firstDims.begin(), firstDims.end(), 0, std::plus<int64_t>());
     if (resultShape != getType().getShape())
-        return emitOpError() << "result tile shape must be [" << resultShape << "]";
+        return emitOpError() << "result tensor shape must be [" << resultShape << "]";
     return success();
 }
 
@@ -181,12 +183,12 @@ LogicalResult LoadOp::verify()
         return success();
     auto tileShape = getType().getShape();
     if (tileShape.size() != realShape.size())
-        return emitOpError() << "real_shape must have same rank as tile shape";
+        return emitOpError() << "real_shape must have same size as tensor shape";
 
     if (auto attr = getOperation()->getAttrOfType<DenseI32ArrayAttr>(asctile::attr::transposeDims)) {
         ArrayRef<int32_t> transposeDims = attr;
         if (transposeDims.size() != tileShape.size())
-            return emitOpError() << "transpose_dims must have same rank as tile";
+            return emitOpError() << "transpose_dims must have same rank as tensor";
         SmallVector<Value> tmp;
         for (size_t i = 0; i < tileShape.size(); ++i) {
             auto dim = transposeDims[i];
@@ -199,7 +201,7 @@ LogicalResult LoadOp::verify()
         if (!matchPattern(realDimValue, m_ConstantInt(&realDim)))
             continue;
         if (realDim.getSExtValue() > tileDim)
-            return emitOpError() << "real_shape exceeds tile shape";
+            return emitOpError() << "real_shape exceeds tensor shape";
     }
     return success();
 }
@@ -227,14 +229,14 @@ LogicalResult StoreOp::verify()
         return success();
     auto tileShape = getValue().getType().getShape();
     if (tileShape.size() != realShape.size())
-        return emitOpError() << "real_shape must have same rank as tile shape";
+        return emitOpError() << "real_shape must have same size as tensor shape";
 
     for (auto [realDimValue, tileDim] : llvm::zip_equal(realShape, tileShape)) {
         APInt realDim;
         if (!matchPattern(realDimValue, m_ConstantInt(&realDim)))
             continue;
         if (realDim.getSExtValue() > tileDim)
-            return emitOpError() << "real_shape exceeds tile shape";
+            return emitOpError() << "real_shape exceeds tensor shape";
     }
     return success();
 }
@@ -247,8 +249,8 @@ bool CastOp::areCastCompatible(TypeRange inputs, TypeRange outputs)
 {
     if (inputs.size() != 1 || outputs.size() != 1)
         return false;
-    auto inType = dyn_cast<TileType>(inputs.front());
-    auto outType = dyn_cast<TileType>(outputs.front());
+    auto inType = dyn_cast<LocalTensorType>(inputs.front());
+    auto outType = dyn_cast<LocalTensorType>(outputs.front());
     return inType && outType && inType.getLoc() == outType.getLoc() && inType.getShape() == outType.getShape() &&
            inType.getElementType().isIntOrFloat() && outType.getElementType().isIntOrFloat();
 }
@@ -263,8 +265,8 @@ bool ReshapeOp::areCastCompatible(TypeRange inputs, TypeRange outputs)
 {
     if (inputs.size() != 1 || outputs.size() != 1)
         return false;
-    auto inType = dyn_cast<TileType>(inputs.front());
-    auto outType = dyn_cast<TileType>(outputs.front());
+    auto inType = dyn_cast<LocalTensorType>(inputs.front());
+    auto outType = dyn_cast<LocalTensorType>(outputs.front());
     return inType && outType && inType.getLoc() == outType.getLoc() &&
            inType.getElementType() == outType.getElementType() && inType.getNumElements() == outType.getNumElements();
 }
@@ -283,13 +285,13 @@ LogicalResult StoreFixpipeOp::verify()
     if (auto realShape = getRealShape(); !realShape.empty()) {
         auto tileShape = getValue().getType().getShape();
         if (tileShape.size() != realShape.size())
-            return emitOpError() << "real_shape must have same rank as tile shape";
+            return emitOpError() << "real_shape must have same size as tensor shape";
         for (auto [realDimValue, tileDim] : llvm::zip_equal(realShape, tileShape)) {
             APInt realDim;
             if (!matchPattern(realDimValue, m_ConstantInt(&realDim)))
                 continue;
             if (realDim.getSExtValue() > tileDim)
-                return emitOpError() << "real_shape exceeds tile shape";
+                return emitOpError() << "real_shape exceeds tensor shape";
         }
     }
     return success();
@@ -332,7 +334,7 @@ LogicalResult AccumulatorOp::verify()
     auto resultShape = result.getType().getShape();
     auto biasShape = biasType.getShape();
     if (resultShape.size() != 2)
-        return emitOpError("result must be a 2D tile");
+        return emitOpError("result must be a 2D tensor");
     if (biasShape[0] != resultShape[1])
         return emitOpError("bias shape must match result's second dimension");
     return success();
