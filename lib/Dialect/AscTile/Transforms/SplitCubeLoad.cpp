@@ -35,13 +35,13 @@ struct ConvertLoadGMToL0 : OpRewritePattern<asctile::LoadOp> {
     {
         auto opType = op.getType();
         auto tileLoc = opType.getLoc();
-        if (tileLoc != TileLocation::L0A && tileLoc != TileLocation::L0B && tileLoc != TileLocation::BT) {
+        if (tileLoc != TensorLocation::L0A && tileLoc != TensorLocation::L0B && tileLoc != TensorLocation::BT) {
             return failure();
         }
-        auto l1Type = LocalTensorType::get(opType.getShape(), opType.getElementType(), TileLocation::L1);
+        auto l1Type = LocalTensorType::get(opType.getShape(), opType.getElementType(), TensorLocation::L1);
         Value l1Tile = rewriter.create<asctile::LoadOp>(
             op.getLoc(), l1Type, op.getBase(), op.getOffsets(), op.getPadValue(), op.getRealShape());
-        if (tileLoc == TileLocation::BT)
+        if (tileLoc == TensorLocation::BT)
             l1Tile.getDefiningOp()->setAttr(attr::isBias, rewriter.getUnitAttr());
         Value zero = rewriter.create<arith::ConstantOp>(op.getLoc(), rewriter.getI32IntegerAttr(0));
         SmallVector<Value> offsets(opType.getShape().size(), zero);
@@ -57,7 +57,7 @@ struct MarkTileOperandInMmad : OpRewritePattern<asctile::LoadOp> {
     {
         auto opType = op.getType();
         auto tileLoc = opType.getLoc();
-        if (opType.getLoc() != TileLocation::L1 || op->use_empty() || op->hasAttr(attr::isMatrixA)) {
+        if (opType.getLoc() != TensorLocation::L1 || op->use_empty() || op->hasAttr(attr::isMatrixA)) {
             return failure();
         }
 
@@ -69,14 +69,15 @@ struct MarkTileOperandInMmad : OpRewritePattern<asctile::LoadOp> {
                 return failure();
             }
             auto l0TileLoc = copyOp.getType().getLoc();
-            if (l0TileLoc != TileLocation::L0A && l0TileLoc != TileLocation::L0B && l0TileLoc != TileLocation::BT) {
+            if (l0TileLoc != TensorLocation::L0A && l0TileLoc != TensorLocation::L0B &&
+                l0TileLoc != TensorLocation::BT) {
                 auto diag = op.emitError() << "L1 tensor copy to L0A/L0B/BT location is expected only.";
                 diag.attachNote(copyOp->getLoc()) << "used here unexpectedly";
                 return failure();
             }
             if (!isTensorA.has_value()) {
-                isTensorA = l0TileLoc == TileLocation::L0A;
-            } else if (isTensorA.value() != (l0TileLoc == TileLocation::L0A)) {
+                isTensorA = l0TileLoc == TensorLocation::L0A;
+            } else if (isTensorA.value() != (l0TileLoc == TensorLocation::L0A)) {
                 auto diag = op.emitError()
                             << "The same L1 tensor should be copied only to tiles in same L0A/L0B location.";
                 diag.attachNote(copyOp->getLoc()) << "copied here unexpectedly";

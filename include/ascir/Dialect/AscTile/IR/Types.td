@@ -42,7 +42,7 @@ class IsLocalTensorOfLengthPred<list<int> allowedLengths> : And<[
      CPred<"::llvm::cast<::mlir::asctile::LocalTensorType>($_self).getNumElements() == " # allowedlength>)>,
 ]>;
 
-class LocalTensorOf<list<Type> allowedTypes> : ShapedContainerType<allowedTypes, IsLocalTensorTypePred, "tile",
+class LocalTensorOf<list<Type> allowedTypes> : ShapedContainerType<allowedTypes, IsLocalTensorTypePred, "local tensor",
   "::mlir::asctile::LocalTensorType">;
 
 class LocalTensorOfRank<list<int> allowedRanks> : Type<

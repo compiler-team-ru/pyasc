@@ -209,16 +209,17 @@ void bindEnums(py::module& m)
         .def_static(
             "symbolize", [](uint8_t selMode) -> ascendc::SELMODE { return static_cast<ascendc::SELMODE>(selMode); });
 
-    py::enum_<asctile::TileLocation>(m, "TileLocation", py::module_local())
-        .value("BT", asctile::TileLocation::BT)
-        .value("L0A", asctile::TileLocation::L0A)
-        .value("L0B", asctile::TileLocation::L0B)
-        .value("L0C", asctile::TileLocation::L0C)
-        .value("L1", asctile::TileLocation::L1)
-        .value("UB", asctile::TileLocation::UB)
-        .value("FIX", asctile::TileLocation::FIX)
-        .def_static(
-            "symbolize", [](int32_t loc) -> asctile::TileLocation { return static_cast<asctile::TileLocation>(loc); });
+    py::enum_<asctile::TensorLocation>(m, "TensorLocation", py::module_local())
+        .value("BT", asctile::TensorLocation::BT)
+        .value("L0A", asctile::TensorLocation::L0A)
+        .value("L0B", asctile::TensorLocation::L0B)
+        .value("L0C", asctile::TensorLocation::L0C)
+        .value("L1", asctile::TensorLocation::L1)
+        .value("UB", asctile::TensorLocation::UB)
+        .value("FIX", asctile::TensorLocation::FIX)
+        .def_static("symbolize", [](int32_t loc) -> asctile::TensorLocation {
+            return static_cast<asctile::TensorLocation>(loc);
+        });
 
     py::enum_<asctile::AtomicKind>(m, "AtomicKind", py::module_local())
         .value("Add", asctile::AtomicKind::Add)
@@ -429,13 +430,13 @@ void bindAscTileType(py::module& m)
         "shape"_a, "element_type"_a);
     m.def(
         "get_asctile_LocalTensorType",
-        [](const std::vector<int64_t>& shape, Type elementType, asctile::TileLocation loc) -> Type {
+        [](const std::vector<int64_t>& shape, Type elementType, asctile::TensorLocation loc) -> Type {
             return asctile::LocalTensorType::get(shape, elementType, loc);
         },
-        "shape"_a, "element_type"_a, "loc"_a = asctile::TileLocation::UB);
+        "shape"_a, "element_type"_a, "loc"_a = asctile::TensorLocation::UB);
     m.def(
         "get_tensor_location",
-        [](Type type) -> asctile::TileLocation {
+        [](Type type) -> asctile::TensorLocation {
             auto tileType = llvm::dyn_cast_if_present<asctile::LocalTensorType>(type);
             if (!tileType)
                 throw std::runtime_error("get_tensor_location(): must be LocalTensorType");

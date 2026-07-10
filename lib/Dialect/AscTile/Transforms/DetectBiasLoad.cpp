@@ -30,7 +30,7 @@ struct DetectBiasLoadPass : public asctile::impl::DetectBiasLoadBase<DetectBiasL
     void runOnOperation() override
     {
         getOperation().walk([](asctile::CopyOp copyOp) {
-            if (copyOp.getType().getLoc() != TileLocation::BT)
+            if (copyOp.getType().getLoc() != TensorLocation::BT)
                 return;
             auto loadOp = copyOp.getBase().getDefiningOp<asctile::LoadOp>();
             if (!loadOp)

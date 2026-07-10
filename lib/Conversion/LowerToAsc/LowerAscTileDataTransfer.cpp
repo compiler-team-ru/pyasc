@@ -151,7 +151,7 @@ struct ConvertLoadToUB : ConvertOp<asctile::LoadOp> {
     {
         auto opType = op.getType();
         auto dstLoc = opType.getLoc();
-        if (dstLoc != asctile::TileLocation::UB || op->hasAttr(asctile::attr::transposeDims))
+        if (dstLoc != asctile::TensorLocation::UB || op->hasAttr(asctile::attr::transposeDims))
             return failure();
         auto loc = op.getLoc();
         auto offsets = op.getOffsets();
@@ -342,7 +342,7 @@ struct ConvertLoadToUBWithTranspose : ConvertOp<asctile::LoadOp> {
     {
         auto opType = op.getType();
         auto dstLoc = opType.getLoc();
-        if (dstLoc != asctile::TileLocation::UB)
+        if (dstLoc != asctile::TensorLocation::UB)
             return failure();
         auto transposeAttrs = op->getAttrOfType<DenseI32ArrayAttr>(asctile::attr::transposeDims);
         if (!transposeAttrs)
@@ -400,7 +400,7 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
     {
         auto opType = op.getType();
         auto dstLoc = opType.getLoc();
-        if (dstLoc != asctile::TileLocation::L1)
+        if (dstLoc != asctile::TensorLocation::L1)
             return failure();
         auto loc = op.getLoc();
         TensorInfo srcInfo = prepareTensorInfo(rewriter, loc, op.getBase(), op.getOffsets());
@@ -534,7 +534,7 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
     LogicalResult matchAndRewrite(asctile::StoreOp op, ConvertRewriter& rewriter) const override
     {
         auto value = op.getValue();
-        assert(value.getType().getLoc() == asctile::TileLocation::UB && "Tile should be located in UB.");
+        assert(value.getType().getLoc() == asctile::TensorLocation::UB && "tensor must be located in UB");
         Value src = rewriter.getRemappedValue(value);
         auto srcType = cast<ascendc::BaseTensorType>(src.getType());
         SmallVector<Value> srcShape = getStaticShape(rewriter, srcType);
@@ -596,7 +596,7 @@ struct ConvertStoreHighDims : ConvertOp<asctile::StoreOp> {
         TensorInfo dstInfo = prepareTensorInfo(rewriter, loc, op.getBase(), offsets);
         Value src = rewriter.getRemappedValue(value);
         auto srcType = cast<ascendc::BaseTensorType>(src.getType());
-        assert(value.getType().getLoc() == asctile::TileLocation::UB && "Tile should be located in UB.");
+        assert(value.getType().getLoc() == asctile::TensorLocation::UB && "tensor must be located in UB");
         ascir::ConstantOpBuilder consts(rewriter);
         SmallVector<int64_t> srcShape{static_cast<ArrayRef<int64_t>>(srcType.getShape())};
         if (srcShape.size() <= 2 || srcShape.size() > 4)
@@ -669,7 +669,7 @@ struct ConvertStoreFixpipe : ConvertOp<asctile::StoreFixpipeOp> {
         TensorInfo dstInfo = prepareTensorInfo(rewriter, loc, op.getBase(), offsets);
         Value src = rewriter.getRemappedValue(value);
         auto srcType = cast<ascendc::BaseTensorType>(src.getType());
-        assert(value.getType().getLoc() == asctile::TileLocation::L0C && "Tile should be located in L0C.");
+        assert(value.getType().getLoc() == asctile::TensorLocation::L0C && "tensor must be located in L0C");
         ascir::ConstantOpBuilder consts(rewriter);
         SmallVector<Value> srcShape = getStaticShape(rewriter, srcType);
         auto const0 = consts.i32(0);
@@ -731,7 +731,7 @@ struct ConvertCopyFixpipe : ConvertOp<asctile::CopyFixpipeOp> {
         Value src = rewriter.getRemappedValue(value);
         Value dst = createTensorOp(rewriter, loc, op.getType());
         auto srcType = cast<ascendc::BaseTensorType>(src.getType());
-        assert(value.getType().getLoc() == asctile::TileLocation::L0C && "Tile should be located in L0C.");
+        assert(value.getType().getLoc() == asctile::TensorLocation::L0C && "tensor must be located in L0C");
         auto dstType = cast<ascendc::BaseTensorType>(dst.getType());
         assert(dstType.getElementType() != rewriter.getF32Type() && "dst type in L1 shouldn't be float32");
         ascir::ConstantOpBuilder consts(rewriter);
@@ -821,8 +821,8 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
     {
         auto opType = op.getType();
         auto dstPos = opType.getLoc();
-        if (dstPos != asctile::TileLocation::L0A && dstPos != asctile::TileLocation::L0B &&
-            dstPos != asctile::TileLocation::BT) {
+        if (dstPos != asctile::TensorLocation::L0A && dstPos != asctile::TensorLocation::L0B &&
+            dstPos != asctile::TensorLocation::BT) {
             op.emitError() << "invalid destination location of the local tensor";
             return failure();
         }
@@ -833,9 +833,9 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
         auto srcShape = base.getType().getShape();
         auto offsets = op.getOffsets();
         ascir::ConstantOpBuilder consts(rewriter);
-        if (dstPos == asctile::TileLocation::BT) {
+        if (dstPos == asctile::TensorLocation::BT) {
             auto srcLoc = base.getType().getLoc();
-            if (srcLoc != asctile::TileLocation::L1) {
+            if (srcLoc != asctile::TensorLocation::L1) {
                 op.emitError() << "BT destination requires L1 source for bias copy";
                 return failure();
             }
@@ -860,7 +860,7 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
         auto dst = createTensorOp(rewriter, loc, opType).getResult();
         auto dstType = dst.getType();
         auto dstShape = dstType.getShape();
-        bool isTensorA = dstPos == asctile::TileLocation::L0A;
+        bool isTensorA = dstPos == asctile::TensorLocation::L0A;
         bool isTransposeA = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeA);
         bool isTransposeB = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeB);
         bool isFloat32 = isa<Float32Type>(opType.getElementType());

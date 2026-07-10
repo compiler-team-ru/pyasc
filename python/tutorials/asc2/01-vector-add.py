@@ -46,10 +46,10 @@ def vector_add(
     # It is user responsibility to ensure that there are no data dependencies between overlapped iterations.
     for i in asc2.range(block_loop_num, unroll_factor=2, parallel=True):
         tile_offset = block_offset + i * tile_size
-        # `asc2.copy_in` is used to create tile object which is used for further calculations. Data movement from GM to UB happens in this operation.
+        # `asc2.copy_in` is used to create a local tensor object which is used for further calculations. Data movement from GM to UB happens in this operation.
         x = asc2.copy_in(x_gm, [tile_offset], [tile_size])
         y = asc2.copy_in(y_gm, [tile_offset], [tile_size])
-        # One or more operations can be applied for tiles. It is compiler responsibility to allocate required number of memory blocks in UB.
+        # One or more operations can be applied for tensors. It is compiler responsibility to allocate required number of memory blocks in UB.
         out = x + y
         # `asc2.copy_out` is used to move data from UB back to GM.
         asc2.copy_out(out, out_gm, [tile_offset])

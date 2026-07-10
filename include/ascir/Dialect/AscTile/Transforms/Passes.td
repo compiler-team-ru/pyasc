@@ -87,7 +87,7 @@ def DetectBiasLoad : Pass<"asctile-detect-bias-load", "func::FuncOp"> {
     This pass identifies load operations that feed bias data for matrix multiplication and marks them
     with the `isBias` attribute. This enables subsequent passes to optimize bias handling in matmul operations.
 
-    The pass identifies bias loads by checking if the loaded tensor is copied to `TileLocation::BT` (bias table),
+    The pass identifies bias loads by checking if the loaded tensor is copied to `TensorLocation::BT` (bias table),
     which is the dedicated memory location for bias values in matmul operations.
 
     Example transformation:

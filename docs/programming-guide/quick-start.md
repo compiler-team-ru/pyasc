@@ -52,7 +52,7 @@ for i in asc2.range(tile_per_block, unroll_factor=2, parallel=True):
     tile_offset = base_offset + i * tile_size
 ```
 
-`asc2.copy_in` is used to create tile object which is used for further calculations. Data movement from GM to UB/L1/L0A/L0B happens in this operation. If `location' parameter is set, then the corresponding memory realm is used to load data to. Otherwise it is loaded to UB.
+`asc2.copy_in` is used to create a local tensor object which is used for further calculations. Data movement from GM to UB/L1/L0A/L0B happens in this operation. If `location` parameter is set, then the corresponding memory realm is used to load data to. Otherwise it is loaded to UB.
 
 ```python
 x = asc2.copy_in(x_gm, [tile_offset], [tile_size], asc2.TensorLocation.UB)
@@ -65,7 +65,7 @@ One or more operations can be applied for tiles. It is compiler responsibility t
 out = x + y
 ```
 
-`asc2.copy_out` is used to move data from L0C/UB back to GM. Source location is defined by tile itself, so no `location` parameter is present in `asc2.copy_out`.
+`asc2.copy_out` is used to move data from L0C/UB back to GM. Source location is defined by the local tensor itself, so no `location` parameter is present in `asc2.copy_out`.
 
 ```python
 asc2.copy_out(out, out_gm, [tile_offset])

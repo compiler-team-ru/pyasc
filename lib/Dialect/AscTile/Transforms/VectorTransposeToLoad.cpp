@@ -37,7 +37,7 @@ struct VectorTransposeToLoad : OpRewritePattern<asctile::TransposeOp> {
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loadOp = op.getOperand().getDefiningOp<asctile::LoadOp>();
-        if (!loadOp || op.getType().getLoc() != TileLocation::UB || !op.getOperand().hasOneUse()) {
+        if (!loadOp || op.getType().getLoc() != TensorLocation::UB || !op.getOperand().hasOneUse()) {
             return failure();
         }
         auto shape = op.getOperand().getType().getShape();

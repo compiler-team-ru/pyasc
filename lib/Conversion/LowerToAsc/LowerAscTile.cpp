@@ -645,7 +645,7 @@ struct ConvertAccumulator : ConvertOp<asctile::AccumulatorOp> {
     LogicalResult matchAndRewrite(asctile::AccumulatorOp op, ConvertRewriter& rewriter) const override
     {
         auto type = op.getType();
-        assert(type.getLoc() == asctile::TileLocation::L0C && "accumulator should be have tile location L0C");
+        assert(type.getLoc() == asctile::TensorLocation::L0C && "accumulator should be have tensor location L0C");
         auto loc = op.getLoc();
         auto dst = createTensorOp(rewriter, loc, type);
         rewriter.replaceOp(op, dst);
@@ -743,8 +743,8 @@ struct ConvertTransposeUB : ConvertOp<asctile::TransposeOp> {
 
     LogicalResult matchAndRewrite(asctile::TransposeOp op, ConvertRewriter& rewriter) const override
     {
-        if (op.getOperand().getType().getLoc() != asctile::TileLocation::UB ||
-            op.getResult().getType().getLoc() != asctile::TileLocation::UB)
+        if (op.getOperand().getType().getLoc() != asctile::TensorLocation::UB ||
+            op.getResult().getType().getLoc() != asctile::TensorLocation::UB)
             return failure();
         int64_t elementSize = ascendc::getElementTypeSize(op.getType());
         if (elementSize != sizeof(int16_t) && elementSize != sizeof(int32_t) && elementSize != sizeof(int8_t))

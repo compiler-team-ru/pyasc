@@ -44,8 +44,8 @@ struct ConcatToNoop : public OpRewritePattern<asctile::ConcatOp> {
 
     LogicalResult matchAndRewrite(asctile::ConcatOp op, PatternRewriter& rewriter) const override
     {
-        SmallVector<ascendc::LocalTensorAutoOp> allocs(llvm::map_range(op.getOperands(), [](Value tile) {
-            auto castOp = tile.getDefiningOp<UnrealizedConversionCastOp>();
+        SmallVector<ascendc::LocalTensorAutoOp> allocs(llvm::map_range(op.getOperands(), [](Value tensor) {
+            auto castOp = tensor.getDefiningOp<UnrealizedConversionCastOp>();
             if (!castOp || castOp.getNumOperands() != 1 || castOp->getNumResults() != 1)
                 return ascendc::LocalTensorAutoOp{};
             return castOp.getOperand(0).getDefiningOp<ascendc::LocalTensorAutoOp>();

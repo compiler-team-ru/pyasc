@@ -25,8 +25,7 @@ class AscTile_EnumAttr<EnumAttrInfo info, string name = ""> : EnumAttr<AscTile_D
   let assemblyFormat = "`<` $value `>`";
 }
 
-// TODO: rename to TensorLocation
-def AscTile_TileLocationAttr : I32EnumAttr<"TileLocation", "tile location", [
+def AscTile_TensorLocationAttr : I32EnumAttr<"TensorLocation", "tensor location", [
   I32EnumAttrCase<"L0A", 23>,
   I32EnumAttrCase<"L0B", 24>,
   I32EnumAttrCase<"L0C", 25>,
@@ -36,7 +35,7 @@ def AscTile_TileLocationAttr : I32EnumAttr<"TileLocation", "tile location", [
   I32EnumAttrCase<"BT", 29>,
 ]> {
   let cppNamespace = "::mlir::asctile";
-  let description = "Tile memory location";
+  let description = "Tensor memory location";
 }
 
 def AscTile_AtomicKindAttr : I32EnumAttr<"AtomicKind", "kind of atomic", [
@@ -100,7 +99,7 @@ def AscTile_GlobalTensorAttr : AscTile_Attr<"GlobalTensor", "global"> {
 
 def AscTile_LocalTensorAttr : AscTile_Attr<"LocalTensor", "local"> {
   let summary = "An encoding for a local tensor";
-  let parameters = (ins "TileLocation":$loc);
+  let parameters = (ins "TensorLocation":$loc);
   let assemblyFormat = "`<` $loc `>`";
 }
 

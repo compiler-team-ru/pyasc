@@ -44,9 +44,9 @@ bool GlobalTensorType::classof(Type type)
 // LocalTensorType
 //===----------------------------------------------------------------------===//
 
-TileLocation LocalTensorType::getLoc() const { return llvm::cast<LocalTensorAttr>(getEncoding()).getLoc(); }
+TensorLocation LocalTensorType::getLoc() const { return llvm::cast<LocalTensorAttr>(getEncoding()).getLoc(); }
 
-RankedTensorType LocalTensorType::get(ArrayRef<int64_t> shape, Type elementType, TileLocation loc)
+RankedTensorType LocalTensorType::get(ArrayRef<int64_t> shape, Type elementType, TensorLocation loc)
 {
     return RankedTensorType::get(shape, elementType, LocalTensorAttr::get(elementType.getContext(), loc));
 }
