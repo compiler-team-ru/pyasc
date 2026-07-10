@@ -777,8 +777,7 @@ struct ConvertCopyFixpipe : ConvertOp<asctile::CopyFixpipeOp> {
 
 Value buildLoadData2DV2Params(
     OpBuilder& builder, Location loc, ascir::ConstantOpBuilder& consts, bool isTensorA, bool isTransposeA,
-    bool isTransposeB, int64_t cubeKBlockSize, ArrayRef<int64_t> srcShape, ArrayRef<int64_t> dstShape,
-    Value mStartPosition, Value kStartPosition)
+    bool isTransposeB, int64_t cubeKBlockSize, ArrayRef<int64_t> srcShape, ArrayRef<int64_t> dstShape)
 {
     int64_t mStep, kStep, srcStride, dstStride;
     bool ifTranspose;
@@ -803,8 +802,6 @@ Value buildLoadData2DV2Params(
     }
     auto paramsType = builder.getType<ascendc::LoadData2DParamsV2Type>();
     return emitasc::InitStructBuilder(paramsType)
-        .addField("mStartPosition", mStartPosition)
-        .addField("kStartPosition", kStartPosition)
         .addField("mStep", consts.i32(mStep))
         .addField("kStep", consts.i32(kStep))
         .addField("srcStride", consts.i32(srcStride))
@@ -867,11 +864,14 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
         bool isBNoTransF32 = !isTensorA && isFloat32 && !isTransposeB;
         const int64_t cubeKBlockSize = cubeKBlockBytes / ascendc::getElementTypeSize(opType);
         const int64_t cubeBlockCols = !isBNoTransF32 ? cubeKBlockSize : ascendc::cubeBlockSize;
-        Value mStartPosition = rewriter.create<arith::DivSIOp>(loc, offsets[0], consts.i32(ascendc::cubeBlockSize));
-        Value kStartPosition = rewriter.create<arith::DivSIOp>(loc, offsets[1], consts.i32(cubeKBlockSize));
+        int64_t dstNzC0StrideElements = static_cast<int64_t>(llvm::alignTo(srcShape[0], cubeKBlockSize));
+        int64_t dValue = cubeKBlockSize;
+        Value colOffset = rewriter.create<arith::MulIOp>(loc, consts.i32(dstNzC0StrideElements), offsets[1]);
+        Value rowOffset = rewriter.create<arith::MulIOp>(loc, offsets[0], consts.i32(dValue));
+        Value linearOffset = rewriter.create<arith::AddIOp>(loc, colOffset, rowOffset);
+        src = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcType, src, linearOffset);
         Value params = buildLoadData2DV2Params(
-            rewriter, loc, consts, isTensorA, isTransposeA, isTransposeB, cubeKBlockSize, srcShape, dstShape,
-            mStartPosition, kStartPosition);
+            rewriter, loc, consts, isTensorA, isTransposeA, isTransposeB, cubeKBlockSize, srcShape, dstShape);
         rewriter.create<ascendc::LoadDataL0V2Op>(loc, dst, src, params);
         rewriter.replaceOp(op, dst);
         return success();
