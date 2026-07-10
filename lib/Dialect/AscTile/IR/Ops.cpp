@@ -96,9 +96,9 @@ LogicalResult ConcatOp::verify()
     if (getNumOperands() < 1)
         return emitOpError("must have at least one operand");
     if (!llvm::all_of(getOperands(), [](Value opnd) {
-            return cast<LocalTensorType>(opnd.getType()).getLoc() == TileLocation::UB;
+            return cast<LocalTensorType>(opnd.getType()).getLoc() == TensorLocation::UB;
         }))
-        return emitOpError("tensor operands must have UB tile location");
+        return emitOpError("tensor operands must have UB tensor location");
     if (!llvm::all_equal(llvm::map_range(getOperands(), [](Value opnd) {
             return cast<LocalTensorType>(opnd.getType()).getShape().drop_front();
         })))
@@ -328,8 +328,8 @@ LogicalResult AccumulatorOp::verify()
     if (!bias)
         return success();
     auto biasType = bias.getType();
-    if (biasType.getLoc() != TileLocation::BT)
-        return emitOpError("bias must have BT tile location");
+    if (biasType.getLoc() != TensorLocation::BT)
+        return emitOpError("bias must have BT tensor location");
     auto result = getResult();
     auto resultShape = result.getType().getShape();
     auto biasShape = biasType.getShape();
@@ -346,18 +346,18 @@ LogicalResult AccumulatorOp::verify()
 
 LogicalResult MatmulOp::verify()
 {
-    if (getMatrixA().getType().getLoc() != TileLocation::L0A) {
-        return emitOpError("matrixA must have L0A tile location");
+    if (getMatrixA().getType().getLoc() != TensorLocation::L0A) {
+        return emitOpError("matrixA must have L0A tensor location");
     }
-    if (getMatrixB().getType().getLoc() != TileLocation::L0B) {
-        return emitOpError("matrixB must have L0B tile location");
+    if (getMatrixB().getType().getLoc() != TensorLocation::L0B) {
+        return emitOpError("matrixB must have L0B tensor location");
     }
-    if (getResult().getType().getLoc() != TileLocation::L0C) {
-        return emitOpError("result must have L0C tile location");
+    if (getResult().getType().getLoc() != TensorLocation::L0C) {
+        return emitOpError("result must have L0C tensor location");
     }
     if (getBias()) {
-        if (getBias().getType().getLoc() != TileLocation::BT) {
-            return emitOpError("bias must have BT tile location");
+        if (getBias().getType().getLoc() != TensorLocation::BT) {
+            return emitOpError("bias must have BT tensor location");
         }
     }
     return success();
@@ -369,14 +369,14 @@ LogicalResult MatmulOp::verify()
 
 LogicalResult MatmulAccOp::verify()
 {
-    if (getMatrixA().getType().getLoc() != TileLocation::L0A) {
-        return emitOpError("matrixA must have L0A tile location");
+    if (getMatrixA().getType().getLoc() != TensorLocation::L0A) {
+        return emitOpError("matrixA must have L0A tensor location");
     }
-    if (getMatrixB().getType().getLoc() != TileLocation::L0B) {
-        return emitOpError("matrixB must have L0B tile location");
+    if (getMatrixB().getType().getLoc() != TensorLocation::L0B) {
+        return emitOpError("matrixB must have L0B tensor location");
     }
-    if (getAcc().getType().getLoc() != TileLocation::L0C) {
-        return emitOpError("acc must have L0C tile location");
+    if (getAcc().getType().getLoc() != TensorLocation::L0C) {
+        return emitOpError("acc must have L0C tensor location");
     }
     return success();
 }

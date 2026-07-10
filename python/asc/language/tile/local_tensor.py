@@ -22,7 +22,7 @@ from .validation import check_type
 T = TypeVar("T")
 
 RoundMode: TypeAlias = ir.asctile_RoundMode
-TensorLocation: TypeAlias = ir.TileLocation
+TensorLocation: TypeAlias = ir.TensorLocation
 
 
 class LocalTensor(IRValue):

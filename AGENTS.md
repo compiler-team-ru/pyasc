@@ -109,23 +109,23 @@ For runtime environment setup: @docs/installation/setup-runtime-env.rst
 ### Core Concepts
 - **GlobalTensor**: Global memory (HBM) descriptor with pointer and shape (dynamic shapes)
 - **LocalTensor** (tile-like): On-chip memory (UB, L0A, L0B, L0C, L1) with fixed static shape (known at JIT time)
-- Tiles use value semantics - each operation produces a new tile
+- Local tensors use value semantics - each operation produces a new tensor
 - Memory hierarchy (Ascend NPU related): `TensorLocation.UB` (default), `TensorLocation.L0A`/`L0B`/`L0C`, `TensorLocation.L1`
 
 ### PyAsc2 API Patterns
 ```python
 # Tensor creation and loading
-x_gm = asc2.global_tensor(x_ptr, [size])
-tile = asc2.copy_in(tensor, shape=[128], offsets=[base])  # explicit element offsets
-scalar = asc2.copy_in(tensor, offsets=[i])
-asc2.copy_out(tile, tensor, offsets=[base])
+global_tensor = asc2.global_tensor(x_ptr, [size])
+local_tensor = asc2.copy_in(global_tensor, shape=[128], offsets=[base])  # explicit element offsets
+scalar = asc2.copy_in(global_tensor, offsets=[i])
+asc2.copy_out(local_tensor, global_tensor, offsets=[base])
 
 # Arithmetic: add, sub, mul, div, maximum, minimum, left_shift, right_shift
 # Comparison: equal, not_equal, greater, greater_equal, less, less_equal
 # Unary: abs, ceil, floor, negative, relu, sqrt, rsqrt, exp, log, sin, cos, tanh, erf, softmax
 # Operator overloads: +, -, *, /, >, ==, etc.
 # Reductions: reduce_sum, reduce_max, reduce_min, reduce_prod (with axes, keep_dims)
-# Methods: tile.sum(), tile.max(), etc.
+# Methods: local_tensor.sum(), local_tensor.max(), etc.
 # Shape: reshape, broadcast_to, expand_dims, squeeze
 # Creation: full(shape, value), zeros(shape), full_like, zeros_like
 # Advanced: matmul(a, b), where(mask, src0, src1)

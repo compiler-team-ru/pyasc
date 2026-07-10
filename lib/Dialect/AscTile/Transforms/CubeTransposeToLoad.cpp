@@ -33,7 +33,7 @@ constexpr const char* const fusibleAttr = "asctile.fusible";
 void markTranspose(asctile::TransposeOp op)
 {
     auto tileLoc = op.getType().getLoc();
-    if (tileLoc != TileLocation::L0A && tileLoc != TileLocation::L0B)
+    if (tileLoc != TensorLocation::L0A && tileLoc != TensorLocation::L0B)
         return;
     auto copyOp = op.getOperand().getDefiningOp<asctile::CopyOp>();
     if (!copyOp || !copyOp->hasOneUse())
@@ -65,7 +65,8 @@ struct CubeTransposeToLoad : OpRewritePattern<asctile::TransposeOp> {
             return failure();
         auto opType = op.getType();
         auto copyOp = op.getOperand().getDefiningOp<asctile::CopyOp>();
-        const auto* attr = opType.getLoc() == TileLocation::L0A ? asctile::attr::transposeA : asctile::attr::transposeB;
+        const auto* attr =
+            opType.getLoc() == TensorLocation::L0A ? asctile::attr::transposeA : asctile::attr::transposeB;
         auto* loadOp = copyOp.getBase().getDefiningOp();
         rewriter.startOpModification(loadOp);
         loadOp->setAttr(attr, rewriter.getUnitAttr());
@@ -97,7 +98,7 @@ struct CubeTransposeToLoadPass : public asctile::impl::CubeTransposeToLoadBase<C
         }
         funcOp->walk([this](asctile::TransposeOp op) {
             auto location = op.getType().getLoc();
-            if (location == TileLocation::L0A || location == TileLocation::L0B) {
+            if (location == TensorLocation::L0A || location == TensorLocation::L0B) {
                 op.emitOpError() << "not supported on cube";
                 signalPassFailure();
             }

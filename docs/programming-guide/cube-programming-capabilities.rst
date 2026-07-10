@@ -158,7 +158,7 @@ For iterative matrix multiplication (e.g., tiling along K dimension), use the ac
 * Must be created with :func:`~asc2.zeros_acc` (not regular :func:`~asc2.zeros`)
 * Must be in L0C location
 * Must be float32 dtype
-* Must be 2D tile
+* Must be 2D tensor
 
 Bias Support
 ~~~~~~~~~~~~
@@ -215,7 +215,7 @@ Supported Features
 Matrix Transpose
 ~~~~~~~~~~~~~~~~
 
-PyAsc2 supports transposing matrices before multiplication using :func:`~asc2.transpose` or the ``.T`` property of tile. Transpose operations on L0A/L0B tiles are automatically fused into the load operation by the compiler.
+PyAsc2 supports transposing matrices before multiplication using :func:`~asc2.transpose` or the ``.T`` property of a tensor. Transpose operations on L0A/L0B tiles are automatically fused into the load operation by the compiler.
 
 .. code-block:: python
 
@@ -249,7 +249,7 @@ PyAsc2 supports transposing matrices before multiplication using :func:`~asc2.tr
 Quantization and Type Casting
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-After matmul, the result can be cast to other types using the ``.to()`` method. Quantization is achieved by explicit L0C tile cast to the desired type.
+After matmul, the result can be cast to other types using the ``.to()`` method. Quantization is achieved by explicit L0C tensor cast to the desired type.
 
 **Supported Quantization Modes (from L0C float32):**
 

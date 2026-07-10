@@ -41,9 +41,9 @@ class LocalTensorType : public RankedTensorType {
 public:
     using RankedTensorType::RankedTensorType;
 
-    TileLocation getLoc() const;
+    TensorLocation getLoc() const;
 
-    static RankedTensorType get(ArrayRef<int64_t> shape, Type elementType, TileLocation loc = TileLocation::UB);
+    static RankedTensorType get(ArrayRef<int64_t> shape, Type elementType, TensorLocation loc = TensorLocation::UB);
     static TypeID resolveTypeID();
     static bool classof(Type type);
 };

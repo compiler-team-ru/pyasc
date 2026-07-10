@@ -48,7 +48,7 @@ def fused_softmax(
     # It is user responsibility to ensure that there are no data dependencies between overlapped iterations.
     for i in asc2.range(ub_loop, unroll_factor=2, parallel=True):
         row_start_offset = block_offset + i * tile_shape[0]
-        # `asc2.copy_in` is used to create 2D tile object to load from GM to UB and pad with '-inf' all values that are out of global tensor
+        # `asc2.copy_in` is used to create 2D tensor object to load from GM to UB and pad with '-inf' all values that are out of global tensor
         rows = asc2.copy_in(in_gm, [row_start_offset, 0], [tile_shape[0], tile_shape[1]], pad_value=float('-inf'))
         # Call high-level 2D softmax
         out = asc2.softmax(rows)

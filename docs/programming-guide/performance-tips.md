@@ -75,7 +75,7 @@ def kernel(input_ptr, output_ptr, input_length: int, tile_length: int):
 
 | Option | Purpose | Recommended Usage |
 |--------|---------|-------------------|
-| `static_alloc` | Static UB allocation at compile time | Enabling recommended for most kernels. Leads to faster execution, no runtime memory management. Requires all tile shapes to be `ConstExpr`. When disabled provides TPipe-managed dynamic UB allocation. Use only for complex control flow with variable tile sizes. Slower but more flexible. |
+| `static_alloc` | Static UB allocation at compile time | Enabling recommended for most kernels. Leads to faster execution, no runtime memory management. Requires all local tensor shapes to be `ConstExpr`. When disabled provides TPipe-managed dynamic UB allocation. Use only for complex control flow with variable tile sizes. Slower but more flexible. |
 | `reuse_alloc` | Reuse freed UB regions across iterations | Setting to `1` recommended for most kernels. Reduces peak UB consumption by reusing memory. |
 | `vf_fusion` | Enable vector fusion (experimental) | Advanced option, when enabled lowering generated code to register level API. Experimental feature. May improve performance for element-wise chains. |
 | `always_compile` | Cached kernels usage | When enabled ignores cached kernels, provides recompilation. |

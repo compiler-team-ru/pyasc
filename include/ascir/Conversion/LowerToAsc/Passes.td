@@ -68,7 +68,7 @@ def LowerArith : Pass<"asclower-arith", "func::FuncOp"> {
     - **Bitcast**: Converts to `LocalTensorReinterpretCastOp` for type reinterpretation
     - **Negf**: Converts to `MulsL2Op` with -1.0 scalar to negate floating-point tiles
 
-    Tile types are converted to `LocalTensorType` via unrealized conversion casts.
+    `asctile::LocalTensorType` is converted to `ascendc::LocalTensorType` via unrealized conversion casts.
   }];
 }
 

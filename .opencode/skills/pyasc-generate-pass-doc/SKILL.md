@@ -210,7 +210,7 @@ Options that are NOT important:
 
 ✓ "Unroll scf.for loops by their unroll_factor attribute value"
 ✓ "Hoist pure operations upward within their blocks to enable code motion optimizations"
-✓ "Convert tile arithmetic operations with splat operands to scalar-splat variants for hardware efficiency"
+✓ "Convert tensor arithmetic operations with splat operands to scalar-splat variants for hardware efficiency"
 ✓ "Remove transpose operations on cube operands and add transpose attributes to load/copy operations"
 
 ### Bad Examples

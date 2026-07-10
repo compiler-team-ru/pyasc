@@ -32,7 +32,7 @@ struct TransformCopyOp : OpRewritePattern<asctile::CopyOp> {
     LogicalResult matchAndRewrite(asctile::CopyOp op, PatternRewriter& rewriter) const override
     {
         auto base = op.getBase();
-        if (base.getType().getLoc() != TileLocation::L0C)
+        if (base.getType().getLoc() != TensorLocation::L0C)
             return failure();
         rewriter.replaceOpWithNewOp<asctile::CopyFixpipeOp>(op, op.getType(), base, op.getOffsets());
         return success();
@@ -45,7 +45,7 @@ struct TransformStoreOp : OpRewritePattern<asctile::StoreOp> {
     LogicalResult matchAndRewrite(asctile::StoreOp op, PatternRewriter& rewriter) const override
     {
         auto value = op.getValue();
-        if (value.getType().getLoc() != TileLocation::L0C)
+        if (value.getType().getLoc() != TensorLocation::L0C)
             return failure();
         rewriter.replaceOpWithNewOp<asctile::StoreFixpipeOp>(
             op, value, op.getBase(), op.getOffsets(), op.getRealShape());
@@ -59,7 +59,7 @@ struct TransformFixpipeReluOp : OpRewritePattern<asctile::StoreFixpipeOp> {
     LogicalResult matchAndRewrite(asctile::StoreFixpipeOp op, PatternRewriter& rewriter) const override
     {
         auto reluOp = op.getValue().getDefiningOp<asctile::ReluOp>();
-        if (!reluOp || reluOp.getType().getLoc() != TileLocation::L0C)
+        if (!reluOp || reluOp.getType().getLoc() != TensorLocation::L0C)
             return failure();
         auto operand = reluOp.getOperand();
         rewriter.startOpModification(op);
@@ -76,7 +76,7 @@ struct TransformFixpipeCastOp : OpRewritePattern<asctile::StoreFixpipeOp> {
     LogicalResult matchAndRewrite(asctile::StoreFixpipeOp op, PatternRewriter& rewriter) const override
     {
         auto castOp = op.getValue().getDefiningOp<asctile::CastOp>();
-        if (!castOp || castOp.getType().getLoc() != TileLocation::L0C)
+        if (!castOp || castOp.getType().getLoc() != TensorLocation::L0C)
             return failure();
         rewriter.startOpModification(op);
         op.getValueMutable().assign(castOp.getIn());
@@ -92,7 +92,7 @@ struct TransformCopyFixpipeReluOp : OpRewritePattern<asctile::CopyFixpipeOp> {
     LogicalResult matchAndRewrite(asctile::CopyFixpipeOp op, PatternRewriter& rewriter) const override
     {
         auto reluOp = op.getBase().getDefiningOp<asctile::ReluOp>();
-        if (!reluOp || reluOp.getType().getLoc() != TileLocation::L0C)
+        if (!reluOp || reluOp.getType().getLoc() != TensorLocation::L0C)
             return failure();
         auto operand = reluOp.getOperand();
         rewriter.startOpModification(op);
@@ -109,7 +109,7 @@ struct TransformCopyFixpipeCastOp : OpRewritePattern<asctile::CopyFixpipeOp> {
     LogicalResult matchAndRewrite(asctile::CopyFixpipeOp op, PatternRewriter& rewriter) const override
     {
         auto castOp = op.getBase().getDefiningOp<asctile::CastOp>();
-        if (!castOp || castOp.getType().getLoc() != TileLocation::L0C)
+        if (!castOp || castOp.getType().getLoc() != TensorLocation::L0C)
             return failure();
         rewriter.startOpModification(op);
         op.getBaseMutable().assign(castOp.getIn());

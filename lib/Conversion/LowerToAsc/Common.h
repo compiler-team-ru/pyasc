@@ -71,7 +71,7 @@ struct TensorTypeConverter : public LoweringTypeConverter {
                 shape = {numElements};
                 elType = replType.iType;
             }
-            if (type.getLoc() == asctile::TileLocation::BT && (elType.isF16() || elType.isBF16()))
+            if (type.getLoc() == asctile::TensorLocation::BT && (elType.isF16() || elType.isBF16()))
                 elType = FloatType::getF32(type.getContext());
             return ascendc::LocalTensorType::get(shape, elType);
         });
@@ -123,25 +123,25 @@ struct ConvertOp : public OpConversionPattern<OpType> {
         return matchAndRewrite(op, rewriter);
     }
 
-    static ascendc::TPosition locationToPosition(asctile::TileLocation loc)
+    static ascendc::TPosition locationToPosition(asctile::TensorLocation loc)
     {
         switch (loc) {
-            case asctile::TileLocation::L1:
+            case asctile::TensorLocation::L1:
                 return ascendc::TPosition::A1;
-            case asctile::TileLocation::L0A:
+            case asctile::TensorLocation::L0A:
                 return ascendc::TPosition::A2;
-            case asctile::TileLocation::L0B:
+            case asctile::TensorLocation::L0B:
                 return ascendc::TPosition::B2;
-            case asctile::TileLocation::FIX:
+            case asctile::TensorLocation::FIX:
                 [[fallthrough]];
-            case asctile::TileLocation::L0C:
+            case asctile::TensorLocation::L0C:
                 return ascendc::TPosition::CO1;
-            case asctile::TileLocation::UB:
+            case asctile::TensorLocation::UB:
                 return ascendc::TPosition::VECCALC;
-            case asctile::TileLocation::BT:
+            case asctile::TensorLocation::BT:
                 return ascendc::TPosition::C2;
         }
-        llvm_unreachable("unexpected TileLocation value");
+        llvm_unreachable("unexpected TensorLocation value");
     }
 
     static ascendc::LocalTensorAutoOp createTensorOp(
@@ -183,7 +183,7 @@ struct ConvertOp : public OpConversionPattern<OpType> {
         return createReCastOp(builder, loc, convertibleTensor, tensorType.getShape(), tensorType.getElementType());
     }
 
-    static int64_t calCount(Value tile) { return calCount(tile.getType()); }
+    static int64_t calCount(Value tensor) { return calCount(tensor.getType()); }
 
     static int64_t calCount(Type type)
     {
