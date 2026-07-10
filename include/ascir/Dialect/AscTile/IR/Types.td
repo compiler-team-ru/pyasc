@@ -15,80 +15,66 @@ include "Dialect.td"
 include "mlir/IR/BuiltinTypeInterfaces.td"
 include "mlir/IR/BuiltinTypes.td"
 
-class AscTile_Type<string name, string typeMnemonic, list<Trait> traits = []>
-    : TypeDef<AscTile_Dialect, name, traits> {
+class AscTile_Type<string name, string typeMnemonic, list<Trait> traits = []> : TypeDef<AscTile_Dialect, name, traits> {
   let mnemonic = typeMnemonic;
 }
 
-// TODO: rename to GlobalTensor
-def Tensor : Type<
-  CPred<"::llvm::isa<::mlir::asctile::GlobalTensorType>($_self)">,
-  "global tensor", "::mlir::asctile::GlobalTensorType">;
+def GlobalTensor : Type<CPred<"::llvm::isa<::mlir::asctile::GlobalTensorType>($_self)">, "global tensor",
+  "::mlir::asctile::GlobalTensorType">;
 
-// TODO: rename to LocalTensor
-def Tile : Type<
+def LocalTensor : Type<CPred<"::llvm::isa<::mlir::asctile::LocalTensorType>($_self)">, "local tensor",
+  "::mlir::asctile::LocalTensorType">;
+
+def IsLocalTensorTypePred : And<[
   CPred<"::llvm::isa<::mlir::asctile::LocalTensorType>($_self)">,
-  "local tensor", "::mlir::asctile::LocalTensorType">;
-
-def IsTileTypePred : And<[
-  CPred<"::llvm::isa<::mlir::asctile::TileType>($_self)">,
-  CPred<"::llvm::cast<::mlir::asctile::TileType>($_self).getRank() > 0">,
+  CPred<"::llvm::cast<::mlir::asctile::LocalTensorType>($_self).getRank() > 0">,
 ]>;
 
-class IsTileOfRankPred<list<int> allowedRanks> : And<[
-  IsTileTypePred,
+class IsLocalTensorOfRankPred<list<int> allowedRanks> : And<[
+  IsLocalTensorTypePred,
   Or<!foreach(allowedlength, allowedRanks,
-     CPred<[{::llvm::cast<::mlir::asctile::TileType>($_self).getRank()
-           == }] # allowedlength>)>,
+     CPred<"::llvm::cast<::mlir::asctile::LocalTensorType>($_self).getRank() == " # allowedlength>)>,
 ]>;
 
-class IsTileOfLengthPred<list<int> allowedLengths> : And<[
-  IsTileTypePred,
+class IsLocalTensorOfLengthPred<list<int> allowedLengths> : And<[
+  IsLocalTensorTypePred,
   Or<!foreach(allowedlength, allowedLengths,
-     CPred<[{::llvm::cast<::mlir::asctile::TileType>($_self).getNumElements()
-           == }] # allowedlength>)>,
+     CPred<"::llvm::cast<::mlir::asctile::LocalTensorType>($_self).getNumElements() == " # allowedlength>)>,
 ]>;
 
-class TileOf<list<Type> allowedTypes>
-    : ShapedContainerType<allowedTypes, IsTileTypePred, "tile",
-                          "::mlir::asctile::TileType">;
+class LocalTensorOf<list<Type> allowedTypes> : ShapedContainerType<allowedTypes, IsLocalTensorTypePred, "tile",
+  "::mlir::asctile::LocalTensorType">;
 
-class TileOfRank<list<int> allowedRanks> : Type<
-  IsTileOfRankPred<allowedRanks>,
-  " of ranks " # !interleave(allowedRanks, "/"), "::mlir::asctile::TileType">;
+class LocalTensorOfRank<list<int> allowedRanks> : Type<
+  IsLocalTensorOfRankPred<allowedRanks>, " of ranks " # !interleave(allowedRanks, "/"),
+  "::mlir::asctile::LocalTensorType">;
 
-class TileOfRankAndType<list<int> allowedRanks, list<Type> allowedTypes>
-    : AllOfType<
-  [TileOf<allowedTypes>, TileOfRank<allowedRanks>],
-  TileOf<allowedTypes>.summary # TileOfRank<allowedRanks>.summary,
-  "::mlir::asctile::TileType">;
+class LocalTensorOfRankAndType<list<int> allowedRanks, list<Type> allowedTypes> : AllOfType<
+  [LocalTensorOf<allowedTypes>, LocalTensorOfRank<allowedRanks>],
+  LocalTensorOf<allowedTypes>.summary # LocalTensorOfRank<allowedRanks>.summary, "::mlir::asctile::LocalTensorType">;
 
-class TileOfLength<list<int> allowedLengths>
-    : Type<IsTileOfLengthPred<allowedLengths>,
-           " of length " # !interleave(allowedLengths, "/"),
-           "::mlir::asctile::TileType">;
+class LocalTensorOfLength<list<int> allowedLengths> : Type<IsLocalTensorOfLengthPred<allowedLengths>,
+  " of length " # !interleave(allowedLengths, "/"), "::mlir::asctile::LocalTensorType">;
 
-class TileOfLengthAndType<list<int> allowedLengths, list<Type> allowedTypes>
-    : AllOfType<
-  [TileOf<allowedTypes>, TileOfLength<allowedLengths>],
-  TileOf<allowedTypes>.summary # TileOfLength<allowedLengths>.summary,
-  "::mlir::asctile::TileType">;
+class LocalTensorOfLengthAndType<list<int> allowedLengths, list<Type> allowedTypes> : AllOfType<
+  [LocalTensorOf<allowedTypes>, LocalTensorOfLength<allowedLengths>],
+  LocalTensorOf<allowedTypes>.summary # LocalTensorOfLength<allowedLengths>.summary,
+  "::mlir::asctile::LocalTensorType">;
 
 def AscTile_Float : AnyTypeOf<[F16, BF16, F32, F64]>;
 def AscTile_Int : AnyTypeOf<[I8, I16, I32, I64]>;
 def AscTile_Numeric : AnyTypeOf<[AscTile_Float, AscTile_Int]>;
 
-def FloatTile : TileOf<[AscTile_Float]>;
-def IntTile : TileOf<[AscTile_Int]>;
-def NumericTile : TileOf<[AscTile_Numeric]>;
+def FloatLocalTensor : LocalTensorOf<[AscTile_Float]>;
+def IntLocalTensor : LocalTensorOf<[AscTile_Int]>;
+def NumericLocalTensor : LocalTensorOf<[AscTile_Numeric]>;
 
 class ShapedMatchElemType<string shapedType, string type> : TypesMatchWith<
-  "type of '" # type # "' matches element type of '" # shapedType # "'",
-  shapedType, type, "::llvm::cast<ShapedType>($_self).getElementType()">;
+  "type of '" # type # "' matches element type of '" # shapedType # "'", shapedType, type,
+  "::llvm::cast<ShapedType>($_self).getElementType()">;
 
-class OptionalShapedMatchElemType<string shapedType, string type>
-    : OptionalTypesMatchWith<
-  "type of '" # type # "' matches element type of '" # shapedType # "'",
-  shapedType, type, "::llvm::cast<ShapedType>($_self).getElementType()">;
+class OptionalShapedMatchElemType<string shapedType, string type> : OptionalTypesMatchWith<
+  "type of '" # type # "' matches element type of '" # shapedType # "'", shapedType, type,
+  "::llvm::cast<ShapedType>($_self).getElementType()">;
 
 #endif // ASCTILE_TYPES_TD

@@ -16,14 +16,12 @@ include "Dialect.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/EnumAttr.td"
 
-class AscTile_Attr<string name, string attrMnemonic, list<Trait> traits = []>
-    : AttrDef<AscTile_Dialect, name, traits> {
+class AscTile_Attr<string name, string attrMnemonic, list<Trait> traits = []> : AttrDef<AscTile_Dialect, name, traits> {
   let cppNamespace = "::mlir::asctile";
   let mnemonic = attrMnemonic;
 }
 
-class AscTile_EnumAttr<EnumAttrInfo info, string name = "">
-    : EnumAttr<AscTile_Dialect, info, name> {
+class AscTile_EnumAttr<EnumAttrInfo info, string name = ""> : EnumAttr<AscTile_Dialect, info, name> {
   let assemblyFormat = "`<` $value `>`";
 }
 
