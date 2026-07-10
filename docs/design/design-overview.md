@@ -88,7 +88,7 @@ A5 adds the following hardware capabilities relative to A2: <sup>[[58]](#ref-58)
                          │  FunctionVisitor (AST → IR)
   ┌──────────────────────▼───────────────────────────────────┐
   │           asctile MLIR Dialect                           │
-  │   TensorType / TileType    LoadOp / StoreOp              │
+  │   GlobalTensorType / LocalTensorType  LoadOp / StoreOp   │
   │   BinaryOps  UnaryOps  ReductionOps  ShapeOps            │
   │   AtomicRMWOp  MatmulOp  SoftmaxOp  SelectOp             │
   │   CountMaskOp  BitwiseMaskOp                             │
@@ -338,7 +338,7 @@ These lower `asctile.*` operations into `ascendc.*` + standard MLIR ops.
 | Pass | Purpose |
 |------|---------|
 | `ExpandMath` | Replace `math.*` ops with sequences of `ascendc` vector intrinsics |
-| `RedressI1Tile` | Widen boolean (i1) tiles to `i8`/`ui8` as required by Ascend C |
+| `RedressI1Tensor` | Widen boolean (i1) tensors to `i8`/`ui8` as required by Ascend C |
 | `LowerArith` | Lower `arith.*` scalar ops to `ascendc` equivalents |
 | `LowerArithBinary` | Lower tile-scalar and scalar-tile arithmetic |
 | `LowerAtomic` | Lower `AtomicRMWOp` → `ascendc.atomic_*` |

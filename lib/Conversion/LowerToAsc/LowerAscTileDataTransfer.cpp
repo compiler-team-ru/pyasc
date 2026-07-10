@@ -823,7 +823,7 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
         auto dstPos = opType.getLoc();
         if (dstPos != asctile::TileLocation::L0A && dstPos != asctile::TileLocation::L0B &&
             dstPos != asctile::TileLocation::BT) {
-            op.emitError() << "invalid destination location of the tile";
+            op.emitError() << "invalid destination location of the local tensor";
             return failure();
         }
         auto loc = op.getLoc();

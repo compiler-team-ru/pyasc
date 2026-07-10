@@ -38,7 +38,7 @@ struct ConvertLoadGMToL0 : OpRewritePattern<asctile::LoadOp> {
         if (tileLoc != TileLocation::L0A && tileLoc != TileLocation::L0B && tileLoc != TileLocation::BT) {
             return failure();
         }
-        auto l1Type = TileType::get(opType.getShape(), opType.getElementType(), TileLocation::L1);
+        auto l1Type = LocalTensorType::get(opType.getShape(), opType.getElementType(), TileLocation::L1);
         Value l1Tile = rewriter.create<asctile::LoadOp>(
             op.getLoc(), l1Type, op.getBase(), op.getOffsets(), op.getPadValue(), op.getRealShape());
         if (tileLoc == TileLocation::BT)
@@ -65,12 +65,12 @@ struct MarkTileOperandInMmad : OpRewritePattern<asctile::LoadOp> {
         for (auto& use : op->getUses()) {
             auto copyOp = dyn_cast<asctile::CopyOp>(use.getOwner());
             if (!copyOp) {
-                op.emitError() << "L1 tile is expected to be used for copy operations only.";
+                op.emitError() << "L1 tensor is expected to be used for copy operations only.";
                 return failure();
             }
             auto l0TileLoc = copyOp.getType().getLoc();
             if (l0TileLoc != TileLocation::L0A && l0TileLoc != TileLocation::L0B && l0TileLoc != TileLocation::BT) {
-                auto diag = op.emitError() << "L1 tile copy to L0A/L0B/BT location is expected only.";
+                auto diag = op.emitError() << "L1 tensor copy to L0A/L0B/BT location is expected only.";
                 diag.attachNote(copyOp->getLoc()) << "used here unexpectedly";
                 return failure();
             }
@@ -78,7 +78,7 @@ struct MarkTileOperandInMmad : OpRewritePattern<asctile::LoadOp> {
                 isTensorA = l0TileLoc == TileLocation::L0A;
             } else if (isTensorA.value() != (l0TileLoc == TileLocation::L0A)) {
                 auto diag = op.emitError()
-                            << "The same L1 tile should be copied only to tiles in same L0A/L0B location.";
+                            << "The same L1 tensor should be copied only to tiles in same L0A/L0B location.";
                 diag.attachNote(copyOp->getLoc()) << "copied here unexpectedly";
                 return failure();
             }
@@ -88,7 +88,7 @@ struct MarkTileOperandInMmad : OpRewritePattern<asctile::LoadOp> {
             return success();
         }
 
-        // If we are here it means that processed L1 tile is for B.
+        // If we are here it means that processed L1 tensor is for B.
         return failure();
     }
 };

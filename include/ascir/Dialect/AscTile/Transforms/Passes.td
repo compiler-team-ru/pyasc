@@ -34,13 +34,13 @@ def CubeTransposeToLoad : Pass<"asctile-cube-transpose-to-load", "func::FuncOp">
     Example transformation:
     ```mlir
     // Before: separate load, copy, and transpose
-    %0 = load %tensor[%i, %j], %pad : tensor, tile<32x128xf16, L1>
-    %1 = copy %0[%x, %y] : tile<32x128xf16, L1>, tile<32x128xf16, L0A>
-    %2 = transpose %1 : tile<32x128xf16, L0A> to tile<128x32xf16, L0A>
+    %0 = load %tensor[%i, %j], %pad : tensor, tensor<32x128xf16, L1>
+    %1 = copy %0[%x, %y] : tensor<32x128xf16, L1>, tensor<32x128xf16, L0A>
+    %2 = transpose %1 : tensor<32x128xf16, L0A> to tensor<128x32xf16, L0A>
 
     // After: transpose attribute propagated, transpose op removed
-    %0 = load %tensor[%i, %j], %pad {transposeA} : tensor, tile<32x128xf16, L1>
-    %1 = copy %0[%x, %y] {transposeA} : tile<128x32xf16, L1>, tile<128x32xf16, L0A>
+    %0 = load %tensor[%i, %j], %pad {transposeA} : tensor, tensor<32x128xf16, L1>
+    %1 = copy %0[%x, %y] {transposeA} : tensor<128x32xf16, L1>, tensor<128x32xf16, L0A>
     ```
   }];
 }
@@ -87,18 +87,18 @@ def DetectBiasLoad : Pass<"asctile-detect-bias-load", "func::FuncOp"> {
     This pass identifies load operations that feed bias data for matrix multiplication and marks them
     with the `isBias` attribute. This enables subsequent passes to optimize bias handling in matmul operations.
 
-    The pass identifies bias loads by checking if the loaded tile is copied to `TileLocation::BT` (bias table),
+    The pass identifies bias loads by checking if the loaded tensor is copied to `TileLocation::BT` (bias table),
     which is the dedicated memory location for bias values in matmul operations.
 
     Example transformation:
     ```mlir
     // Before: load without bias marking
-    %0 = load %tensor[%offset] : tensor, tile<128xf16, L1>
-    %1 = copy %0[%base] : tile<128xf16, L1> to tile<128xf16, BT>
+    %0 = load %tensor[%offset] : tensor, tensor<128xf16, L1>
+    %1 = copy %0[%base] : tensor<128xf16, L1> to tensor<128xf16, BT>
 
     // After: load marked as bias
-    %0 = load %tensor[%offset] {isBias} : tensor, tile<128xf16, L1>
-    %1 = copy %0[%base] : tile<128xf16, L1> to tile<128xf16, BT>
+    %0 = load %tensor[%offset] {isBias} : tensor, tensor<128xf16, L1>
+    %1 = copy %0[%base] : tensor<128xf16, L1> to tensor<128xf16, BT>
     ```
   }];
 }
@@ -187,24 +187,24 @@ def SplitCubeLoad : Pass<"asctile-split-cube-load", "func::FuncOp"> {
     operations where operands must reside in specific L0 buffers.
 
     The pass applies two patterns:
-    1. **ConvertLoadGMToL0**: Splits `load` producing L0A/L0B tile into:
-       - `load` producing L1 tile (from GM)
+    1. **ConvertLoadGMToL0**: Splits `load` producing L0A/L0B tensor into:
+       - `load` producing L1 tensor (from GM)
        - `copy` from L1 to L0A/L0B with zero offsets
 
     2. **MarkTileOperandInMmad**: Marks L1 tiles used exclusively for matrix multiplication:
-       - If an L1 tile is copied only to L0A, marks it with `isMatrixA` attribute
-       - Validates consistency: same L1 tile should not be copied to both L0A and L0B
-       - Emits error if L1 tile is used for non-copy operations
+       - If an L1 tensor is copied only to L0A, marks it with `isMatrixA` attribute
+       - Validates consistency: same L1 tensor should not be copied to both L0A and L0B
+       - Emits error if L1 tensor is used for non-copy operations
 
     Example transformation:
     ```mlir
     // Before: direct load to L0A
-    %0 = load %tensor[%offset] : tensor, tile<16x16xf32, L0A>
+    %0 = load %tensor[%offset] : tensor, tensor<16x16xf32, L0A>
 
     // After: split into L1 load + L1-to-L0A copy
-    %0 = load %tensor[%offset] : tensor, tile<16x16xf32, L1>
+    %0 = load %tensor[%offset] : tensor, tensor<16x16xf32, L1>
     %zero = constant 0 : i32
-    %1 = copy %0[%zero, %zero] : tile<16x16xf32, L1> to tile<16x16xf32, L0A>
+    %1 = copy %0[%zero, %zero] : tensor<16x16xf32, L1> to tensor<16x16xf32, L0A>
     ```
   }];
 }
@@ -257,13 +257,13 @@ def TagUnrollGroups : Pass<"asctile-tag-unroll-groups", "func::FuncOp"> {
 }
 
 def TransformMathOps : Pass<"asctile-transform-math-ops", "func::FuncOp"> {
-  let summary = "Convert tile arithmetic operations with splat operands to scalar-splat variants for hardware efficiency";
+  let summary = "Convert tensor arithmetic operations with splat operands to scalar-splat variants for HW efficiency";
   let constructor = "mlir::asctile::createTransformMathOpsPass()";
   let dependentDialects = ["asctile::AscTileDialect"];
   let description = [{
     This pass specializes arithmetic and comparison operations on tiles when one operand is a splat value
     (uniform constant across all elements). The scalar-splat variants (`adds`, `muls`, `cmps`, etc.) are
-    more efficient on the hardware than tile-tile operations.
+    more efficient on the hardware than tensor-tensor operations.
 
     Transformation patterns (applied greedily with pattern benefits):
     1. **MaxWithZeroToRelu** (benefit 2): `max(x, 0)` or `max(0, x)` → `relu(x)` for `maximumf`, `maxnumf`, `maxsi`
@@ -271,40 +271,40 @@ def TransformMathOps : Pass<"asctile-transform-math-ops", "func::FuncOp"> {
     2. **ScalarizeArithOp** (benefit 1, for commutative ops: add, mul, max, min):
        - If one operand is splat constant → converts to scalar-splat variant
        - Can handle splat on either lhs or rhs (swaps operands if lhs is splat)
-       - `addf(tile, splat)` → `adds(tile, scalar)`
-       - `mulf(splat, tile)` → `muls(tile, scalar)` (swapped)
+       - `addf(tensor, splat)` → `adds(tensor, scalar)`
+       - `mulf(splat, tensor)` → `muls(tensor, scalar)` (swapped)
 
     3. **ScalarizeArithRhsOp** (benefit 1, for non-commutative ops: sub, div):
        - Only rhs splat is converted (cannot swap operands)
-       - `subf(tile, splat)` → `subs(tile, scalar)`
-       - `subf(splat, tile)` remains unchanged
+       - `subf(tensor, splat)` → `subs(tensor, scalar)`
+       - `subf(splat, tensor)` remains unchanged
 
-    4. **ScalarizeShL/ScalarizeShR**: `shli/shrsi(tile, splat)` → `shls/shrs(tile, scalar)`
+    4. **ScalarizeShL/ScalarizeShR**: `shli/shrsi(tensor, splat)` → `shls/shrs(tensor, scalar)`
 
-    5. **ScalarizeCompare**: `cmp(mode, tile, splat)` → `cmps(mode, tile, scalar)`
+    5. **ScalarizeCompare**: `cmp(mode, tensor, splat)` → `cmps(mode, tensor, scalar)`
        - If lhs is splat, comparison mode is inverted (LT→GT, LE→GE, etc.)
 
     Example transformations:
     ```mlir
     // Splat constant converted to scalar
-    %cst = constant dense<7.0> : tile<32xf32>
-    %0 = addf %tile, %cst : tile<32xf32>
+    %cst = constant dense<7.0> : tensor<32xf32>
+    %0 = addf %tensor, %cst : tensor<32xf32>
     // →
     %scalar = constant 7.0 : f32
-    %0 = adds %tile, %scalar : tile<32xf32>
+    %0 = adds %tensor, %scalar : tensor<32xf32>
 
     // Max with zero becomes relu
-    %zero = constant dense<0.0> : tile<32xf32>
-    %0 = maximumf %zero, %tile : tile<32xf32>
+    %zero = constant dense<0.0> : tensor<32xf32>
+    %0 = maximumf %zero, %tensor : tensor<32xf32>
     // →
-    %0 = relu %tile : tile<32xf32>
+    %0 = relu %tensor : tensor<32xf32>
 
     // Comparison with splat, lhs case (mode inverted)
-    %cst = constant dense<1.0> : tile<32xf32>
-    %0 = cmp LT %cst, %tile : tile<32xf32>
+    %cst = constant dense<1.0> : tensor<32xf32>
+    %0 = cmp LT %cst, %tensor : tensor<32xf32>
     // →
     %scalar = constant 1.0 : f32
-    %0 = cmps GT %tile, %scalar : tile<32xf32>  // LT → GT
+    %0 = cmps GT %tensor, %scalar : tensor<32xf32>  // LT → GT
     ```
   }];
 }
@@ -332,22 +332,22 @@ def TransformStoreFixpipe : Pass<"asctile-transform-store-fixpipe", "func::FuncO
     Example transformations:
     ```mlir
     // Before: separate store and relu
-    %result = matmul_acc %acc, %a, %b : tile<16x16xf32, L0C>
-    %activated = relu %result : tile<16x16xf32, L0C>
-    store %activated, %tensor[%offset] : tile<16x16xf32, L0C>, tensor
+    %result = matmul_acc %acc, %a, %b : tensor<16x16xf32, L0C>
+    %activated = relu %result : tensor<16x16xf32, L0C>
+    store %activated, %tensor[%offset] : tensor<16x16xf32, L0C>, tensor
 
     // After: fused store_fixpipe with relu flag
-    %result = matmul_acc %acc, %a, %b : tile<16x16xf32, L0C>
-    store_fixpipe relu=true %result, %tensor[%offset] : tile<16x16xf32, L0C>, tensor
+    %result = matmul_acc %acc, %a, %b : tensor<16x16xf32, L0C>
+    store_fixpipe relu=true %result, %tensor[%offset] : tensor<16x16xf32, L0C>, tensor
 
     // Before: separate copy and cast
-    %result = matmul_acc ... : tile<16x16xf32, L0C>
-    %casted = cast %result : tile<16x16xf32, L0C> to tile<16x16xi8, UB>
-    copy %casted, [%zero] : tile<16x16xf32, L0C> to tile<16x16xi8, UB>
+    %result = matmul_acc ... : tensor<16x16xf32, L0C>
+    %casted = cast %result : tensor<16x16xf32, L0C> to tensor<16x16xi8, UB>
+    copy %casted, [%zero] : tensor<16x16xf32, L0C> to tensor<16x16xi8, UB>
 
     // After: fused copy_fixpipe with quantize flag
-    %result = matmul_acc ... : tile<16x16xf32, L0C>
-    copy_fixpipe quantize=true %result, [%zero] : tile<16x16xf32, L0C> to tile<16x16xi8, UB>
+    %result = matmul_acc ... : tensor<16x16xf32, L0C>
+    copy_fixpipe quantize=true %result, [%zero] : tensor<16x16xf32, L0C> to tensor<16x16xi8, UB>
     ```
   }];
 }
@@ -395,39 +395,39 @@ def UnrollLoop : Pass<"asctile-unroll-loop", "func::FuncOp"> {
 }
 
 def UnscalarizeReduction : Pass<"asctile-unscalarize-reduction", "func::FuncOp"> {
-  let summary = "Convert scalar reduction results to 1-element tiles when used in tile operations";
+  let summary = "Convert scalar reduction results to 1-element tiles when used in tensor operations";
   let constructor = "mlir::asctile::createUnscalarizeReductionPass()";
   let dependentDialects = ["arith::ArithDialect", "asctile::AscTileDialect"];
   let description = [{
-    This pass avoids scalar results from `reduce_as_1d` operations when all users are scalar-tile operations
-    (adds, subs, muls, divs, mins, maxs, splat). Instead, the result is kept as a 1-element tile, which is
-    more efficient for the hardware as it avoids scalar-to-tile conversions.
+    This pass avoids scalar results from `reduce_as_1d` operations when all users are scalar-tensor operations
+    (adds, subs, muls, divs, mins, maxs, splat). Instead, the result is kept as a 1-element tensor, which is
+    more efficient for the hardware as it avoids scalar-to-tensor conversions.
 
     The pass uses dialect conversion to transform:
-    1. `reduce_as_1d` with scalar result → `reduce_as_1d` with 1-element tile result
-    2. `splat` (scalar to tile) → `broadcast` (1-element tile to larger tile)
-    3. Scalar-tile ops (adds, subs, etc.) → tile-tile ops (addf, subf, etc.)
+    1. `reduce_as_1d` with scalar result → `reduce_as_1d` with 1-element tensor result
+    2. `splat` (scalar to tensor) → `broadcast` (1-element tensor to larger tensor)
+    3. Scalar-tensor ops (adds, subs, etc.) → tensor-tensor ops (addf, subf, etc.)
 
     The transformation only applies when ALL users of the scalar reduction result are unscalarizable.
     If any user operates on the scalar directly (e.g., scalar arithmetic), the reduction is left unchanged.
 
     Example transformations:
     ```mlir
-    // Before: scalar reduction used in scalar-tile ops
-    %scalar = reduce_as_1d <sum> %tile : tile<16xf32>, f32
-    %result1 = adds %tile, %scalar : tile<16xf32>
-    %result2 = subs %tile, %scalar : tile<16xf32>
+    // Before: scalar reduction used in scalar-tensor ops
+    %scalar = reduce_as_1d <sum> %tensor : tensor<16xf32>, f32
+    %result1 = adds %tensor, %scalar : tensor<16xf32>
+    %result2 = subs %tensor, %scalar : tensor<16xf32>
 
-    // After: 1-element tile reduction used in tile-tile ops
-    %reduced = reduce_as_1d <sum> %tile : tile<16xf32>, tile<1xf32>
-    %broadcast1 = broadcast %reduced : tile<1xf32> to tile<16xf32>
-    %result1 = addf %tile, %broadcast1 : tile<16xf32>
-    %broadcast2 = broadcast %reduced : tile<1xf32> to tile<16xf32>
-    %result2 = subf %tile, %broadcast2 : tile<16xf32>
+    // After: 1-element tensor reduction used in tensor-tensor ops
+    %reduced = reduce_as_1d <sum> %tensor : tensor<16xf32>, tensor<1xf32>
+    %broadcast1 = broadcast %reduced : tensor<1xf32> to tensor<16xf32>
+    %result1 = addf %tensor, %broadcast1 : tensor<16xf32>
+    %broadcast2 = broadcast %reduced : tensor<1xf32> to tensor<16xf32>
+    %result2 = subf %tensor, %broadcast2 : tensor<16xf32>
 
     // Case skipped: scalar has non-unscalarizable user
-    %scalar = reduce_as_1d <sum> %tile : tile<16xf32>, f32
-    %result = adds %tile, %scalar : tile<16xf32>  // unscalarizable
+    %scalar = reduce_as_1d <sum> %tensor : tensor<16xf32>, f32
+    %result = adds %tensor, %scalar : tensor<16xf32>  // unscalarizable
     %scalar_op = addf %scalar, %scalar : f32      // scalar user -> NOT transformed
     ```
   }];

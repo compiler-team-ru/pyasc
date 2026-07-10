@@ -62,7 +62,7 @@ struct LoweringTypeConverter : public TypeConverter {
 struct TensorTypeConverter : public LoweringTypeConverter {
     TensorTypeConverter() : LoweringTypeConverter()
     {
-        addConversion([](asctile::TileType type) {
+        addConversion([](asctile::LocalTensorType type) {
             auto elType = type.getElementType();
             SmallVector<int64_t> shape(type.getShape());
             if (elType.isInteger(1)) {
@@ -75,7 +75,7 @@ struct TensorTypeConverter : public LoweringTypeConverter {
                 elType = FloatType::getF32(type.getContext());
             return ascendc::LocalTensorType::get(shape, elType);
         });
-        addConversion([](asctile::TensorType type) {
+        addConversion([](asctile::GlobalTensorType type) {
             return ascendc::GlobalTensorType::get(type.getShape(), type.getElementType());
         });
         addConversion([](MemRefType type) -> Type {
@@ -160,7 +160,7 @@ struct ConvertOp : public OpConversionPattern<OpType> {
         auto convertedType = typeConverter->convertType(convertibleType);
         assert(isa<ascendc::LocalTensorType>(convertedType) && "must be convertible");
         auto tensorType = cast<ascendc::LocalTensorType>(convertedType);
-        if (auto tileType = dyn_cast<asctile::TileType>(convertibleType)) {
+        if (auto tileType = dyn_cast<asctile::LocalTensorType>(convertibleType)) {
             position = position.has_value() ? position : locationToPosition(tileType.getLoc());
         }
         return createTensorOp(builder, loc, tensorType.getShape(), tensorType.getElementType(), position);

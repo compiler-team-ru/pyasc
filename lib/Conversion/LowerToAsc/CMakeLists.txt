@@ -19,7 +19,7 @@ add_mlir_conversion_library(MLIRLowerToAsc
   LowerMath.cpp
   LowerSCF.cpp
   RealizeConversionCast.cpp
-  RedressI1Tile.cpp
+  RedressI1Tensor.cpp
 
 ADDITIONAL_HEADER_DIRS
   ${ASCIR_INCLUDE_DIR}/ascir/Conversion/LowerToAsc

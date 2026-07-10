@@ -88,7 +88,7 @@ bool allUnscalarizableUsers(Operation* op)
 void markOps(func::FuncOp root)
 {
     root.walk([](asctile::ReduceAs1dOp op) {
-        if (isa<asctile::TileType>(op.getType()) || !allUnscalarizableUsers(op))
+        if (isa<asctile::LocalTensorType>(op.getType()) || !allUnscalarizableUsers(op))
             return;
         op->setAttr(unscalarizeAttr, UnitAttr::get(op.getContext()));
         for (auto* user : op->getUsers())
@@ -108,8 +108,8 @@ struct UnscalarizeReductionPass : public asctile::impl::UnscalarizeReductionBase
         markOps(op);
         TypeConverter converter;
         converter.addConversion([](Type type) { return std::optional<Type>{type}; });
-        converter.addConversion([](IntegerType type) { return asctile::TileType::get(1, type); });
-        converter.addConversion([](FloatType type) { return asctile::TileType::get(1, type); });
+        converter.addConversion([](IntegerType type) { return asctile::LocalTensorType::get(1, type); });
+        converter.addConversion([](FloatType type) { return asctile::LocalTensorType::get(1, type); });
         converter.addArgumentMaterialization(addUnrealizedCast);
         converter.addSourceMaterialization(addUnrealizedCast);
         converter.addTargetMaterialization(addUnrealizedCast);

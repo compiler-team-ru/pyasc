@@ -31,7 +31,7 @@ std::unique_ptr<Pass> createLowerAtomicPass();
 std::unique_ptr<Pass> createLowerMathPass();
 std::unique_ptr<Pass> createLowerSCFPass();
 std::unique_ptr<Pass> createRealizeConversionCastPass();
-std::unique_ptr<Pass> createRedressI1TilePass();
+std::unique_ptr<Pass> createRedressI1TensorPass();
 
 } // namespace asclower
 

@@ -220,7 +220,7 @@ class Compiler:
                 passes.common.add_canonicalizer(pm)
                 passes.common.add_cse(pm)
             passes.asclower.add_expand_math(pm)
-            passes.asclower.add_redress_i1_tile(pm)
+            passes.asclower.add_redress_i1_tensor(pm)
             passes.asclower.add_lower_arith(pm)
             passes.asclower.add_lower_arith_binary(pm)
             passes.asclower.add_lower_atomic(pm)
