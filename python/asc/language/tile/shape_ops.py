@@ -253,6 +253,15 @@ def transpose(input: LocalTensor, *axis: int) -> LocalTensor:
         TypeError: If input is not a LocalTensor
         RuntimeError: If the input tensor dtype is not supported or axis is incorrect
 
+    Note:
+        If the input tensor was created by :py:func:`copy_in` and used only as ``transpose()`` argument,
+        both operations will be fused into a single **data copy operation** during the compilation.
+        In this case any 2D, 3D, 4D tensor is supported.
+
+        If the input is used by other operations or not created by :py:func:`copy_in`, a standalone transpose is used.
+        In this case **only 2D tensors in UB are supported**,
+        and input shape must be multiple of 16 (for 2 or 4 byte elements) or 32 (for 1 byte elements).
+
     Examples:
         Transpose a 2D tensor: ::
 
@@ -263,6 +272,12 @@ def transpose(input: LocalTensor, *axis: int) -> LocalTensor:
 
             input = asc2.copy_in(x, [0, 0, 0], [32, 64, 16])
             result = input.transpose(2, 0, 1)  # shape becomes [16, 32, 64]
+
+        Transpose as a standalone operation: ::
+
+            input = asc2.copy_in(x, [0, 0], [64, 64])
+            temp = input + 2.0  # local tensor modified after the copy_in
+            result = temp.transpose()
     """
     check_type("input", input, LocalTensor)
     check_dtype("input", input,
