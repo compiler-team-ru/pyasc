@@ -58,6 +58,21 @@ def reduce_sum_cols(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
         asc2.copy_out(cache, out_gm, [col_start_offset])
 
 
+@asc2.jit(static_alloc=True, reuse_alloc=2)
+def reduce_none(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows: asc2.ConstExpr,
+                input_num_cols: asc2.ConstExpr, output_length: asc2.ConstExpr, tile_shape: asc2.ConstExpr,
+                unroll_factor: asc2.ConstExpr):
+    total_elements = input_num_rows * input_num_cols
+    in_gm = asc2.global_tensor(input_ptr, [total_elements])
+    out_gm = asc2.global_tensor(output_ptr, [total_elements])
+    block_portion = tile_shape[0] * tile_shape[1]
+    total_repeats = asc2.ceildiv(total_elements, block_portion)
+
+    for i in asc2.range(asc2.block_idx(), total_repeats, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
+        data = asc2.copy_in(in_gm, [i * block_portion], [block_portion])
+        asc2.copy_out(data, out_gm, [i * block_portion])
+
+
 @pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
 @pytest.mark.parametrize(
     "block_num, unroll_factor, input_shape, in_out_dtype, output_shape, axis, tiling_key, tiling_values", [
@@ -210,7 +225,7 @@ def test_reduce_sum(profiler, runs, kernel_type, block_num, unroll_factor, input
     else:
         raise NotImplementedError("ReduceSum for middle dimension(s) is not implemented yet")
 
-    _, _, ub_factor_a, _, _, ub_factor_r, _, _, _, _, _, _, _, _, _, _, _, _, _ = tiling_values
+    _, _, ub_factor_a, _, _, ub_factor_r = tiling_values[:6]
     length_a = input_shape_2d[1 - axis] if ub_factor_a == 1 else ub_factor_a
     length_r = input_shape_2d[axis] if ub_factor_r == 1 else ub_factor_r
     tile_shape = [length_a, length_r] if axis == 1 else [length_r, length_a]
@@ -226,6 +241,8 @@ def test_reduce_sum(profiler, runs, kernel_type, block_num, unroll_factor, input
     in_tensor = torch.randn(input_shape_2d, dtype=in_out_dtype)
     out_tensor = torch.zeros(output_shape_1d, dtype=in_out_dtype)
     kernel_impl = reduce_sum_rows if axis == 1 else reduce_sum_cols
+    if input_shape_2d[1] == 1 or input_shape_2d[0] == 1:
+        kernel_impl = reduce_none
 
     params = [in_tensor, out_tensor]
     if kernel_type == STATIC:
