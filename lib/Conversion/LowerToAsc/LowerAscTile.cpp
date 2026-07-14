@@ -222,6 +222,23 @@ struct ConvertSoftmax : ConvertOp<asctile::SoftmaxOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
+    static int64_t getSoftMaxMinTmpSize(int64_t srcM, int64_t srcK, int64_t dataTypeSize)
+    {
+        // Formula for Ascend950 from
+        // https://gitcode.com/cann/asc-devkit/blob/42692fd472e73567158163189a89eafcc9e4902b/impl/adv_api/tiling/activation/softmax_tiling.cpp#L123
+        constexpr int64_t softmaxDefaultBlkSize = 32;
+        constexpr int64_t softmaxTmpFlashUpdateCount = 4;
+        constexpr int64_t softmaxFloatSize = 4;
+        constexpr int64_t basicTileNum = softmaxDefaultBlkSize / softmaxFloatSize;
+        constexpr int64_t softmaxBasicBlockUnit = 64;
+        int64_t elementNumPerBlk = softmaxDefaultBlkSize / dataTypeSize;
+        int64_t needSize1 = srcM * (basicTileNum + srcK) + softmaxBasicBlockUnit * softmaxTmpFlashUpdateCount +
+                            (srcM + basicTileNum - 1) / basicTileNum * basicTileNum;
+        int64_t needSize2 = srcM * (elementNumPerBlk + srcK);
+        int64_t needSize = std::max(needSize1, needSize2);
+        return needSize * softmaxFloatSize;
+    }
+
     LogicalResult matchAndRewrite(asctile::SoftmaxOp op, ConvertRewriter& rewriter) const override
     {
         ascir::ConstantOpBuilder consts(rewriter);
@@ -234,11 +251,9 @@ struct ConvertSoftmax : ConvertOp<asctile::SoftmaxOp> {
         auto src = rewriter.getRemappedValue(op.getOperand());
         auto dst = createTensorOp(rewriter, loc, tensorType);
         auto elemType = tensorType.getElementType();
-        int64_t bufferSize = ascendc::ubBlockSize * height / ascendc::getElementTypeSize(tensorType);
-        auto maxTensor = createTensorOp(rewriter, loc, bufferSize, elemType);
-        auto sumTensor = createTensorOp(rewriter, loc, bufferSize, elemType);
-        auto sharedBufTensor =
-            createTensorOp(rewriter, loc, ascendc::getTypeSize(tensorType) * 2, rewriter.getIntegerType(8, false));
+        width = static_cast<int>(llvm::alignTo(width, ascendc::ubBlockSize / ascendc::getElementTypeSize(tensorType)));
+        int64_t bufferSize = getSoftMaxMinTmpSize(height, width, ascendc::getElementTypeSize(tensorType));
+        auto sharedBufTensor = createTensorOp(rewriter, loc, bufferSize, rewriter.getIntegerType(8, false));
         auto tiling = rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::SoftMaxTilingType>());
         Value shapeInfo = emitasc::InitStructBuilder(rewriter.getType<ascendc::SoftMaxShapeInfoType>())
                               .addField("srcM", consts.i32(height))
@@ -247,7 +262,7 @@ struct ConvertSoftmax : ConvertOp<asctile::SoftmaxOp> {
                               .addField("oriSrcK", consts.i32(width))
                               .create(rewriter, loc);
         rewriter.create<ascendc::SoftMaxOp>(
-            loc, false, false, false, dst, maxTensor, sumTensor, src, sharedBufTensor, tiling, shapeInfo);
+            loc, false, false, false, dst, Value{}, Value{}, src, sharedBufTensor, tiling, shapeInfo);
         rewriter.replaceOp(op, dst);
         return success();
     }
