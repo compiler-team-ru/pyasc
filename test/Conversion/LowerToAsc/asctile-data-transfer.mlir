@@ -238,10 +238,13 @@ func.func @lower_store_dynamic(%arg0: memref<*xf32, 22>, %arg1: tensor<16x16xf32
 // CHECK-NEXT:  %7 = arith.cmpi slt, %6, %c0_i32 : i32
 // CHECK-NEXT:  %8 = arith.select %7, %c0_i32, %6 : i32
 // CHECK-NEXT:  %9 = arith.minsi %8, %c16_i32 : i32
-// CHECK-NEXT:  %10 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %9 : i32, "mSize" = %c16_i32 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c32_i32 : i32)
-// CHECK-NEXT:  %11 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
-// CHECK-NEXT:  %12 = ascendc.construct !ascendc.fixpipe_config(%11) constexpr static : !ascendc.co2_layout
-// CHECK-NEXT:  ascendc.fixpipe %5, %0, %10, %12 : !ascendc.global_tensor<32x32xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
+// CHECK-NEXT:  %10 = arith.subi %c32_i32, %arg2 : i32
+// CHECK-NEXT:  %11 = arith.maxsi %10, %c0_i32 : i32
+// CHECK-NEXT:  %12 = arith.minsi %11, %c16_i32 : i32
+// CHECK-NEXT:  %13 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %9 : i32, "mSize" = %12 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c32_i32 : i32)
+// CHECK-NEXT:  %14 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
+// CHECK-NEXT:  %15 = ascendc.construct !ascendc.fixpipe_config(%14) constexpr static : !ascendc.co2_layout
+// CHECK-NEXT:  ascendc.fixpipe %5, %0, %13, %15 : !ascendc.global_tensor<32x32xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
 // CHECK-NEXT:  return
 // CHECK-NEXT:}
 func.func @lower_store_fixpipe_static(%arg0: memref<*xf32, 22>, %arg1: tensor<16x16xf32, #asctile.local<L0C>>, %arg2: i32, %arg3: i32) {
@@ -261,10 +264,13 @@ func.func @lower_store_fixpipe_static(%arg0: memref<*xf32, 22>, %arg1: tensor<16
 // CHECK-NEXT:  %7 = arith.cmpi slt, %6, %c0_i32 : i32
 // CHECK-NEXT:  %8 = arith.select %7, %c0_i32, %6 : i32
 // CHECK-NEXT:  %9 = arith.minsi %8, %c16_i32 : i32
-// CHECK-NEXT:  %10 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %9 : i32, "mSize" = %c16_i32 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c32_i32 : i32, "reluEn" = %c1_i32 : i32)
-// CHECK-NEXT:  %11 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
-// CHECK-NEXT:  %12 = ascendc.construct !ascendc.fixpipe_config(%11) constexpr static : !ascendc.co2_layout
-// CHECK-NEXT:  ascendc.fixpipe %5, %0, %10, %12 : !ascendc.global_tensor<32x32xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
+// CHECK-NEXT:  %10 = arith.subi %c32_i32, %arg2 : i32
+// CHECK-NEXT:  %11 = arith.maxsi %10, %c0_i32 : i32
+// CHECK-NEXT:  %12 = arith.minsi %11, %c16_i32 : i32
+// CHECK-NEXT:  %13 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %9 : i32, "mSize" = %12 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c32_i32 : i32, "reluEn" = %c1_i32 : i32)
+// CHECK-NEXT:  %14 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
+// CHECK-NEXT:  %15 = ascendc.construct !ascendc.fixpipe_config(%14) constexpr static : !ascendc.co2_layout
+// CHECK-NEXT:  ascendc.fixpipe %5, %0, %13, %15 : !ascendc.global_tensor<32x32xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
 // CHECK-NEXT:  return
 // CHECK-NEXT:}
 func.func @lower_store_fixpipe_static_relu(%arg0: memref<*xf32, 22>, %arg1: tensor<16x16xf32, #asctile.local<L0C>>, %arg2: i32, %arg3: i32) {
@@ -284,11 +290,14 @@ func.func @lower_store_fixpipe_static_relu(%arg0: memref<*xf32, 22>, %arg1: tens
 // CHECK-NEXT:  %7 = arith.cmpi slt, %6, %c0_i32 : i32
 // CHECK-NEXT:  %8 = arith.select %7, %c0_i32, %6 : i32
 // CHECK-NEXT:  %9 = arith.minsi %8, %c16_i32 : i32
-// CHECK-NEXT:  %10 = ascendc.construct !ascendc.quant_mode_t(%c1_i32) [!ascendc.quant_mode_t] constexpr static : i32
-// CHECK-NEXT:  %11 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %9 : i32, "mSize" = %c16_i32 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c32_i32 : i32, "reluEn" = %c1_i32 : i32, "quantPre" = %10 : !ascendc.quant_mode_t)
-// CHECK-NEXT:  %12 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
-// CHECK-NEXT:  %13 = ascendc.construct !ascendc.fixpipe_config(%12) constexpr static : !ascendc.co2_layout
-// CHECK-NEXT:  ascendc.fixpipe %5, %0, %11, %13 : !ascendc.global_tensor<32x32xf16>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
+// CHECK-NEXT:  %10 = arith.subi %c32_i32, %arg2 : i32
+// CHECK-NEXT:  %11 = arith.maxsi %10, %c0_i32 : i32
+// CHECK-NEXT:  %12 = arith.minsi %11, %c16_i32 : i32
+// CHECK-NEXT:  %13 = ascendc.construct !ascendc.quant_mode_t(%c1_i32) [!ascendc.quant_mode_t] constexpr static : i32
+// CHECK-NEXT:  %14 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %9 : i32, "mSize" = %12 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c32_i32 : i32, "reluEn" = %c1_i32 : i32, "quantPre" = %13 : !ascendc.quant_mode_t)
+// CHECK-NEXT:  %15 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
+// CHECK-NEXT:  %16 = ascendc.construct !ascendc.fixpipe_config(%15) constexpr static : !ascendc.co2_layout
+// CHECK-NEXT:  ascendc.fixpipe %5, %0, %14, %16 : !ascendc.global_tensor<32x32xf16>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
 // CHECK-NEXT:  return
 // CHECK-NEXT:}
 func.func @lower_store_fixpipe_static_quantize(%arg0: memref<*xf32, 22>, %arg1: tensor<16x16xf32, #asctile.local<L0C>>, %arg2: i32, %arg3: i32) {
@@ -308,12 +317,14 @@ func.func @lower_store_fixpipe_static_quantize(%arg0: memref<*xf32, 22>, %arg1: 
 // CHECK-NEXT:  %7 = arith.cmpi slt, %6, %c0_i32 : i32
 // CHECK-NEXT:  %8 = arith.select %7, %c0_i32, %6 : i32
 // CHECK-NEXT:  %9 = arith.minsi %8, %c16_i32 : i32
-// CHECK-NEXT:  %10 = arith.minsi %arg4, %c16_i32 : i32
-// CHECK-NEXT:  %11 = ascendc.construct !ascendc.quant_mode_t(%c1_i32) [!ascendc.quant_mode_t] constexpr static : i32
-// CHECK-NEXT:  %12 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %9 : i32, "mSize" = %10 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %arg5 : i32, "reluEn" = %c1_i32 : i32, "quantPre" = %11 : !ascendc.quant_mode_t)
-// CHECK-NEXT:  %13 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
-// CHECK-NEXT:  %14 = ascendc.construct !ascendc.fixpipe_config(%13) constexpr static : !ascendc.co2_layout
-// CHECK-NEXT:  ascendc.fixpipe %5, %0, %12, %14 : !ascendc.global_tensor<?x?xf16>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
+// CHECK-NEXT:  %10 = arith.subi %arg4, %arg2 : i32
+// CHECK-NEXT:  %11 = arith.maxsi %10, %c0_i32 : i32
+// CHECK-NEXT:  %12 = arith.minsi %11, %c16_i32 : i32
+// CHECK-NEXT:  %13 = ascendc.construct !ascendc.quant_mode_t(%c1_i32) [!ascendc.quant_mode_t] constexpr static : i32
+// CHECK-NEXT:  %14 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %9 : i32, "mSize" = %12 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %arg5 : i32, "reluEn" = %c1_i32 : i32, "quantPre" = %13 : !ascendc.quant_mode_t)
+// CHECK-NEXT:  %15 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
+// CHECK-NEXT:  %16 = ascendc.construct !ascendc.fixpipe_config(%15) constexpr static : !ascendc.co2_layout
+// CHECK-NEXT:  ascendc.fixpipe %5, %0, %14, %16 : !ascendc.global_tensor<?x?xf16>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
 // CHECK-NEXT:  return
 // CHECK-NEXT:}
 func.func @lower_store_fixpipe_dynamic_relu_quantize(%arg0: memref<*xf32, 22>, %arg1: tensor<16x16xf32, #asctile.local<L0C>>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32) {

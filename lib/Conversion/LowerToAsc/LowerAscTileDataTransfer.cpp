@@ -687,7 +687,9 @@ struct ConvertStoreFixpipe : ConvertOp<asctile::StoreFixpipeOp> {
             Value realRows = rewriter.getRemappedValue(realShape[0]);
             mSize = rewriter.create<arith::MinSIOp>(loc, mSize, realRows);
         } else {
-            mSize = rewriter.create<arith::MinSIOp>(loc, mSize, dstInfo.shape[0]);
+            Value tailRows = rewriter.create<arith::SubIOp>(loc, dstInfo.shape[0], offsets[0]);
+            Value availableRows = rewriter.create<arith::MaxSIOp>(loc, const0, tailRows);
+            mSize = rewriter.create<arith::MinSIOp>(loc, mSize, availableRows);
         }
         auto srcStride = static_cast<int32_t>(llvm::alignTo<ascendc::cubeBlockSize>(srcType.getShape()[0]));
         auto paramsBuilder = emitasc::InitStructBuilder(rewriter.getType<ascendc::FixpipeParamsV220Type>())
