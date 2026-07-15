@@ -64,35 +64,56 @@ def softmax_small_row(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddr
 op_name = ["softmax_v2"]
 
 
+# yapf: disable
 @pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
-@pytest.mark.parametrize(
-    "block_num, unroll_factor, input_shapes, input_dtypes, output_shapes, output_dtypes, other_params, tiling_key, tiling_values",
-    [
-        (56, 2, ([668, 3], ), (torch.float32, ), ([668, 3], ), (torch.float32, ), None, 1000, [668, 3, 8, 12, 12, 1]),
-        (52, 2, ([512, 4], ), (torch.float32, ), ([512, 4], ), (torch.float32, ), None, 1000, [512, 4, 8, 10, 10, 1]),
-        (4, 2, ([4, 122], ), (torch.float32, ), ([4, 122], ), (torch.float32, ), None, 1000, [4, 122, 128, 1, 1, 2]),
-        (52, 2, ([256, 98], ), (torch.float32, ), ([256, 98], ),
-         (torch.float32, ), None, 1000, [256, 98, 104, 5, 5, 2]),
-        (1, 2, ([64, 10], ), (torch.float32, ), ([64, 10], ),
-         (torch.float32, ), None, 500, [64, 10, 1, 1, 64, 64, 8, 16]),
-        (1, 2, ([64, 1, 8], ), (torch.float32, ), ([64, 1, 8], ),
-         (torch.float32, ), None, 500, [64, 8, 1, 1, 64, 64, 8, 8]),
-        # UB overflow
-        #(56, 2, ([4, 16, 128, 128], ), (torch.float32, ), ([4, 16, 128, 128], ),
-        # (torch.float32, ), None, 1000, [8192, 128, 128, 98, 147, 2]),
-        (56, 2, ([32, 400, 30], ), (torch.float32, ), ([32, 400, 30], ),
-         (torch.float32, ), None, 1000, [12800, 30, 32, 229, 229, 1]),
-        #(56, 2, ([1, 12, 256, 256], ), (torch.float32, ), ([1, 12, 256, 256], ),
-        # (torch.float32, ), None, 1000, [3072, 256, 256, 49, 55, 4]),
-        #(12, 2, ([2048, 7, 7], ), (torch.float32, ), ([2048, 7, 7], ),
-        # (torch.float32, ), None, 500, [14336, 7, 12, 1, 1280, 256, 8, 8]),
-        #(56, 2, ([8, 12, 197, 197], ), (torch.float32, ), ([8, 12, 197, 197], ),
-        # (torch.float32, ), None, 1000, [18912, 197, 200, 63, 338, 4]),
-        #(56, 2, ([2, 12, 512, 512], ), (torch.float32, ), ([2, 12, 512, 512], ),
-        # (torch.float32, ), None, 1000, [12288, 512, 512, 24, 220, 8]),
-    ])
-def test_softmax(kernel_type, backend, platform, device_id, profiler, runs, block_num, unroll_factor, input_shapes,
-                 input_dtypes, output_shapes, output_dtypes, other_params, tiling_key, tiling_values):
+@pytest.mark.parametrize("test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes, compile_params, runtime_params, tiling_key, tiling_params", [
+# PYASC_TESTS_BEGIN
+    ("softmax_test_1", 1, ([128, 1, 4], ), (torch.float32, ), ([128, 1, 4], ), (torch.float32, ), ([-1], ), (2, [-1]), 500, (128, 4, 1, 1, 128, 128, 8, 8)),
+    ("softmax_test_2", 1, ([200, 1, 4], ), (torch.float32, ), ([200, 1, 4], ), (torch.float32, ), ([-1], ), (2, [-1]), 500, (200, 4, 1, 1, 256, 200, 8, 8)),
+    ("softmax_test_3", 1, ([8, 5, 5], ), (torch.float32, ), ([8, 5, 5], ), (torch.float32, ), ([-1], ), (2, [-1]), 500, (40, 5, 1, 1, 64, 40, 8, 8)),
+    ("softmax_test_4", 1, ([4, 5], ), (torch.float32, ), ([4, 5], ), (torch.float32, ), ([-1], ), (2, [-1]), 500, (4, 5, 1, 1, 64, 4, 8, 8)),
+    ("softmax_test_5", 72, ([1024, 4, 4], ), (torch.float32, ), ([1024, 4, 4], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (4096, 4, 8, 57, 57, 1)),
+    ("softmax_test_6", 1, ([256, 1, 4], ), (torch.float32, ), ([256, 1, 4], ), (torch.float32, ), ([-1], ), (2, [-1]), 500, (256, 4, 1, 1, 256, 256, 8, 8)),
+    ("softmax_test_7", 72, ([2500, 8], ), (torch.float32, ), ([2500, 8], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (2500, 8, 8, 35, 35, 1)),
+    ("softmax_test_8", 12, ([12, 2500], ), (torch.float32, ), ([12, 2500], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (12, 2500, 2504, 1, 1, 40)),
+    ("softmax_test_9", 1, ([100, 4], ), (torch.float32, ), ([100, 4], ), (torch.float32, ), ([-1], ), (2, [-1]), 500, (100, 4, 1, 1, 128, 100, 8, 8)),
+    ("softmax_test_10", 67, ([100, 2, 300], ), (torch.float32, ), ([100, 2, 300], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (200, 300, 304, 3, 3, 5)),
+    ("softmax_test_11", 67, ([100, 4, 100], ), (torch.float32, ), ([100, 4, 100], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (400, 100, 104, 6, 6, 2)),
+    ("softmax_test_12", 67, ([100, 2, 100], ), (torch.float32, ), ([100, 2, 100], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (200, 100, 104, 3, 3, 2)),
+    ("softmax_test_13", 1, ([100, 1, 2], ), (torch.float32, ), ([100, 1, 2], ), (torch.float32, ), ([-1], ), (2, [-1]), 500, (100, 2, 1, 1, 128, 100, 8, 8)),
+    ("softmax_test_14", 70, ([700, 1, 4], ), (torch.float32, ), ([700, 1, 4], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (700, 4, 8, 10, 10, 1)),
+    ("softmax_test_15", 70, ([700, 6], ), (torch.float32, ), ([700, 6], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (700, 6, 8, 10, 10, 1)),
+    ("softmax_test_16", 69, ([750, 1, 4], ), (torch.float32, ), ([750, 1, 4], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (750, 4, 8, 11, 11, 1)),
+    ("softmax_test_17", 4, ([4, 2048], ), (torch.float32, ), ([4, 2048], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (4, 2048, 2048, 1, 1, 32)),
+    ("softmax_test_18", 67, ([100, 8, 1, 64], ), (torch.float32, ), ([100, 8, 1, 64], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (800, 64, 64, 12, 12, 1)),
+    ("softmax_test_19", 4, ([1, 4, 1, 300], ), (torch.float32, ), ([1, 4, 1, 300], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (4, 300, 304, 1, 1, 5)),
+    ("softmax_test_20", 67, ([100, 2, 1, 302], ), (torch.float32, ), ([100, 2, 1, 302], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (200, 302, 304, 3, 3, 5)),
+    ("softmax_test_21", 44, ([100, 551, 10], ), (torch.float32, ), ([100, 551, 10], ), (torch.float32, ), ([-1], ), (2, [-1]), 500, (55100, 10, 87, 2, 640, 60, 8, 16)),
+    ("softmax_test_22", 65, ([100, 412, 10], ), (torch.float32, ), ([100, 412, 10], ), (torch.float32, ), ([-1], ), (2, [-1]), 500, (41200, 10, 65, 1, 640, 240, 8, 16)),
+    ("softmax_test_23", 67, ([400, 2, 300], ), (torch.float32, ), ([400, 2, 300], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (800, 300, 304, 12, 12, 5)),
+    ("softmax_test_24", 72, ([7376, 50], ), (torch.float32, ), ([7376, 50], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (7376, 50, 56, 103, 103, 1)),
+    ("softmax_test_25", 67, ([100, 8, 1, 128], ), (torch.float32, ), ([100, 8, 1, 128], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (800, 128, 128, 12, 12, 2)),
+    ("softmax_test_26", 70, ([200, 8, 1, 200], ), (torch.float32, ), ([200, 8, 1, 200], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (1600, 200, 200, 23, 23, 4)),
+    ("softmax_test_27", 70, ([200, 8, 1, 256], ), (torch.float32, ), ([200, 8, 1, 256], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (1600, 256, 256, 23, 23, 4)),
+    ("softmax_test_28", 72, ([7000, 1, 10], ), (torch.float32, ), ([7000, 1, 10], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (7000, 10, 16, 98, 98, 1)),
+    ("softmax_test_29", 70, ([200, 8, 1, 300], ), (torch.float32, ), ([200, 8, 1, 300], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (1600, 300, 304, 23, 23, 5)),
+    ("softmax_test_30", 72, ([800, 8, 256], ), (torch.float32, ), ([800, 8, 256], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (6400, 256, 256, 49, 89, 4)),
+    ("softmax_test_31", 72, ([10000, 100, 100], ), (torch.float32, ), ([10000, 100, 100], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (1000000, 100, 104, 121, 13889, 2)),
+    ("softmax_test_32", 72, ([800, 185, 100], ), (torch.float32, ), ([800, 185, 100], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (148000, 100, 104, 121, 2056, 2)),
+    ("softmax_test_33", 72, ([512, 150, 150], ), (torch.float32, ), ([512, 150, 150], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (76800, 150, 152, 83, 1067, 3)),
+    ("softmax_test_34", 72, ([1024, 1000, 50], ), (torch.float32, ), ([1024, 1000, 50], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (1024000, 50, 56, 225, 14223, 1)),
+    ("softmax_test_35", 72, ([4, 1500, 27, 27], ), (torch.float32, ), ([4, 1500, 27, 27], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (162000, 27, 32, 394, 2250, 1)),
+    ("softmax_test_36", 72, ([4096, 2, 39, 39], ), (torch.float32, ), ([4096, 2, 39, 39], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (319488, 39, 40, 315, 4438, 1)),
+    ("softmax_test_37", 72, ([4096, 50, 50], ), (torch.float32, ), ([4096, 50, 50], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (204800, 50, 56, 225, 2845, 1)),
+    ("softmax_test_38", 72, ([256, 200, 200], ), (torch.float32, ), ([256, 200, 200], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (51200, 200, 200, 63, 712, 4)),
+    ("softmax_test_39", 72, ([8, 1500, 1, 512], ), (torch.float32, ), ([8, 1500, 1, 512], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (12000, 512, 512, 24, 167, 8)),
+    ("softmax_test_40", 72, ([512, 100, 100], ), (torch.float32, ), ([512, 100, 100], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (51200, 100, 104, 121, 712, 2)),
+# PYASC_TESTS_END
+])
+# yapf: enable
+def test_softmax(profiler, runs, kernel_type, test_name, block_num, input_shapes, input_dtypes, output_shapes,
+                 output_dtypes, compile_params, runtime_params, tiling_key, tiling_params):
+    unroll_factor = runtime_params[0]
     input_shape, input_dtype = input_shapes[0], input_dtypes[0]
     # Convert any shape to 2D
     if len(input_shape) == 1:
@@ -105,7 +126,7 @@ def test_softmax(kernel_type, backend, platform, device_id, profiler, runs, bloc
 
     if tiling_key == 500:
         ALIGNMENT_ELEMENTS = max(16, 32 // input_dtype.itemsize)
-        rows_per_iter = tiling_values[4]
+        rows_per_iter = tiling_params[4]
         tile_shape = [
             asc2.ceildiv(rows_per_iter, ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS,
             asc2.ceildiv(num_cols, ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS
@@ -113,7 +134,6 @@ def test_softmax(kernel_type, backend, platform, device_id, profiler, runs, bloc
         ub_loop = asc2.ceildiv(input_shape_2d[0], rows_per_iter)
         assert tile_shape[0] % ALIGNMENT_ELEMENTS == 0
         assert tile_shape[1] % ALIGNMENT_ELEMENTS == 0
-
         with profiler.profile():
             for _ in range(runs):
                 softmax_small_row[block_num](
@@ -125,9 +145,11 @@ def test_softmax(kernel_type, backend, platform, device_id, profiler, runs, bloc
         ALIGNMENT_ELEMENTS = 32 // input_dtype.itemsize
         rows_per_iter, rows_per_core = None, None
         if tiling_key == 1000:
-            _, _, _, rows_per_iter, rows_per_core, _ = tiling_values
+            rows_per_iter = tiling_params[3]
+            rows_per_core = tiling_params[4]
         if tiling_key == 10000:
-            _, rows_per_iter, rows_per_core = tiling_values
+            rows_per_iter = tiling_params[1]
+            rows_per_core = tiling_params[2]
         tile_shape = [rows_per_iter, asc2.ceildiv(num_cols, ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS]
         with profiler.profile():
             for _ in range(runs):

@@ -12,6 +12,9 @@ import asc2
 import pytest
 import torch
 
+STATIC = "static"
+DYNAMIC = "dynamic"
+
 
 # Reads (h,w) sub tile
 @asc2.jit(static_alloc=True, reuse_alloc=1)
@@ -319,89 +322,37 @@ def launch_2axis(input, permute, axis, step, dtype, cores, unroll_factor, runs, 
     return output
 
 
-tests = [
-    [
-        71, 1, 'testcase02', 10001, [512, 128], [1, 0], torch.int32,
-        [
-            2, 0, 0, 0, 0, 0, 0, 71, 928, 576, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [512, 128, 0, 0, 0, 0, 0, 0],
-            [128, 512, 0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0],
-            [-1, 0, 0, 0, 0], [0, 1, 2, 4, 3], [1, 1, 1, 512, 128], [1, 1, 1, 128, 512], [1, 1, 1, 512, 0],
-            [1, 1, 1, 0, 512], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [1, 1, 1, 512, 0],
-            [1, 1, 1, 0, 512]
-        ]
-    ],
-    [
-        68, 1, 'testcase10', 10003, [1000, 2048], [1, 0], torch.float32,
-        [
-            2, 1, 1, 127, 252, 16, 244, 68, 1, 0, 253952, 1, 47, 48, 50, 51, 66, 67, 67, [1000, 2048, 0, 0, 0, 0, 0, 0],
-            [2048, 1000, 0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0],
-            [-1, 0, 0, 0, 0], [0, 1, 2, 4, 3], [1, 1, 1, 1000, 2048], [1, 1, 1, 2048, 1000], [1, 1, 1, 252, 127],
-            [1, 1, 1, 127, 252], [1, 1, 1, 252, 16], [1, 1, 1, 16, 252], [1, 1, 1, 244, 127], [1, 1, 1, 127, 244],
-            [1, 1, 1, 244, 16], [1, 1, 1, 16, 244]
-        ]
-    ],
-    [
-        64, 1, "testcase14", 10002, [12, 64, 44, 80], [1, 2, 3, 0], torch.float16,
-        [
-            2, 1, 0, 356, 3519, 288, 64, 65, 1, 0, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [12, 225280, 0, 0, 0, 0, 0, 0],
-            [225280, 12, 0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0],
-            [-1, 0, 0, 0, 0], [0, 1, 2, 4, 3], [1, 1, 1, 12, 225280], [1, 1, 1, 225280, 12], [1, 1, 1, 12, 3519],
-            [1, 1, 1, 3519, 12], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [1, 1, 1, 12, 64],
-            [1, 1, 1, 64, 12]
-        ]
-    ],
-    [
-        72, 1, "testcase19", 10002, [3, 61, 144, 149], [2, 3, 0, 1], torch.float32,
-        [
-            3, 1, 0, 251, 251, 121, 121, 72, 1, 14, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [3, 61, 21456, 0, 0, 0, 0, 0],
-            [21456, 61, 3, 0, 0, 0, 0, 0], [2, 1, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0],
-            [-1, 0, 0, 0, 0], [0, 1, 4, 3, 2], [1, 1, 3, 61, 21456], [1, 1, 21456, 61, 3], [1, 1, 3, 61, 251],
-            [1, 1, 251, 61, 3], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [1, 1, 3, 61, 121],
-            [1, 1, 121, 61, 3]
-        ]
-    ],
-    [
-        72, 1, 'testcase39', 10004, [4, 64, 128, 40], [2, 0, 1, 3], torch.float32,
-        [
-            3, 0, 0, 3, 0, 1, 0, 72, 1, 14, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [256, 128, 40, 0, 0, 0, 0, 0],
-            [128, 256, 40, 0, 0, 0, 0, 0], [1, 0, 2, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0],
-            [-1, 0, 0, 0, 0], [0, 1, 3, 2, 4], [1, 1, 256, 128, 40], [1, 1, 128, 256, 40], [0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0]
-        ]
-    ],
-    [
-        72, 1, "testcase30", 10004, [1136, 128, 42], [1, 0, 2], torch.float32,
-        [
-            3, 0, 0, 4, 0, 0, 0, 72, 3, 68, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [1136, 128, 42, 0, 0, 0, 0, 0],
-            [128, 1136, 42, 0, 0, 0, 0, 0], [1, 0, 2, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0],
-            [-1, 0, 0, 0, 0], [0, 1, 3, 2, 4], [1, 1, 1136, 128, 42], [1, 1, 128, 1136, 42], [0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0]
-        ]
-    ],
-    [
-        69, 1, 'testcase60', 10001, [2048, 10, 3], [1, 0, 2], torch.bfloat16,
-        [
-            3, 0, 0, 0, 0, 0, 0, 69, 896, 512, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [2048, 10, 3, 0, 0, 0, 0, 0],
-            [10, 2048, 3, 0, 0, 0, 0, 0], [1, 0, 2, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0],
-            [-1, 0, 0, 0, 0], [0, 1, 3, 2, 4], [1, 1, 2048, 10, 3], [1, 1, 10, 2048, 3], [1, 1, 2048, 0, 3],
-            [1, 1, 0, 2048, 3], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [1, 1, 2048, 0, 3],
-            [1, 1, 0, 2048, 3]
-        ]
-    ],
-]
-
-
-@pytest.mark.parametrize(
-    "block_dim, unroll_factor, testcase_name, tiling_key, input_shape, permute, input_dtype, tiling_values", tests)
-def test_transpose(profiler, runs, block_dim, unroll_factor, testcase_name, tiling_key, input_shape, permute,
-                   input_dtype, tiling_values):
-    in_cut_index = tiling_values[1]
-    out_cut_index = tiling_values[2]
-    in_ub_factor = tiling_values[3]
-    out_ub_factor = tiling_values[4]
-    ub_size = tiling_values[10]
+# yapf: disable
+@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
+@pytest.mark.parametrize("test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes, compile_params, runtime_params, tiling_key, tiling_params", [
+# PYASC_TESTS_BEGIN
+    ("transpose_test_1", 72, ([92, 256, 80], ), (torch.float32, ), ([256, 92, 80], ), (torch.float32, ), None, (2, [1, 0, 2]), 10004, (3, 0, 0, 1, 0, 0, 0, 72, 1, 20, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [92, 256, 80, 0, 0, 0, 0, 0], [256, 92, 80, 0, 0, 0, 0, 0], [1, 0, 2, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1, 0, 0, 0, 0], [0, 1, 3, 2, 4], [1, 1, 92, 256, 80], [1, 1, 256, 92, 80], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0])),
+    ("transpose_test_2", 72, ([1024, 4, 15, 64], ), (torch.float32, ), ([1024, 15, 4, 64], ), (torch.float32, ), None, (2, [0, 2, 1, 3]), 10004, (4, 0, 0, 8, 0, 0, 0, 72, 1, 56, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [1024, 4, 15, 64, 0, 0, 0, 0], [1024, 15, 4, 64, 0, 0, 0, 0], [0, 2, 1, 3, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1, 0, 0, 0, 0], [0, 1, 3, 2, 4], [1, 1024, 4, 15, 64], [1, 1024, 15, 4, 64], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0])),
+    ("transpose_test_3", 72, ([128, 32, 12, 64], ), (torch.float16, ), ([128, 12, 32, 64], ), (torch.float16, ), None, (2, [0, 2, 1, 3]), 10004, (4, 0, 0, 1, 0, 0, 0, 72, 1, 56, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [128, 32, 12, 64, 0, 0, 0, 0], [128, 12, 32, 64, 0, 0, 0, 0], [0, 2, 1, 3, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1, 0, 0, 0, 0], [0, 1, 3, 2, 4], [1, 128, 32, 12, 64], [1, 128, 12, 32, 64], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0])),
+    ("transpose_test_4", 72, ([7000, 8, 4, 32], ), (torch.float32, ), ([7000, 4, 32, 8], ), (torch.float32, ), None, (1, [0, 2, 3, 1]), 10002, (3, 1, 0, 1, 49, 0, 42, 72, 1, 71, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [7000, 8, 128, 0, 0, 0, 0, 0], [7000, 128, 8, 0, 0, 0, 0, 0], [0, 2, 1, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1, 0, 0, 0, 0], [0, 1, 2, 4, 3], [1, 1, 7000, 8, 128], [1, 1, 7000, 128, 8], [1, 1, 49, 8, 128], [1, 1, 49, 128, 8], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [1, 1, 42, 8, 128], [1, 1, 42, 128, 8])),
+    ("transpose_test_5", 72, ([7000, 100, 4, 32], ), (torch.float32, ), ([7000, 4, 32, 100], ), (torch.float32, ), None, (1, [0, 2, 3, 1]), 10002, (3, 1, 0, 1, 4, 0, 0, 72, 24, 22, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [7000, 100, 128, 0, 0, 0, 0, 0], [7000, 128, 100, 0, 0, 0, 0, 0], [0, 2, 1, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1, 0, 0, 0, 0], [0, 1, 2, 4, 3], [1, 1, 7000, 100, 128], [1, 1, 7000, 128, 100], [1, 1, 4, 100, 128], [1, 1, 4, 128, 100], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [1, 1, 0, 100, 128], [1, 1, 0, 128, 100])),
+    ("transpose_test_6", 72, ([3072, 6, 8, 64], ), (torch.bfloat16, ), ([3072, 8, 6, 64], ), (torch.bfloat16, ), None, (2, [0, 2, 1, 3]), 10004, (4, 0, 0, 15, 0, 12, 0, 72, 2, 61, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [3072, 6, 8, 64, 0, 0, 0, 0], [3072, 8, 6, 64, 0, 0, 0, 0], [0, 2, 1, 3, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1, 0, 0, 0, 0], [0, 1, 3, 2, 4], [1, 3072, 6, 8, 64], [1, 3072, 8, 6, 64], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0])),
+    ("transpose_test_7", 72, ([3072, 8, 384], ), (torch.bfloat16, ), ([8, 3072, 384], ), (torch.bfloat16, ), None, (2, [1, 0, 2]), 10004, (3, 0, 0, 15, 0, 12, 0, 72, 2, 61, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [3072, 8, 384, 0, 0, 0, 0, 0], [8, 3072, 384, 0, 0, 0, 0, 0], [1, 0, 2, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1, 0, 0, 0, 0], [0, 1, 3, 2, 4], [1, 1, 3072, 8, 384], [1, 1, 8, 3072, 384], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0])),
+    ("transpose_test_8", 72, ([8, 3072, 384], ), (torch.bfloat16, ), ([3072, 8, 384], ), (torch.bfloat16, ), None, (2, [1, 0, 2]), 10004, (3, 1, 0, 119, 0, 97, 0, 72, 2, 64, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [8, 3072, 384, 0, 0, 0, 0, 0], [3072, 8, 384, 0, 0, 0, 0, 0], [1, 0, 2, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1, 0, 0, 0, 0], [0, 1, 3, 2, 4], [1, 1, 8, 3072, 384], [1, 1, 3072, 8, 384], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0])),
+    ("transpose_test_9", 72, ([256, 12, 256, 64], ), (torch.float32, ), ([256, 256, 12, 64], ), (torch.float32, ), None, (2, [0, 2, 1, 3]), 10004, (4, 1, 0, 1, 0, 0, 0, 72, 42, 48, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [256, 12, 256, 64, 0, 0, 0, 0], [256, 256, 12, 64, 0, 0, 0, 0], [0, 2, 1, 3, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1, 0, 0, 0, 0], [0, 1, 3, 2, 4], [1, 256, 12, 256, 64], [1, 256, 256, 12, 64], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0])),
+    ("transpose_test_10", 66, ([50, 4096, 16], ), (torch.float32, ), ([4096, 50, 16], ), (torch.float32, ), None, (1, [1, 0, 2]), 10002, (3, 1, 0, 15, 63, 1, 1, 66, 1, 0, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [50, 4096, 16, 0, 0, 0, 0, 0], [4096, 50, 16, 0, 0, 0, 0, 0], [1, 0, 2, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1, 0, 0, 0, 0], [0, 1, 3, 2, 4], [1, 1, 50, 4096, 16], [1, 1, 4096, 50, 16], [1, 1, 50, 63, 16], [1, 1, 63, 50, 16], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [1, 1, 50, 1, 16], [1, 1, 1, 50, 16])),
+    ("transpose_test_11", 65, ([50, 4096, 16], ), (torch.float32, ), ([4096, 16, 50], ), (torch.float32, ), None, (1, [1, 2, 0]), 10002, (2, 1, 0, 251, 1023, 25, 64, 65, 1, 0, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [50, 65536, 0, 0, 0, 0, 0, 0], [65536, 50, 0, 0, 0, 0, 0, 0], [1, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1, 0, 0, 0, 0], [0, 1, 2, 4, 3], [1, 1, 1, 50, 65536], [1, 1, 1, 65536, 50], [1, 1, 1, 50, 1023], [1, 1, 1, 1023, 50], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [1, 1, 1, 50, 64], [1, 1, 1, 64, 50])),
+    ("transpose_test_12", 72, ([4096, 39, 1500], ), (torch.float32, ), ([4096, 1500, 39], ), (torch.float32, ), None, (1, [0, 2, 1]), 10002, (3, 2, 0, 251, 1, 245, 0, 72, 56, 64, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [4096, 39, 1500, 0, 0, 0, 0, 0], [4096, 1500, 39, 0, 0, 0, 0, 0], [0, 2, 1, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1, 0, 0, 0, 0], [0, 1, 2, 4, 3], [1, 1, 4096, 39, 1500], [1, 1, 4096, 1500, 39], [1, 1, 1, 39, 1500], [1, 1, 1, 1500, 39], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [1, 1, 0, 39, 1500], [1, 1, 0, 1500, 39])),
+    ("transpose_test_13", 72, ([4096, 1500, 39], ), (torch.float32, ), ([4096, 39, 1500], ), (torch.float32, ), None, (1, [0, 2, 1]), 10002, (3, 1, 0, 6, 1, 0, 0, 72, 56, 64, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [4096, 1500, 39, 0, 0, 0, 0, 0], [4096, 39, 1500, 0, 0, 0, 0, 0], [0, 2, 1, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1, 0, 0, 0, 0], [0, 1, 2, 4, 3], [1, 1, 4096, 1500, 39], [1, 1, 4096, 39, 1500], [1, 1, 1, 1500, 39], [1, 1, 1, 39, 1500], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [1, 1, 0, 1500, 39], [1, 1, 0, 39, 1500])),
+# PYASC_TESTS_END
+])
+# yapf: enable
+def test_add(profiler, runs, kernel_type, test_name, block_num, input_shapes, input_dtypes, output_shapes,
+             output_dtypes, compile_params, runtime_params, tiling_key, tiling_params):
+    input_shape = input_shapes[0]
+    input_dtype = input_dtypes[0]
+    in_cut_index = tiling_params[1]
+    out_cut_index = tiling_params[2]
+    in_ub_factor = tiling_params[3]
+    out_ub_factor = tiling_params[4]
+    ub_size = tiling_params[10]
+    unroll_factor = runtime_params[0]
+    permute = runtime_params[1]
 
     # workaround for shapes
     if permute == [2, 3, 0, 1]:
@@ -447,14 +398,14 @@ def test_transpose(profiler, runs, block_dim, unroll_factor, testcase_name, tili
     if tiling_key == 10001 and len(permute) == 2:
         width = input_shape[1]
         height = input_shape[0]
-        load_sizes = tiling_values[29]
+        load_sizes = tiling_params[29]
         ub_size = [load_sizes[4], load_sizes[3]]
 
         if width > height:
             # load n columns
-            block_size = tiling_values[4]
+            block_size = tiling_params[4]
             if block_size is None or block_size == 0:
-                block_size = asc2.ceildiv(width, block_dim)
+                block_size = asc2.ceildiv(width, block_num)
             tile_size = [
                 asc2.ceildiv(height, items_in_block) * items_in_block,
                 asc2.ceildiv(block_size, items_in_block) * items_in_block,
@@ -462,13 +413,13 @@ def test_transpose(profiler, runs, block_dim, unroll_factor, testcase_name, tili
             total_tiles = asc2.ceildiv(width, block_size)
             with profiler.profile():
                 for _ in range(runs):
-                    transpose_column[block_dim](input, out, width, height, block_size, tile_size[1], tile_size[0],
+                    transpose_column[block_num](input, out, width, height, block_size, tile_size[1], tile_size[0],
                                                 total_tiles, unroll_factor)
         else:
             # load n rows
-            block_size = tiling_values[4]
+            block_size = tiling_params[4]
             if block_size is None or block_size == 0:
-                block_size = asc2.ceildiv(height, block_dim)
+                block_size = asc2.ceildiv(height, block_num)
             tile_size = [
                 asc2.ceildiv(block_size, items_in_block) * items_in_block,
                 asc2.ceildiv(width, items_in_block) * items_in_block,
@@ -476,15 +427,15 @@ def test_transpose(profiler, runs, block_dim, unroll_factor, testcase_name, tili
             total_tiles = asc2.ceildiv(height, block_size)
             with profiler.profile():
                 for _ in range(runs):
-                    transpose_line[block_dim](input, out, width, height, block_size, tile_size[1], tile_size[0],
+                    transpose_line[block_num](input, out, width, height, block_size, tile_size[1], tile_size[0],
                                               total_tiles, unroll_factor)
     elif tiling_key == 10001:
         input_shape = list(input.shape)
         longest_axis = max(input.shape)
         axis = list(input.shape).index(longest_axis)
 
-        axis_step = asc2.ceildiv(input.shape[axis], block_dim)
-        out = launch_one_axis(input, permute, axis, axis_step, block_dim, input_dtype, runs, profiler)
+        axis_step = asc2.ceildiv(input.shape[axis], block_num)
+        out = launch_one_axis(input, permute, axis, axis_step, block_num, input_dtype, runs, profiler)
     elif tiling_key == 10004:  #Split on N-last dims
         assert (len(input_shape) == 3 or len(input_shape) == 4)
         iterate_axis = 0
@@ -495,17 +446,17 @@ def test_transpose(profiler, runs, block_dim, unroll_factor, testcase_name, tili
                 iterate_axis = axis
                 step = ub_size // subtensor_size
                 break
-        out = launch_nlast_axis(input, permute, iterate_axis, step, block_dim, input_dtype, runs, profiler)
+        out = launch_nlast_axis(input, permute, iterate_axis, step, block_num, input_dtype, runs, profiler)
     elif tiling_key == 10002:  #Split on single axis
         longest_axis = max(input.shape)
         axis = list(input.shape).index(longest_axis)
 
-        axis_step = asc2.ceildiv(input.shape[axis], block_dim)
+        axis_step = asc2.ceildiv(input.shape[axis], block_num)
         ub_fit = ub_size * input.shape[axis] // math.prod(input.shape) // input.element_size() // unroll_factor
         assert (ub_fit > 0)
         axis_step = min(axis_step, ub_fit)
 
-        out = launch_one_axis(input, permute, axis, axis_step, block_dim, input_dtype, runs, profiler)
+        out = launch_one_axis(input, permute, axis, axis_step, block_num, input_dtype, runs, profiler)
     elif tiling_key == 10003:  #Split on two axes
         input_shape = list(input.shape)
         step = [in_ub_factor, out_ub_factor]
@@ -515,7 +466,7 @@ def test_transpose(profiler, runs, block_dim, unroll_factor, testcase_name, tili
                 axis[0] = i
         assert (out_ub_factor != 0 and in_ub_factor != 0 and out_shape[axis[0]] > in_ub_factor
                 and out_shape[axis[1]] > out_ub_factor)
-        out = launch_2axis(input, permute, axis, step, input_dtype, block_dim, unroll_factor, runs, profiler)
+        out = launch_2axis(input, permute, axis, step, input_dtype, block_num, unroll_factor, runs, profiler)
     else:
         raise RuntimeError(f"Wrong tilekey: {tiling_key}")
 
