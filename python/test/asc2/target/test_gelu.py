@@ -49,35 +49,27 @@ def gelu_torch(x: torch.Tensor, TANH_APPROX_FACTOR, NEG_SQRT_EIGHT_OVER_PI):
     return x / input_cub
 
 
+# yapf: disable
 @pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
-@pytest.mark.parametrize("block_num, unroll_factor, input_shape, in_out_dtype, tiling_key, tiling_values", [
-    ## Ascend950PR_9599
-    # (72, 2, [24, 512, 1024], torch.float32, 7, [12582912, 72, 15872]),
-    # (72, 2, [24, 512, 1024], torch.float16, 3, [12582912, 72, 10496]),
-    # (72, 2, [101, 181, 53, 17, 2], torch.float16, 3, [32942362, 72, 10496]),
-    # (72, 2, [101, 181, 53, 17, 2], torch.float32, 7, [32942362, 72, 15872]),
-    # # (72, 2, [101, 181, 53, 17, 1], torch.bfloat16, 5, [16471181, 72, 10496]),
-    # (72, 2, [101, 181, 53, 17, 1], torch.float16, 3, [16471181, 72, 10496]),
-    # (72, 2, [101, 181, 53, 17, 1], torch.float32, 7, [16471181, 72, 15872]),
-
-    ## Ascend950PR_957c
-    (56, 2, [24, 512, 1024], torch.float32, 7, [12582912, 56, 15872]),
-    (56, 2, [24, 512, 1024], torch.float16, 3, [12582912, 56, 10496]),
-    (56, 2, [101, 181, 53, 17, 2], torch.float16, 3, [32942362, 56, 10496]),
-    (56, 2, [101, 181, 53, 17, 2], torch.float32, 7, [32942362, 56, 15872]),
-    # (56, 2, [101, 181, 53, 17, 1], torch.bfloat16, 5, [16471181, 56, 10496]),
-    (56, 2, [101, 181, 53, 17, 1], torch.float16, 3, [16471181, 56, 10496]),
-    (56, 2, [101, 181, 53, 17, 1], torch.float32, 7, [16471181, 56, 15872]),
+@pytest.mark.parametrize("test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes, compile_params, runtime_params, tiling_key, tiling_params", [
+# PYASC_TESTS_BEGIN
+    ("gelu_test_1", 72, ([32, 2048, 2304], ), (torch.float32, ), ([32, 2048, 2304], ), (torch.float32, ), None, (2, ), 7, (150994944, 72, 15872)),
+# PYASC_TESTS_END
 ])
-def test_gelu(profiler, runs, kernel_type, block_num, unroll_factor, input_shape, in_out_dtype, tiling_key,
-              tiling_values):
+# yapf: enable
+def test_gelu(profiler, runs, kernel_type, test_name, block_num, input_shapes, input_dtypes, output_shapes,
+              output_dtypes, compile_params, runtime_params, tiling_key, tiling_params):
+    input_shape = input_shapes[0]
+    dtype = input_dtypes[0]
+    tile_length = tiling_params[2]
+    unroll_factor = runtime_params[0]
+
     TANH_APPROX_FACTOR = 1.0 / 0.044715
     NEG_SQRT_EIGHT_OVER_PI = -1.595769121 * 0.044715
     input_shape_1d = [math.prod(input_shape)]
-    _, _, tile_length = tiling_values
 
-    in_tensor = torch.randn(input_shape_1d, dtype=in_out_dtype)
-    out_tensor = torch.zeros(input_shape_1d, dtype=in_out_dtype)
+    in_tensor = torch.randn(input_shape_1d, dtype=dtype)
+    out_tensor = torch.zeros(input_shape_1d, dtype=dtype)
 
     params = [in_tensor, out_tensor]
     if kernel_type == STATIC:

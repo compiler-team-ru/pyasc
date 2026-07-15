@@ -37,27 +37,58 @@ def select(cond_ptr: asc2.GlobalAddress, input_x_ptr: asc2.GlobalAddress, input_
         asc2.copy_out(zt, z, [current_offset])
 
 
+# yapf: disable
 @pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
-@pytest.mark.parametrize("block_num, unroll_factor, input_shape, in_out_dtype, tiling_key, tiling_values", [
-    (2, 2, [1920], torch.int32, 8, [1920, 0, 512, 2]),
-    (15, 2, [1920, 1, 8], torch.float32, 8, [15360, 0, 512, 15]),
-    (16, 2, [256, 4, 1, 16], torch.float32, 8, [16384, 0, 512, 16]),
-    (13, 2, [256, 50], torch.float32, 8, [12800, 0, 512, 13]),
-    (30, 2, [1920, 1, 40], torch.float32, 8, [76800, 0, 1280, 30]),
-    (28, 2, [28442], torch.float32, 8, [28442, 0, 512, 28]),
-    (29, 2, [327461], torch.float32, 8, [327461, 0, 5760, 29]),
-    (50, 2, [2, 1, 256, 256, 16], torch.float32, 8, [2097152, 0, 7040, 50]),
-    (50, 1, [2, 1, 256, 256, 16], torch.float16, 8, [2097152, 0, 14080, 50]),
+@pytest.mark.parametrize("test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes, compile_params, runtime_params, tiling_key, tiling_params", [
+# PYASC_TESTS_BEGIN
+    ("select_test_1", 40, ([2048, 1, 30], [2048, 1, 30], [2048, 1, 30]), (torch.int8, torch.float32, torch.float32), ([2048, 1, 30], ), (torch.float32, ), None, (2, ), 8, (61440, 768, 40, 0)),
+    ("select_test_2", 2, ([2048], [2048], [2048]), (torch.int8, torch.float32, torch.float32), ([2048], ), (torch.float32, ), None, (2, ), 8, (2048, 512, 2, 0)),
+    ("select_test_3", 5, ([4608], [4608], [4608]), (torch.int8, torch.float32, torch.float32), ([4608], ), (torch.float32, ), None, (2, ), 8, (4608, 512, 5, 0)),
+    ("select_test_4", 36, ([3072, 12], [3072, 12], [3072, 12]), (torch.int8, torch.int32, torch.int32), ([3072, 12], ), (torch.int32, ), None, (2, ), 8, (36864, 512, 36, 0)),
+    ("select_test_5", 32, ([1024, 4, 8], [1024, 4, 8], [1024, 4, 8]), (torch.int8, torch.float32, torch.float32), ([1024, 4, 8], ), (torch.float32, ), None, (2, ), 8, (32768, 512, 32, 0)),
+    ("select_test_6", 10, ([9600], [9600], [9600]), (torch.int8, torch.int32, torch.int32), ([9600], ), (torch.int32, ), None, (2, ), 8, (9600, 512, 10, 0)),
+    ("select_test_7", 3, ([3000], [3000], [3000]), (torch.int8, torch.float32, torch.float32), ([3000], ), (torch.float32, ), None, (2, ), 8, (3000, 512, 3, 0)),
+    ("select_test_8", 36, ([4608, 12], [4608, 12], [4608, 12]), (torch.int8, torch.int32, torch.int32), ([4608, 12], ), (torch.int32, ), None, (2, ), 8, (55296, 768, 36, 0)),
+    ("select_test_9", 5, ([4800], [4800], [4800]), (torch.int8, torch.float32, torch.float32), ([4800], ), (torch.float32, ), None, (2, ), 8, (4800, 512, 5, 0)),
+    ("select_test_10", 3, ([3072], [3072, 1], [3072, 1]), (torch.int8, torch.bfloat16, torch.bfloat16), ([3072, 1], ), (torch.bfloat16, ), None, (2, ), 8, (3072, 512, 3, 0)),
+    ("select_test_11", 16, ([128, 1, 128], [128, 1, 128], [128, 1, 128]), (torch.int8, torch.float32, torch.float32), ([128, 1, 128], ), (torch.float32, ), None, (2, ), 8, (16384, 512, 16, 0)),
+    ("select_test_12", 7, ([7000, 1], [7000, 1], [7000, 1]), (torch.int8, torch.int32, torch.int32), ([7000, 1], ), (torch.int32, ), None, (2, ), 8, (7000, 512, 7, 0)),
+    ("select_test_13", 1, ([16, 64], [16, 64], [16, 64]), (torch.int8, torch.float32, torch.float32), ([16, 64], ), (torch.float32, ), None, (2, ), 8, (1024, 512, 1, 0)),
+    ("select_test_14", 2, ([16, 128], [16, 128], [16, 128]), (torch.int8, torch.float32, torch.float32), ([16, 128], ), (torch.float32, ), None, (2, ), 8, (2048, 512, 2, 0)),
+    ("select_test_15", 2, ([1500], [1500], [1500]), (torch.int8, torch.float32, torch.float32), ([1500], ), (torch.float32, ), None, (2, ), 8, (1500, 512, 2, 0)),
+    ("select_test_16", 40, ([1024, 50], [1024, 50], [1024, 50]), (torch.int8, torch.float32, torch.float32), ([1024, 50], ), (torch.float32, ), None, (2, ), 8, (51200, 640, 40, 0)),
+    ("select_test_17", 25, ([256, 1, 100], [256, 1, 100], [256, 1, 100]), (torch.int8, torch.float32, torch.float32), ([256, 1, 100], ), (torch.float32, ), None, (2, ), 8, (25600, 512, 25, 0)),
+    ("select_test_18", 2, ([1200], [1200, 1], [1200, 1]), (torch.int8, torch.float32, torch.float32), ([1200, 1], ), (torch.float32, ), None, (2, ), 8, (1200, 512, 2, 0)),
+    ("select_test_19", 69, ([4800, 1, 300], [4800, 1, 300], [4800, 1, 300]), (torch.int8, torch.float32, torch.float32), ([4800, 1, 300], ), (torch.float32, ), None, (2, ), 8, (1440000, 7040, 69, 0)),
+    ("select_test_20", 43, ([128, 512], [128, 512], [128, 512]), (torch.int8, torch.float16, torch.float16), ([128, 512], ), (torch.float16, ), None, (2, ), 8, (65536, 768, 43, 0)),
+    ("select_test_21", 40, ([7000, 1, 10], [7000, 1, 10], [7000, 1, 10]), (torch.int8, torch.float32, torch.float32), ([7000, 1, 10], ), (torch.float32, ), None, (2, ), 8, (70000, 896, 40, 0)),
+    ("select_test_22", 59, ([128, 100, 64], [128, 100, 64], [128, 100, 64]), (torch.int8, torch.float32, torch.float32), ([128, 100, 64], ), (torch.float32, ), None, (2, ), 8, (819200, 7040, 59, 0)),
+    ("select_test_23", 40, ([2048, 1, 60], [2048, 1, 60], [2048, 1, 60]), (torch.int8, torch.bfloat16, torch.bfloat16), ([2048, 1, 60], ), (torch.bfloat16, ), None, (2, ), 8, (122880, 1536, 40, 0)),
+    ("select_test_24", 38, ([1024, 4, 40], [1024, 4, 40], [1024, 4, 40]), (torch.int8, torch.float32, torch.float32), ([1024, 4, 40], ), (torch.float32, ), None, (2, ), 8, (163840, 2176, 38, 0)),
+    ("select_test_25", 59, ([1024, 4, 300], [1024, 4, 300], [1024, 4, 300]), (torch.int8, torch.float32, torch.float32), ([1024, 4, 300], ), (torch.float32, ), None, (2, ), 8, (1228800, 7040, 59, 0)),
+    ("select_test_26", 38, ([2400, 4, 8], [2400, 4, 8], [2400, 4, 8]), (torch.int8, torch.float32, torch.float32), ([2400, 4, 8], ), (torch.float32, ), None, (2, ), 8, (76800, 1024, 38, 0)),
+    ("select_test_27", 37, ([1024, 100], [1024, 100], [1024, 100]), (torch.int8, torch.float32, torch.float32), ([1024, 100], ), (torch.float32, ), None, (2, ), 8, (102400, 1408, 37, 0)),
+    ("select_test_28", 37, ([2400, 4, 40], [2400, 4, 40], [2400, 4, 40]), (torch.int8, torch.float32, torch.float32), ([2400, 4, 40], ), (torch.float32, ), None, (2, ), 8, (384000, 5248, 37, 0)),
+    ("select_test_29", 72, ([1024, 100, 64], [1024, 100, 64], [1024, 100, 64]), (torch.int8, torch.float32, torch.float32), ([1024, 100, 64], ), (torch.float32, ), None, (2, ), 8, (6553600, 7040, 72, 0)),
+    ("select_test_30", 72, ([1500, 1000], [1500, 1000], [1500, 1000]), (torch.int8, torch.float32, torch.float32), ([1500, 1000], ), (torch.float32, ), None, (2, ), 8, (1500000, 7040, 72, 0)),
+    ("select_test_31", 71, ([512, 200, 200], [512, 200, 200], [512, 200, 200]), (torch.int8, torch.float32, torch.float32), ([512, 200, 200], ), (torch.float32, ), None, (2, ), 8, (20480000, 7040, 71, 0)),
+    ("select_test_32", 70, ([256, 200, 200], [256, 200, 200], [256, 200, 200]), (torch.int8, torch.float32, torch.float32), ([256, 200, 200], ), (torch.float32, ), None, (2, ), 8, (10240000, 7040, 70, 0)),
+# PYASC_TESTS_END
 ])
-def test_select(profiler, runs, kernel_type, block_num, unroll_factor, input_shape, in_out_dtype, tiling_key,
-                tiling_values):
-    input_shape_1d = [math.prod(input_shape)]
-    _, _, tile_length, block_num = tiling_values
+# yapf: enable
+def test_select(profiler, runs, kernel_type, test_name, block_num, input_shapes, input_dtypes, output_shapes,
+                output_dtypes, compile_params, runtime_params, tiling_key, tiling_params):
+    input_shape = input_shapes[1]
+    dtype = input_dtypes[1]
+    tile_length = tiling_params[1]
+    block_num = tiling_params[2]
+    unroll_factor = runtime_params[0]
 
+    input_shape_1d = [math.prod(input_shape)]
     in_tensor_c = torch.randint(0, 2, input_shape_1d, dtype=torch.int32)
-    in_tensor_x = torch.randn(input_shape_1d).to(in_out_dtype)
-    in_tensor_y = torch.randn(input_shape_1d).to(in_out_dtype)
-    out_tensor = torch.zeros(input_shape_1d, dtype=in_out_dtype)
+    in_tensor_x = torch.randn(input_shape_1d).to(dtype)
+    in_tensor_y = torch.randn(input_shape_1d).to(dtype)
+    out_tensor = torch.zeros(input_shape_1d, dtype=dtype)
 
     params = [in_tensor_c, in_tensor_x, in_tensor_y, out_tensor]
     if kernel_type == STATIC:
