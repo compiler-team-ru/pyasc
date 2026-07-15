@@ -30,21 +30,12 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::RmsNo
 LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::LayerNormOp op)
 {
     auto& os = emitter.ostream();
-    os << "{\n";
-    os.indent();
-    os << "static constexpr " << ascNamespace << "::LayerNormConfig lnConfig"
-       << " = {.isNoBeta = false, .isNoGamma = false, .isOnlyOutput = false, .isOutputRstd = "
-       << (op.getOutputRstd() ? "true" : "false") << "};\n";
     os << ascNamespace << "::" << op.getAPIName() << "<";
-    FAIL_OR(emitter.emitType(op.getLoc(), op.getGamma().getType().getElementType()));
-    os << ", ";
     FAIL_OR(emitter.emitType(op.getLoc(), op.getDst().getType().getElementType()));
-    os << ", false, lnConfig>(" << emitter.getOrCreateName(op.getDst()) << ", "
-       << emitter.getOrCreateName(op.getDstMean()) << ", " << emitter.getOrCreateName(op.getDstVarRstd()) << ", "
+    os << ", " << op.getBasicBlock() << ">(" << emitter.getOrCreateName(op.getDst()) << ", "
+       << emitter.getOrCreateName(op.getDstMean()) << ", " << emitter.getOrCreateName(op.getDstVariance()) << ", "
        << emitter.getOrCreateName(op.getSrc()) << ", " << emitter.getOrCreateName(op.getGamma()) << ", "
        << emitter.getOrCreateName(op.getBeta()) << ", " << emitter.getOrCreateName(op.getEpsilon()) << ", "
-       << emitter.getOrCreateName(op.getSharedTmpBuffer()) << ", " << emitter.getOrCreateName(op.getPara()) << ", "
-       << emitter.getOrCreateName(op.getSeparateTiling()) << ");\n";
-    os.unindent() << "}\n";
+       << emitter.getOrCreateName(op.getTiling()) << ")";
     return success();
 }

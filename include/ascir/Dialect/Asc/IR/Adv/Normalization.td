@@ -38,4 +38,20 @@ def AscendC_RmsNormOp : VectorOp<"rms_norm", "RmsNorm", [
     SmallVector<Value> getSrcTensors() { return {getSrc(), getGamma()}; }
   }];
 }
+
+def AscendC_LayerNormOp : VectorOp<"layer_norm", "LayerNorm", [
+  OpWithDstInterface, OpWithSrcInterface
+]> {
+  let arguments = (ins UnitAttr:$basicBlock, AscendC_LocalTensor:$dst,
+                   AscendC_LocalTensor:$dstMean, AscendC_LocalTensor:$dstVariance,
+                   AscendC_LocalTensor:$src, AscendC_LocalTensor:$gamma,
+                   AscendC_LocalTensor:$beta, AnyType:$epsilon,
+                   AscendC_LayerNormTiling:$tiling);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc(), getGamma(), getBeta()}; }
+    SmallVector<Value> getDstTensors() {
+      return {getDst(), getDstMean(), getDstVariance()};
+    }
+  }];
+}
 #endif //ASC_ADV_NORMALIZATION_TD

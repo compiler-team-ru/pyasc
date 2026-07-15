@@ -369,6 +369,108 @@ struct ConvertRmsNorm : ConvertOp<asctile::RmsNormOp> {
     }
 };
 
+struct ConvertLayerNorm : ConvertOp<asctile::LayerNormOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    static Value createLayerNormTiling(
+        ConvertRewriter& rewriter, Location loc, ArrayRef<int64_t> shape, bool isBasicBlock, int typeSize)
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto [bLength, inHLength] = unpack2DShape(shape);
+        auto sLength = 1;
+        auto hLength = static_cast<int>(llvm::alignTo<ascendc::ubBlockSize>(inHLength * typeSize) / typeSize);
+        auto originalHLength = inHLength;
+        auto inputXSize = bLength * sLength * hLength;
+        auto meanVarSize = bLength * sLength;
+        auto lastDimValueBack = 1.0F / static_cast<float>(originalHLength);
+        auto halfCoeff = (typeSize == sizeof(float) ? 1 : 2);
+        auto tmpBufSize = totalUbSize / static_cast<int>(sizeof(float));
+        auto oneTmpSize = tmpBufSize / 3;
+        auto numberOfTmpBuf = 3;
+        if (typeSize == halfSizeInByte) {
+            oneTmpSize = (oneTmpSize * 2) / halfCoeff;
+        }
+        oneTmpSize = std::min(oneTmpSize, inputXSize);
+        auto bsLength = oneTmpSize / hLength;
+        if (isBasicBlock) {
+            bsLength = bsLength < basicBlkBslength ? 1 : bsLength / basicBlkBslength * basicBlkBslength;
+        } else if (bsLength > maxRepeat) {
+            bsLength = maxRepeat;
+        }
+        oneTmpSize = bsLength * hLength;
+        auto inputRoundSize = oneTmpSize;
+        auto loopRound = inputXSize / oneTmpSize;
+        auto inputTailSize = inputXSize % oneTmpSize;
+        auto inputTailPos = inputXSize - inputTailSize;
+        auto bshCurLength = oneTmpSize;
+        auto bsCurLength = bsLength;
+        auto firstTmpStartPos = 0;
+        auto secondTmpStartPos = oneTmpSize;
+        auto thirdTmpStartPos = oneTmpSize * 2;
+        auto meanTmpTensorPos = oneTmpSize * numberOfTmpBuf;
+        auto meanTmpTensorSize = bsLength;
+        auto varianceTmpTensorPos = meanTmpTensorPos + meanTmpTensorSize;
+        auto varianceTmpTensorSize = bsLength;
+        auto meanVarRoundSize = bsLength;
+        auto meanVarTailSize = inputTailSize / hLength;
+        auto meanVarTailPos = meanVarSize - meanVarTailSize;
+        return emitasc::InitStructBuilder(rewriter.getType<ascendc::LayerNormTilingType>())
+            .addField("bLength", consts.i32(bLength))
+            .addField("sLength", consts.i32(sLength))
+            .addField("hLength", consts.i32(hLength))
+            .addField("originalHLength", consts.i32(originalHLength))
+            .addField("inputXSize", consts.i32(inputXSize))
+            .addField("meanVarSize", consts.i32(meanVarSize))
+            .addField("numberOfTmpBuf", consts.i32(numberOfTmpBuf))
+            .addField("meanTmpTensorPos", consts.i32(meanTmpTensorPos))
+            .addField("meanTmpTensorSize", consts.i32(meanTmpTensorSize))
+            .addField("varianceTmpTensorPos", consts.i32(varianceTmpTensorPos))
+            .addField("varianceTmpTensorSize", consts.i32(varianceTmpTensorSize))
+            .addField("tmpBufSize", consts.i32(tmpBufSize))
+            .addField("oneTmpSize", consts.i32(oneTmpSize))
+            .addField("firstTmpStartPos", consts.i32(firstTmpStartPos))
+            .addField("secondTmpStartPos", consts.i32(secondTmpStartPos))
+            .addField("thirdTmpStartPos", consts.i32(thirdTmpStartPos))
+            .addField("loopRound", consts.i32(loopRound))
+            .addField("inputRoundSize", consts.i32(inputRoundSize))
+            .addField("inputTailSize", consts.i32(inputTailSize))
+            .addField("inputTailPos", consts.i32(inputTailPos))
+            .addField("meanVarRoundSize", consts.i32(meanVarRoundSize))
+            .addField("meanVarTailSize", consts.i32(meanVarTailSize))
+            .addField("meanVarTailPos", consts.i32(meanVarTailPos))
+            .addField("bshCurLength", consts.i32(bshCurLength))
+            .addField("bsCurLength", consts.i32(bsCurLength))
+            .addField("lastDimValueBack", consts.f32(lastDimValueBack))
+            .create(rewriter, loc);
+    }
+
+    LogicalResult matchAndRewrite(asctile::LayerNormOp op, ConvertRewriter& rewriter) const override
+    {
+        auto loc = op.getLoc();
+        auto tensorType = cast<asctile::LocalTensorType>(op.getResult().getType());
+        auto shape = tensorType.getShape();
+        if (!check1D2DShape(op, shape))
+            return failure();
+        auto src = rewriter.getRemappedValue(op.getInput());
+        auto gammaTensor = rewriter.getRemappedValue(op.getGamma());
+        auto betaTensor = rewriter.getRemappedValue(op.getBeta());
+        auto epsilon = rewriter.getRemappedValue(op.getEpsilon());
+        auto dst = createTensorOp(rewriter, loc, tensorType);
+        constexpr bool isBasicBlock = false;
+        auto typeSize = static_cast<int>(ascendc::getElementTypeSize(tensorType));
+        auto [bLength, inHLength] = unpack2DShape(shape);
+        auto meanVarSize = bLength;
+        auto dstMean = createTensorOp(rewriter, loc, meanVarSize, tensorType.getElementType());
+        auto dstVariance = createTensorOp(rewriter, loc, meanVarSize, tensorType.getElementType());
+        Value tiling = createLayerNormTiling(rewriter, loc, shape, isBasicBlock, typeSize);
+        rewriter.create<ascendc::LayerNormOp>(
+            loc, isBasicBlock, dst, dstMean, dstVariance, src, gammaTensor, betaTensor, epsilon, tiling);
+        rewriter.replaceOp(op, {dst, dstMean, dstVariance});
+        return success();
+    }
+};
+
 struct ConvertMatmul : ConvertOp<asctile::MatmulOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
@@ -874,8 +976,8 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         patterns.insert<
             //
             ConvertTensor, ConvertSplat, ConvertRelu, ConvertCast, ConvertMatmul, ConvertReshape, ConvertBroadcast,
-            ConvertSoftmax, ConvertRmsNorm, ConvertAccumulator, ConvertMatmulAcc, ConvertReduceAs1d, ConvertReduce,
-            ConvertInlineVF, ConvertToL2<asctile::AddSOp, ascendc::AddsL2Op>,
+            ConvertSoftmax, ConvertRmsNorm, ConvertLayerNorm, ConvertAccumulator, ConvertMatmulAcc, ConvertReduceAs1d,
+            ConvertReduce, ConvertInlineVF, ConvertToL2<asctile::AddSOp, ascendc::AddsL2Op>,
             ConvertVecScalarToL2<asctile::SubSOp, ascendc::SubsL2Op, ascendc::SubL2Op>,
             ConvertToL2<asctile::MulSOp, ascendc::MulsL2Op>,
             ConvertVecScalarToL2<asctile::DivSOp, ascendc::DivsL2Op, ascendc::DivL2Op>,

@@ -109,6 +109,7 @@ Math operations
     exp
     exp2
     floor
+    layer_norm
     log
     log2
     relu
