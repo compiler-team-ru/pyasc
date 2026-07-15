@@ -16,7 +16,7 @@ from .local_tensor import LocalTensor, bind_tensor_method
 from .validation import check_dtype, check_type
 
 
-def get_reduction_shape(tensor_shape: Tuple[int], keep_dims: bool, dims: Tuple[int]) -> List[int]:
+def get_reduction_shape(tensor_shape: Tuple[int, ...], keep_dims: bool, dims: Tuple[int, ...]) -> List[int]:
     reduce_dims = [False] * len(tensor_shape)
     for dim in dims:
         reduce_dims[dim] = True
@@ -29,9 +29,9 @@ def get_reduction_shape(tensor_shape: Tuple[int], keep_dims: bool, dims: Tuple[i
     return result
 
 
-def op_reduce_impl(input: LocalTensor, keep_dims: bool, dims: Tuple[int], kind: ir.ReduceKind,
-                   support_dtypes: Tuple[DataType],
-                   support_dtypes_as_1d: Tuple[DataType]) -> Union[LocalTensor, PlainValue]:
+def op_reduce_impl(input: LocalTensor, keep_dims: bool, dims: Tuple[int, ...], kind: ir.ReduceKind,
+                   support_dtypes: Tuple[DataType, ...],
+                   support_dtypes_as_1d: Tuple[DataType, ...]) -> Union[LocalTensor, PlainValue]:
     check_type("input", input, LocalTensor)
     check_type("keep_dims", keep_dims, bool)
     builder = global_builder.get_ir_builder()
@@ -43,6 +43,16 @@ def op_reduce_impl(input: LocalTensor, keep_dims: bool, dims: Tuple[int], kind: 
         return PlainValue(handle)
     if not all(isinstance(dim, int) for dim in dims):
         raise TypeError("All reduction dimensions must be int")
+    if len(dims) != len(set(dims)):
+        raise RuntimeError("Repeating dimensions are not allowed")
+    if not all(dim >= 0 and dim < input.rank for dim in dims):
+        raise RuntimeError(f"All reduction dimensions must be between 0 and {input.rank - 1}")
+    dims = tuple(dim for dim in dims if input.shape[dim] > 1)
+    dim_ones = tuple(dim for dim in dims if input.shape[dim] == 1)
+    if not keep_dims:
+        input = input.squeeze(*dim_ones)
+    if not dims:
+        return input
     check_dtype("input", input, support_dtypes)
     target_shape = get_reduction_shape(input.shape, keep_dims, dims)
     if not target_shape:

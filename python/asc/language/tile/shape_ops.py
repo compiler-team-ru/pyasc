@@ -112,6 +112,8 @@ def reshape(input: LocalTensor, *shape: int) -> LocalTensor:
                 (KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32, KT.float64))
     shape = normalize_shape_args(shape)
     shape = verify_shape(shape)
+    if input.shape == shape:
+        return input
     if math.prod(input.shape) != math.prod(shape):
         raise RuntimeError(f"Reshaping tensor of shape {input.shape} with {math.prod(input.shape)} elements not match "
                            f"output shape {shape} with {math.prod(shape)} elements")
@@ -294,7 +296,6 @@ def transpose(input: LocalTensor, *axis: int) -> LocalTensor:
         raise RuntimeError(f"Wrong dimensions rearrangement {axis} for tensor of {rank} dimensions")
     result_shape = [input.shape[i] for i in axis]
     check_data_alignment(result_shape, input.dtype)
-
     ir_type = ir.clone_shaped_type(input.to_ir().get_type(), result_shape)
     handle = global_builder.get_ir_builder().create_asctile_TransposeOp(
         ir_type, input.to_ir(),
