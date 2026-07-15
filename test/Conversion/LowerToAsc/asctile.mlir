@@ -449,3 +449,23 @@ func.func @lower_inline_vf(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: ten
   %1 = asctile.inline_vf(%arg0, %arg1) ";;; // $0 $1 $2" : (tensor<32xf32, #asctile.local<UB>>, tensor<32xi32, #asctile.local<UB>>) -> tensor<32xi16, #asctile.local<UB>>
   return %0, %1 : tensor<32xf16, #asctile.local<UB>>, tensor<32xi16, #asctile.local<UB>>
 }
+
+// CHECK-LABEL: func.func @lower_layer_norm(%arg0: tensor<4x256xf32, #asctile.local<UB>>, %arg1: tensor<256xf32, #asctile.local<UB>>, %arg2: tensor<256xf32, #asctile.local<UB>>) -> (tensor<4x256xf32, #asctile.local<UB>>, tensor<4x1xf32, #asctile.local<UB>>, tensor<4x1xf32, #asctile.local<UB>>) {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg2 : tensor<256xf32, #asctile.local<UB>> to !ascendc.local_tensor<256xf32>
+// CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %arg1 : tensor<256xf32, #asctile.local<UB>> to !ascendc.local_tensor<256xf32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %arg0 : tensor<4x256xf32, #asctile.local<UB>> to !ascendc.local_tensor<4x256xf32>
+// CHECK-NEXT:  %3 = ascendc.local_tensor_auto veccalc() : <4x256xf32>
+// CHECK-NEXT:  %4 = builtin.unrealized_conversion_cast %3 : !ascendc.local_tensor<4x256xf32> to tensor<4x256xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %5 = ascendc.local_tensor_auto veccalc() : <4xf32>
+// CHECK-NEXT:  %6 = builtin.unrealized_conversion_cast %5 : !ascendc.local_tensor<4xf32> to tensor<4x1xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %7 = ascendc.local_tensor_auto veccalc() : <4xf32>
+// CHECK-NEXT:  %8 = builtin.unrealized_conversion_cast %7 : !ascendc.local_tensor<4xf32> to tensor<4x1xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %9 = emitasc.init_struct !ascendc.layernorm_tiling("bLength" = %c4_i32 : i32, "sLength" = %c1_i32 : i32, "hLength" = %c256_i32 : i32, "originalHLength" = %c256_i32 : i32, "inputXSize" = %c1024_i32 : i32, "meanVarSize" = %c4_i32 : i32, "numberOfTmpBuf" = %c3_i32 : i32, "meanTmpTensorPos" = %c3072_i32 : i32, "meanTmpTensorSize" = %c4_i32 : i32, "varianceTmpTensorPos" = %c3076_i32 : i32, "varianceTmpTensorSize" = %c4_i32 : i32, "tmpBufSize" = %c65536_i32 : i32, "oneTmpSize" = %c1024_i32 : i32, "firstTmpStartPos" = %c0_i32 : i32, "secondTmpStartPos" = %c1024_i32 : i32, "thirdTmpStartPos" = %c2048_i32 : i32, "loopRound" = %c1_i32 : i32, "inputRoundSize" = %c1024_i32 : i32, "inputTailSize" = %c0_i32 : i32, "inputTailPos" = %c1024_i32 : i32, "meanVarRoundSize" = %c4_i32 : i32, "meanVarTailSize" = %c0_i32 : i32, "meanVarTailPos" = %c4_i32 : i32, "bshCurLength" = %c1024_i32 : i32, "bsCurLength" = %c4_i32 : i32, "lastDimValueBack" = %cst : f32)
+// CHECK-NEXT:  ascendc.layer_norm %3, %5, %7, %2, %1, %0, %cst_0, %9 : !ascendc.local_tensor<4x256xf32>, !ascendc.local_tensor<4xf32>, !ascendc.local_tensor<4xf32>, !ascendc.local_tensor<4x256xf32>, !ascendc.local_tensor<256xf32>, !ascendc.local_tensor<256xf32>, f32, !ascendc.layernorm_tiling
+// CHECK-NEXT:  return %4, %6, %8 : tensor<4x256xf32, #asctile.local<UB>>, tensor<4x1xf32, #asctile.local<UB>>, tensor<4x1xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @lower_layer_norm(%arg0: tensor<4x256xf32, #asctile.local<UB>>, %arg1: tensor<256xf32, #asctile.local<UB>>, %arg2: tensor<256xf32, #asctile.local<UB>>) -> (tensor<4x256xf32, #asctile.local<UB>>, tensor<4x1xf32, #asctile.local<UB>>, tensor<4x1xf32, #asctile.local<UB>>) {
+  %cst = arith.constant 1.000000e-05 : f32
+  %result, %mean, %var = asctile.layer_norm %arg0, %arg1, %arg2, %cst : tensor<4x256xf32, #asctile.local<UB>>, tensor<256xf32, #asctile.local<UB>>, tensor<256xf32, #asctile.local<UB>>, tensor<4x1xf32, #asctile.local<UB>>, tensor<4x1xf32, #asctile.local<UB>>
+  return %result, %mean, %var : tensor<4x256xf32, #asctile.local<UB>>, tensor<4x1xf32, #asctile.local<UB>>, tensor<4x1xf32, #asctile.local<UB>>
+}

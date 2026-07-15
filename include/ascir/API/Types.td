@@ -389,6 +389,11 @@ def RmsNormTiling : APIType<"RmsNormTiling"> {
   let apiName = "RmsNormTiling";
 }
 
+def LayerNormTiling : APIType<"LayerNormTiling"> {
+  let mnemonic = "layernorm_tiling";
+  let apiName = "LayerNormTiling";
+}
+
 def ScheduleType : APIType<"ScheduleType"> {
   let mnemonic = "schedule_type";
   let apiName = "ScheduleType";

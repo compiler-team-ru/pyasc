@@ -225,6 +225,18 @@ def RmsNormOp : AscTile_Op<"rms_norm", [Pure, AllElementTypesMatch<["input", "ga
   }];
 }
 
+def LayerNormOp : AscTile_Op<"layer_norm", [Pure, AllElementTypesMatch<["input", "gamma", "beta"]>,
+  AllTypesMatch<["input", "result"]>, ShapedMatchElemType<"input", "epsilon">]> {
+  let summary = "Compute LayerNorm function over a tensor";
+  let arguments = (ins FloatLocalTensor:$input, FloatLocalTensor:$gamma, FloatLocalTensor:$beta,
+                   AscTile_Float:$epsilon);
+  let results = (outs FloatLocalTensor:$result, FloatLocalTensor:$mean, FloatLocalTensor:$variance);
+  let assemblyFormat = [{
+    $input `,` $gamma `,` $beta `,` $epsilon attr-dict `:` type($input) `,` type($gamma) `,` type($beta) `,` type($mean)
+    `,` type($variance)
+  }];
+}
+
 def MatmulOp : AscTile_Op<"matmul", [Pure, AllElementTypesMatch<["matrixA", "matrixB"]>]> {
   let summary = "Compute matrix multiplication on 2D tiles with optional bias";
   Type inputType = LocalTensorOfRankAndType<[2], [AscTile_Float]>;
