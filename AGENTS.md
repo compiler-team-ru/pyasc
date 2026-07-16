@@ -209,5 +209,6 @@ Other options in @python/asc/runtime/compiler.py (CompileOptions dataclass).
 - Use `always_compile=True` to bypass cache
 - Set `PYASC_DUMP_PATH=<dir>` to inspect intermediate IR and generated Ascend C
 - Set `CAMODEL_LOG_PATH=<dir>` to capture simulator logs when running on Model backend
+- Use `--profile-path <dir>` with `--profile` to save NPU profiling CSV reports to a persistent directory
 - Check MLIR with `lit` tests
 - Use `--compile-only` pytest flag to test compilation without NPU hardware
