@@ -236,18 +236,15 @@ class Compiler:
             passes.ascendc.add_fill_asc_operands(pm)
             passes.ascendc.add_fixup_mmad_acc_params_pass(pm)
         passes.ascendc.add_input_output_tensor(pm)
-        if not self.options.densify_load_store:
-            self.add_unroll_loop(pm)
         if self.options.reuse_alloc == 1:
             passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=True)
+        if not self.options.densify_load_store:
             self.add_unroll_loop(pm)
-            passes.ascendc.add_hoist_ub_allocation(pm, exclude_in_out=not arch_c310)
+        passes.ascendc.add_hoist_ub_allocation(pm, exclude_in_out=not arch_c310)
+        if self.options.reuse_alloc == 1:
             passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=False)
         elif self.options.reuse_alloc == 2:
-            passes.ascendc.add_hoist_ub_allocation(pm, exclude_in_out=not arch_c310)
             passes.ascendc.add_reuse_tensor_allocation(pm)
-        else:
-            passes.ascendc.add_hoist_ub_allocation(pm, exclude_in_out=not arch_c310)
         passes.common.add_canonicalizer(pm)
         if self.options.vf_fusion:
             passes.ascvf.add_find_vf_group(pm)
