@@ -966,7 +966,7 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
             asctile::MatmulOp, asctile::ReshapeOp, asctile::BroadcastOp, asctile::AddSOp, asctile::SubSOp,
             asctile::MulSOp, asctile::DivSOp, asctile::MinSOp, asctile::MaxSOp, asctile::ShLSOp, asctile::ShRSOp,
             asctile::ReduceAs1dOp, asctile::ReduceOp, asctile::AccumulatorOp, asctile::MatmulAccOp, asctile::InlineVFOp,
-            asctile::TransposeOp
+            asctile::TransposeOp, asctile::LeakyReluOp
             //
             >();
         target.addLegalDialect<
@@ -979,7 +979,7 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
             ConvertSoftmax, ConvertRmsNorm, ConvertLayerNorm, ConvertAccumulator, ConvertMatmulAcc, ConvertReduceAs1d,
             ConvertReduce, ConvertInlineVF, ConvertToL2<asctile::AddSOp, ascendc::AddsL2Op>,
             ConvertVecScalarToL2<asctile::SubSOp, ascendc::SubsL2Op, ascendc::SubL2Op>,
-            ConvertToL2<asctile::MulSOp, ascendc::MulsL2Op>,
+            ConvertToL2<asctile::MulSOp, ascendc::MulsL2Op>, ConvertToL2<asctile::LeakyReluOp, ascendc::LeakyReluL2Op>,
             ConvertVecScalarToL2<asctile::DivSOp, ascendc::DivsL2Op, ascendc::DivL2Op>,
             ConvertToL2<asctile::MinSOp, ascendc::MinsL2Op>, ConvertToL2<asctile::MaxSOp, ascendc::MaxsL2Op>,
             ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>, ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>,

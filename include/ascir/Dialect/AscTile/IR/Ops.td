@@ -149,6 +149,7 @@ def ShRSOp : AscTile_VecScalarOp<"shrs", "bitwise right shift">;
 def DivSOp : AscTile_VecScalarOp<"divs", "division">;
 def MinSOp : AscTile_VecScalarOp<"mins", "minimum value">;
 def MaxSOp : AscTile_VecScalarOp<"maxs", "maximum value">;
+def LeakyReluOp : AscTile_VecScalarOp<"leaky_relu", "leaky ReLU">;
 
 def CmpSOp : AscTile_Op<"cmps", [Pure, ShapedMatchElemType<"base", "value">, TypesMatchWith<
     "result type has i1 element type and same shape as operands", "base", "result", "::getI1SameShape($_self)">]> {

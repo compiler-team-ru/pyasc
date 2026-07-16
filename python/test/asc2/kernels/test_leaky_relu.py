@@ -7,6 +7,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 import asc2
+import pytest
 import torch
 
 
@@ -32,16 +33,17 @@ def leaky_relu_launch(x: torch.Tensor, alpha: torch.Tensor) -> torch.Tensor:
     assert alpha.dim() == 0, "'alpha' must be a zero-dim tensor, that is, a scalar value"
     out = torch.empty_like(x)
     size = out.numel()
-    core_num = 16
+    core_num = 8
     tile_size = 128
     num_tiles = asc2.ceildiv(size, tile_size)
     leaky_relu_kernel[core_num](x, alpha, out, size, tile_size, asc2.ceildiv(num_tiles, core_num))
     return out
 
 
-def test_leaky_relu():
-    size = 8192
-    x = torch.rand(size, dtype=torch.bfloat16) * 10.0 - 5.0
-    alpha = torch.tensor(0.1, dtype=torch.bfloat16)
+@pytest.mark.parametrize("dtype", [torch.float16, torch.float32, torch.bfloat16])
+def test_leaky_relu(dtype: torch.dtype):
+    size = 2048
+    x = torch.rand(size, dtype=dtype) * 10.0 - 5.0
+    alpha = torch.tensor(0.1, dtype=dtype)
     out = leaky_relu_launch(x, alpha)
     torch.testing.assert_close(out, torch.where(x >= 0, x, x * alpha))
