@@ -381,17 +381,6 @@ struct ConvertLoadToUBWithTranspose : ConvertOp<asctile::LoadOp> {
     }
 };
 
-std::pair<Value, Value> alignToL1Block(ConvertRewriter& rewriter, Location loc, Value value, Value elementSize)
-{
-    ascir::ConstantOpBuilder consts(rewriter);
-    auto blockSizeVal = consts.i32(cubeKBlockBytes);
-    auto valueBytes = rewriter.create<arith::MulIOp>(loc, value, elementSize);
-    auto ceilDiv = rewriter.create<arith::CeilDivSIOp>(loc, valueBytes, blockSizeVal);
-    auto alignedBytes = rewriter.create<arith::MulIOp>(loc, ceilDiv, blockSizeVal);
-    auto alignedValue = rewriter.create<arith::DivSIOp>(loc, alignedBytes, elementSize);
-    return {alignedValue, alignedBytes};
-}
-
 struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
@@ -484,9 +473,8 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
         auto elemSizeVal = consts.i32(elementSize);
         auto blockSizeVal = consts.i32(cubeKBlockBytes);
         if ((isMatrixA && isTransposeA) || (!isMatrixA && !isTransposeB)) {
-            auto [alignedNValue, alignedNValueBytes] = alignToL1Block(rewriter, loc, nValue, elemSizeVal);
             auto totalBytes = consts.i32(dstShape[0] * dstShape[1] * elementSize);
-            auto validBytes = rewriter.create<arith::MulIOp>(loc, alignedNValue, consts.i32(dstShape[1] * elementSize));
+            auto validBytes = rewriter.create<arith::MulIOp>(loc, nValue, consts.i32(dstShape[1] * elementSize));
             auto padBytes = rewriter.create<arith::SubIOp>(loc, totalBytes, validBytes);
             auto padBlocks = rewriter.create<arith::DivSIOp>(loc, padBytes, blockSizeVal);
             auto needsRowPad = rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::sgt, padBlocks, const0);
@@ -495,25 +483,25 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
                 ConvertRewriter::InsertionGuard guard(rewriter);
                 rewriter.setInsertionPointToStart(rowPadIf.thenBlock());
                 auto colBlocks = consts.i32(dstShape[1] / cubeKBlockSize);
-                auto rowOffset = rewriter.create<arith::MulIOp>(loc, alignedNValue, c0Size);
-                auto blockNum = rewriter.create<arith::SubIOp>(loc, consts.i32(dstShape[0]), alignedNValue);
+                auto rowOffset = rewriter.create<arith::MulIOp>(loc, nValue, c0Size);
+                auto blockNum = rewriter.create<arith::SubIOp>(loc, consts.i32(dstShape[0]), nValue);
                 auto padTensor = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dst.getType(), dst, rowOffset);
                 auto params = rewriter.create<ascendc::ConstructOp>(
                     loc, rewriter.getType<ascendc::InitConstValueParamsType>(),
-                    ValueRange{colBlocks, blockNum, alignedNValue, const0}, constArgTypes);
+                    ValueRange{colBlocks, blockNum, nValue, const0}, constArgTypes);
                 rewriter.create<ascendc::FillOp>(loc, padTensor, params.getResult());
             }
         } else {
-            auto [alignedDValue, alignedDValueBytes] = alignToL1Block(rewriter, loc, dValue, elemSizeVal);
+            auto dValueBytes = rewriter.create<arith::MulIOp>(loc, dValue, elemSizeVal);
             auto totalBytes = consts.i32(dstShape[1] * elementSize);
-            auto padBytes = rewriter.create<arith::SubIOp>(loc, totalBytes, alignedDValueBytes);
+            auto padBytes = rewriter.create<arith::SubIOp>(loc, totalBytes, dValueBytes);
             auto padBlocks = rewriter.create<arith::DivSIOp>(loc, padBytes, blockSizeVal);
             auto needsColPad = rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::sgt, padBlocks, const0);
             auto colPadIf = rewriter.create<scf::IfOp>(loc, needsColPad);
             {
                 ConvertRewriter::InsertionGuard guard(rewriter);
                 rewriter.setInsertionPointToStart(colPadIf.thenBlock());
-                auto colOffset = rewriter.create<arith::MulIOp>(loc, alignedDValue, consts.i32(dstShape[0]));
+                auto colOffset = rewriter.create<arith::MulIOp>(loc, dValue, consts.i32(dstShape[0]));
                 auto blockNum = rewriter.create<arith::MulIOp>(loc, padBlocks, consts.i32(dstShape[0]));
                 auto padTensor = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dst.getType(), dst, colOffset);
                 auto params = rewriter.create<ascendc::ConstructOp>(
