@@ -46,6 +46,25 @@ Value materializeSplatValue(OpBuilder& builder, Value cstTile)
     return {};
 }
 
+template <typename AttrOrValue>
+bool matchPatternZero(AttrOrValue value)
+{
+    return matchPattern(value, m_AnyZeroFloat()) || matchPattern(value, m_Zero());
+}
+
+bool isZero(Value value)
+{
+    if (auto cstOp = value.getDefiningOp<arith::ConstantOp>()) {
+        if (matchPatternZero(value))
+            return true;
+        auto splat = getSplatValue(cstOp);
+        return splat && matchPatternZero(*splat);
+    }
+    if (auto splatOp = value.getDefiningOp<asctile::SplatOp>())
+        return matchPatternZero(splatOp.getValue());
+    return false;
+}
+
 template <typename ArithOp, typename TileOp>
 struct ScalarizeArithOp : OpRewritePattern<ArithOp> {
     using OpRewritePattern<ArithOp>::OpRewritePattern;
@@ -90,25 +109,6 @@ template <typename MaxOp>
 struct MaxWithZeroToReluOp : OpRewritePattern<MaxOp> {
     using OpRewritePattern<MaxOp>::OpRewritePattern;
 
-    template <typename AttrOrValue>
-    static bool matchPatternZero(AttrOrValue value)
-    {
-        return matchPattern(value, m_AnyZeroFloat()) || matchPattern(value, m_Zero());
-    }
-
-    static bool isZero(Value value)
-    {
-        if (auto cstOp = value.getDefiningOp<arith::ConstantOp>()) {
-            if (matchPatternZero(value))
-                return true;
-            auto splat = getSplatValue(cstOp);
-            return splat && matchPatternZero(*splat);
-        }
-        if (auto splatOp = value.getDefiningOp<asctile::SplatOp>())
-            return matchPatternZero(splatOp.getValue());
-        return false;
-    }
-
     LogicalResult matchAndRewrite(MaxOp op, PatternRewriter& rewriter) const override
     {
         auto type = op.getType();
@@ -124,6 +124,76 @@ struct MaxWithZeroToReluOp : OpRewritePattern<MaxOp> {
             return failure();
         }
         rewriter.replaceOpWithNewOp<asctile::ReluOp>(op, type, operand);
+        return success();
+    }
+};
+
+struct SelectMulToLeakyRelu : OpRewritePattern<asctile::SelectOp> {
+    using OpRewritePattern<asctile::SelectOp>::OpRewritePattern;
+
+    static Value extractAlphaFromMul(Value mulResult, Value expectedX, OpBuilder& builder)
+    {
+        if (auto mulfOp = mulResult.getDefiningOp<arith::MulFOp>()) {
+            Value other;
+            if (mulfOp.getLhs() == expectedX)
+                other = mulfOp.getRhs();
+            else if (mulfOp.getRhs() == expectedX)
+                other = mulfOp.getLhs();
+            else
+                return {};
+            return materializeSplatValue(builder, other);
+        }
+        if (auto mulsOp = mulResult.getDefiningOp<asctile::MulSOp>()) {
+            if (mulsOp.getBase() == expectedX)
+                return mulsOp.getValue();
+        }
+        return {};
+    }
+
+    static std::pair<Value, Value> matchLeakyRelu(Value selMask, Value src0, Value src1, OpBuilder& builder)
+    {
+        Value cmpLhs, cmpRhs;
+        asctile::CompareMode mode;
+        if (auto cmpOp = selMask.getDefiningOp<asctile::CmpOp>()) {
+            cmpLhs = cmpOp.getLhs();
+            cmpRhs = cmpOp.getRhs();
+            mode = cmpOp.getCmpMode();
+        } else if (auto cmpSOp = selMask.getDefiningOp<asctile::CmpSOp>()) {
+            cmpLhs = cmpSOp.getBase();
+            cmpRhs = cmpSOp.getValue();
+            mode = cmpSOp.getCmpMode();
+        } else {
+            return {};
+        }
+        bool lhsZero = isZero(cmpLhs);
+        bool rhsZero = isZero(cmpRhs);
+        if (!lhsZero && !rhsZero)
+            return {};
+        Value x = rhsZero ? cmpLhs : cmpRhs;
+        bool isPositive = rhsZero ? (mode == asctile::CompareMode::GE || mode == asctile::CompareMode::GT) :
+                                    (mode == asctile::CompareMode::LE || mode == asctile::CompareMode::LT);
+        Value positiveSrc = isPositive ? src0 : src1;
+        Value negativeSrc = isPositive ? src1 : src0;
+        if (positiveSrc != x)
+            return {};
+        Value alpha = extractAlphaFromMul(negativeSrc, x, builder);
+        if (!alpha)
+            return {};
+        return {x, alpha};
+    }
+
+    LogicalResult matchAndRewrite(asctile::SelectOp op, PatternRewriter& rewriter) const override
+    {
+        auto type = op.getType();
+        if (!isa<asctile::LocalTensorType>(type))
+            return failure();
+        auto elemType = cast<ShapedType>(type).getElementType();
+        if (!elemType.isF16() && !elemType.isF32())
+            return failure();
+        auto [x, alpha] = matchLeakyRelu(op.getSelMask(), op.getSrc0(), op.getSrc1(), rewriter);
+        if (!x)
+            return failure();
+        rewriter.replaceOpWithNewOp<asctile::LeakyReluOp>(op, type, x, alpha);
         return success();
     }
 };
@@ -217,7 +287,7 @@ public:
         patterns.add<
             //
             MaxWithZeroToReluOp<arith::MaximumFOp>, MaxWithZeroToReluOp<arith::MaxNumFOp>,
-            MaxWithZeroToReluOp<arith::MaxSIOp>
+            MaxWithZeroToReluOp<arith::MaxSIOp>, SelectMulToLeakyRelu
             //
             >(context, /*benefit=*/2);
         patterns.add<

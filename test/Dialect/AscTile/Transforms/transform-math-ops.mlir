@@ -490,3 +490,72 @@ func.func public @cmp_no_scalarization(%arg0: tensor<32xf32, #asctile.local<UB>>
   %0 = asctile.cmp LT %arg0, %arg1 : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xi1, #asctile.local<UB>>
 }
+
+// CHECK-LABEL: func.func public @leaky_relu_cmp_mulf_f32(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
+// CHECK-NEXT:  %cst = arith.constant 0.00999999977 : f32
+// CHECK-NEXT:  %0 = asctile.leaky_relu %arg0, %cst : tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  return %0 : tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func public @leaky_relu_cmp_mulf_f32(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
+  %zero = arith.constant dense<0.0> : tensor<32xf32, #asctile.local<UB>>
+  %alpha = arith.constant dense<0.01> : tensor<32xf32, #asctile.local<UB>>
+  %cmp = asctile.cmp GE %arg0, %zero : tensor<32xf32, #asctile.local<UB>>
+  %mul = arith.mulf %arg0, %alpha : tensor<32xf32, #asctile.local<UB>>
+  %result = asctile.select %cmp, %arg0, %mul : tensor<32xf32, #asctile.local<UB>>
+  return %result : tensor<32xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func public @leaky_relu_cmp_mulf_f16(%arg0: tensor<32xf16, #asctile.local<UB>>) -> tensor<32xf16, #asctile.local<UB>> {
+// CHECK-NEXT:  %cst = arith.constant 1.000210e-02 : f16
+// CHECK-NEXT:  %0 = asctile.leaky_relu %arg0, %cst : tensor<32xf16, #asctile.local<UB>>
+// CHECK-NEXT:  return %0 : tensor<32xf16, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func public @leaky_relu_cmp_mulf_f16(%arg0: tensor<32xf16, #asctile.local<UB>>) -> tensor<32xf16, #asctile.local<UB>> {
+  %zero = arith.constant dense<0.0> : tensor<32xf16, #asctile.local<UB>>
+  %alpha = arith.constant dense<0.01> : tensor<32xf16, #asctile.local<UB>>
+  %cmp = asctile.cmp GE %arg0, %zero : tensor<32xf16, #asctile.local<UB>>
+  %mul = arith.mulf %arg0, %alpha : tensor<32xf16, #asctile.local<UB>>
+  %result = asctile.select %cmp, %arg0, %mul : tensor<32xf16, #asctile.local<UB>>
+  return %result : tensor<32xf16, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func public @leaky_relu_inverted_lt_f32(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
+// CHECK-NEXT:  %cst = arith.constant 0.00999999977 : f32
+// CHECK-NEXT:  %0 = asctile.leaky_relu %arg0, %cst : tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  return %0 : tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func public @leaky_relu_inverted_lt_f32(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
+  %zero = arith.constant dense<0.0> : tensor<32xf32, #asctile.local<UB>>
+  %alpha = arith.constant dense<0.01> : tensor<32xf32, #asctile.local<UB>>
+  %cmp = asctile.cmp LT %arg0, %zero : tensor<32xf32, #asctile.local<UB>>
+  %mul = arith.mulf %arg0, %alpha : tensor<32xf32, #asctile.local<UB>>
+  %result = asctile.select %cmp, %mul, %arg0 : tensor<32xf32, #asctile.local<UB>>
+  return %result : tensor<32xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func public @leaky_relu_cmps_muls_f32(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: f32) -> tensor<32xf32, #asctile.local<UB>> {
+// CHECK-NEXT:  %0 = asctile.leaky_relu %arg0, %arg1 : tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  return %0 : tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func public @leaky_relu_cmps_muls_f32(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: f32) -> tensor<32xf32, #asctile.local<UB>> {
+  %zero_scalar = arith.constant 0.0 : f32
+  %cmp = asctile.cmps GE %arg0, %zero_scalar : tensor<32xf32, #asctile.local<UB>>
+  %mul = asctile.muls %arg0, %arg1 : tensor<32xf32, #asctile.local<UB>>
+  %result = asctile.select %cmp, %arg0, %mul : tensor<32xf32, #asctile.local<UB>>
+  return %result : tensor<32xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func public @no_leaky_relu_i32(%arg0: tensor<32xi32, #asctile.local<UB>>) -> tensor<32xi32, #asctile.local<UB>> {
+// CHECK-NEXT:  %c0_i32 = arith.constant 0 : i32
+// CHECK-NEXT:  %0 = asctile.cmps GE %arg0, %c0_i32 : tensor<32xi32, #asctile.local<UB>>
+// CHECK-NEXT:  %1 = asctile.select %0, %arg0, %arg0 : tensor<32xi32, #asctile.local<UB>>
+// CHECK-NEXT:  return %1 : tensor<32xi32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func public @no_leaky_relu_i32(%arg0: tensor<32xi32, #asctile.local<UB>>) -> tensor<32xi32, #asctile.local<UB>> {
+  %zero = arith.constant dense<0> : tensor<32xi32, #asctile.local<UB>>
+  %alpha = arith.constant dense<1> : tensor<32xi32, #asctile.local<UB>>
+  %cmp = asctile.cmp GE %arg0, %zero : tensor<32xi32, #asctile.local<UB>>
+  %mul = arith.muli %arg0, %alpha : tensor<32xi32, #asctile.local<UB>>
+  %result = asctile.select %cmp, %arg0, %mul : tensor<32xi32, #asctile.local<UB>>
+  return %result : tensor<32xi32, #asctile.local<UB>>
+}
