@@ -211,6 +211,14 @@ python/test/asc2/target/test_softmax.py::test_softmax[...]: 45.67 μs
 
 The reported duration is the **median task time** across all runs (first run is skipped as warmup via `skip=1` in `task_time_median`).
 
+### Saving Profiling Results
+
+By default, profiling data is stored in a temporary directory. To persist the raw CSV reports, use the `--profile-path` option:
+
+```bash
+pytest --backend NPU --profile --profile-path ./profiling_results test.py
+```
+
 ### Profiling Tips
 
 - **Use `--runs 10` or more** for stable measurements — single runs have high variance.

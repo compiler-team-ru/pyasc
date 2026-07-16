@@ -35,6 +35,7 @@ def pytest_addoption(parser: pytest.Parser):
                      help="Runtime platform")
     parser.addoption("--device", type=int, help="Device ID")
     parser.addoption("--profile", action="store_true", help="Enable NPU profiling (if available)")
+    parser.addoption("--profile-path", type=str, default=None, help="Directory to save profiling results")
     parser.addoption("--runs", type=int, default=1, help="Number of kernel launches")
     parser.addoption("--compile-only", action="store_true", help="Stop after the kernel compilation (do not launch)")
     parser.addoption("--torch-seed", type=int, default=0, help="Define the seed value for torch.manual_seed(...)")
@@ -95,7 +96,14 @@ def profiler(request, tmp_path_factory, backend):
     if backend != config.Backend.NPU or not request.config.getoption("--profile"):
         yield StubProfiler()
         return
-    profiler = Profiler(str(tmp_path_factory.mktemp("profiler")))
+    profiling_path = request.config.getoption("--profile-path")
+    if profiling_path is not None:
+        safe_name = request.node.nodeid.replace(":", "_").replace("/", "_").replace(" ", "")
+        result_path = os.path.join(profiling_path, safe_name)
+        os.makedirs(result_path, exist_ok=True)
+    else:
+        result_path = str(tmp_path_factory.mktemp("profiler"))
+    profiler = Profiler(result_path)
     yield profiler
     request.config.profiling_results.append({
         "test": request.node.nodeid,
