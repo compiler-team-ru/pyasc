@@ -97,22 +97,8 @@ cause lowering performance gain or performance degradation:
 
 ## Implementation Details
 
-### Compilation Pipeline
+### UnrollLoop Pass
 
-The `unroll_factor` parameter triggers two main passes in the compilation pipeline:
-
-#### 1. TagUnrollGroups Pass
-**Purpose**: Identifies and groups operations that should be unrolled together
-
-**Process**:
-1. Scan all `asc2.range()` loops with `unroll_factor > 1`
-2. Identify contiguous groups of operations within loop body
-3. Tag operations with `unroll_group` attribute
-4. Group operations to maintain data dependencies
-
-**Code Location**: `lib/Dialect/AscTile/Transforms/TagUnrollGroups.cpp`
-
-#### 2. UnrollLoop Pass
 **Purpose**: Physically unrolls loops based on unroll_factor
 
 **Process**:

@@ -84,7 +84,7 @@ The agent's role is to:
 1. **Read the pass source file**
    - Identify the main pass class and its `runOnOperation()` method
    - Extract transformation patterns (pattern rewrites, walkers, etc.)
-   - Note attributes used (e.g., `unrollFactor`, `unrollGroup`)
+   - Note attributes used (e.g., `unrollFactor`)
    - Identify operation types targeted (e.g., `scf::ForOp`, `asctile::LoadOp`)
    - Check for helper functions and utility classes
 

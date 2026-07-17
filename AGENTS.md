@@ -192,7 +192,7 @@ Other options in @python/asc/runtime/compiler.py (CompileOptions dataclass).
 6. Bisheng compiler (Ascend C → .o binary)
 
 ### Key MLIR Passes
-- **AscTile**: UnrollLoop, PromotePureOps, TransformMathOps, LegalizeMatmul, FoldCast, DensifyUnrollGroups
+- **AscTile**: UnrollLoop, PromotePureOps, TransformMathOps, LegalizeMatmul, FoldCast
 - **LowerToAsc**: LowerAscTile, LowerAscTileDataTransfer, LowerArith, LowerMath, LowerSCF, LowerAtomic
 - **Asc**: InsertSync, InsertBufIdSync, HoistUBAllocation, ReuseUBAllocation, ComputeMemoryConsumption, GenerateBoilerplatePass
 

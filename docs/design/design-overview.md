@@ -237,7 +237,7 @@ for i in asc2.range(start, stop, step, unroll_factor=4, parallel=False):
     ...
 ```
 
-- `unroll_factor` — how many iterations to unroll. Tagged on the MLIR `for` op and processed by `TagUnrollGroups` + `UnrollLoop` passes.
+- `unroll_factor` — how many iterations to unroll. Tagged on the MLIR `for` op and processed by `UnrollLoop` pass.
 - `parallel=True` — marks the loop body so `ParallelLoadStore` pass can emit stores and loads in parallel.
 
 ---
@@ -320,15 +320,13 @@ These operate on the `asctile` dialect before lowering begins.
 
 | Pass | Purpose |
 |------|---------|
-| `TagUnrollGroups` | Scan `asc2.range` loops annotated with `unroll_factor > 1` and tag contiguous groups of ops that should be unrolled together |
 | `PromotePureOps` | Hoist pure (side-effect-free) ops — e.g., shape computations — out of loop bodies |
-| `DensifyUnrollGroups` *(densify_load_store)* | Cluster load/store ops within an unroll group so they appear adjacent, enabling more efficient pipeline scheduling |
 | `SplitCubeLoad` | Split loads destined for L0A/L0B into the legal Cube data path |
 | `LegalizeMatmul` | Rewrite `MatmulOp`/`MatmulAccOp` into the form expected by the AscLower passes |
 | `TransformMathOps` | Specialise generic `math.*` ops into tile-aware equivalents that the AscLower pass knows how to handle |
 | `TransformStoreFixpipe` | Convert eligible `StoreOp`s of L0C tiles into `StoreFixpipeOp` |
 | `UnscalarizeReduction` (910_95 only) | Replace scalar-tail reductions with vector forms |
-| `UnrollLoop` | Physically unroll loops tagged by `TagUnrollGroups` by `unroll_factor` |
+| `UnrollLoop` | Physically unroll loops tagged by `unroll_factor` |
 | `Canonicalizer`, `CSE` | Standard MLIR cleanup between stages |
 
 ### 6.2 AscLower passes  (`lib/Conversion/LowerToAsc/`)
@@ -480,7 +478,6 @@ _TODO: to be filled in._
 | `insert_sync` | `True` | Auto-insert sync barriers |
 | `static_alloc` | `None` → arch-dependent (`True` on 910_95, `False` on 910B / 910_93) | Static vs TPipe-managed UB allocation |
 | `reuse_alloc` | `0` | Reuse freed UB regions |
-| `densify_load_store` | `False` | Densify load/store groups (experimental) |
 | `vf_fusion` | `False` | Fuse consecutive vector ops into Ascend C MicroAPI VF blocks |
 | `verify_sync` | `False` | Run `VerifySync` pass after sync insertion |
 | `matmul_cube_only` | `False` | Emit cube-only kernels (drives `DefineCubeOnly`) |

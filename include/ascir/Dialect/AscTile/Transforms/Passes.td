@@ -45,41 +45,6 @@ def CubeTransposeToLoad : Pass<"asctile-cube-transpose-to-load", "func::FuncOp">
   }];
 }
 
-def DensifyUnrollGroups : Pass<"asctile-densify-unroll-groups", "func::FuncOp"> {
-  let summary = "Group operations tagged with the same unroll_group attribute together after loop unrolling";
-  let constructor = "mlir::asctile::createDensifyUnrollGroupsPass()";
-  let description = [{
-    This pass collects operations tagged with `asctile.unroll_group` attribute (added by TagUnrollGroups pass)
-    and moves them together within their blocks to improve locality and enable better optimization opportunities.
-
-    For each unroll group, operations are densified according to their type:
-    - LoadOps: moved toward the top (earliest valid position respecting dominance)
-    - StoreOps: moved toward the bottom (latest valid position respecting dominance)
-
-    The movement respects dominance constraints and memory effects to preserve program semantics.
-    After densification, the `unroll_group` attribute is removed from all operations.
-
-    Example transformation:
-    ```mlir
-    // Before: load, relu, load, store, relu, store (with groups 0 and 1)
-    %0 = load {unroll_group=0}
-    %1 = relu %0
-    %2 = load {unroll_group=0}
-    store %0 {unroll_group=1}
-    %3 = relu %2
-    store %2 {unroll_group=1}
-
-    // After: loads grouped, stores grouped
-    %0 = load
-    %2 = load
-    %1 = relu %0
-    %3 = relu %2
-    store %0
-    store %2
-    ```
-  }];
-}
-
 def DetectBiasLoad : Pass<"asctile-detect-bias-load", "func::FuncOp"> {
   let summary = "Detect load operation from GM to L1 for bias";
   let constructor = "mlir::asctile::createDetectBiasLoadPass()";
@@ -209,53 +174,6 @@ def SplitCubeLoad : Pass<"asctile-split-cube-load", "func::FuncOp"> {
   }];
 }
 
-def TagUnrollGroups : Pass<"asctile-tag-unroll-groups", "func::FuncOp"> {
-  let summary = "Tag Load and Store operations inside unrollable loops with unroll_group attributes";
-  let constructor = "mlir::asctile::createTagUnrollGroupsPass()";
-  let options = [
-    Option<"smallGroups", "small-groups", "bool", "false",
-           "Tag each operation with unique group index; otherwise all loads share one group and stores another">,
-  ];
-  let description = [{
-    This pass tags `asctile.load` and `asctile.store` operations inside `scf.for` loops that have
-    the `asctile.unroll_factor` attribute. The tags are used by DensifyUnrollGroups pass after
-    loop unrolling to group related operations together.
-
-    Tagging behavior depends on the `small-groups` option:
-    - **smallGroups=false (default)**: All LoadOps in a loop get the same group index,
-      all StoreOps get the next group index. This enables densification to bring all loads
-      together and all stores together.
-    - **smallGroups=true**: Each LoadOp/StoreOp gets a unique group index. This preserves
-      the original ordering during densification.
-
-    Only loops with `unroll_factor` attribute are processed; other loops are skipped.
-
-    Example transformation:
-    ```mlir
-    // Before: loop with unroll_factor
-    scf.for {unroll_factor = 4} {
-      %0 = load ...
-      %1 = load ...
-      store %0, ...
-    }
-
-    // After (smallGroups=false): loads share group 0, stores share group 1
-    scf.for {unroll_factor = 4} {
-      %0 = load {unroll_group = 0}
-      %1 = load {unroll_group = 0}
-      store %0, ... {unroll_group = 1}
-    }
-
-    // After (smallGroups=true): each op gets unique group
-    scf.for {unroll_factor = 4} {
-      %0 = load {unroll_group = 0}
-      %1 = load {unroll_group = 1}
-      store %0, ... {unroll_group = 2}
-    }
-    ```
-  }];
-}
-
 def TransformMathOps : Pass<"asctile-transform-math-ops", "func::FuncOp"> {
   let summary = "Convert tensor arithmetic operations with splat operands to scalar-splat variants for HW efficiency";
   let constructor = "mlir::asctile::createTransformMathOpsPass()";
@@ -361,11 +279,8 @@ def UnrollLoop : Pass<"asctile-unroll-loop", "func::FuncOp"> {
     After unrolling, the attribute is removed from the loop.
 
     For loops where the iteration count is statically known and evenly divisible by the unroll factor,
-    the loop step is multiplied by the factor and the body is replicated.
-
-    For dynamic loops (unknown upper bound) or when iteration count is not evenly divisible, an epilogue
-    loop is created to handle the remaining iterations. The `unroll_group` attributes are removed from
-    operations in the epilogue loop since they don't correspond to the original unrolled iterations.
+    the loop step is multiplied by the factor and the body is replicated. For dynamic loops (unknown upper bound) or
+    when iteration count is not evenly divisible, an epilogue loop is created to handle the remaining iterations.
 
     Example transformations:
     ```mlir
@@ -389,7 +304,7 @@ def UnrollLoop : Pass<"asctile-unroll-loop", "func::FuncOp"> {
     %remainder = remsi %n, 3
     %aligned = subi %n, %remainder
     scf.for %i = 0 to %aligned step 3 { /* body replicated 3 times */ }
-    scf.for %i = %aligned to %n step 1 { /* original body, no unroll_group */ }
+    scf.for %i = %aligned to %n step 1 { /* original body */ }
     ```
   }];
 }
