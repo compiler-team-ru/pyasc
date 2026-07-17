@@ -356,7 +356,7 @@ Once all `asctile` ops are gone, the existing ascendc pipeline takes over:
 | Phase | Key passes |
 |-------|-----------|
 | **Lowering glue** | `PrivatizeFunc`, `FillAscOperands`, `FixupMmadAccParams`, `LowerToL0` |
-| **Memory allocation** | `InputOutputTensor`, `ReuseUBAllocation`, `HoistUBAllocation`, `FuseVFBlock` (when `vf_fusion=True`), `AllocateTensor` (when `static_alloc=True`) / `MaterializeTensor` (otherwise), `UnifyPipe` |
+| **Memory allocation** | `InputOutputTensor`, `ReuseUBAllocation`, `HoistTensorAllocation`, `FuseVFBlock` (when `vf_fusion=True`), `AllocateTensor` (when `static_alloc=True`) / `MaterializeTensor` (otherwise), `UnifyPipe` |
 | **Synchronization** | `EraseSync`, `HoistQueBind`, then either `InsertSync` (910B / 910_93) or `InsertBufIdSync` + `FuseBufIdSync` (910_95); finally `UnifyPipe`. `VerifySync` runs when `verify_sync=True` |
 | **Optimization** | `LICM`, `SCCP`, `Canonicalizer` |
 | **Postprocessing** | `DeclarePyStruct`, `GenerateBoilerplate`, `DefineCubeOnly` (when `matmul_cube_only=True`), `LegalizeKernelArgs`, `DetectKernelType`, `DetectEnableDebug`, `ComputeMemoryConsumption` |
@@ -389,7 +389,7 @@ Two strategies, selected per compilation:
 `static_alloc` is `Optional[bool]`; when left at `None`, `Compiler.__init__` resolves it to `True` on 910_95 and `False` otherwise.
 
 **UB pressure reduction (both modes):**
-- `HoistUBAllocation` — move allocations above loops so one allocation covers all iterations.
+- `HoistTensorAllocation` — move allocations above loops so one allocation covers all iterations.
 - `ReuseUBAllocation` (`reuse_alloc=1`) — when a tile's lifetime ends before a new one is needed, reuse its UB region.
 - `ComputeMemoryConsumption` — sums all live tile sizes per `TPosition` and fails the compilation if UB limits are exceeded.
 

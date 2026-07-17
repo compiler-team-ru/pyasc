@@ -53,7 +53,7 @@ Ask user for:
 
 1. **Pass name** (required, PascalCase): e.g., `DetectKernelType`, `FuseLoop`, `AllocateTensor`
 
-   **IMPORTANT**: Suggest imperative form (verb + noun): `DoSomething`, `TransformX`, `OptimizeY`, `DetectZ`, `FuseA`, `AllocateB`. Examples: `DetectKernelType`, `FuseLoop`, `AllocateTensor`, `HoistUBAllocation`, `InsertSync`.
+   **IMPORTANT**: Suggest imperative form (verb + noun): `DoSomething`, `TransformX`, `OptimizeY`, `DetectZ`, `FuseA`, `AllocateB`. Examples: `DetectKernelType`, `FuseLoop`, `AllocateTensor`, `HoistTensorAllocation`, `InsertSync`.
 
    If user insists on different style, accept without hesitation.
 
@@ -333,7 +333,7 @@ std::unique_ptr<Pass> mlir::asctile::createMyOptimizationPass(bool enableFastMod
    - `<namespace-path>`: e.g., `Dialect/AscTile/Transforms`
    - `<namespace>`: e.g., `asctile`
    - `<PassName>`: PascalCase pass name (e.g., `MyOptimization`)
-   - `<PASSNAME_UPPER>`: PascalCase name converted to ALL CAPS with **NO underscores** (e.g., `MYOPTIMIZATION`, `UNROLLLOOP`, `HOISTUBALLOCATION`)
+   - `<PASSNAME_UPPER>`: PascalCase name converted to ALL CAPS with **NO underscores** (e.g., `MYOPTIMIZATION`, `UNROLLLOOP`, `HOISTTENSORALLOCATION`)
 3. Include copyright header
 4. Include necessary headers with correct paths
 5. Add `using namespace mlir;` and `using namespace mlir::<namespace>;`
@@ -344,7 +344,7 @@ std::unique_ptr<Pass> mlir::asctile::createMyOptimizationPass(bool enableFastMod
 **CRITICAL**: `GEN_PASS_DEF_` macro uses ALL CAPS with NO underscores. Examples from codebase:
 - `MyOptimization` → `GEN_PASS_DEF_MYOPTIMIZATION`
 - `UnrollLoop` → `GEN_PASS_DEF_UNROLLLOOP`
-- `HoistUBAllocation` → `GEN_PASS_DEF_HOISTUBALLOCATION`
+- `HoistTensorAllocation` → `GEN_PASS_DEF_HOISTTENSORALLOCATION`
 - `DetectKernelType` → `GEN_PASS_DEF_DETECTKERNELTYPE`
 
 **For conversion passes**, adjust include paths and namespace:

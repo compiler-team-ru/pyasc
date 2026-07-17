@@ -194,7 +194,7 @@ Other options in @python/asc/runtime/compiler.py (CompileOptions dataclass).
 ### Key MLIR Passes
 - **AscTile**: UnrollLoop, PromotePureOps, TransformMathOps, LegalizeMatmul, FoldCast
 - **LowerToAsc**: LowerAscTile, LowerAscTileDataTransfer, LowerArith, LowerMath, LowerSCF, LowerAtomic
-- **Asc**: InsertSync, InsertBufIdSync, HoistUBAllocation, ReuseUBAllocation, ComputeMemoryConsumption, GenerateBoilerplatePass
+- **Asc**: InsertSync, InsertBufIdSync, HoistTensorAllocation, ReuseUBAllocation, ComputeMemoryConsumption
 
 ### Hardware Targets
 - Ascend 910B series (C220 architecture): Ascend910B1, B2, B2C, B3, B4, B4-1
