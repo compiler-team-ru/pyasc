@@ -65,15 +65,6 @@ class CompileOptions:
     **This option is enabled automatically** when ``@asc2.jit`` decorator is used.
     """
 
-    densify_load_store: bool = False
-    """
-    Densify :py:obj:`asc2.copy_in` and :py:obj:`asc2.copy_out` statements by grouping them together.
-    This feature cannot be enabled at the same time as ``reuse_alloc``.
-
-    .. warning::
-        This is an experimental feature. It might or might not cause functional or performance regressions.
-    """
-
     insert_sync: Optional[bool] = None
     """
     Insert synchronization instructions automatically.
@@ -92,8 +83,6 @@ class CompileOptions:
     ``1`` Enable the feature, use a legacy implementation (recommended)
     ``2`` Enable the feature, use an experimental implementation
     ===== ======
-
-    This feature cannot be enabled at the same time as ``densify_load_store``.
     """
 
     static_alloc: Optional[bool] = None
@@ -151,8 +140,6 @@ class Compiler:
         self.soc_version = get_soc_version()
         if not self._check_compile_options():
             raise RuntimeError("Please check input compile option")
-        if self.options.densify_load_store and self.options.reuse_alloc:
-            raise RuntimeError("'densify_load_store' and 'reuse_alloc' cannot be enabled at the same time")
         if self.options.reuse_alloc not in (0, 1, 2):
             raise RuntimeError("'reuse_alloc' is only allowed to be 0, 1, 2")
         self.arch = platform_to_arch(self.soc_version)
@@ -200,12 +187,6 @@ class Compiler:
         passes.common.add_canonicalizer(pm)
         passes.common.add_reconcile_unrealized_casts(pm)
         if self.options.run_asc2_passes:
-            passes.asctile.add_tag_unroll_groups(pm)
-            if self.options.densify_load_store:
-                self.add_unroll_loop(pm)
-                passes.asctile.add_promote_pure_operations(pm)
-                passes.common.add_canonicalizer(pm)
-                passes.asctile.add_densify_unroll_groups(pm)
             passes.asctile.add_split_cube_load(pm)
             passes.asctile.add_cube_transpose_to_load(pm)
             passes.asctile.add_legalize_matmul(pm)
@@ -238,8 +219,7 @@ class Compiler:
         passes.ascendc.add_input_output_tensor(pm)
         if self.options.reuse_alloc == 1:
             passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=True)
-        if not self.options.densify_load_store:
-            self.add_unroll_loop(pm)
+        self.add_unroll_loop(pm)
         passes.ascendc.add_hoist_ub_allocation(pm, exclude_in_out=not arch_c310)
         if self.options.reuse_alloc == 1:
             passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=False)

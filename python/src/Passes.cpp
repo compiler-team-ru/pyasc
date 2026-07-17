@@ -149,7 +149,6 @@ void defineAscTilePasses(py::module& mod)
     using namespace pybind11::literals;
     auto m = mod.def_submodule("asctile");
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_cube_transpose_to_load", createCubeTransposeToLoadPass);
-    DEFINE_ADD_PASS_ON(func::FuncOp, "add_densify_unroll_groups", createDensifyUnrollGroupsPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_detect_bias_load", createDetectBiasLoadPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_fold_cast", createFoldCastPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_legalize_matmul", createLegalizeMatmulPass);
@@ -160,12 +159,6 @@ void defineAscTilePasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_unscalarize_reduction", createUnscalarizeReductionPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_vector_transpose_to_load", createVectorTransposeToLoadPass);
 
-    m.def(
-        "add_tag_unroll_groups",
-        [](PassManager& pm, bool smallGroups) {
-            pm.addNestedPass<func::FuncOp>(createTagUnrollGroupsPass(smallGroups));
-        },
-        "pm"_a, "small_groups"_a = false);
     m.def(
         "add_unroll_loop",
         [](PassManager& pm, bool annotate) { pm.addNestedPass<func::FuncOp>(createUnrollLoopPass(annotate)); }, "pm"_a,

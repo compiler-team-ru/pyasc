@@ -62,8 +62,6 @@ struct UnrollLoopPass : public asctile::impl::UnrollLoopBase<UnrollLoopPass> {
             annotator.advance(unrollFactor);
             if (failed(result))
                 signalPassFailure();
-            if (auto epilogueLoop = result->epilogueLoopOp)
-                epilogueLoop->walk([](Operation* op) { op->removeAttr(attr::unrollGroup); });
         });
     }
 };
