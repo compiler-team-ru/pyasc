@@ -53,6 +53,34 @@ Type getI1SameShape(Type type)
     return i1Type;
 }
 
+LogicalResult verifyCVGroupOp(
+    Operation* op, OperandRange operands, Block& block, OperandRange yieldOperands, TypeRange resultTypes)
+{
+    if (operands.size() != block.getNumArguments()) {
+        return op->emitOpError("number of operands (")
+               << operands.size() << ") must match number of block arguments (" << block.getNumArguments() << ")";
+    }
+    for (auto [i, it] : llvm::enumerate(llvm::zip(operands.getTypes(), block.getArgumentTypes()))) {
+        auto [operandType, argType] = it;
+        if (operandType != argType) {
+            return op->emitOpError("operand type at index ")
+                   << i << " (" << operandType << ") does not match block argument type (" << argType << ")";
+        }
+    }
+    if (yieldOperands.size() != resultTypes.size()) {
+        return op->emitOpError("number of yield operands (")
+               << yieldOperands.size() << ") must match number of results (" << resultTypes.size() << ")";
+    }
+    for (auto [i, it] : llvm::enumerate(llvm::zip(yieldOperands.getTypes(), resultTypes))) {
+        auto [yieldType, resultType] = it;
+        if (yieldType != resultType) {
+            return op->emitOpError("yield operand type at index ")
+                   << i << " (" << yieldType << ") does not match result type (" << resultType << ")";
+        }
+    }
+    return success();
+}
+
 } // namespace
 
 //===----------------------------------------------------------------------===//
@@ -379,6 +407,28 @@ LogicalResult MatmulAccOp::verify()
         return emitOpError("acc must have L0C tensor location");
     }
     return success();
+}
+
+//===----------------------------------------------------------------------===//
+// CubeGroupOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult CubeGroupOp::verify()
+{
+    auto& block = getRegion().front();
+    auto yieldOp = cast<asctile::YieldOp>(block.getTerminator());
+    return verifyCVGroupOp(*this, getOperands(), block, yieldOp.getOperands(), getResultTypes());
+}
+
+//===----------------------------------------------------------------------===//
+// VectorGroupOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult VectorGroupOp::verify()
+{
+    auto& block = getRegion().front();
+    auto yieldOp = cast<asctile::YieldOp>(block.getTerminator());
+    return verifyCVGroupOp(*this, getOperands(), block, yieldOp.getOperands(), getResultTypes());
 }
 
 //===----------------------------------------------------------------------===//

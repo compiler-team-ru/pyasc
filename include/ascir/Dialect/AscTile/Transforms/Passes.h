@@ -30,6 +30,7 @@ std::unique_ptr<Pass> createTransformStoreFixpipePass();
 std::unique_ptr<Pass> createUnrollLoopPass(bool annotate = false);
 std::unique_ptr<Pass> createUnscalarizeReductionPass();
 std::unique_ptr<Pass> createVectorTransposeToLoadPass();
+std::unique_ptr<Pass> createWrapCVGroupsPass();
 
 } // namespace asctile
 

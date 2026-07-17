@@ -158,6 +158,7 @@ void defineAscTilePasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_transform_store_fixpipe", createTransformStoreFixpipePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_unscalarize_reduction", createUnscalarizeReductionPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_vector_transpose_to_load", createVectorTransposeToLoadPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_wrap_cv_groups", createWrapCVGroupsPass);
 
     m.def(
         "add_unroll_loop",

@@ -148,5 +148,5 @@ def mask(*, count: Optional[RuntimeInt] = None, bits: Optional[Iterable[RuntimeI
     try:
         yield
     finally:
-        builder.create_asctile_YieldOp()
+        builder.create_asctile_YieldOp([])
         builder.restore_insertion_point(old_insertion_point)
