@@ -60,17 +60,7 @@ bool opPrecedes(Operation* lhs, Operation* rhs, DominanceInfo& di)
     Block* dtr = di.findNearestCommonDominator(lhsBlk, rhsBlk);
     Operation* lhsAnc = dtr->findAncestorOpInBlock(*lhs);
     Operation* rhsAnc = dtr->findAncestorOpInBlock(*rhs);
-    if (lhsAnc != rhsAnc)
-        return lhsAnc->isBeforeInBlock(rhsAnc);
-    if (lhs->isAncestor(rhs))
-        return true;
-    if (rhs->isAncestor(lhs))
-        return false;
-    if (auto ifOp = dyn_cast<scf::IfOp>(lhsAnc))
-        return ifOp.thenBlock()->findAncestorOpInBlock(*lhs);
-    if (auto whileOp = dyn_cast<scf::WhileOp>(lhsAnc))
-        return whileOp.getBeforeBody()->findAncestorOpInBlock(*lhs);
-    return di.properlyDominates(lhs, rhs);
+    return (lhsAnc == rhsAnc && lhs->isAncestor(rhs)) || lhsAnc->isBeforeInBlock(rhsAnc);
 }
 
 void registerInlinerInterfaces(DialectRegistry& registry)
