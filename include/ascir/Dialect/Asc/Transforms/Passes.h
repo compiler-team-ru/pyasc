@@ -30,7 +30,7 @@ std::unique_ptr<Pass> createFixupMmadAccParamsPass();
 std::unique_ptr<Pass> createFuseBufIdSyncPass();
 std::unique_ptr<Pass> createGenerateBoilerplatePass();
 std::unique_ptr<Pass> createHoistQueBindPass();
-std::unique_ptr<Pass> createHoistUBAllocationPass(bool excludeInOut = false);
+std::unique_ptr<Pass> createHoistTensorAllocationPass(bool excludeInOut = false);
 std::unique_ptr<Pass> createInputOutputTensorPass();
 std::unique_ptr<Pass> createInsertBiasBufIdSyncPass();
 std::unique_ptr<Pass> createInsertBufIdSyncPass();

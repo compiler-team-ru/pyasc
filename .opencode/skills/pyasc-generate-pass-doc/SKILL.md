@@ -35,7 +35,7 @@ This skill supports documenting multiple passes in a single run:
 - Maintain separate state for each pass (don't mix up metadata between passes)
 
 **Examples**:
-- "Document UnrollLoop, HoistUBAllocation, and DetectKernelType"
+- "Document UnrollLoop, HoistTensorAllocation, and DetectKernelType"
 - "Document all passes in include/ascir/Dialect/AscTile/Transforms/Passes.td"
 - "Document these files: lib/Dialect/Asc/Transforms/Noop.cpp, lib/Dialect/Asc/Transforms/InsertSync.cpp"
 
@@ -48,7 +48,7 @@ This skill supports documenting multiple passes in a single run:
 ### Actions
 
 1. Ask user for pass name (e.g., `UnrollLoop`) or path to `.cpp` implementation file
-2. **Validate pass name format**: Pass name should be PascalCase (e.g., `UnrollLoop`, `HoistUBAllocation`). If user provides kebab-case CLI name (e.g., `unroll-loop`), convert to PascalCase.
+2. **Validate pass name format**: Pass name should be PascalCase (e.g., `UnrollLoop`, `HoistTensorAllocation`). If user provides kebab-case CLI name (e.g., `unroll-loop`), convert to PascalCase.
 3. Search all `Passes.td` files for the pass definition:
    - `include/ascir/Dialect/Asc/Transforms/Passes.td`
    - `include/ascir/Dialect/AscTile/Transforms/Passes.td`

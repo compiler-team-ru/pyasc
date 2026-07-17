@@ -220,7 +220,7 @@ class Compiler:
         if self.options.reuse_alloc == 1:
             passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=True)
         self.add_unroll_loop(pm)
-        passes.ascendc.add_hoist_ub_allocation(pm, exclude_in_out=not arch_c310)
+        passes.ascendc.add_hoist_tensor_allocation(pm, exclude_in_out=not arch_c310)
         if self.options.reuse_alloc == 1:
             passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=False)
         elif self.options.reuse_alloc == 2:
