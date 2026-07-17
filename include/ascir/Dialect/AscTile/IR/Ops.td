@@ -108,7 +108,9 @@ def SetValueOp : AscTile_Op<"set_value", [AllElementTypesMatch<["base", "value"]
 
 def YieldOp : AscTile_Op<"yield", [Terminator]> {
   let summary = "Terminator for operations with region";
-  let assemblyFormat = "attr-dict";
+  let arguments = (ins Variadic<AnyType>:$operands);
+  let assemblyFormat = "($operands^ `:` type($operands))? attr-dict";
+  let builders = [OpBuilder<(ins), "/* empty yield */">];
 }
 
 def CountMaskOp : AscTile_Op<"count_mask", [SingleBlockImplicitTerminator<"YieldOp">]> {
@@ -123,6 +125,24 @@ def BitwiseMaskOp : AscTile_Op<"bitwise_mask", [SingleBlockImplicitTerminator<"Y
   let arguments = (ins I64:$highBits, I64:$lowBits, Optional<AscTile_Numeric>:$other);
   let regions = (region SizedRegion<1>:$region);
   let assemblyFormat = "$highBits `,` $lowBits (`,` $other^ `:` type($other))? $region attr-dict";
+}
+
+def CubeGroupOp : AscTile_Op<"cube_group", [SingleBlockImplicitTerminator<"YieldOp">]> {
+  let summary = "Group operations targeting the AI Cube compute unit (L0A/L0B/L0C/L1/FIX/BT)";
+  let arguments = (ins Variadic<AnyType>:$operands);
+  let results = (outs Variadic<AnyType>:$results);
+  let regions = (region SizedRegion<1>:$region);
+  let assemblyFormat = "(`(` $operands^ `:` type($operands) `)`)? $region (`:` type($results)^)? attr-dict";
+  let hasVerifier = 1;
+}
+
+def VectorGroupOp : AscTile_Op<"vector_group", [SingleBlockImplicitTerminator<"YieldOp">]> {
+  let summary = "Group operations targeting the AI Vector compute unit (UB)";
+  let arguments = (ins Variadic<AnyType>:$operands);
+  let results = (outs Variadic<AnyType>:$results);
+  let regions = (region SizedRegion<1>:$region);
+  let assemblyFormat = "(`(` $operands^ `:` type($operands) `)`)? $region (`:` type($results)^)? attr-dict";
+  let hasVerifier = 1;
 }
 
 def CmpOp : AscTile_Op<"cmp", [Pure, SameTypeOperands, TypesMatchWith<

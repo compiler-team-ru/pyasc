@@ -368,4 +368,24 @@ def VectorTransposeToLoad : Pass<"asctile-vector-transpose-to-load", "func::Func
   }];
 }
 
+def WrapCVGroups : Pass<"asctile-wrap-cv-groups", "func::FuncOp"> {
+  let summary = "Wrap each compute operation individually into a cube_group or vector_group region based on memory location";
+  let constructor = "mlir::asctile::createWrapCVGroupsPass()";
+  let dependentDialects = ["asctile::AscTileDialect"];
+  let description = [{
+    This pass classifies each operation in the function body as a cube (AIC) or vector (AIV) operation
+    based on the memory location of its tile operands and results, then wraps each operation individually
+    into its own `asctile.cube_group` or `asctile.vector_group` region.
+
+    Classification rules:
+    - **Cube**: any tile operand/result has location L0A, L0B, L0C, L1, FIX, or BT
+    - **Vector**: all tile operands/results have location UB
+    - **Neither**: operations without tile operands/results (tensor descriptors, scalar ops, control flow)
+
+    Operations classified as "neither" are not wrapped. Each classified operation is placed into a
+    separate group region. The operation's operands are passed through the group as region arguments,
+    and its results are returned via the `asctile.yield` terminator.
+  }];
+}
+
 #endif // ASCTILE_PASSES_TD
