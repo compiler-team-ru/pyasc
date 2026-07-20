@@ -103,6 +103,15 @@ def LegalizeMatmul : Pass<"asctile-legalize-matmul", "func::FuncOp"> {
   }];
 }
 
+def MarkReuseSource : Pass<"asctile-mark-reuse-source", "func::FuncOp"> {
+  let summary = "Mark reduction operations to reuse source when its operand is not used anymore";
+  let constructor = "mlir::asctile::createMarkReuseSourcePass()";
+  let description = [{
+    Mark reduce operations with attribute `asctile.reuse_source` when their input operand is not used anymore.
+    This allows to emit Ascend C that uses faster implementation of reduction in high-level API.
+  }];
+}
+
 def PromotePureOps : Pass<"asctile-promote-pure-ops", "func::FuncOp"> {
   let summary = "Hoist pure operations upward within their blocks to enable code motion optimizations";
   let constructor = "mlir::asctile::createPromotePureOpsPass()";

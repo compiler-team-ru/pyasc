@@ -10,8 +10,10 @@
 
 #include "ascir/Conversion/LowerToAsc/Passes.h"
 #include "ascir/Dialect/Asc/IR/Asc.h"
+#include "ascir/Dialect/Asc/Utils/Attributes.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
+#include "ascir/Dialect/AscTile/Utils/Attributes.h"
 #include "ascir/Dialect/AscVF/IR/AscVF.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/EmitAsc/Utils/InitStructBuilder.h"
@@ -740,14 +742,16 @@ struct ConvertReduce : ConvertOp<asctile::ReduceOp> {
         Value src = rewriter.getRemappedValue(op.getOperand());
         Value tmpBuff = createTensorOp(rewriter, loc, srcType.getNumElements() * 4, rewriter.getIntegerType(8, false));
         auto kind = op.getKind();
+        Operation* reduceOp = nullptr;
+        bool reuseSource = op->hasAttr(asctile::attr::reuseSource);
         if (kind == asctile::ReduceKind::Sum)
-            rewriter.create<ascendc::ReduceSumOp>(loc, dst, src, tmpBuff, srcShape, *pattern);
+            reduceOp = rewriter.create<ascendc::ReduceSumOp>(loc, dst, src, tmpBuff, srcShape, *pattern, reuseSource);
         else if (kind == asctile::ReduceKind::Max)
-            rewriter.create<ascendc::ReduceMaxOp>(loc, dst, src, tmpBuff, srcShape, *pattern);
+            reduceOp = rewriter.create<ascendc::ReduceMaxOp>(loc, dst, src, tmpBuff, srcShape, *pattern, reuseSource);
         else if (kind == asctile::ReduceKind::Min)
-            rewriter.create<ascendc::ReduceMinOp>(loc, dst, src, tmpBuff, srcShape, *pattern);
+            reduceOp = rewriter.create<ascendc::ReduceMinOp>(loc, dst, src, tmpBuff, srcShape, *pattern, reuseSource);
         else if (kind == asctile::ReduceKind::Prod)
-            rewriter.create<ascendc::ReduceProdOp>(loc, dst, src, tmpBuff, srcShape, *pattern);
+            reduceOp = rewriter.create<ascendc::ReduceProdOp>(loc, dst, src, tmpBuff, srcShape, *pattern, reuseSource);
         else
             return op.emitOpError() << "with " << asctile::stringifyReduceKind(kind) << " is not supported";
         rewriter.replaceOp(op, dst);
