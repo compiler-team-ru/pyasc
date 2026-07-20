@@ -12,8 +12,8 @@ from typing import Iterable, Tuple
 from ..._C import ir
 from ..core.dtype import KnownTypes as KT
 from ..core.utils import global_builder, require_jit
-from .local_tensor import LocalTensor, bind_tensor_method
-from .validation import check_dtype, check_type, verify_shape, check_data_alignment
+from .local_tensor import LocalTensor, TensorLocation, bind_tensor_method
+from .validation import check_dtype, check_type, verify_location, verify_shape, check_data_alignment
 
 
 def shapes_match(shape: Tuple[int, ...], target_shape: Tuple[int, ...]) -> bool:
@@ -63,6 +63,7 @@ def broadcast_to(input: LocalTensor, *shape: int) -> LocalTensor:
     """
     check_type("input", input, LocalTensor)
     check_dtype("input", input, (KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32))
+    verify_location(input.location, "input", TensorLocation.UB)
     shape = normalize_shape_args(shape)
     shape = verify_shape(shape)
     if input.shape == shape:
@@ -292,6 +293,10 @@ def transpose(input: LocalTensor, *axis: int) -> LocalTensor:
         raise RuntimeError(f"Transpose axis count {len(axis)} should match count of tensor dimensions {rank}")
     if list(axis) == list(range(0, rank)):  # Identity transformation
         return input
+    if rank == 2:
+        verify_location(input.location, "input", (TensorLocation.UB, TensorLocation.L0A, TensorLocation.L0B))
+    else:
+        verify_location(input.location, "input", TensorLocation.UB)
     if set(axis) != set(range(0, rank)):
         raise RuntimeError(f"Wrong dimensions rearrangement {axis} for tensor of {rank} dimensions")
     result_shape = [input.shape[i] for i in axis]

@@ -15,7 +15,7 @@ from ..core.ir_value import PlainValue, RuntimeNumeric
 from ..core.tensor import TensorShape
 from ..core.utils import global_builder
 from .local_tensor import BinaryOperandTypeError, LocalTensor, TensorLocation
-from .validation import check_dtype, check_type
+from .validation import check_dtype, check_type, verify_location
 
 
 def constant_tile(value: Real, shape: TensorShape, dtype: DataType,
@@ -120,7 +120,8 @@ def check_bias(bias: Optional[LocalTensor], size: int) -> None:
     if bias is None:
         return
     check_type("bias", bias, LocalTensor)
-    check_dtype("bias", bias, (KT.bfloat16, KT.float16, KT.float32), optional=True)
+    check_dtype("bias", bias, (KT.bfloat16, KT.float16, KT.float32))
+    verify_location(bias.location, "bias", TensorLocation.BT)
     if len(bias.shape) != 1:
         raise RuntimeError(f"Bias must be 1D tensor, got shape {bias.shape}")
     if bias.size != size:

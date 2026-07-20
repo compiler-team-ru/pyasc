@@ -12,21 +12,25 @@ from ..._C import ir
 from ..core.dtype import DataType, KnownTypes as KT
 from ..core.ir_value import PlainValue, RuntimeFloat, RuntimeNumeric, IRHandle, materialize_ir_value as _mat
 from ..core.utils import global_builder, require_jit
-from .local_tensor import LocalTensor, bind_tensor_method
-from .validation import check_dtype, check_runtime_float, check_type
+from .local_tensor import LocalTensor, TensorLocation, bind_tensor_method
+from .validation import check_dtype, check_runtime_float, check_type, verify_location
 
 T = TypeVar("T")
 
 
-def op_unary_impl(input: Union[LocalTensor, RuntimeNumeric], build_float: Callable[..., IRHandle],
-                  build_int: Optional[Callable[..., IRHandle]] = None, support_dtypes: Optional[Tuple[DataType]] = None,
-                  support_scalar: bool = False) -> Union[LocalTensor, PlainValue]:
+def op_unary_impl(
+    input: Union[LocalTensor, RuntimeNumeric], build_float: Callable[..., IRHandle],
+    build_int: Optional[Callable[..., IRHandle]] = None, support_dtypes: Optional[Tuple[DataType]] = None,
+    support_scalar: bool = False, support_loc: Tuple[TensorLocation, ...] = (TensorLocation.UB, )
+) -> Union[LocalTensor, PlainValue]:
     constraint = Union[LocalTensor, RuntimeNumeric] if support_scalar else LocalTensor
     check_type("input", input, constraint)
-    if isinstance(input, LocalTensor) and support_dtypes is not None:
-        check_dtype("input", input, support_dtypes)
-    is_scalar = not isinstance(input, LocalTensor)
-    input = _mat(input, KT.float32) if is_scalar else input  # TODO: infer dtype using builders availability
+    is_tensor = isinstance(input, LocalTensor)
+    if is_tensor:
+        if support_dtypes is not None:
+            check_dtype("input", input, support_dtypes)
+        verify_location(input.location, "input", support_loc)
+    input = input if is_tensor else _mat(input, KT.float32)  # TODO: infer dtype using builders availability
     dtype = input.dtype
     if dtype.is_float() and build_float is not None:
         handle = build_float(input.to_ir())
@@ -34,9 +38,7 @@ def op_unary_impl(input: Union[LocalTensor, RuntimeNumeric], build_float: Callab
         handle = build_int(input.to_ir())
     else:
         raise RuntimeError(f"Input tensor dtype is not supported: {dtype}")
-    if is_scalar:
-        return PlainValue(handle)
-    return LocalTensor(handle)
+    return LocalTensor(handle) if is_tensor else PlainValue(handle)
 
 
 def set_docstring(name: str, support_dtypes: Tuple[DataType], support_scalar: bool = False) -> Callable[[T], T]:
@@ -246,7 +248,8 @@ def sqrt(input: Union[LocalTensor, RuntimeFloat]) -> Union[LocalTensor, PlainVal
 @set_docstring("ReLU value", support_dtypes=(KT.float16, KT.float32))
 def relu(input: LocalTensor) -> LocalTensor:
     return op_unary_impl(input,
-                         global_builder.get_ir_builder().create_asctile_ReluOp, support_dtypes=(KT.float16, KT.float32))
+                         global_builder.get_ir_builder().create_asctile_ReluOp, support_dtypes=(KT.float16, KT.float32),
+                         support_loc=(TensorLocation.UB, TensorLocation.L0C))
 
 
 @bind_tensor_method(name="__neg__", unary_op="-")
@@ -290,6 +293,7 @@ def softmax(input: LocalTensor) -> LocalTensor:
     """
     check_type("input", input, LocalTensor)
     check_dtype("input", input, (KT.float16, KT.float32))
+    verify_location(input.location, "input", TensorLocation.UB)
     if len(input.shape) > 2:
         raise RuntimeError("Tensor dimensionality greater than two is not supported")
     handle = global_builder.get_ir_builder().create_asctile_SoftmaxOp(input.to_ir().get_type(), input.to_ir())
@@ -332,10 +336,10 @@ def rms_norm(input: LocalTensor, gamma: LocalTensor, epsilon: RuntimeFloat) -> L
             gamma = asc2.copy_in(gamma_gm, [0], [128])
             output = asc2.rms_norm(input, gamma, 1e-6)
     """
-    check_type("input", input, LocalTensor)
-    check_dtype("input", input, (KT.float16, KT.float32))
-    check_type("gamma", gamma, LocalTensor)
-    check_dtype("gamma", gamma, (KT.float16, KT.float32))
+    for name, value in ("input", input), ("gamma", gamma):
+        check_type(name, value, LocalTensor)
+        check_dtype(name, value, (KT.float16, KT.float32))
+        verify_location(value.location, name, TensorLocation.UB)
     check_runtime_float("epsilon", epsilon)
     if len(input.shape) > 2:
         raise RuntimeError("Tensor dimensionality greater than two is not supported.")
@@ -389,13 +393,10 @@ def layer_norm(input: LocalTensor, gamma: LocalTensor, beta: LocalTensor,
             beta = asc2.copy_in(beta_gm, [0], [128])
             output, mean, variance = asc2.layer_norm(input, gamma, beta, 1e-6)
     """
-    support_dtypes = (KT.float16, KT.float32)
-    check_type("input", input, LocalTensor)
-    check_dtype("input", input, support_dtypes)
-    check_type("gamma", gamma, LocalTensor)
-    check_dtype("gamma", gamma, support_dtypes)
-    check_type("beta", beta, LocalTensor)
-    check_dtype("beta", beta, support_dtypes)
+    for name, value in ("input", input), ("gamma", gamma), ("beta", beta):
+        check_type(name, value, LocalTensor)
+        check_dtype(name, value, (KT.float16, KT.float32))
+        verify_location(value.location, name, TensorLocation.UB)
     check_runtime_float("epsilon", epsilon)
     if input.rank > 2:
         raise RuntimeError("Tensor dimensionality greater than two is not supported.")

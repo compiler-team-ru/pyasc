@@ -14,6 +14,8 @@ from ..core.dtype import DataType
 from ..core.ir_value import PlainValue, RuntimeInt
 from ..core.utils import get_type_name
 
+TensorLocation = ir.asctile_TensorLocation  # avoid top-level import of .local_tensor
+
 
 class DataTyped(Protocol):
     dtype: DataType
@@ -90,3 +92,16 @@ def verify_shape(shape: Iterable[int], name: str = "shape", size: Optional[int] 
     if any(dim <= 0 for dim in shape):
         raise RuntimeError(f"All values in '{name}' must be positive")
     return shape
+
+
+def verify_location(location: Any, name: str = "location",
+                    allow: Optional[Union[TensorLocation, Tuple[TensorLocation, ...]]] = None) -> TensorLocation:
+    check_type(name, location, (str, TensorLocation))
+    location = TensorLocation(location)
+    if allow is None:
+        return location
+    allow = allow if isinstance(allow, tuple) else (allow, )
+    if location in allow:
+        return location
+    loc_str = " or ".join(loc.name for loc in allow)
+    raise RuntimeError(f"'{name}' tensor location must be {loc_str}, got {location.name}")

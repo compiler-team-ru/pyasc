@@ -13,12 +13,13 @@ from ..core.dtype import KnownTypes as KT
 from ..core.ir_value import RuntimeInt, materialize_ir_value as _mat
 from ..core.utils import global_builder, require_jit
 from .global_tensor import GlobalTensor
-from .local_tensor import LocalTensor
-from .validation import check_dtype, check_type, verify_runtime_ints
+from .local_tensor import LocalTensor, TensorLocation
+from .validation import check_dtype, check_type, verify_location, verify_runtime_ints
 
 
 def op_atomic_impl(src: LocalTensor, dst: GlobalTensor, offsets: Iterable[RuntimeInt], kind: ir.AtomicKind) -> None:
     check_type("src", src, LocalTensor)
+    verify_location(src.location, "src", TensorLocation.UB)
     check_type("dst", dst, GlobalTensor)
     check_dtype("dst", dst, (KT.int16, KT.int32, KT.float16, KT.bfloat16, KT.float32))
     check_dtype("src", src, (dst.dtype, ))

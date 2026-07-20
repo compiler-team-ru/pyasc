@@ -14,7 +14,7 @@ from ..core.ir_value import IRHandle, PlainValue, RuntimeInt, RuntimeNumeric, ma
 from ..core.utils import global_builder, require_jit
 from .global_tensor import GlobalTensor
 from .local_tensor import LocalTensor, TensorLocation
-from .validation import check_data_alignment, check_type, verify_runtime_ints, verify_shape
+from .validation import check_data_alignment, check_type, verify_location, verify_runtime_ints, verify_shape
 
 
 def to_ir_list(values: Iterable[RuntimeInt]) -> List[IRHandle]:
@@ -36,7 +36,7 @@ def verify_real_shape(real_shape: Iterable[RuntimeInt], shape: Tuple[int, ...]) 
 
 @require_jit
 def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape: Optional[Iterable[int]] = None,
-         location: TensorLocation = TensorLocation.UB) -> LocalTensor:
+         location: Optional[Union[str, TensorLocation]] = None) -> LocalTensor:
     """
     Copy a local tensor to a new local tensor, optionally reshaping and relocating.
 
@@ -52,7 +52,7 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
         offsets: The offsets into the source tensor for each dimension. Default is zeros.
         shape: The shape of the resulting tensor. If None, uses the source tensor's shape.
             Must contain static values (e.g., ``ConstExpr`` or compile-time constants).
-        location: The memory location for the destination tensor. Default is ``TensorLocation.UB``.
+        location: The memory location for the destination tensor. Default is ``src.location``.
             Supported location transfers: ``L1`` to ``L0A``, ``L1`` to ``L0B``, ``L1`` to ``BT``, ``L0C`` to ``L1``.
 
     Returns:
@@ -86,7 +86,13 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
             result_l1 = asc2.copy(acc, location=asc2.TensorLocation.L1)
     """
     check_type("src", src, LocalTensor)
-    check_type("location", location, TensorLocation)
+    location = src.location if location is None else location
+    if src.location == TensorLocation.L1:
+        location = verify_location(location, allow=(TensorLocation.L0A, TensorLocation.L0B, TensorLocation.BT))
+    elif src.location == TensorLocation.L0C:
+        location = verify_location(location, allow=TensorLocation.L1)
+    else:
+        raise RuntimeError(f"'src' tensor location must be L1 or L0C, got {src.location.name}")
     if shape is None:
         shape = src.shape
     else:
@@ -95,8 +101,6 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
         offsets = (0, ) * len(src.shape)
     else:
         offsets = verify_offsets(offsets, src.rank)
-    if location == TensorLocation.UB:
-        check_data_alignment(shape, src.dtype)
     ir_type = ir.get_asctile_LocalTensorType(list(shape), src.dtype.to_ir(), location)
     handle = global_builder.get_ir_builder().create_asctile_CopyOp(ir_type, src.to_ir(), to_ir_list(offsets))
     return LocalTensor(handle)
@@ -104,8 +108,8 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
 
 @overload
 def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Iterable[int],
-            location: TensorLocation = TensorLocation.UB, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
-            pad_value: RuntimeNumeric = 0) -> LocalTensor:
+            location: Union[str, TensorLocation] = TensorLocation.UB, *,
+            real_shape: Optional[Iterable[RuntimeInt]] = None, pad_value: RuntimeNumeric = 0) -> LocalTensor:
     ...
 
 
@@ -116,7 +120,8 @@ def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt]) -> PlainValue:
 
 @require_jit
 def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[Iterable[int]] = None,
-            location: TensorLocation = TensorLocation.UB, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
+            location: Union[str,
+                            TensorLocation] = TensorLocation.UB, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
             pad_value: RuntimeNumeric = 0) -> Union[LocalTensor, PlainValue]:
     """
     Copy data from a global tensor into a local tensor or scalar value.
@@ -183,9 +188,11 @@ def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[It
             # result has shape [16, 16], but only 12x12 elements loaded from global tensor, rest padded with -1.0
     """
     check_type("src", src, GlobalTensor)
-    check_type("location", location, TensorLocation)
-    if real_shape is not None and location in (TensorLocation.L1, TensorLocation.L0A, TensorLocation.L0B):
-        raise RuntimeError(f"'real_shape' argument is not supported for {location} in copy_in")
+    location = verify_location(
+        location,
+        allow=(TensorLocation.UB, TensorLocation.L1, TensorLocation.L0A, TensorLocation.L0B, TensorLocation.BT))
+    if real_shape is not None and location != TensorLocation.UB:
+        raise RuntimeError(f"'real_shape' argument is not supported with {location.name} tensor location")
     builder = global_builder.get_ir_builder()
     offsets = to_ir_list(verify_offsets(offsets, src.rank))
     if shape is None:
@@ -287,6 +294,7 @@ def copy_out(src: Union[LocalTensor, RuntimeNumeric], dst: GlobalTensor, offsets
         src = src.to(dst.dtype) if isinstance(src, LocalTensor) else _mat(src, dst.dtype)
         builder.create_asctile_SetValueOp(src.to_ir(), dst.to_ir(), offsets)
         return
+    verify_location(src.location, "src", (TensorLocation.UB, TensorLocation.L0C))
     if src.location == TensorLocation.UB:
         check_data_alignment(src.shape, src.dtype)
     real_shape = [] if real_shape is None else to_ir_list(verify_real_shape(real_shape, src.shape))

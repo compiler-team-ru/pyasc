@@ -12,7 +12,7 @@ from ..._C import ir
 from ..core.dtype import DataType
 from ..core.utils import global_builder
 from .local_tensor import LocalTensor, TensorLocation
-from .validation import check_type, verify_shape
+from .validation import check_type, verify_location, verify_shape
 
 
 def inline_vf(code: str, shape: Tuple[int, ...], dtype: DataType,
@@ -74,8 +74,7 @@ def inline_vf(code: str, shape: Tuple[int, ...], dtype: DataType,
         for index, tensor in enumerate(inputs):
             tensor_name = f"inputs[{index}]"
             check_type(tensor_name, tensor, LocalTensor)
-            if tensor.location != TensorLocation.UB:
-                raise RuntimeError(f"{tensor_name} tensor must have UB location, got {tensor.location.name}")
+            verify_location(tensor.location, tensor_name, TensorLocation.UB)
             ir_tiles.append(tensor.to_ir())
     ir_type = ir.get_asctile_LocalTensorType(shape, dtype.to_ir(), TensorLocation.UB)
     handle = global_builder.get_ir_builder().create_asctile_InlineVFOp(ir_type, ir_tiles, code)
