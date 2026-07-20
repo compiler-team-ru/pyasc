@@ -26,9 +26,9 @@ def split_v(input_ptr: asc2.GlobalAddress, output0_ptr: asc2.GlobalAddress, outp
     block_offset = block_length * asc2.block_idx()
     chunks_per_tile = asc2.ceildiv(tile_length, ub_chunk_size)
 
-    for i in asc2.range(block_loop_num, unroll_factor=unroll_factor, parallel=True):
+    for i in asc2.range(block_loop_num, unroll_factor=unroll_factor):
         tile_offset = block_offset + i * tile_length
-        for j in asc2.range(chunks_per_tile, parallel=False):
+        for j in asc2.range(chunks_per_tile, gm_barrier=True):
             current_offset = tile_offset + j * ub_chunk_size
             remaining = tile_length - j * ub_chunk_size
             chunk_size = ub_chunk_size if remaining >= ub_chunk_size else remaining

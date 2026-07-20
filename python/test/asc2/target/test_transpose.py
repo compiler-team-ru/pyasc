@@ -26,7 +26,7 @@ def transpose_block(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
 
     global_tensor = asc2.global_tensor(input_ptr, [height, width])
     result_tensor = asc2.global_tensor(output_ptr, [width, height])
-    for i in asc2.range(asc2.block_idx(), repeat, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
+    for i in asc2.range(asc2.block_idx(), repeat, asc2.block_num(), unroll_factor=unroll_factor):
         offset_x = (i % total_tiles_w) * block_width
         offset_y = (i // total_tiles_w) * block_height
         load_width = block_width if block_width < width - offset_x else width - offset_x
@@ -46,7 +46,7 @@ def transpose_column(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddre
 
     global_tensor = asc2.global_tensor(input_ptr, [height, width])
     result_tensor = asc2.global_tensor(output_ptr, [width, height])
-    for i in asc2.range(asc2.block_idx(), total_count, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
+    for i in asc2.range(asc2.block_idx(), total_count, asc2.block_num(), unroll_factor=unroll_factor):
         offset = i * block_size
         load_width = block_size if block_size < width - offset else width - offset
         input = asc2.copy_in(global_tensor, [0, offset], [tile_height, tile_width], real_shape=[height, load_width])
@@ -62,7 +62,7 @@ def transpose_line(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress
                    unroll_factor: asc2.ConstExpr[int]):
     global_tensor = asc2.global_tensor(input_ptr, [height, width])
     result_tensor = asc2.global_tensor(output_ptr, [width, height])
-    for i in asc2.range(asc2.block_idx(), total_count, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
+    for i in asc2.range(asc2.block_idx(), total_count, asc2.block_num(), unroll_factor=unroll_factor):
         offset = i * block_size
         load_height = block_size if block_size < height - offset else height - offset
         input = asc2.copy_in(global_tensor, [offset, 0], [tile_height, tile_width], real_shape=[load_height, width])
@@ -100,7 +100,7 @@ def transpose_nlast_axis(
     input_tensor = asc2.global_tensor(input_ptr, input_shape)
     output_tensor = asc2.global_tensor(output_ptr, output_shape)
 
-    for i in asc2.range(asc2.block_idx(), block_count, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
+    for i in asc2.range(asc2.block_idx(), block_count, asc2.block_num(), unroll_factor=unroll_factor):
         id0 = i % inner_total  # this one walk by step
         offset0 = id0 * axis_step
         real_count = axis_step if offset0 + axis_step <= input_shape[
@@ -196,7 +196,7 @@ def transpose_one_axis(
         store_shape += [load_shape[permute[dim]]]
     input_tensor = asc2.global_tensor(input_ptr, input_shape)
     output_tensor = asc2.global_tensor(output_ptr, output_shape)
-    for i in asc2.range(asc2.block_idx(), block_count, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
+    for i in asc2.range(asc2.block_idx(), block_count, asc2.block_num(), unroll_factor=unroll_factor):
         offset = i * axis_step
         read_count = axis_step if offset + axis_step < input_shape[
             load_shape_axis] else input_shape[load_shape_axis] - offset
@@ -266,7 +266,7 @@ def transpose_2_axis(
 
     input_tensor = asc2.global_tensor(input_ptr, input_shape)
     output_tensor = asc2.global_tensor(output_ptr, output_shape)
-    for i in asc2.range(asc2.block_idx(), block_count, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
+    for i in asc2.range(asc2.block_idx(), block_count, asc2.block_num(), unroll_factor=unroll_factor):
         offset0 = i % block_width * axis_step[0]
         offset1 = i // block_width * axis_step[1]
         count0 = axis_step[0] if offset0 + axis_step[0] < input_shape[
@@ -342,8 +342,8 @@ def launch_2axis(input, permute, axis, step, dtype, cores, unroll_factor, runs, 
 # PYASC_TESTS_END
 ])
 # yapf: enable
-def test_add(profiler, runs, kernel_type, test_name, block_num, input_shapes, input_dtypes, output_shapes,
-             output_dtypes, compile_params, runtime_params, tiling_key, tiling_params):
+def test_transpose(profiler, runs, kernel_type, test_name, block_num, input_shapes, input_dtypes, output_shapes,
+                   output_dtypes, compile_params, runtime_params, tiling_key, tiling_params):
     input_shape = input_shapes[0]
     input_dtype = input_dtypes[0]
     in_cut_index = tiling_params[1]

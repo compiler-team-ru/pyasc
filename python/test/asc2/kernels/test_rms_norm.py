@@ -21,7 +21,7 @@ def rms_norm_kernel(input_ptr: asc2.GlobalAddress, gamma_ptr: asc2.GlobalAddress
     gamma = asc2.copy_in(gamma_gm, [0], [norm_shape])
     loop_num = asc2.ceildiv(asc2.ceildiv(total_blocks, asc2.block_num()), num_blocks)
     block_offset = asc2.block_idx() * tile_size * loop_num
-    for i in asc2.range(loop_num, unroll_factor=2, parallel=True):
+    for i in asc2.range(loop_num, unroll_factor=2):
         offset = block_offset + i * tile_size
         input_tensor = asc2.copy_in(input_gm, [offset], [tile_size])
         tensor = input_tensor.reshape([num_blocks, norm_shape])

@@ -48,14 +48,14 @@ def matrix_multiplication(
     # `unroll_factor` parameter of `asc2.range` in `for` loop can be used to manage software pipelining. Set it to `2` to enable double buffering.
     # `parallel` parameter of `asc2.range` in `for` loop enable overlapping of store operation of `i`-th iteration and load of `i+1`-th iteration.
     # It is user responsibility to ensure that there are no data dependencies between overlapped iterations.
-    for k_outer in range(asc2.ceildiv(k, step_kb), unroll_factor=2, parallel=True):
+    for k_outer in range(asc2.ceildiv(k, step_kb), unroll_factor=2):
         # Load B matrix from GM to a new local tensor in L1
         b_l1 = asc2.copy_in(b_gm, [k_outer * step_kb, n_off], [step_kb, single_core_n], asc2.TensorLocation.L1)
-        for k_mid in range(asc2.ceildiv(step_kb, step_ka), unroll_factor=2, parallel=True):
+        for k_mid in range(asc2.ceildiv(step_kb, step_ka), unroll_factor=2):
             k_off = k_outer * step_kb + k_mid * step_ka
             # Load A matrix from GM to a new local tensor in L1
             a_l1 = asc2.copy_in(a_gm, [m_off, k_off], [single_core_m, step_ka], asc2.TensorLocation.L1)
-            for k_l0 in range(asc2.ceildiv(step_ka, base_k), unroll_factor=2, parallel=True):
+            for k_l0 in range(asc2.ceildiv(step_ka, base_k), unroll_factor=2):
                 # Copy A matrix from L1 to a new local tensor in L0A
                 a_l0 = asc2.copy(a_l1, [0, k_l0 * base_k], [single_core_m, base_k], asc2.TensorLocation.L0A)
                 # Copy B matrix from L1 to a new local tensor in L0B

@@ -32,7 +32,7 @@ def one_hot_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, arange_
         loop_count = block_length_tail
 
     arange_tile = asc2.copy_in(arange_gm, [0], [depth])
-    for i in asc2.range(loop_count, unroll_factor=unroll_factor, parallel=True):
+    for i in asc2.range(loop_count, unroll_factor=unroll_factor):
         idx_pos = block_offset + i
         idx_scalar = asc2.copy_in(x, [idx_pos])
         mask = asc2.equal(arange_tile, idx_scalar)

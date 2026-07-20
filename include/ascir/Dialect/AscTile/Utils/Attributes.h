@@ -16,9 +16,9 @@ namespace mlir {
 namespace asctile {
 namespace attr {
 
+LITERAL gmBarrier = "asctile.gm_barrier";
 LITERAL isBias = "asctile.is_bias";
 LITERAL isMatrixA = "asctile.is_matrix_a";
-LITERAL parallel = "asctile.parallel";
 LITERAL reuseSource = "asctile.reuse_source";
 LITERAL transposeA = "asctile.transpose_a";
 LITERAL transposeB = "asctile.transpose_b";

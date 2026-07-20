@@ -137,7 +137,7 @@ func.func @for_loop_sync(%arg0: !ascendc.local_tensor<*xf32>) {
   %c10 = arith.constant 10 : i32
   scf.for %arg1 = %c0 to %c10 step %c1 : i32 {
     ascendc.add_l2 %arg0, %arg0, %arg0, %c256 : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
-  }
+  } {asctile.gm_barrier}
   return
 }
 
@@ -366,17 +366,7 @@ func.func @sync_mte3_vec(%arg0: !ascendc.global_tensor<*xf32>, %arg1: !ascendc.g
 // CHECK-NEXT:      ascendc.rls_buf pipe_v, 1
 // CHECK-NEXT:      ascendc.rls_buf pipe_v, 0
 // CHECK-NEXT:      ascendc.rls_buf pipe_v, 2
-// CHECK-NEXT:      %c0_i32_1 = arith.constant 0 : i32
-// CHECK-NEXT:      ascendc.set_flag mte3_mte2, %c0_i32_1 : i32
-// CHECK-NEXT:      ascendc.set_flag mte3_mte1, %c0_i32_1 : i32
-// CHECK-NEXT:      ascendc.wait_flag mte3_mte2, %c0_i32_1 : i32
-// CHECK-NEXT:      ascendc.wait_flag mte3_mte1, %c0_i32_1 : i32
 // CHECK-NEXT:    }
-// CHECK-NEXT:    %c0_i32_0 = arith.constant 0 : i32
-// CHECK-NEXT:    ascendc.set_flag mte3_mte2, %c0_i32_0 : i32
-// CHECK-NEXT:    ascendc.set_flag mte3_mte1, %c0_i32_0 : i32
-// CHECK-NEXT:    ascendc.wait_flag mte3_mte2, %c0_i32_0 : i32
-// CHECK-NEXT:    ascendc.wait_flag mte3_mte1, %c0_i32_0 : i32
 // CHECK-NEXT:  }
 // CHECK-NEXT:  ascendc.get_buf pipe_mte3, 2
 // CHECK-NEXT:  ascendc.data_copy_l2 %arg2, %2, %c256_i32 {ascendc.buf_ids = [2 : i32]} : !ascendc.global_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
@@ -451,11 +441,6 @@ func.func @sync_if_no_for(%arg0: !ascendc.global_tensor<*xf32>, %arg1: !ascendc.
 // CHECK-NEXT:      ascendc.data_copy_l2 %arg1, %1, %c256_i32 {ascendc.buf_ids = [1 : i32]} : !ascendc.global_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32
 // CHECK-NEXT:      ascendc.rls_buf pipe_mte3, 1
 // CHECK-NEXT:    }
-// CHECK-NEXT:    %c0_i32_0 = arith.constant 0 : i32
-// CHECK-NEXT:    ascendc.set_flag mte3_mte2, %c0_i32_0 : i32
-// CHECK-NEXT:    ascendc.set_flag mte3_mte1, %c0_i32_0 : i32
-// CHECK-NEXT:    ascendc.wait_flag mte3_mte2, %c0_i32_0 : i32
-// CHECK-NEXT:    ascendc.wait_flag mte3_mte1, %c0_i32_0 : i32
 // CHECK-NEXT:  }
 // CHECK-NEXT:  return
 // CHECK-NEXT:}

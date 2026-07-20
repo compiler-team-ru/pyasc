@@ -136,9 +136,9 @@ i = asc2.block_idx()    # current NPU block index
 n = asc2.block_num()    # total number of blocks
 
 # Loop control
-for i in asc2.range(start, stop, step, unroll_factor=4, parallel=False):
+for i in asc2.range(start, stop, step, unroll_factor=4, gm_barrier=False):
     # unroll_factor: how many iterations to unroll
-    # parallel=True: enable parallel load/store optimization
+    # gm_barrier=True: prevent parallel load/store optimization
 
 # Masking
 with asc2.mask(count=8, other=0):

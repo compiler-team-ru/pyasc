@@ -84,29 +84,24 @@ def kernel(input_ptr, output_ptr, input_length: int, tile_length: int):
 
 These parameters control how loops are compiled and executed:
 
-**`unroll_factor=N`** (passed to `asc2.range()` or `range()`):
-- Unrolls the loop N times at compile time
+**`unroll_factor: int`** (default is 1, passed to `asc2.range()` or `range()`):
+- Unrolls the loop by the given factor at compile time
 - Reduces loop overhead and enables instruction-level parallelism
 - **Recommended**: `unroll_factor=2` for most kernels, `unroll_factor=1` for very large tiles or memory-bound operations
 - Must be `ConstExpr` for static unrolling
 
-**`parallel=True`** (passed to `asc2.range()` or `range()`):
-- Enables parallel load/store optimization across loop iterations
-- Allows overlapping DMA transfers with computation
-- **Recommended**: Enable for outer loops that perform independent tile operations
-- Works best with `unroll_factor >= 2`
+**`gm_barrier: bool`** (default is `False`, passed to `asc2.range()` or `range()`):
+- Inserts barriers for data transfer pipes and disables parallel load/store optimization across loop iterations
+- Only necessary when different iterations write and the read from the same memory
+- When `False`, allows overlapping DMA transfers with computation
+- **Recommended: do not enable** for loops that perform independent tile operations
 
 ```python
-# Recommended pattern: unroll + parallel for outer tile loop
-for i in asc2.range(loop_count, unroll_factor=2, parallel=True):
+# Recommended pattern for outer tile loop
+for i in asc2.range(loop_count, unroll_factor=2):
     xt = asc2.copy_in(in_gm, [tile_length], ...)
     zt = xt + yt
     asc2.copy_out(zt, out_gm, ...)
-
-# For nested loops: parallel on outer, sequential on inner
-for i in asc2.range(row_iters, unroll_factor=2, parallel=True):
-    for j in asc2.range(col_iters, parallel=False):
-        # inner loop operations
 ```
 
 ---

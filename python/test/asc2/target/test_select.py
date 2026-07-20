@@ -28,7 +28,7 @@ def select(cond_ptr: asc2.GlobalAddress, input_x_ptr: asc2.GlobalAddress, input_
     block_length = tile_length * block_loop_num
     block_offset = asc2.block_idx() * block_length
 
-    for i in asc2.range(block_loop_num, unroll_factor=unroll_factor, parallel=True):
+    for i in asc2.range(block_loop_num, unroll_factor=unroll_factor):
         current_offset = block_offset + i * tile_length
         ct = asc2.copy_in(c, [current_offset], [tile_length])
         xt = asc2.copy_in(x, [current_offset], [tile_length])

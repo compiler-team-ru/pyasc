@@ -19,7 +19,7 @@ def vmuladd_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, z_ptr: 
     z_gm = asc2.global_tensor(z_ptr, [size])
     out_gm = asc2.global_tensor(out_ptr, [size])
     base_offset = asc2.block_idx() * tile_size * tile_per_block
-    for i in range(tile_per_block, unroll_factor=buffer_factor, parallel=True):
+    for i in range(tile_per_block, unroll_factor=buffer_factor):
         tile_offset = base_offset + i * tile_size
         x = asc2.copy_in(x_gm, [tile_offset], [tile_size])
         y = asc2.copy_in(y_gm, [tile_offset], [tile_size])

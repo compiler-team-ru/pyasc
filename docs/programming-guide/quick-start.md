@@ -48,7 +48,7 @@ Python expressions are used to calculate offset and define the loop iterating ov
 
 ```python
 base_offset = asc2.block_idx() * tile_size * tile_per_block
-for i in asc2.range(tile_per_block, unroll_factor=2, parallel=True):
+for i in asc2.range(tile_per_block, unroll_factor=2):
     tile_offset = base_offset + i * tile_size
 ```
 

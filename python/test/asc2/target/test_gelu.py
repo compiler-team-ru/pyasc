@@ -26,7 +26,7 @@ def gelu(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_le
     block_length = tile_length * block_loop_num
     block_offset = block_length * asc2.block_idx()
 
-    for i in asc2.range(block_loop_num, unroll_factor=unroll_factor, parallel=True):
+    for i in asc2.range(block_loop_num, unroll_factor=unroll_factor):
         current_offset = block_offset + i * tile_length
         row = asc2.copy_in(in_gm, [current_offset], [tile_length])
         input_sq = row * row

@@ -64,7 +64,7 @@ def matmul_v3_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr
     main_window = min(WINDOW_LEN, m_blocks)
     main_row = (m_blocks // main_window - 1) if m_blocks >= main_window else 0
     tail_window = m_blocks - main_row * main_window
-    for tile_id in range(asc2.block_idx(), tiles_num, asc2.block_num(), unroll_factor=tile_uf, parallel=True):
+    for tile_id in range(asc2.block_idx(), tiles_num, asc2.block_num(), unroll_factor=tile_uf):
         tile_idx = tile_id % tiles_num
         row_idx = tile_idx // n_blocks // main_window
         m_idx = row_idx * main_window + tile_idx % main_window
@@ -78,12 +78,12 @@ def matmul_v3_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr
             n_idx = n_blocks - 1 - n_idx
         m_tile_off = m_L1 * m_idx
         n_tile_off = n_L1 * n_idx
-        for i_aL1 in range(asc2.ceildiv(m_L1, base_m), unroll_factor=m_uf, parallel=True):
+        for i_aL1 in range(asc2.ceildiv(m_L1, base_m), unroll_factor=m_uf):
             m_gm_off = m_tile_off + i_aL1 * base_m
             m_l0_off = 0
             if is_A_full_load:
                 m_l0_off = m_gm_off
-            for j_bL1 in range(asc2.ceildiv(n_L1, base_n), unroll_factor=n_uf, parallel=True):
+            for j_bL1 in range(asc2.ceildiv(n_L1, base_n), unroll_factor=n_uf):
                 n_gm_off = n_tile_off + j_bL1 * base_n
                 n_l0_off = 0
                 if is_B_full_load:
@@ -93,7 +93,7 @@ def matmul_v3_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr
                     acc = asc2.zeros_acc([base_m, base_n], dtype=asc2.float32, bias=bias)
                 else:
                     acc = asc2.zeros_acc([base_m, base_n], dtype=asc2.float32)
-                for outer_k in range(asc2.ceildiv(k, k_L1), unroll_factor=k_l1_uf, parallel=True):
+                for outer_k in range(asc2.ceildiv(k, k_L1), unroll_factor=k_l1_uf):
                     k_gm_off = outer_k * k_L1
                     if not is_A_full_load:
                         if not is_a_transpose:
@@ -105,7 +105,7 @@ def matmul_v3_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr
                             b_l1 = asc2.copy_in(b_gm, [k_gm_off, n_gm_off], [k_L1, base_n], asc2.TensorLocation.L1)
                         else:
                             b_l1 = asc2.copy_in(b_gm, [n_gm_off, k_gm_off], [base_n, k_L1], asc2.TensorLocation.L1)
-                    for inner_k in range(asc2.ceildiv(k_L1, base_k), unroll_factor=k_l0_uf, parallel=True):
+                    for inner_k in range(asc2.ceildiv(k_L1, base_k), unroll_factor=k_l0_uf):
                         ka_off = inner_k * base_k
                         kb_off = inner_k * base_k
                         if is_A_full_load:
@@ -184,7 +184,7 @@ test_cases = [
     (32, (128, 2048, 1024, 128, 64, 256, 128, 64, 64), torch.float16, False, False, FullLoadMode.NONE, False, False,
      (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (128, 2048, 1024, 128, 64, 256, 128, 64, 128)
     (None, (1536, 512, 1024, 176, 128, 256, 176, 128, 32), torch.float16, False, False, FullLoadMode.NONE, False, False,
-     (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (1536, 512, 1024, 176, 128, 256, 176, 128, 64) 
+     (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (1536, 512, 1024, 176, 128, 256, 176, 128, 64)
     (24, (3072, 16, 1280, 128, 16, 384, 128, 16, 64), torch.float16, True, True, FullLoadMode.NONE, False, False,
      (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (3072, 16, 1280, 128, 16, 256, 128, 16, 128)
     (None, (12288, 4, 640, 256, 16, 192, 128, 16, 32), torch.float16, False, True, FullLoadMode.B, False, False,

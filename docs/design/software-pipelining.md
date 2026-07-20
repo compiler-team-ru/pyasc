@@ -18,7 +18,7 @@ to code block without loop (if one iteration).
 
 ### Syntax
 ```python
-for i in asc2.range(start, stop, step, unroll_factor=2, parallel=False):
+for i in asc2.range(start, stop, step, unroll_factor=2):
     # loop body
     pass
 ```
@@ -76,7 +76,7 @@ def parallel_unroll(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
     x_gm = asc2.global_tensor(x, [size])
     y_gm = asc2.global_tensor(y, [size])
 
-    for i in asc2.range(size, unroll_factor=2, parallel=True):
+    for i in asc2.range(size, unroll_factor=2):
         # Loop unrolled and executed in parallel
         x_val = asc2.copy_in(x_gm, [i], [1])
         y_val = asc2.copy_in(y_gm, [i], [1])

@@ -6,7 +6,7 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-from typing import Optional, overload
+from typing import overload
 
 from ..._C import ir
 from ..core.range import BaseRange
@@ -19,16 +19,18 @@ class range(BaseRange):
     A range loop construct for use in JIT functions.
 
     This class provides a range-based loop similar to Python's built-in ``range``, with additional support for loop
-    unrolling and parallel execution on NPU. In fact, built-in ``range`` automatically becomes ``asc2.range`` when used
-    inside JIT function.
+    unrolling and memory barrier control on NPU.
+
+    In fact, built-in ``range`` automatically becomes ``asc2.range`` when used inside JIT function.
 
     Args:
         start: Start index of the loop (or stop index if only one argument provided).
         stop: Stop index of the loop (exclusive). If None, start is treated as stop and start is 0.
         step: Step size for the loop iteration.
         unroll_factor: Number of iterations to unroll. Default is 1 (no unrolling).
-        parallel: Whether to enable software pipelining. Default is False. When True, iterations may overlap to enable
-            software pipelining optimizations. Must be False if loop iterations depend on previous iterations.
+        gm_barrier: Whether to prevent parallel load/store optimization across iterations. Default is False.
+            When True, a global memory barrier is inserted between iterations to prevent overlapping memory
+            operations. Must be True if loop iterations depend on previous iterations' memory writes.
 
     Raises:
         ValueError: If ``unroll_factor`` is less than 1
@@ -45,31 +47,38 @@ class range(BaseRange):
 
         Loop with unrolling: ::
 
-            for i in asc2.range(0, N, step=1, unroll_factor=4):
+            for i in asc2.range(0, N, 1, unroll_factor=4):
                 ...
 
-        Parallel loop: ::
+        Loop with a global memory barrier (prevent parallel memory optimizations): ::
 
-            for i in asc2.range(N, parallel=True):
+            for i in asc2.range(N, gm_barrier=True):
                 ...
     """
 
     @overload
-    def __init__(self, start: int, stop: Optional[int] = None, step: int = 1, /, *, unroll_factor: int = 1,
-                 parallel: bool = False):
+    def __init__(self, stop: int, /, unroll_factor: int = 1, gm_barrier: bool = False):
         ...
 
-    def __init__(self, *args, unroll_factor: int = 1, parallel: bool = False):
+    @overload
+    def __init__(self, start: int, stop: int, /, unroll_factor: int = 1, gm_barrier: bool = False):
+        ...
+
+    @overload
+    def __init__(self, start: int, stop: int, step: int, /, unroll_factor: int = 1, gm_barrier: bool = False):
+        ...
+
+    def __init__(self, *args, unroll_factor: int = 1, gm_barrier: bool = False):
         check_type("unroll_factor", unroll_factor, int)
-        check_type("parallel", parallel, bool)
+        check_type("gm_barrier", gm_barrier, bool)
         if unroll_factor < 1:
             raise ValueError(f"Loop unroll factor must be 1 or greater, got {unroll_factor}")
         super().__init__(*args)
         self.unroll_factor = unroll_factor
-        self.parallel = parallel
+        self.gm_barrier = gm_barrier
 
     def handle_op(self, op: ir.ForOp) -> None:
         builder = global_builder.get_ir_builder()
         op.set_attr(ir.attr.unroll_factor, builder.get_index_attr(self.unroll_factor))
-        if self.parallel:
-            op.set_attr(ir.attr.parallel, builder.get_unit_attr())
+        if self.gm_barrier:
+            op.set_attr(ir.attr.gm_barrier, builder.get_unit_attr())

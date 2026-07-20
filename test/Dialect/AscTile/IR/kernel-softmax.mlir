@@ -19,7 +19,7 @@ module {
       %10 = asctile.splat %9 : tensor<1x1024xf32, #asctile.local<UB>>
       %11 = arith.divf %8, %10 : tensor<1x1024xf32, #asctile.local<UB>>
       asctile.store %11, %1[%arg4, %c0_i32] : tensor<1x1024xf32, #asctile.local<UB>>, tensor<?x?xf32, #asctile.global>
-    } {asctile.parallel, asctile.unroll_factor = 1 : index}
+    } {asctile.unroll_factor = 1 : index}
     return
   }
 }

@@ -44,7 +44,7 @@ def vector_add(
     # `unroll_factor` parameter of `asc2.range` in `for` loop can be used to manage software pipelining. Set it to `2` to enable double buffering.
     # `parallel` parameter of `asc2.range` in `for` loop enable overlapping of store operation of `i`-th iteration and load of `i+1`-th iteration.
     # It is user responsibility to ensure that there are no data dependencies between overlapped iterations.
-    for i in asc2.range(block_loop_num, unroll_factor=2, parallel=True):
+    for i in asc2.range(block_loop_num, unroll_factor=2):
         tile_offset = block_offset + i * tile_size
         # `asc2.copy_in` is used to create a local tensor object which is used for further calculations. Data movement from GM to UB happens in this operation.
         x = asc2.copy_in(x_gm, [tile_offset], [tile_size])

@@ -15,7 +15,7 @@ def softmax_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, num_r
                    tile_size: asc2.ConstExpr[int]):
     x_gm = asc2.global_tensor(x_ptr, [num_rows, num_cols])
     out_gm = asc2.global_tensor(out_ptr, [num_rows, num_cols])
-    for i in range(asc2.block_idx(), num_rows, asc2.block_num(), parallel=True):
+    for i in range(asc2.block_idx(), num_rows, asc2.block_num()):
         row = asc2.copy_in(x_gm, [i, 0], [1, tile_size])
         row_minus_max = row - asc2.reduce_max(row)
         numerator = asc2.exp(row_minus_max)

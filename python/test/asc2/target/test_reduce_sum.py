@@ -24,9 +24,9 @@ def reduce_sum_rows(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
     max_blocks = asc2.ceildiv(input_num_rows, tile_shape[0])
     iters = asc2.ceildiv(input_num_cols, tile_shape[1])
 
-    for i in asc2.range(asc2.block_idx(), max_blocks, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
+    for i in asc2.range(asc2.block_idx(), max_blocks, asc2.block_num(), unroll_factor=unroll_factor):
         cache = asc2.zeros([tile_shape[0]], dtype=in_gm.dtype)
-        for j in asc2.range(iters, parallel=False):
+        for j in asc2.range(iters, gm_barrier=True):
             block = asc2.copy_in(in_gm, [i * tile_shape[0], j * tile_shape[1]], tile_shape, pad_value=0)
             block = asc2.reduce_sum(block, 1)
             cache = cache + block
@@ -42,9 +42,9 @@ def reduce_sum_cols(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
     max_blocks = asc2.ceildiv(input_num_rows, tile_shape[1])
     iters = asc2.ceildiv(input_num_cols, tile_shape[0])
 
-    for j in asc2.range(asc2.block_idx(), max_blocks, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
+    for j in asc2.range(asc2.block_idx(), max_blocks, asc2.block_num(), unroll_factor=unroll_factor):
         cache = asc2.zeros([tile_shape[1]], dtype=in_gm.dtype)
-        for i in asc2.range(iters, parallel=False):
+        for i in asc2.range(iters, gm_barrier=True):
             block = asc2.copy_in(in_gm, [i * tile_shape[0], j * tile_shape[1]], tile_shape, pad_value=0)
             block = asc2.reduce_sum(block, 0)
             cache = cache + block
@@ -60,7 +60,7 @@ def reduce_none(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, i
     block_portion = tile_shape[0] * tile_shape[1]
     total_repeats = asc2.ceildiv(total_elements, block_portion)
 
-    for i in asc2.range(asc2.block_idx(), total_repeats, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
+    for i in asc2.range(asc2.block_idx(), total_repeats, asc2.block_num(), unroll_factor=unroll_factor):
         data = asc2.copy_in(in_gm, [i * block_portion], [block_portion])
         asc2.copy_out(data, out_gm, [i * block_portion])
 

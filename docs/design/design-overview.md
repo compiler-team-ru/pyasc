@@ -233,12 +233,12 @@ n = asc2.block_num()    # total number of blocks (PlainValue)
 `asc2.range` extends the base range with two attributes that control compiler behaviour:
 
 ```python
-for i in asc2.range(start, stop, step, unroll_factor=4, parallel=False):
+for i in asc2.range(start, stop, step, unroll_factor=4, gm_barrier=False):
     ...
 ```
 
 - `unroll_factor` — how many iterations to unroll. Tagged on the MLIR `for` op and processed by `UnrollLoop` pass.
-- `parallel=True` — marks the loop body so `ParallelLoadStore` pass can emit stores and loads in parallel.
+- `gm_barrier=True` — marks the loop body so `InsertBufIdSync` pass inserts explicit barriers for data transfer pipes.
 
 ---
 
@@ -401,8 +401,6 @@ Because asc2 users don't write `set_flag`/`wait_flag`, all synchronization is in
 - On **910B / 910_93**: `InsertSync` uses the classic queue-position–based algorithm.
 - On **910_95**: `InsertBufIdSync` uses a newer algorithm that reduces sync overhead by tracking buffer IDs rather than queue positions; `FuseBufIdSync` merges adjacent sync ops.
 - `verify_sync=True` runs an additional `VerifySync` pass after sync insertion as a sanity check.
-
-`asc2.range(parallel=True)` annotates a loop with an MLIR attribute that is intended to relax sync insertion for parallel-safe load/store groups. Today the attribute is only set; the consuming pass is not yet wired up.
 
 ---
 
