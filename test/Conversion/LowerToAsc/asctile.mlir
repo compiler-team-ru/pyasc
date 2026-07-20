@@ -328,6 +328,19 @@ func.func @lower_reduce_max(%arg0: tensor<64x32xf32, #asctile.local<UB>>) -> ten
   return %0 : tensor<32xf32, #asctile.local<UB>>
 }
 
+// CHECK-LABEL: func.func @lower_reduce_with_reuse(%arg0: tensor<64x32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : tensor<64x32xf32, #asctile.local<UB>> to !ascendc.local_tensor<64x32xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <32xf32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<32xf32> to tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %3 = ascendc.local_tensor_auto veccalc() : <8192xui8>
+// CHECK-NEXT:  ascendc.reduce_max %1, %0, %3, %c64_i32, %c32_i32 {isReuseSource, pattern = 1 : i32} : !ascendc.local_tensor<32xf32>, !ascendc.local_tensor<64x32xf32>, !ascendc.local_tensor<8192xui8>, i32, i32
+// CHECK-NEXT:  return %2 : tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @lower_reduce_with_reuse(%arg0: tensor<64x32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
+  %0 = asctile.reduce <max> %arg0 {asctile.reuse_source, dims = [1 : i32]} : tensor<64x32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>
+  return %0 : tensor<32xf32, #asctile.local<UB>>
+}
+
 // CHECK-LABEL: func.func @lower_reduce_prod(%arg0: tensor<64x32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
 // CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : tensor<64x32xf32, #asctile.local<UB>> to !ascendc.local_tensor<64x32xf32>
 // CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <32xf32>

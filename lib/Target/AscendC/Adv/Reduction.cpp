@@ -23,8 +23,8 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::Reduc
     os << ascNamespace << "::" << op.getAPIName() << "<";
     auto tensorType = cast<LocalTensorType>(op.getSrc().getType());
     FAIL_OR(emitter.emitType(op.getLoc(), tensorType.getElementType()));
-    os << ","
-       << "AscendC::Pattern::Reduce::" << op.getPattern() << ">";
+    os << "," << "AscendC::Pattern::Reduce::" << op.getPattern() << "," << (op.getIsReuseSource() ? "true" : "false")
+       << ">";
     os << "(" << emitter.getOrCreateName(op.getDst()) << "," << emitter.getOrCreateName(op.getSrc());
     os << "," << emitter.getOrCreateName(op.getSharedTmpBuffer()) << ",shape,false);\n";
     os.unindent() << "}";

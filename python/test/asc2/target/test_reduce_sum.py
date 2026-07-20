@@ -21,20 +21,16 @@ def reduce_sum_rows(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
                     output_length, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     in_gm = asc2.global_tensor(input_ptr, [input_num_rows, input_num_cols])
     out_gm = asc2.global_tensor(output_ptr, [output_length])
+    max_blocks = asc2.ceildiv(input_num_rows, tile_shape[0])
+    iters = asc2.ceildiv(input_num_cols, tile_shape[1])
 
-    rows_per_block = asc2.ceildiv(input_num_rows, asc2.block_num())
-    start_offset = asc2.block_idx() * rows_per_block
-    row_iters = asc2.ceildiv(rows_per_block, tile_shape[0])
-    column_iters = asc2.ceildiv(input_num_cols, tile_shape[1])
-
-    for i in asc2.range(row_iters, parallel=True, unroll_factor=unroll_factor):
-        row_start_offset = start_offset + i * tile_shape[0]
+    for i in asc2.range(asc2.block_idx(), max_blocks, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
         cache = asc2.zeros([tile_shape[0]], dtype=in_gm.dtype)
-        for j in asc2.range(column_iters, parallel=False):
-            tensor_part = asc2.copy_in(in_gm, [row_start_offset, j * tile_shape[1]], tile_shape, pad_value=0)
-            output = asc2.reduce_sum(tensor_part, 1)
-            cache = output + cache
-        asc2.copy_out(cache, out_gm, [row_start_offset])
+        for j in asc2.range(iters, parallel=False):
+            block = asc2.copy_in(in_gm, [i * tile_shape[0], j * tile_shape[1]], tile_shape, pad_value=0)
+            block = asc2.reduce_sum(block, 1)
+            cache = cache + block
+        asc2.copy_out(cache, out_gm, [i * tile_shape[0]])
 
 
 @asc2.jit(static_alloc=True, reuse_alloc=1)
@@ -43,25 +39,21 @@ def reduce_sum_cols(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
     in_gm = asc2.global_tensor(input_ptr, [input_num_rows, input_num_cols])
     out_gm = asc2.global_tensor(output_ptr, [output_length])
 
-    cols_per_block = asc2.ceildiv(input_num_cols, asc2.block_num())
-    start_offset = asc2.block_idx() * cols_per_block
-    column_iters = asc2.ceildiv(cols_per_block, tile_shape[1])
-    row_iters = asc2.ceildiv(input_num_rows, tile_shape[0])
+    max_blocks = asc2.ceildiv(input_num_rows, tile_shape[1])
+    iters = asc2.ceildiv(input_num_cols, tile_shape[0])
 
-    for j in asc2.range(column_iters, parallel=True, unroll_factor=unroll_factor):
-        col_start_offset = start_offset + j * tile_shape[1]
+    for j in asc2.range(asc2.block_idx(), max_blocks, asc2.block_num(), parallel=True, unroll_factor=unroll_factor):
         cache = asc2.zeros([tile_shape[1]], dtype=in_gm.dtype)
-        for i in asc2.range(row_iters, parallel=False):
-            tensor_part = asc2.copy_in(in_gm, [i * tile_shape[0], col_start_offset], tile_shape)
-            output = asc2.reduce_sum(tensor_part, 0)
-            cache = output + cache
-        asc2.copy_out(cache, out_gm, [col_start_offset])
+        for i in asc2.range(iters, parallel=False):
+            block = asc2.copy_in(in_gm, [i * tile_shape[0], j * tile_shape[1]], tile_shape, pad_value=0)
+            block = asc2.reduce_sum(block, 0)
+            cache = cache + block
+        asc2.copy_out(cache, out_gm, [j * tile_shape[1]])
 
 
 @asc2.jit(static_alloc=True, reuse_alloc=2)
-def reduce_none(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows: asc2.ConstExpr,
-                input_num_cols: asc2.ConstExpr, output_length: asc2.ConstExpr, tile_shape: asc2.ConstExpr,
-                unroll_factor: asc2.ConstExpr):
+def reduce_none(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows, input_num_cols,
+                output_length, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     total_elements = input_num_rows * input_num_cols
     in_gm = asc2.global_tensor(input_ptr, [total_elements])
     out_gm = asc2.global_tensor(output_ptr, [total_elements])
@@ -159,11 +151,16 @@ def test_reduce_sum(profiler, runs, kernel_type, test_name, block_num, input_sha
     length_a = input_shape_2d[1 - axis] if ub_factor_a == 1 else ub_factor_a
     length_r = input_shape_2d[axis] if ub_factor_r == 1 else ub_factor_r
     tile_shape = [length_a, length_r] if axis == 1 else [length_r, length_a]
+
     # Alignment for tile_shape
-    ALIGNMENT_ELEMENTS = 32 // dtype.itemsize
-    tile_shape = tile_shape[0], asc2.ceildiv(tile_shape[1], ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS
-    if axis == 1:
-        tile_shape = asc2.ceildiv(tile_shape[0], ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS, tile_shape[1]
+    if input_shape_2d[axis] == 1:
+        kernel_impl = reduce_none
+    else:
+        ALIGNMENT_ELEMENTS = 32 // dtype.itemsize
+        tile_shape = tile_shape[0], asc2.ceildiv(tile_shape[1], ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS
+        if axis == 1:
+            tile_shape = asc2.ceildiv(tile_shape[0], ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS, tile_shape[1]
+        kernel_impl = reduce_sum_rows if axis == 1 else reduce_sum_cols
 
     num_rows, num_cols = input_shape_2d
     output_shape_1d = [num_rows] if axis == 1 else [num_cols]
@@ -173,9 +170,6 @@ def test_reduce_sum(profiler, runs, kernel_type, test_name, block_num, input_sha
     else:
         in_tensor = torch.randint(-10, 10, input_shape_2d, dtype=dtype)
     out_tensor = torch.zeros(output_shape_1d, dtype=dtype)
-    kernel_impl = reduce_sum_rows if axis == 1 else reduce_sum_cols
-    if input_shape_2d[1] == 1 or input_shape_2d[0] == 1:
-        kernel_impl = reduce_none
 
     params = [in_tensor, out_tensor]
     if kernel_type == STATIC:
@@ -194,5 +188,5 @@ def test_reduce_sum(profiler, runs, kernel_type, test_name, block_num, input_sha
         target_shape = [output_shape_1d[0], 1] if axis == 1 else [1, output_shape_1d[0]]
         out_tensor = out_tensor.reshape(target_shape)
 
-    expected = torch.sum(in_tensor, axis, keepdim=keep_dims)
+    expected = torch.sum(in_tensor, axis, keepdim=keep_dims, dtype=dtype)
     torch.testing.assert_close(out_tensor, expected, atol=1e-3, rtol=1e-3)
