@@ -88,7 +88,7 @@ def where_with_cond_kernel(cond_ptr: asc2.GlobalAddress, x_ptr: asc2.GlobalAddre
     y_gm = asc2.global_tensor(y_ptr, [size])
     out_gm = asc2.global_tensor(out_ptr, [size])
     base_offset = asc2.block_idx() * tile_size * tile_per_block
-    for i in range(tile_per_block, unroll_factor=2, parallel=True):
+    for i in range(tile_per_block, unroll_factor=2):
         tile_offset = base_offset + i * tile_size
         c = asc2.copy_in(cond_gm, [tile_offset], [tile_size])
         x = asc2.copy_in(x_gm, [tile_offset], [tile_size])
@@ -104,7 +104,7 @@ def where_scalar_source_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAd
     x_gm = asc2.global_tensor(x_ptr, [size])
     out_gm = asc2.global_tensor(out_ptr, [size])
     base_offset = asc2.block_idx() * tile_size * tile_per_block
-    for i in range(tile_per_block, unroll_factor=2, parallel=True):
+    for i in range(tile_per_block, unroll_factor=2):
         tile_offset = base_offset + i * tile_size
         x = asc2.copy_in(x_gm, [tile_offset], [tile_size])
         scalar = asc2.number(scalar_value, x_ptr.dtype)

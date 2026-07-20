@@ -106,9 +106,9 @@ void bindAttrs(py::module& m)
 
     auto modAttr = m.def_submodule("attr");
     modAttr.attr("compilation_arch") = py::str(ascendc::attr::compilationArch);
+    modAttr.attr("gm_barrier") = py::str(asctile::attr::gmBarrier);
     modAttr.attr("kernel_type") = py::str(ascendc::attr::kernelType);
     modAttr.attr("memory_consumed") = py::str(ascendc::attr::memoryConsumed);
-    modAttr.attr("parallel") = py::str(asctile::attr::parallel);
     modAttr.attr("soc_version") = py::str(ascendc::attr::socVersion);
     modAttr.attr("unroll_factor") = py::str(asctile::attr::unrollFactor);
     modAttr.attr("vf_vec_len") = py::str(ascendc::attr::vfVecLen);

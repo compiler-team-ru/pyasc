@@ -183,7 +183,7 @@ def matmul_acc_bias_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress,
     k_offset = a_shape[1] // k_tiles
     a_l1 = asc2.copy_in(a_gm, [0, 0], a_shape, asc2.TensorLocation.L1)
     b_l1 = asc2.copy_in(b_gm, [0, 0], b_shape, asc2.TensorLocation.L1)
-    for i in range(k_tiles, unroll_factor=1, parallel=True):
+    for i in range(k_tiles, unroll_factor=1):
         a_i = asc2.copy(a_l1, [0, i * k_offset], [a_shape[0], k_offset], asc2.TensorLocation.L0A)
         b_i = asc2.copy(b_l1, [i * k_offset, 0], [k_offset, b_shape[1]], asc2.TensorLocation.L0B)
         asc2.matmul_acc(acc, a_i, b_i)

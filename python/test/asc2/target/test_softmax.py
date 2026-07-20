@@ -31,7 +31,7 @@ def softmax_fused(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
         ub_loop = asc2.ceildiv(tail_rows_per_block, tile_shape[0])
         tail_rows = tail_rows_per_block - tile_shape[0] * (ub_loop - 1)
 
-    for i in asc2.range(ub_loop, unroll_factor=unroll_factor, parallel=True):
+    for i in asc2.range(ub_loop, unroll_factor=unroll_factor):
         row_start_offset = start_offset + i * tile_shape[0]
         real_rows = tail_rows if i == ub_loop - 1 and asc2.block_idx() == asc2.block_num() - 1 else tile_shape[0]
         rows = asc2.copy_in(in_gm, [row_start_offset, 0], [tile_shape[0], tile_shape[1]],
@@ -47,7 +47,7 @@ def softmax_small_row(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddr
     out_gm = asc2.global_tensor(output_ptr, [input_num_rows, input_num_cols])
     transposed_shape = tile_shape[::-1]
 
-    for i in range(asc2.block_idx(), ub_loop, asc2.block_num(), unroll_factor=unroll_factor, parallel=True):
+    for i in range(asc2.block_idx(), ub_loop, asc2.block_num(), unroll_factor=unroll_factor):
         rows = asc2.copy_in(in_gm, [i * tile_shape[0], 0], tile_shape, pad_value=float('-inf'), real_shape=tile_shape)
         rows = rows.transpose()
         row_max = asc2.reduce_max(rows, 0)

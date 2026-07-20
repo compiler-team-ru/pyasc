@@ -28,7 +28,7 @@ def kl_div(input_x_ptr: asc2.GlobalAddress, input_target_ptr: asc2.GlobalAddress
     # For float32: smallest normalized value ~1.18e-38
     epsilon = 1.18e-07 if input_x_ptr.dtype == asc2.float16 else 1.1799999457746311e-38
     acc_block = asc2.zeros([tile_length], dtype=input_x_ptr.dtype)
-    for i in asc2.range(loop_count, parallel=True, unroll_factor=unroll_factor):
+    for i in asc2.range(loop_count, unroll_factor=unroll_factor):
         current_offset = i * tile_length
         tail_length = input_size - tile_length
         real_offset = max(current_offset, tail_length)

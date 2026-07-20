@@ -451,7 +451,6 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
                 ValueRange{const1, const1, dValue, const0, dValue, dstRowStride, const1, const0}, argTypes);
             rewriter.create<ascendc::DataCopyL2Op>(loc, dstTensorWithOffset, srcTensorWithOffset, nd2NzParams);
             rewriter.setInsertionPointAfter(forOp);
-            forOp->setAttr(asctile::attr::parallel, rewriter.getUnitAttr());
         }
         {
             ConvertRewriter::InsertionGuard guard(rewriter);

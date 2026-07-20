@@ -26,7 +26,7 @@ def broadcast_scalar(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddre
     start_offset = asc2.block_idx() * cols_per_block
     column_iters = asc2.ceildiv(cols_per_block, tile_shape[1])
 
-    for i in asc2.range(column_iters, parallel=True, unroll_factor=unroll_factor):
+    for i in asc2.range(column_iters, unroll_factor=unroll_factor):
         scalar = asc2.copy_in(in_gm, [0])
         res = asc2.full(tile_shape, scalar)
         asc2.copy_out(res, out_gm, [0, start_offset + i * tile_shape[1]])
@@ -44,11 +44,11 @@ def broadcast_first_dim(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAd
 
     column_iters = asc2.ceildiv(output_num_cols, tile_shape[1])
 
-    for j in asc2.range(column_iters, parallel=True, unroll_factor=unroll_factor):
+    for j in asc2.range(column_iters, unroll_factor=unroll_factor):
         col_start_offset = j * tile_shape[1]
         tensor_part = asc2.copy_in(in_gm, [col_start_offset], [tile_shape[1]])
         res = tensor_part.broadcast_to(tile_shape[0], tile_shape[1])
-        for i in asc2.range(row_iters, parallel=True):
+        for i in asc2.range(row_iters):
             asc2.copy_out(res, out_gm, [start_offset + i * tile_shape[0], col_start_offset])
 
 
@@ -64,11 +64,11 @@ def broadcast_last_dim(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAdd
     row_iters = asc2.ceildiv(rows_per_block, tile_shape[0])
     column_iters = asc2.ceildiv(output_num_cols, tile_shape[1])
 
-    for i in asc2.range(row_iters, parallel=True, unroll_factor=unroll_factor):
+    for i in asc2.range(row_iters, unroll_factor=unroll_factor):
         row_start_offset = start_offset + i * tile_shape[0]
         tensor_part = asc2.copy_in(in_gm, [row_start_offset], [tile_shape[0]]).reshape(tile_shape[0], 1)
         res = tensor_part.broadcast_to(tile_shape[0], tile_shape[1])
-        for j in asc2.range(column_iters, parallel=False):
+        for j in asc2.range(column_iters, gm_barrier=True):
             asc2.copy_out(res, out_gm, [row_start_offset, j * tile_shape[1]])
 
 

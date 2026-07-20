@@ -19,7 +19,7 @@ module {
       %7 = asctile.copy %4[%c0_i32, %6] : tensor<64x128xf16, #asctile.local<L1>>, tensor<64x64xf16, #asctile.local<L0A>>
       %8 = asctile.copy %5[%6, %c0_i32] : tensor<128x256xf16, #asctile.local<L1>>, tensor<64x256xf16, #asctile.local<L0B>>
       asctile.matmul_acc %3, %7, %8 : tensor<64x256xf32, #asctile.local<L0C>>, tensor<64x64xf16, #asctile.local<L0A>>, tensor<64x256xf16, #asctile.local<L0B>>
-    } {asctile.parallel, asctile.unroll_factor = 2 : index}
+    } {asctile.unroll_factor = 2 : index}
     asctile.store %3, %2[%c0_i32, %c0_i32] : tensor<64x256xf32, #asctile.local<L0C>>, tensor<64x256xf32, #asctile.global>
     return
   }

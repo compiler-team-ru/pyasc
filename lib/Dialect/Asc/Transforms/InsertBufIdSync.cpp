@@ -246,10 +246,10 @@ class InsertBufIdSyncPass : public ascendc::impl::InsertBufIdSyncBase<InsertBufI
         funcOp.walk([&insertBufIdSync](Operation* op) { insertBufIdSync.process(op); });
         insertBufIdSync.setBufIdAttr(context);
         funcOp.walk([](scf::ForOp forOp) {
-            if (forOp->hasAttrOfType<UnitAttr>(asctile::attr::parallel)) {
-                forOp->removeAttr(asctile::attr::parallel);
+            if (forOp->hasAttrOfType<UnitAttr>(asctile::attr::gmBarrier))
+                forOp->removeAttr(asctile::attr::gmBarrier);
+            else
                 return;
-            }
             auto* terminator = forOp.getBody()->getTerminator();
             OpBuilder builder(terminator);
             ascir::ConstantOpBuilder consts(builder);
