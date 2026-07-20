@@ -15,7 +15,7 @@ from ..core.ir_value import IRHandle, RuntimeInt, RuntimeNumeric
 from ..core.utils import global_builder, require_jit
 from .local_tensor import BinaryOperandTypeError, LocalTensor, TensorLocation, bind_tensor_method
 from .utils import check_bias, create_tile, infer_common_dtype, infer_common_shape
-from .validation import check_dtype, check_runtime_int, check_type
+from .validation import check_dtype, check_runtime_int, check_type, verify_location
 
 T = TypeVar("T")
 
@@ -27,6 +27,7 @@ def check_numeric_tensor_like(name: str, value: Any, support_dtypes: Tuple[DataT
     check_type(name, value, (LocalTensor, RuntimeNumeric), BinaryOperandTypeError)
     if isinstance(value, LocalTensor):
         check_dtype(name, value, support_dtypes)
+        verify_location(value.location, name, TensorLocation.UB)
 
 
 def op_binary_impl(
@@ -36,8 +37,8 @@ def op_binary_impl(
     build_float: Callable[..., IRHandle],
     support_dtypes: Tuple[DataType, ...],
 ) -> LocalTensor:
-    check_numeric_tensor_like("input", input, support_dtypes)
-    check_numeric_tensor_like("other", other, support_dtypes)
+    for name, value in ("input", input), ("other", other):
+        check_numeric_tensor_like(name, value, support_dtypes)
     if not isinstance(input, LocalTensor) and not isinstance(other, LocalTensor):
         raise BinaryOperandTypeError(f"At least one operand must be tensor, got {type(input)} and {type(other)}")
     result_dtype = infer_common_dtype(input, other)
@@ -55,8 +56,8 @@ def op_binary_impl(
 
 def op_compare_impl(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor, RuntimeNumeric],
                     mode: ir.CompareMode) -> LocalTensor:
-    check_numeric_tensor_like("input", input, compare_support_dtypes)
-    check_numeric_tensor_like("other", other, compare_support_dtypes)
+    for name, value in ("input", input), ("other", other):
+        check_numeric_tensor_like(name, value, compare_support_dtypes)
     if not isinstance(input, LocalTensor) and not isinstance(other, LocalTensor):
         raise BinaryOperandTypeError(f"At least one operand must be tensor, got {type(input)} and {type(other)}")
     result_dtype = infer_common_dtype(input, other)
@@ -214,8 +215,9 @@ def minimum(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor,
 @set_docstring("left shift (bitwise)", (KT.int16, KT.int32, KT.int64), rhs_scalar_only=True)
 def left_shift(input: LocalTensor, other: RuntimeInt) -> LocalTensor:
     check_type("input", input, LocalTensor, BinaryOperandTypeError)
-    check_runtime_int("other", other, BinaryOperandTypeError)
     check_dtype("input", input, (KT.int16, KT.int32, KT.int64))
+    verify_location(input.location, "input", TensorLocation.UB)
+    check_runtime_int("other", other, BinaryOperandTypeError)
     other = create_tile(other, input.dtype, input.shape)
     handle = global_builder.get_ir_builder().create_arith_ShLIOp(input.to_ir(), other.to_ir())
     return LocalTensor(handle)
@@ -226,17 +228,19 @@ def left_shift(input: LocalTensor, other: RuntimeInt) -> LocalTensor:
 @set_docstring("right shift (bitwise)", (KT.int16, KT.int32, KT.int64), rhs_scalar_only=True)
 def right_shift(input: LocalTensor, other: RuntimeInt) -> LocalTensor:
     check_type("input", input, LocalTensor, BinaryOperandTypeError)
-    check_runtime_int("other", other, BinaryOperandTypeError)
     check_dtype("input", input, (KT.int16, KT.int32, KT.int64))
+    verify_location(input.location, "input", TensorLocation.UB)
+    check_runtime_int("other", other, BinaryOperandTypeError)
     other = create_tile(other, input.dtype, input.shape)
     handle = global_builder.get_ir_builder().create_arith_ShRSIOp(input.to_ir(), other.to_ir())
     return LocalTensor(handle)
 
 
 def check_matmul_arguments(input: LocalTensor, other: LocalTensor, hf32: bool) -> None:
-    for name, value in ("input", input), ("other", other):
+    for name, value, loc in ("input", input, TensorLocation.L0A), ("other", other, TensorLocation.L0B):
         check_type(name, value, LocalTensor, BinaryOperandTypeError)
         check_dtype(name, value, (KT.float16, KT.bfloat16, KT.float32))
+        verify_location(value.location, name, loc)
     if input.dtype != other.dtype:
         raise RuntimeError(f"Input tensors must have the same types, got {input.dtype} and {other.dtype}")
     if len(input.shape) != 2 or len(other.shape) != 2:
@@ -366,6 +370,7 @@ def matmul_acc(acc: LocalTensor, input: LocalTensor, other: LocalTensor, *, hf32
     """
     check_type("acc", acc, LocalTensor)
     check_dtype("acc", acc, KT.float32)
+    verify_location(acc.location, "acc", TensorLocation.L0C)
     check_matmul_arguments(input, other, hf32)
     if len(acc.shape) != 2:
         raise RuntimeError(f"Accumulation tensor must have two dims, got {len(acc.shape)}")

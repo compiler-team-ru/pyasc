@@ -15,12 +15,12 @@ from ..core.ir_value import PlainValue, RuntimeNumeric, materialize_ir_value
 from ..core.utils import global_builder, require_jit
 from .local_tensor import LocalTensor, RoundMode, TensorLocation
 from .utils import check_bias, constant_tile, splat_tile
-from .validation import check_dtype, check_type, verify_shape
+from .validation import check_dtype, check_type, verify_location, verify_shape
 
 
 @require_jit
 def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] = None,
-         location: TensorLocation = TensorLocation.UB) -> LocalTensor:
+         location: Union[str, TensorLocation] = TensorLocation.UB) -> LocalTensor:
     """
     Create a tensor filled with a scalar value.
 
@@ -57,7 +57,7 @@ def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] 
     check_type("dtype", dtype, Optional[DataType])
     support_dtypes = (KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32)
     check_dtype("dtype", dtype, support_dtypes, optional=True)
-    check_type("location", location, TensorLocation)
+    location = verify_location(location, allow=TensorLocation.UB)
     shape = verify_shape(shape)
     if isinstance(value, Real):
         if dtype is None:
@@ -70,7 +70,8 @@ def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] 
 
 
 @require_jit
-def full_like(input: LocalTensor, value: RuntimeNumeric, location: TensorLocation = TensorLocation.UB) -> LocalTensor:
+def full_like(input: LocalTensor, value: RuntimeNumeric,
+              location: Optional[Union[str, TensorLocation]] = None) -> LocalTensor:
     """
     Create a tensor filled with a scalar value, with the same shape and dtype as the input tensor.
 
@@ -94,12 +95,13 @@ def full_like(input: LocalTensor, value: RuntimeNumeric, location: TensorLocatio
             result = asc2.full_like(src, 255)
     """
     check_type("input", input, LocalTensor)
+    location = input.location if location is None else location
     return full(input.shape, value, input.dtype, location)
 
 
 @require_jit
 def zeros(shape: Iterable[int], dtype: DataType = KT.int32,
-          location: TensorLocation = TensorLocation.UB) -> LocalTensor:
+          location: Union[str, TensorLocation] = TensorLocation.UB) -> LocalTensor:
     """
     Create a tensor filled with zeros.
 
@@ -130,7 +132,7 @@ def zeros(shape: Iterable[int], dtype: DataType = KT.int32,
 
 
 @require_jit
-def zeros_like(input: LocalTensor, location: TensorLocation = TensorLocation.UB) -> LocalTensor:
+def zeros_like(input: LocalTensor, location: Optional[Union[str, TensorLocation]] = None) -> LocalTensor:
     """
     Create a tensor filled with zeros, with the same shape and dtype as the input tensor.
 
@@ -153,6 +155,7 @@ def zeros_like(input: LocalTensor, location: TensorLocation = TensorLocation.UB)
             result = asc2.zeros_like(src)
     """
     check_type("input", input, LocalTensor)
+    location = input.location if location is None else location
     return zeros(input.shape, input.dtype, location)
 
 
@@ -291,6 +294,7 @@ def cast(input: Union[LocalTensor, RuntimeNumeric], dtype: DataType,
         return materialize_ir_value(input, dtype)
     if input.dtype == dtype:
         return input
+    verify_location(input.location, "input", (TensorLocation.UB, TensorLocation.L0C))
     ir_type = ir.clone_shaped_type(input.to_ir().get_type(), dtype.to_ir())
     handle = global_builder.get_ir_builder().create_asctile_CastOp(ir_type, input.to_ir(), round_mode)
     return LocalTensor(handle)
@@ -331,6 +335,8 @@ def concat(*inputs: LocalTensor) -> LocalTensor:
     """
     if not inputs or not all(isinstance(inp, LocalTensor) for inp in inputs):
         raise TypeError("All input arguments must be tensors")
+    for tensor in inputs:
+        verify_location(tensor.location, "inputs", TensorLocation.UB)
     same_shape = inputs[0].shape[1:]
     if not all(inp.shape[1:] == same_shape for inp in inputs):
         raise RuntimeError("All tensors must have the same shape except their first dimension")

@@ -12,8 +12,8 @@ from ..._C import ir
 from ..core.dtype import DataType, KnownTypes as KT
 from ..core.ir_value import PlainValue
 from ..core.utils import global_builder, require_jit
-from .local_tensor import LocalTensor, bind_tensor_method
-from .validation import check_dtype, check_type
+from .local_tensor import LocalTensor, TensorLocation, bind_tensor_method
+from .validation import check_dtype, check_type, verify_location
 
 
 def get_reduction_shape(tensor_shape: Tuple[int, ...], keep_dims: bool, dims: Tuple[int, ...]) -> List[int]:
@@ -33,6 +33,7 @@ def op_reduce_impl(input: LocalTensor, keep_dims: bool, dims: Tuple[int, ...], k
                    support_dtypes: Tuple[DataType, ...],
                    support_dtypes_as_1d: Tuple[DataType, ...]) -> Union[LocalTensor, PlainValue]:
     check_type("input", input, LocalTensor)
+    verify_location(input.location, "input", TensorLocation.UB)
     check_type("keep_dims", keep_dims, bool)
     builder = global_builder.get_ir_builder()
     if len(dims) == 0:

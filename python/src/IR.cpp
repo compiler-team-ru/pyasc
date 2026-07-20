@@ -209,7 +209,7 @@ void bindEnums(py::module& m)
         .def_static(
             "symbolize", [](uint8_t selMode) -> ascendc::SELMODE { return static_cast<ascendc::SELMODE>(selMode); });
 
-    py::enum_<asctile::TensorLocation>(m, "TensorLocation", py::module_local())
+    py::enum_<asctile::TensorLocation>(m, "asctile_TensorLocation", py::module_local())
         .value("BT", asctile::TensorLocation::BT)
         .value("L0A", asctile::TensorLocation::L0A)
         .value("L0B", asctile::TensorLocation::L0B)
@@ -217,6 +217,12 @@ void bindEnums(py::module& m)
         .value("L1", asctile::TensorLocation::L1)
         .value("UB", asctile::TensorLocation::UB)
         .value("FIX", asctile::TensorLocation::FIX)
+        .def(py::init([](const std::string& name) {
+            auto normName = StringRef(name).upper();
+            if (auto loc = asctile::symbolizeTensorLocation(normName))
+                return *loc;
+            throw py::value_error(name + " does not match a valid TensorLocation name");
+        }))
         .def_static("symbolize", [](int32_t loc) -> asctile::TensorLocation {
             return static_cast<asctile::TensorLocation>(loc);
         });
