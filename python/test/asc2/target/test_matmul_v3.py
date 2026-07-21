@@ -269,6 +269,46 @@ test_cases = [
      False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (4096, 64640, 7168, 256, 256, 256, 256, 256, 64)
     (None, (129280, 7168, 4096, 256, 256, 64, 256, 256, 32), torch.bfloat16, True, False, FullLoadMode.NONE, False,
      False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (129280, 7168, 4096, 256, 256, 128, 256, 256, 64)
+    (None, (16384, 4096, 1376, 256, 256, 256, 256, 256, 32), torch.float16, False, True, FullLoadMode.NONE, False,
+     False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (16384, 4096, 1376, 256, 256, 256, 256, 256, 64)
+    (None, (4096, 1376, 32768, 256, 256, 256, 256, 256, 32), torch.float16, True, False, FullLoadMode.NONE, False,
+     False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (4096, 1376, 32768, 256, 256, 256, 256, 256, 64)
+    (None, (4096, 512, 32768, 240, 256, 256, 240, 256, 32), torch.float16, True, False, FullLoadMode.NONE, False, False,
+     (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (4096, 512, 32768, 240, 256, 256, 240, 256, 64)
+    (None, (12928, 7168, 4096, 256, 256, 256, 256, 256, 32), torch.bfloat16, True, False, FullLoadMode.NONE, False,
+     False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (12928, 7168, 4096, 256, 256, 256, 256, 256, 64)
+    (None, (7680, 3456, 1152, 256, 256, 192, 256, 256, 32), torch.bfloat16, False, True, FullLoadMode.NONE, False, True,
+     (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (7680, 3456, 1152, 256, 256, 192, 256, 256, 64)
+    (None, (8192, 7680, 2048, 256, 256, 256, 256, 256, 32), torch.float16, False, False, FullLoadMode.NONE, False,
+     False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (8192, 7680, 2048, 256, 256, 256, 256, 256, 64)
+    (None, (32768, 4096, 1536, 256, 256, 256, 256, 256, 32), torch.float16, False, False, FullLoadMode.NONE, False,
+     False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (32768, 4096, 1536, 256, 256, 256, 256, 256, 64)
+    (None, (1536, 4096, 32768, 256, 256, 256, 256, 256, 32), torch.float16, True, False, FullLoadMode.NONE, False,
+     False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (1536, 4096, 32768, 256, 256, 256, 256, 256, 64)
+    (None, (7168, 8192, 4096, 256, 256, 256, 256, 256, 32), torch.bfloat16, True, False, FullLoadMode.NONE, False,
+     False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (7168, 8192, 4096, 256, 256, 256, 256, 256, 64)
+    (None, (4096, 14336, 3584, 256, 256, 256, 256, 256, 32), torch.bfloat16, False, False, FullLoadMode.NONE, False,
+     False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (4096, 14336, 3584, 256, 256, 256, 256, 256, 64)
+    (None, (4096, 8192, 3584, 256, 256, 256, 256, 256, 32), torch.bfloat16, False, True, FullLoadMode.NONE, False,
+     False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (4096, 8192, 3584, 256, 256, 256, 256, 256, 64)
+    (None, (4096, 4000, 8192, 256, 256, 256, 256, 256, 32), torch.bfloat16, False, True, FullLoadMode.NONE, False,
+     False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (4096, 4000, 8192, 256, 256, 256, 256, 256, 64)
+    (None, (4096, 8192, 4000, 256, 256, 256, 256, 256, 32), torch.bfloat16, False, False, FullLoadMode.NONE, False,
+     False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (4096, 8192, 4000, 256, 256, 256, 256, 256, 64)
+    (None, (7680, 4608, 1152, 256, 256, 192, 256, 256, 32), torch.float16, False, True, FullLoadMode.NONE, False, True,
+     (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (7680, 4608, 1152, 256, 256, 192, 256, 256, 64)
+    (None, (12288, 640, 5120, 256, 256, 256, 256, 256, 32), torch.float16, False, False, FullLoadMode.NONE, False,
+     False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (12288, 640, 5120, 256, 256, 192, 256, 256, 64)
+    (None, (4096, 10240, 5120, 256, 256, 256, 256, 256, 32), torch.float16, False, False, FullLoadMode.NONE, False,
+     False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (4096, 10240, 5120, 256, 256, 256, 256, 256, 64)
+    (None, (4096, 1024, 8192, 256, 256, 256, 256, 256, 32), torch.float16, False, True, FullLoadMode.NONE, False, False,
+     (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (4096, 1024, 8192, 256, 256, 256, 256, 256, 64)
+    (None, (17, 2304, 1152, 32, 64, 1024, 32, 64, 128), torch.float16, False, True, FullLoadMode.NONE, False, True,
+     (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (17, 2304, 1152, 32, 64, 1024, 32, 64, 256)
+    (None, (24576, 1536, 4096, 256, 256, 256, 256, 256, 32), torch.bfloat16, True, False, FullLoadMode.NONE, False,
+     False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (24576, 1536, 4096, 256, 256, 256, 256, 256, 64)
+    (None, (1152, 4608, 7680, 256, 256, 256, 256, 256, 32), torch.float16, True, False, FullLoadMode.NONE, False, False,
+     (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (1152, 4608, 7680, 256, 256, 256, 256, 256, 64)
 ]
 
 
