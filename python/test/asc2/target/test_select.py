@@ -16,7 +16,7 @@ STATIC = "static"
 DYNAMIC = "dynamic"
 
 
-@asc2.jit(static_alloc=True, reuse_alloc=1)
+@asc2.jit(reuse_alloc=1)
 def select(cond_ptr: asc2.GlobalAddress, input_x_ptr: asc2.GlobalAddress, input_y_ptr: asc2.GlobalAddress,
            output_ptr: asc2.GlobalAddress, input_length, tile_length: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     c = asc2.global_tensor(cond_ptr, [input_length])

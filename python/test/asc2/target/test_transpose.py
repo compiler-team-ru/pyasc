@@ -17,7 +17,7 @@ DYNAMIC = "dynamic"
 
 
 # Reads (h,w) sub tile
-@asc2.jit(static_alloc=True, reuse_alloc=1)
+@asc2.jit(reuse_alloc=1)
 def transpose_block(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, width: asc2.ConstExpr[int],
                     height: asc2.ConstExpr[int], block_width: asc2.ConstExpr[int], block_height: asc2.ConstExpr[int],
                     tile_width: asc2.ConstExpr[int], tile_height: asc2.ConstExpr[int], repeat: asc2.ConstExpr[int],
@@ -38,7 +38,7 @@ def transpose_block(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
 
 
 # Reads (height,n) at once
-@asc2.jit(static_alloc=True, reuse_alloc=1)
+@asc2.jit(reuse_alloc=1)
 def transpose_column(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, width: asc2.ConstExpr[int],
                      height: asc2.ConstExpr[int], block_size: asc2.ConstExpr[int], tile_width: asc2.ConstExpr[int],
                      tile_height: asc2.ConstExpr[int], total_count: asc2.ConstExpr[int],
@@ -55,7 +55,7 @@ def transpose_column(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddre
 
 
 # Reads (n,width) at once
-@asc2.jit(static_alloc=True, reuse_alloc=1)
+@asc2.jit(reuse_alloc=1)
 def transpose_line(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, width: asc2.ConstExpr[int],
                    height: asc2.ConstExpr[int], block_size: asc2.ConstExpr[int], tile_width: asc2.ConstExpr[int],
                    tile_height: asc2.ConstExpr[int], total_count: asc2.ConstExpr[int],
@@ -74,7 +74,7 @@ def transpose_line(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress
 # Step for high dimension is 1. Lower dimensions loads as is.
 # Selected dimension loads in axis_step:
 # axis_step = 10, store_shape_axis = 1, *output_shape*=[1024,256,32] ub shape is [1,10,32]
-@asc2.jit(static_alloc=True, reuse_alloc=1)
+@asc2.jit(reuse_alloc=1)
 def transpose_nlast_axis(
         input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_shape: asc2.ConstExpr,  # Read tensor shape
         axis_step: asc2.ConstExpr[int],  # How many compute per step
@@ -172,7 +172,7 @@ def launch_nlast_axis(input, permute, axis, axis_step, cores, dtype, runs, profi
 
 
 # Split input data for one axis loads at once slice of size axis_step on that dimension
-@asc2.jit(static_alloc=True, reuse_alloc=1)
+@asc2.jit(reuse_alloc=1)
 def transpose_one_axis(
     input_ptr: asc2.GlobalAddress,
     output_ptr: asc2.GlobalAddress,
@@ -239,7 +239,7 @@ def launch_one_axis(input, permute, axis, axis_step, cores, dtype, runs, profile
 
 # Split tensor by 2 dimensions (store_axis), loads subpart
 # Example: output_shape = [1024,2048,512], store_axis=[0,1] iterate by [STEP1,STEP2,512]
-@asc2.jit(static_alloc=True, reuse_alloc=1)
+@asc2.jit(reuse_alloc=1)
 def transpose_2_axis(
     input_ptr: asc2.GlobalAddress,
     output_ptr: asc2.GlobalAddress,

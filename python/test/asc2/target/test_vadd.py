@@ -16,7 +16,7 @@ STATIC = "static"
 DYNAMIC = "dynamic"
 
 
-@asc2.jit(static_alloc=True, reuse_alloc=1)
+@asc2.jit(reuse_alloc=1)
 def add(input_x_ptr: asc2.GlobalAddress, input_y_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length,
         tile_length: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     x = asc2.global_tensor(input_x_ptr, [input_length])

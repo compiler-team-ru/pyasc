@@ -12,6 +12,7 @@ add_mlir_dialect_library(MLIRAscTransforms
   DeclarePyStructPass.cpp
   DefineCubeOnlyPass.cpp
   DetectKernelTypePass.cpp
+  DispatchAlloc.cpp
   EraseSync.cpp
   FillAscOperands.cpp
   FixupMmadAccParams.cpp

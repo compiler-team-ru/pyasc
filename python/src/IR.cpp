@@ -109,6 +109,7 @@ void bindAttrs(py::module& m)
     modAttr.attr("gm_barrier") = py::str(asctile::attr::gmBarrier);
     modAttr.attr("kernel_type") = py::str(ascendc::attr::kernelType);
     modAttr.attr("memory_consumed") = py::str(ascendc::attr::memoryConsumed);
+    modAttr.attr("static_alloc") = py::str(ascendc::attr::staticAlloc);
     modAttr.attr("soc_version") = py::str(ascendc::attr::socVersion);
     modAttr.attr("unroll_factor") = py::str(asctile::attr::unrollFactor);
     modAttr.attr("vf_vec_len") = py::str(ascendc::attr::vfVecLen);

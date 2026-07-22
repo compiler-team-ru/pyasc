@@ -16,7 +16,7 @@ STATIC = "static"
 DYNAMIC = "dynamic"
 
 
-@asc2.jit(static_alloc=True, reuse_alloc=1)
+@asc2.jit(reuse_alloc=1)
 def cast_direct(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length, block_loop_num,
                 block_loop_num_tail, block_length, tile_length: asc2.ConstExpr, dst_dtype: asc2.ConstExpr,
                 unroll_factor: asc2.ConstExpr):
@@ -34,7 +34,7 @@ def cast_direct(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, i
         asc2.copy_out(zt, out_gm, [current_offset])
 
 
-@asc2.jit(static_alloc=True, reuse_alloc=1)
+@asc2.jit(reuse_alloc=1)
 def cast_two(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length, block_loop_num,
              block_loop_num_tail, block_length, tile_length: asc2.ConstExpr, intermediate_dtype: asc2.ConstExpr,
              dst_dtype: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):

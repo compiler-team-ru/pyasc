@@ -102,7 +102,7 @@ void defineAscendCPasses(py::module& mod)
     DEFINE_ADD_PASS("add_detect_kernel_type", createDetectKernelTypePass);
     DEFINE_ADD_PASS("add_declare_py_struct", createDeclarePyStructPass);
     DEFINE_ADD_PASS("add_define_cube_only", createDefineCubeOnlyPass);
-    DEFINE_ADD_PASS("add_detect_enable_debug", createDetectEnableDebugPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_dispatch_alloc", createDispatchAllocPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_erase_sync", createEraseSyncPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_fill_asc_operands", createFillAscOperandsPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_fixup_mmad_acc_params_pass", createFixupMmadAccParamsPass);

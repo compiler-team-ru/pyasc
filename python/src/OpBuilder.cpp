@@ -424,6 +424,7 @@ void bindGetAttributes(py::class_<PyOpBuilder>& clss)
     using namespace pybind11::literals;
 
     clss.def("get_index_attr", [](PyOpBuilder& self, int64_t value) -> Attribute { return self->getIndexAttr(value); })
+        .def("get_bool_attr", [](PyOpBuilder& self, bool value) -> Attribute { return self->getBoolAttr(value); })
         .def("get_i8_attr", [](PyOpBuilder& self, int8_t value) -> Attribute { return self->getI8IntegerAttr(value); })
         .def(
             "get_i16_attr",
