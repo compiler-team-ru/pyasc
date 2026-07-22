@@ -60,20 +60,20 @@ def matmul_v3_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr
             shape = [tile_n, tile_k]
         b_l1 = asc2.copy_in(b_gm, [0, 0], shape, location=asc2.TensorLocation.L1)
     tile_uf, m_uf, n_uf, k_l1_uf, k_l0_uf = double_buffering
-    WINDOW_LEN = 4
-    main_window = min(WINDOW_LEN, m_blocks)
-    main_row = (m_blocks // main_window - 1) if m_blocks >= main_window else 0
-    tail_window = m_blocks - main_row * main_window
+    group_size = 4
+    main_group = min(group_size, m_blocks)
+    main_row = (m_blocks // main_group - 1) if m_blocks >= main_group else 0
+    tail_group = m_blocks - main_row * main_group
     for tile_id in range(asc2.block_idx(), tiles_num, asc2.block_num(), unroll_factor=tile_uf):
         tile_idx = tile_id % tiles_num
-        row_idx = tile_idx // n_blocks // main_window
-        m_idx = row_idx * main_window + tile_idx % main_window
-        n_idx = (tile_idx // main_window) % n_blocks
+        row_idx = tile_idx // n_blocks // main_group
+        m_idx = row_idx * main_group + tile_idx % main_group
+        n_idx = (tile_idx // main_group) % n_blocks
         if row_idx >= main_row:
-            tail_index = tile_idx - main_row * main_window * n_blocks
-            m_idx = main_row * main_window + tail_index % tail_window
-            n_idx = (tail_index // tail_window) % n_blocks
-            row_idx = m_idx // main_window
+            tail_index = tile_idx - main_row * main_group * n_blocks
+            m_idx = main_row * main_group + tail_index % tail_group
+            n_idx = (tail_index // tail_group) % n_blocks
+            row_idx = m_idx // main_group
         if row_idx % 2 != 0:
             n_idx = n_blocks - 1 - n_idx
         m_tile_off = m_L1 * m_idx
