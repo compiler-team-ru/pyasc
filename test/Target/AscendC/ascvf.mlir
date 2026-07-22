@@ -22,3 +22,15 @@ func.func @fuse(%calCount : index) {
     }
     return
 }
+
+// CHECK-LABEL: void emit_vf_group(uint32_t v1) {
+// CHECK-NEXT: {
+// CHECK-NEXT: }
+// CHECK-NEXT: return;
+// CHECK-NEXT: }
+func.func @emit_vf_group(%calCount : index) {
+    ascvf.vf_group %calCount : index {
+        ascvf.yield
+    } {operandSegmentSizes = array<i32: 0, 0, 1>}
+    return
+}

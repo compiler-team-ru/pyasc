@@ -314,3 +314,45 @@ func.func @emit_reduce_prod(%dst: !ascendc.local_tensor<1xf32>, %src: !ascendc.l
     ascendc.reduce_prod %dst, %src, %tmp, %0, %1 {asc.reuse_source, pattern = 1 : i32} : !ascendc.local_tensor<1xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<8192xui8>, i32, i32
     return
 }
+
+// CHECK-LABEL: void emit_broadcast(AscendC::LocalTensor<float> v1, AscendC::LocalTensor<float> v2, int32_t v3, int32_t v4, int32_t v5, int32_t v6) {
+// CHECK-NEXT: {
+// CHECK-NEXT: const uint32_t dstShape[2] = {v3, v4};
+// CHECK-NEXT: const uint32_t srcShape[2] = {v5, v6};
+// CHECK-NEXT: AscendC::BroadcastTiling bcTiling;
+// CHECK-NEXT: AscendC::GetBroadcastTilingInfo<float, 2>(2, dstShape, srcShape, false, bcTiling);
+// CHECK-NEXT: AscendC::Broadcast(v1, v2, dstShape, srcShape, &bcTiling);
+// CHECK-NEXT: }
+// CHECK-NEXT: return;
+// CHECK-NEXT: }
+func.func @emit_broadcast(%dst: !ascendc.local_tensor<*xf32>, %src: !ascendc.local_tensor<*xf32>, %d0: i32, %d1: i32, %s0: i32, %s1: i32) {
+  ascendc.broadcast %dst, %src, %d0, %d1, %s0, %s1 {operandSegmentSizes = array<i32: 1, 1, 2, 2>} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, i32, i32, i32, i32
+  return
+}
+
+// CHECK-LABEL: void emit_rms_norm(AscendC::LocalTensor<float> v1, AscendC::LocalTensor<float> v2, AscendC::LocalTensor<float> v3, float v4, RmsNormTiling v5) {
+// CHECK-NEXT: AscendC::RmsNorm<float, 0>(v1, v2, v3, v4, v5);
+// CHECK-NEXT: return;
+// CHECK-NEXT: }
+func.func @emit_rms_norm(%dst: !ascendc.local_tensor<*xf32>, %src: !ascendc.local_tensor<*xf32>, %gamma: !ascendc.local_tensor<*xf32>, %epsilon: f32, %tiling: !ascendc.rmsnorm_tiling) {
+  ascendc.rms_norm %dst, %src, %gamma, %epsilon, %tiling : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, f32, !ascendc.rmsnorm_tiling
+  return
+}
+
+// CHECK-LABEL: void emit_layer_norm(AscendC::LocalTensor<float> v1, AscendC::LocalTensor<float> v2, AscendC::LocalTensor<float> v3, AscendC::LocalTensor<float> v4, AscendC::LocalTensor<float> v5, AscendC::LocalTensor<float> v6, float v7, LayerNormTiling v8) {
+// CHECK-NEXT: AscendC::LayerNorm<float, 0>(v1, v2, v3, v4, v5, v6, v7, v8);
+// CHECK-NEXT: return;
+// CHECK-NEXT: }
+func.func @emit_layer_norm(%dst: !ascendc.local_tensor<*xf32>, %dstMean: !ascendc.local_tensor<*xf32>, %dstVar: !ascendc.local_tensor<*xf32>, %src: !ascendc.local_tensor<*xf32>, %gamma: !ascendc.local_tensor<*xf32>, %beta: !ascendc.local_tensor<*xf32>, %epsilon: f32, %tiling: !ascendc.layernorm_tiling) {
+  ascendc.layer_norm %dst, %dstMean, %dstVar, %src, %gamma, %beta, %epsilon, %tiling : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, f32, !ascendc.layernorm_tiling
+  return
+}
+
+// CHECK-LABEL: void emit_quant(AscendC::LocalTensor<int8_t> v1, AscendC::LocalTensor<float> v2, float v3, float v4, int32_t v5) {
+// CHECK-NEXT: AscendC::AscendQuant<float, 0>(v1, v2, v3, v4, v5);
+// CHECK-NEXT: return;
+// CHECK-NEXT: }
+func.func @emit_quant(%dst: !ascendc.local_tensor<*xi8>, %src: !ascendc.local_tensor<*xf32>, %scale: f32, %offset: f32, %calCount: i32) {
+  ascendc.quant %dst, %src, %scale, %offset, %calCount {operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 0, 0>} : !ascendc.local_tensor<*xi8>, !ascendc.local_tensor<*xf32>, f32, f32, i32
+  return
+}
