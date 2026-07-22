@@ -30,6 +30,7 @@ LITERAL maskSet = "asc.mask_set";
 LITERAL matmulCubeOnly = "asc.matmul_cube_only";
 LITERAL memoryConsumed = "asc.memory_consumed";
 LITERAL socVersion = "asc.soc_version";
+LITERAL staticAlloc = "asc.static_alloc";
 LITERAL vfVecLen = "asc.vf_vec_len";
 } // namespace attr
 

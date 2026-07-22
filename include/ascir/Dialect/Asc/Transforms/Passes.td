@@ -85,6 +85,17 @@ def DetectKernelType : Pass<"ascendc-detect-kernel-type", "ModuleOp"> {
   }];
 }
 
+def DispatchAlloc : Pass<"ascendc-dispatch-alloc", "func::FuncOp"> {
+  let summary = "Dispatch tensor allocation to static or TPipe-backed strategy based on target architecture";
+  let constructor = "mlir::ascendc::createDispatchAllocPass()";
+  let description = [{
+    Selects between static allocation and TPipe-backed allocation for on-chip tensor buffers. The decision
+    is based on the `asc.static_alloc` module attribute, target architecture, and presence of incompatible
+    operations. When targeting C310 architectures without `BroadcastOp`, static allocation is preferred;
+    otherwise TPipe-backed allocation is used.
+  }];
+}
+
 def EraseSync : Pass<"ascendc-erase-sync", "func::FuncOp"> {
   let summary = "Remove TQueBind synchronization operations and replace deque_tensor with allocated tensors";
   let constructor = "mlir::ascendc::createEraseSyncPass()";

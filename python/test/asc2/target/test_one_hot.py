@@ -16,7 +16,7 @@ STATIC = "static"
 DYNAMIC = "dynamic"
 
 
-@asc2.jit(static_alloc=True, reuse_alloc=1)
+@asc2.jit(reuse_alloc=1)
 def one_hot(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, arange_ptr: asc2.GlobalAddress,
             on_value: asc2.ConstExpr, off_value: asc2.ConstExpr, input_total, depth: asc2.ConstExpr,
             unroll_factor: asc2.ConstExpr):

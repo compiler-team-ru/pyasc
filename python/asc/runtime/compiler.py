@@ -149,8 +149,6 @@ class Compiler:
             raise RuntimeError(f"The vf fusion option is not supported for the {self.arch} architecture")
         if self.options.vf_vec_len is None and self.arch == CompilationArch.C310:
             self.options.vf_vec_len = 256
-        if self.options.static_alloc is None:
-            self.options.static_alloc = self.arch == CompilationArch.C310
         self.dump_dir: Optional[Path] = None
         dump_dir = os.environ.get("PYASC_DUMP_PATH", None)
         if dump_dir is not None:
@@ -238,11 +236,8 @@ class Compiler:
             passes.ascvf.add_eliminate_common_mask(pm)
             passes.ascvf.add_insert_local_mem_bar(pm)
             passes.ascvf.add_materialize_load_store(pm)
-        if self.options.static_alloc:
-            passes.ascendc.add_allocate_tensor(pm)
-            passes.ascendc.add_unify_bias_tensor(pm)
-        else:
-            passes.ascendc.add_materialize_tensor(pm, always_buf=arch_c310)
+        passes.ascendc.add_dispatch_alloc(pm)
+        passes.ascendc.add_unify_bias_tensor(pm)
         passes.ascendc.add_unify_pipe(pm)
         passes.common.add_canonicalizer(pm)
         passes.common.add_cse(pm)
@@ -307,6 +302,8 @@ class Compiler:
         builder = ir.Builder(mod.op)
         mod.set_attr(ir.attr.compilation_arch, builder.get_str_attr(self.arch.value))
         mod.set_attr(ir.attr.soc_version, builder.get_str_attr(self.soc_version.value))
+        if self.options.static_alloc is not None:
+            mod.set_attr(ir.attr.static_alloc, builder.get_bool_attr(self.options.static_alloc))
         if self.options.vf_vec_len is not None:
             mod.set_attr(ir.attr.vf_vec_len, builder.get_i32_attr(self.options.vf_vec_len))
         if self.options.run_passes:

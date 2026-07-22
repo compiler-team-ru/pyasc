@@ -25,6 +25,7 @@ std::unique_ptr<Pass> createDeclarePyStructPass();
 std::unique_ptr<Pass> createDefineCubeOnlyPass();
 std::unique_ptr<Pass> createDetectEnableDebugPass();
 std::unique_ptr<Pass> createDetectKernelTypePass();
+std::unique_ptr<Pass> createDispatchAllocPass();
 std::unique_ptr<Pass> createEraseSyncPass();
 std::unique_ptr<Pass> createFillAscOperandsPass();
 std::unique_ptr<Pass> createFixupMmadAccParamsPass();

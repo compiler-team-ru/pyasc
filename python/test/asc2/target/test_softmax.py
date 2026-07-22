@@ -14,7 +14,7 @@ STATIC = "static"
 DYNAMIC = "dynamic"
 
 
-@asc2.jit(static_alloc=True, reuse_alloc=1)
+@asc2.jit(reuse_alloc=1)
 def softmax_fused(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows: asc2.ConstExpr,
                   input_num_cols: asc2.ConstExpr, tile_shape: asc2.ConstExpr, rows_per_core: asc2.ConstExpr,
                   unroll_factor: asc2.ConstExpr):
@@ -40,7 +40,7 @@ def softmax_fused(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
         asc2.copy_out(out, out_gm, [row_start_offset, 0], real_shape=[real_rows, input_num_cols])
 
 
-@asc2.jit(static_alloc=True, reuse_alloc=1)
+@asc2.jit(reuse_alloc=1)
 def softmax_small_row(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows, input_num_cols,
                       tile_shape: asc2.ConstExpr, ub_loop, unroll_factor: asc2.ConstExpr):
     in_gm = asc2.global_tensor(input_ptr, [input_num_rows, input_num_cols])

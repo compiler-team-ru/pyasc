@@ -16,7 +16,7 @@ STATIC = "static"
 DYNAMIC = "dynamic"
 
 
-@asc2.jit(static_alloc=False, reuse_alloc=1)
+@asc2.jit(reuse_alloc=1)
 def broadcast_scalar(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length, output_num_rows,
                      output_num_cols, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     in_gm = asc2.global_tensor(input_ptr, [input_length])
@@ -32,7 +32,7 @@ def broadcast_scalar(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddre
         asc2.copy_out(res, out_gm, [0, start_offset + i * tile_shape[1]])
 
 
-@asc2.jit(static_alloc=False, reuse_alloc=1)
+@asc2.jit(reuse_alloc=1)
 def broadcast_first_dim(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length, output_num_rows,
                         output_num_cols, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     in_gm = asc2.global_tensor(input_ptr, [input_length])
@@ -52,8 +52,7 @@ def broadcast_first_dim(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAd
             asc2.copy_out(res, out_gm, [start_offset + i * tile_shape[0], col_start_offset])
 
 
-# static_alloc=False due to bug
-@asc2.jit(static_alloc=False, reuse_alloc=1)
+@asc2.jit(reuse_alloc=1)
 def broadcast_last_dim(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_length, output_num_rows,
                        output_num_cols, tile_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
     in_gm = asc2.global_tensor(input_ptr, [input_length])

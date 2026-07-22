@@ -39,9 +39,8 @@ def test_shape_op(require_c310, asc_op, torch_op, args, shape, dtype: torch.dtyp
     z = create_input(ref_z.shape)
     in_offsets = (0, ) * len(x.shape)
     out_offsets = (0, ) * len(ref_z.shape)
-    static_alloc = False if asc_op is asc2.broadcast_to else None
 
-    @asc2.jit(always_compile=True, static_alloc=static_alloc)
+    @asc2.jit(always_compile=True)
     def kernel(x_ptr, z_ptr, input_shape: asc2.ConstExpr, output_shape: asc2.ConstExpr, in_offsets: asc2.ConstExpr,
                out_offsets: asc2.ConstExpr, op: asc2.ConstExpr, op_param: asc2.ConstExpr) -> None:
         xt = asc2.copy_in(asc2.global_tensor(x_ptr, input_shape), in_offsets, input_shape)
@@ -68,9 +67,8 @@ def test_shape_op_with_list_or_tuple(require_c310, asc_op, torch_op, dst_shape, 
     in_offsets = (0, ) * len(x.shape)
     out_offsets = (0, ) * len(ref_z.shape)
     wrapped_args = iter_factory(dst_shape)
-    static_alloc = False if asc_op is asc2.broadcast_to else None
 
-    @asc2.jit(always_compile=True, static_alloc=static_alloc)
+    @asc2.jit(always_compile=True)
     def kernel(x_ptr, z_ptr, input_shape: asc2.ConstExpr, output_shape: asc2.ConstExpr, in_offsets: asc2.ConstExpr,
                out_offsets: asc2.ConstExpr, op: asc2.ConstExpr, op_param: asc2.ConstExpr) -> None:
         xt = asc2.copy_in(asc2.global_tensor(x_ptr, input_shape), in_offsets, input_shape)
