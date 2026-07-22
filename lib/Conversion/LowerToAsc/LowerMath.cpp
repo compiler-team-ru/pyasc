@@ -41,8 +41,8 @@ struct ConvertUnaryToLib : public ConvertOp<MathOp> {
         auto loc = op.getLoc();
         Value dst = createTensorOp(rewriter, loc, op.getType());
         auto src = rewriter.getRemappedValue(op->getOperand(0));
-        rewriter.create<LibraryOp>(
-            loc, dst, src, /*sharedTmpBuffer*/ Value{}, consts.i64(calCount(dst)), consts.i1(false));
+        Value count = consts.i64(calCount(dst));
+        rewriter.create<LibraryOp>(loc, dst, src, /*sharedTmpBuffer*/ Value{}, count, consts.i1(false));
         rewriter.replaceOp(op, dst);
         return success();
     }
