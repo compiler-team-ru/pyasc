@@ -34,13 +34,20 @@ int64_t getTypeSize(Type type)
     return type.getIntOrFloatBitWidth() / CHAR_BIT;
 }
 
-int64_t getTypeSizeCubeBlockAlign(ShapedType type)
+int64_t getTypeSizeCubeBlockAlign(ShapedType type, TPosition position)
 {
+    auto shape = type.getShape();
+    int64_t elemSize = getElementTypeSize(type);
+    int64_t elemAlign = cubeKBlockBytes / elemSize;
     int64_t size = 1;
-    for (auto dim : type.getShape()) {
-        size *= static_cast<int64_t>(llvm::alignTo<cubeBlockSize>(dim));
+    for (size_t i = 0; i < shape.size(); ++i) {
+        int64_t align = cubeBlockSize;
+        if (position == TPosition::A2 && i == 1 || position == TPosition::B2 && i == 0) {
+            align = elemAlign;
+        }
+        size *= static_cast<int64_t>(llvm::alignTo(shape[i], align));
     }
-    return size * getElementTypeSize(type);
+    return size * elemSize;
 }
 
 int64_t getElementTypeSize(ShapedType type) { return getTypeSize(type.getElementType()); }
