@@ -94,7 +94,7 @@ int64_t getAllocationSize(TensorOp op)
     auto shapedType = cast<ShapedType>(op.getType());
     auto pos = op.getPosition();
     if (pos == ascendc::TPosition::A1 || pos == ascendc::TPosition::A2 || pos == ascendc::TPosition::B2)
-        return ascendc::getTypeSizeCubeBlockAlign(shapedType);
+        return ascendc::getTypeSizeCubeBlockAlign(shapedType, pos);
     return ascendc::getTypeSize(op.getType());
 }
 
