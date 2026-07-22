@@ -1,0 +1,48 @@
+// RUN: ascir-opt %s --ascendc-compute-memory-consumption --split-input-file | FileCheck %s
+
+// CHECK-LABEL: module attributes {asc.memory_consumed = {UB = 1536 : i64}} {
+// CHECK-NEXT: func.func @test_ub() {
+// CHECK-NEXT: %0 = ascendc.local_tensor_v3 veccalc, 0, 256 : !ascendc.local_tensor<64xf32>
+// CHECK-NEXT: %1 = ascendc.local_tensor_v3 veccalc, 1024, 128 : !ascendc.local_tensor<32xf32>
+// CHECK-NEXT: return
+// CHECK-NEXT: }
+// CHECK-NEXT: }
+module {
+  func.func @test_ub() {
+    %0 = ascendc.local_tensor_v3 veccalc, 0, 256 : !ascendc.local_tensor<64xf32>
+    %1 = ascendc.local_tensor_v3 veccalc, 1024, 128 : !ascendc.local_tensor<32xf32>
+    return
+  }
+}
+
+// -----
+
+// CHECK-LABEL: module attributes {asc.memory_consumed = {L0A = 256 : i64, L1 = 512 : i64, UB = 1024 : i64}} {
+// CHECK-NEXT: func.func @test_mixed() {
+// CHECK-NEXT: %0 = ascendc.local_tensor_v3 veccalc, 0, 256 : !ascendc.local_tensor<64xf32>
+// CHECK-NEXT: %1 = ascendc.local_tensor_v3 a1, 0, 128 : !ascendc.local_tensor<32xf32>
+// CHECK-NEXT: %2 = ascendc.local_tensor_v3 a2, 0, 64 : !ascendc.local_tensor<16xf32>
+// CHECK-NEXT: return
+// CHECK-NEXT: }
+// CHECK-NEXT: }
+module {
+  func.func @test_mixed() {
+    %0 = ascendc.local_tensor_v3 veccalc, 0, 256 : !ascendc.local_tensor<64xf32>
+    %1 = ascendc.local_tensor_v3 a1, 0, 128 : !ascendc.local_tensor<32xf32>
+    %2 = ascendc.local_tensor_v3 a2, 0, 64 : !ascendc.local_tensor<16xf32>
+    return
+  }
+}
+
+// -----
+
+// CHECK-LABEL: module attributes {asc.memory_consumed = {}} {
+// CHECK-NEXT: func.func @test_empty() {
+// CHECK-NEXT: return
+// CHECK-NEXT: }
+// CHECK-NEXT: }
+module {
+  func.func @test_empty() {
+    return
+  }
+}

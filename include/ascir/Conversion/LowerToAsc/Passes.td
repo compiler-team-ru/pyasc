@@ -111,7 +111,8 @@ def LowerAscTileDataTransfer : Pass<"asclower-asctile-data-transfer", "func::Fun
   let summary = "Lower asctile data transfer operations (load, store, copy) to ascendc memory operations";
   let constructor = "mlir::asclower::createLowerAscTileDataTransferPass()";
   let dependentDialects = [
-    "arith::ArithDialect", "ascendc::AscendCDialect", "emitasc::EmitAscDialect", "scf::SCFDialect",
+    "arith::ArithDialect", "ascendc::AscendCDialect", "emitasc::EmitAscDialect", "emitc::EmitCDialect",
+    "scf::SCFDialect"
   ];
   let description = [{
     Converts AscTile memory transfer operations to Ascend C equivalents:

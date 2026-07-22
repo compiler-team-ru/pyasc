@@ -1,4 +1,4 @@
-// RUN: ascir-opt --asclower-asctile --canonicalize %s | FileCheck %s
+// RUN: ascir-opt -asclower-asctile -canonicalize -split-input-file %s | FileCheck %s
 
 // CHECK-LABEL: func.func @lower_splat(%arg0: f32) -> tensor<32xf32, #asctile.local<UB>> {
 // CHECK:       %0 = ascendc.local_tensor_auto veccalc() : <32xf32>
@@ -121,6 +121,21 @@ func.func @lower_matmul_acc_hf32(%arg0: tensor<8x16xf32, #asctile.local<L0A>>, %
 // CHECK-NEXT:}
 func.func @lower_matmul_acc_from_accumulator(%arg0: tensor<8x16xf32, #asctile.local<L0A>>, %arg1: tensor<16x8xf32, #asctile.local<L0B>>) -> tensor<8x8xf32, #asctile.local<L0C>> {
   %0 = asctile.accumulator : tensor<8x8xf32, #asctile.local<L0C>>
+  asctile.matmul_acc %0, %arg0, %arg1 : tensor<8x8xf32, #asctile.local<L0C>>, tensor<8x16xf32, #asctile.local<L0A>>, tensor<16x8xf32, #asctile.local<L0B>>
+  return %0 : tensor<8x8xf32, #asctile.local<L0C>>
+}
+
+// CHECK-LABEL: func.func @lower_matmul_acc_from_accumulator_with_bias(%arg0: tensor<8x16xf32, #asctile.local<L0A>>, %arg1: tensor<16x8xf32, #asctile.local<L0B>>, %arg2: tensor<8xf16, #asctile.local<BT>>) -> tensor<8x8xf32, #asctile.local<L0C>> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg1 : tensor<16x8xf32, #asctile.local<L0B>> to !ascendc.local_tensor<16x8xf32>
+// CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %arg0 : tensor<8x16xf32, #asctile.local<L0A>> to !ascendc.local_tensor<8x16xf32>
+// CHECK-NEXT:  %2 = ascendc.local_tensor_auto co1() : <8x8xf32>
+// CHECK-NEXT:  %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<8x8xf32> to tensor<8x8xf32, #asctile.local<L0C>>
+// CHECK-NEXT:  %4 = emitasc.init_struct !ascendc.mmad_params("m" = %c8_i32 : i32, "n" = %c8_i32 : i32, "k" = %c16_i32 : i32, "cmatrixInitVal" = %false : i1, "cmatrixSource" = %true : i1)
+// CHECK-NEXT:  ascendc.mmad %2, %1, %0, %4 : !ascendc.local_tensor<8x8xf32>, !ascendc.local_tensor<8x16xf32>, !ascendc.local_tensor<16x8xf32>, !ascendc.mmad_params
+// CHECK-NEXT:  return %3 : tensor<8x8xf32, #asctile.local<L0C>>
+// CHECK-NEXT:}
+func.func @lower_matmul_acc_from_accumulator_with_bias(%arg0: tensor<8x16xf32, #asctile.local<L0A>>, %arg1: tensor<16x8xf32, #asctile.local<L0B>>, %arg2: tensor<8xf16, #asctile.local<BT>>) -> tensor<8x8xf32, #asctile.local<L0C>> {
+  %0 = asctile.accumulator %arg2 : tensor<8x8xf32, #asctile.local<L0C>>, tensor<8xf16, #asctile.local<BT>>
   asctile.matmul_acc %0, %arg0, %arg1 : tensor<8x8xf32, #asctile.local<L0C>>, tensor<8x16xf32, #asctile.local<L0A>>, tensor<16x8xf32, #asctile.local<L0B>>
   return %0 : tensor<8x8xf32, #asctile.local<L0C>>
 }
@@ -481,4 +496,88 @@ func.func @lower_layer_norm(%arg0: tensor<4x256xf32, #asctile.local<UB>>, %arg1:
   %cst = arith.constant 1.000000e-05 : f32
   %result, %mean, %var = asctile.layer_norm %arg0, %arg1, %arg2, %cst : tensor<4x256xf32, #asctile.local<UB>>, tensor<256xf32, #asctile.local<UB>>, tensor<256xf32, #asctile.local<UB>>, tensor<4x1xf32, #asctile.local<UB>>, tensor<4x1xf32, #asctile.local<UB>>
   return %result, %mean, %var : tensor<4x256xf32, #asctile.local<UB>>, tensor<4x1xf32, #asctile.local<UB>>, tensor<4x1xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @lower_rms_norm(%arg0: tensor<16x32xf32, #asctile.local<UB>>, %arg1: tensor<32xf32, #asctile.local<UB>>, %arg2: f32) -> tensor<16x32xf32, #asctile.local<UB>> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg1 : tensor<32xf32, #asctile.local<UB>> to !ascendc.local_tensor<32xf32>
+// CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %arg0 : tensor<16x32xf32, #asctile.local<UB>> to !ascendc.local_tensor<16x32xf32>
+// CHECK-NEXT:  %2 = ascendc.local_tensor_auto veccalc() : <16x32xf32>
+// CHECK-NEXT:  %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<16x32xf32> to tensor<16x32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %4 = ascendc.local_tensor_auto veccalc() : <4096xui8>
+// CHECK-NEXT:  %5 = emitasc.init_struct !ascendc.rmsnorm_tiling("bLength" = %c16_i32 : i32, "sLength" = %c1_i32 : i32, "hLength" = %c32_i32 : i32, "originalHLength" = %c32_i32 : i32, "reciprocalOfHLength" = %cst : f32, "mainBshLength" = %c512_i32 : i32, "mainBsLength" = %c16_i32 : i32, "mainBsLengthAlign" = %c16_i32 : i32, "loopRound" = %c1_i32 : i32, "tailBshLength" = %c0_i32 : i32, "inputTailPos" = %c512_i32 : i32, "tailBsLength" = %c0_i32 : i32)
+// CHECK-NEXT:  ascendc.rms_norm %2, %1, %0, %arg2, %5, %4 : !ascendc.local_tensor<16x32xf32>, !ascendc.local_tensor<16x32xf32>, !ascendc.local_tensor<32xf32>, f32, !ascendc.rmsnorm_tiling, !ascendc.local_tensor<4096xui8>
+// CHECK-NEXT:  return %3 : tensor<16x32xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @lower_rms_norm(%arg0: tensor<16x32xf32, #asctile.local<UB>>, %arg1: tensor<32xf32, #asctile.local<UB>>, %arg2: f32) -> tensor<16x32xf32, #asctile.local<UB>> {
+  %0 = asctile.rms_norm %arg0, %arg1, %arg2 : tensor<16x32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>
+  return %0 : tensor<16x32xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @lower_transpose_ub(%arg0: tensor<16x32xf32, #asctile.local<UB>>) -> tensor<32x16xf32, #asctile.local<UB>> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : tensor<16x32xf32, #asctile.local<UB>> to !ascendc.local_tensor<16x32xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <32x16xf32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<32x16xf32> to tensor<32x16xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %3 = ascendc.construct !ascendc.trans_data_to_5hd_params(%false, %false, %c4_i32, %c16_i16, %c1_i16) [i1, i1, ui8, ui16, ui16] : i1, i1, i32, i16, i16
+// CHECK-NEXT:  ascendc.trans_data_to_5hd_tensor %1, %0, %3 {dstOffsets = array<i32: 0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480>, srcOffsets = array<i32: 0, 128, 256, 384, 512, 640, 768, 896, 1024, 1152, 1280, 1408, 1536, 1664, 1792, 1920>} : !ascendc.local_tensor<32x16xf32>, !ascendc.local_tensor<16x32xf32>, !ascendc.trans_data_to_5hd_params
+// CHECK-NEXT:  return %2 : tensor<32x16xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @lower_transpose_ub(%arg0: tensor<16x32xf32, #asctile.local<UB>>) -> tensor<32x16xf32, #asctile.local<UB>> {
+  %0 = asctile.transpose %arg0, [1 : i32, 0 : i32] : tensor<16x32xf32, #asctile.local<UB>> to tensor<32x16xf32, #asctile.local<UB>>
+  return %0 : tensor<32x16xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @lower_subs(%arg0: tensor<4x256xf32, #asctile.local<UB>>, %arg1: f32) -> tensor<4x256xf32, #asctile.local<UB>> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : tensor<4x256xf32, #asctile.local<UB>> to !ascendc.local_tensor<4x256xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <4x256xf32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<4x256xf32> to tensor<4x256xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %3 = ascendc.local_tensor_auto veccalc() : <4x256xf32>
+// CHECK-NEXT:  ascendc.duplicate_l2 %3, %arg1, %c1024_i64 : !ascendc.local_tensor<4x256xf32>, f32, i64
+// CHECK-NEXT:  ascendc.sub_l2 %1, %0, %3, %c1024_i64 : !ascendc.local_tensor<4x256xf32>, !ascendc.local_tensor<4x256xf32>, !ascendc.local_tensor<4x256xf32>, i64
+// CHECK-NEXT:  return %2 : tensor<4x256xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @lower_subs(%arg0: tensor<4x256xf32, #asctile.local<UB>>, %arg1: f32) -> tensor<4x256xf32, #asctile.local<UB>> {
+  %0 = asctile.subs %arg0, %arg1 : tensor<4x256xf32, #asctile.local<UB>>
+  return %0 : tensor<4x256xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @lower_divs(%arg0: tensor<4x256xf32, #asctile.local<UB>>, %arg1: f32) -> tensor<4x256xf32, #asctile.local<UB>> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : tensor<4x256xf32, #asctile.local<UB>> to !ascendc.local_tensor<4x256xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <4x256xf32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<4x256xf32> to tensor<4x256xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %3 = ascendc.local_tensor_auto veccalc() : <4x256xf32>
+// CHECK-NEXT:  ascendc.duplicate_l2 %3, %arg1, %c1024_i64 : !ascendc.local_tensor<4x256xf32>, f32, i64
+// CHECK-NEXT:  ascendc.div_l2 %1, %0, %3, %c1024_i64 : !ascendc.local_tensor<4x256xf32>, !ascendc.local_tensor<4x256xf32>, !ascendc.local_tensor<4x256xf32>, i64
+// CHECK-NEXT:  return %2 : tensor<4x256xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @lower_divs(%arg0: tensor<4x256xf32, #asctile.local<UB>>, %arg1: f32) -> tensor<4x256xf32, #asctile.local<UB>> {
+  %0 = asctile.divs %arg0, %arg1 : tensor<4x256xf32, #asctile.local<UB>>
+  return %0 : tensor<4x256xf32, #asctile.local<UB>>
+}
+
+// -----
+
+module attributes {asc.compilation_arch = "c310"} {
+// CHECK-LABEL: func.func @lower_subs_c310(%arg0: tensor<4x256xf32, #asctile.local<UB>>, %arg1: f32) -> tensor<4x256xf32, #asctile.local<UB>> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : tensor<4x256xf32, #asctile.local<UB>> to !ascendc.local_tensor<4x256xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <4x256xf32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<4x256xf32> to tensor<4x256xf32, #asctile.local<UB>>
+// CHECK-NEXT:  ascendc.subs_l2 %1, %0, %arg1, %c1024_i64 : !ascendc.local_tensor<4x256xf32>, !ascendc.local_tensor<4x256xf32>, f32, i64
+// CHECK-NEXT:  return %2 : tensor<4x256xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+  func.func @lower_subs_c310(%arg0: tensor<4x256xf32, #asctile.local<UB>>, %arg1: f32) -> tensor<4x256xf32, #asctile.local<UB>> {
+    %0 = asctile.subs %arg0, %arg1 : tensor<4x256xf32, #asctile.local<UB>>
+    return %0 : tensor<4x256xf32, #asctile.local<UB>>
+  }
+
+// CHECK-LABEL: func.func @lower_divs_c310(%arg0: tensor<4x256xf32, #asctile.local<UB>>, %arg1: f32) -> tensor<4x256xf32, #asctile.local<UB>> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : tensor<4x256xf32, #asctile.local<UB>> to !ascendc.local_tensor<4x256xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <4x256xf32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<4x256xf32> to tensor<4x256xf32, #asctile.local<UB>>
+// CHECK-NEXT:  ascendc.divs_l2 %1, %0, %arg1, %c1024_i64 : !ascendc.local_tensor<4x256xf32>, !ascendc.local_tensor<4x256xf32>, f32, i64
+// CHECK-NEXT:  return %2 : tensor<4x256xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+  func.func @lower_divs_c310(%arg0: tensor<4x256xf32, #asctile.local<UB>>, %arg1: f32) -> tensor<4x256xf32, #asctile.local<UB>> {
+    %0 = asctile.divs %arg0, %arg1 : tensor<4x256xf32, #asctile.local<UB>>
+    return %0 : tensor<4x256xf32, #asctile.local<UB>>
+  }
 }

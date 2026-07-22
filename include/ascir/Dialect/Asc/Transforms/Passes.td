@@ -100,6 +100,7 @@ def EraseSync : Pass<"ascendc-erase-sync", "func::FuncOp"> {
 def FillAscOperands : Pass<"ascendc-fill-asc-operands", "func::FuncOp"> {
   let summary = "Fill default mask, repeat_times, and repeat_params operands for L0/L2 Ascend C operations";
   let constructor = "mlir::ascendc::createFillAscOperandsPass()";
+  let dependentDialects = ["ascendc::AscendCDialect", "emitasc::EmitAscDialect"];
   let description = [{
     Populates default operands for vector operations based on tensor shape:
     - **L0 operations**: Fills `mask`, `repeat_times`, and `repeat_params` (stride values)
@@ -379,6 +380,7 @@ def LegalizeKernelArgs : Pass<"ascendc-legalize-kernel-args", "ModuleOp"> {
 def LowerToL0 : Pass<"ascendc-lower-to-l0", "func::FuncOp"> {
   let summary = "Lower L2 vector operations to L0 intrinsics with default repeat parameters";
   let constructor = "mlir::ascendc::createLowerToL0Pass()";
+  let dependentDialects = ["ascendc::AscendCDialect", "emitasc::EmitAscDialect"];
   let description = [{
     Converts L2-level vector operations to L0-level hardware intrinsics:
     - Unary L2→L0: `abs_l2`→`abs_l0`, `exp_l2`→`exp_l0`, etc. with mask, repeat_times=0, empty repeat_params
@@ -416,6 +418,7 @@ def PrivatizeFunc : Pass<"ascendc-privatize-func", "ModuleOp"> {
 def ReuseTensorAllocation : Pass<"ascendc-reuse-tensor-allocation", "func::FuncOp"> {
   let summary = "Reuse freed on-chip allocations based on unroll_iter lifetime analysis";
   let constructor = "mlir::ascendc::createReuseTensorAllocationPass()";
+  let dependentDialects = ["ascendc::AscendCDialect"];
   let description = [{
     Reuses freed on-chip buffer allocations by inserting `LocalTensorReinterpretCastOp`.
     Covers VECCALC (UB), A1 (L1), A2 (L0A), B2 (L0B), and CO1 (L0C) positions.
@@ -451,6 +454,7 @@ def ReuseUBAllocation : Pass<"ascendc-reuse-ub-allocation", "func::FuncOp"> {
     Option<"reuseInOut", "reuse-in-out", "bool", "false",
            "Allow reuse between input/output tensors even in same loop">,
   ];
+  let dependentDialects = ["ascendc::AscendCDialect"];
   let description = [{
     Analyzes tensor lifetimes and reuses freed UB allocations by inserting `LocalTensorReinterpretCastOp`:
     1. For each block, collects `LocalTensorAutoOp` tensors and their last users
