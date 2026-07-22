@@ -515,6 +515,81 @@ Follow the standard memory flow pattern:
    # With chaining
    GM ➔ L1 ➔ L0A/L0B ➔ L0C ➔ L1 ➔ L0A ➔ L0C ➔ GM
 
+L2 Cache Optimization via M-Block Grouping
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When tiling along the M dimension, multiple M-blocks share the same B matrix tiles across the K and N dimensions. By grouping adjacent M-blocks together and processing all N-blocks for each group before moving to the next group, the B matrix tiles remain in L2 cache and are reused across M-blocks within the group, significantly reducing GM bandwidth.
+
+**Algorithm:**
+
+1. Divide M-blocks into groups of size ``group_size`` (typically 2–4).
+2. For each group, iterate over all N-blocks, loading B tiles once and reusing them for every M-block in the group.
+3. Apply snake-order traversal: reverse the N-block iteration direction for odd group rows to improve spatial locality between consecutive groups.
+4. Handle the tail group (remaining M-blocks that do not fill a complete group) separately.
+
+.. code-block::
+
+   M-blocks layout (group_size=4, m_blocks=10):
+
+   Group row 0:  [m0 m1 m2 m3] → N: 0, 1, 2, ..., n-1        (forward)
+   Group row 1:  [m4 m5 m6 m7] → N: n-1, n-2, ..., 1, 0      (reversed)
+   Tail group:   [m8 m9]       → N: 0, 1, 2, ..., n-1        (forward)
+
+Example:
+
+.. code-block:: python
+
+   @asc2.jit
+   def matmul_l2_cache_kernel(a_ptr, b_ptr, c_ptr, m, k, n, m_L1, n_L1, k_L1, base_m, base_n, base_k):
+       a_gm = asc2.global_tensor(a_ptr, [m, k])
+       b_gm = asc2.global_tensor(b_ptr, [k, n])
+       c_gm = asc2.global_tensor(c_ptr, [m, n])
+
+       m_blocks = asc2.ceildiv(m, m_L1)
+       n_blocks = asc2.ceildiv(n, n_L1)
+       tiles_num = m_blocks * n_blocks
+
+       group_size = 4
+       main_group = min(group_size, m_blocks)
+       main_row = (m_blocks // main_group - 1) if m_blocks >= main_group else 0
+       tail_group = m_blocks - main_row * main_group
+
+       for tile_id in range(asc2.block_idx(), tiles_num, asc2.block_num()):
+           tile_idx = tile_id % tiles_num
+           row_idx = tile_idx // n_blocks // main_group
+           m_idx = row_idx * main_group + tile_idx % main_group
+           n_idx = (tile_idx // main_group) % n_blocks
+
+           # Handle tail group
+           if row_idx >= main_row:
+               tail_index = tile_idx - main_row * main_group * n_blocks
+               m_idx = main_row * main_group + tail_index % tail_group
+               n_idx = (tail_index // tail_group) % n_blocks
+               row_idx = m_idx // main_group
+
+           # Snake-order: reverse N direction for odd rows
+           if row_idx % 2 != 0:
+               n_idx = n_blocks - 1 - n_idx
+
+           m_gm_off = m_L1 * m_idx
+           n_gm_off = n_L1 * n_idx
+
+           acc = asc2.zeros_acc([base_m, base_n], dtype=asc2.float32)
+           for outer_k in range(asc2.ceildiv(k, k_L1)):
+               a_l1 = asc2.copy_in(a_gm, [m_gm_off, outer_k * k_L1], [base_m, k_L1], asc2.TensorLocation.L1)
+               b_l1 = asc2.copy_in(b_gm, [outer_k * k_L1, n_gm_off], [k_L1, base_n], asc2.TensorLocation.L1)
+               for inner_k in range(asc2.ceildiv(k_L1, base_k)):
+                   a_l0 = asc2.copy(a_l1, [0, inner_k * base_k], [base_m, base_k], asc2.TensorLocation.L0A)
+                   b_l0 = asc2.copy(b_l1, [inner_k * base_k, 0], [base_k, base_n], asc2.TensorLocation.L0B)
+                   asc2.matmul_acc(acc, a_l0, b_l0)
+           asc2.copy_out(acc, c_gm, offsets=[m_gm_off, n_gm_off])
+
+**Key benefits:**
+
+* B matrix tiles loaded for one M-block are reused by other M-blocks in the same group via L2 cache
+* Snake-order traversal improves locality between consecutive groups
+* Larger ``group_size`` increases B tile reuse but requires more L2 cache capacity
+
 Complete Example
 ----------------
 
