@@ -401,7 +401,7 @@ def setup() -> None:
             "asc/lib/host": ["bindings/*.cpp"],
         },
         install_requires=[
-            "pybind11==2.13.1",
+            "pybind11==2.10.3",
             "numpy<2",
             "typing_extensions",
         ],

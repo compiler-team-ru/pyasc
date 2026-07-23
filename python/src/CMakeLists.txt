@@ -9,7 +9,7 @@
 set(TARGET_NAME libpyasc)
 
 find_package(Python3 3.9 REQUIRED COMPONENTS Development.Module Interpreter)
-find_package(pybind11 2.13.1 CONFIG REQUIRED HINTS "${Python3_SITELIB}")
+find_package(pybind11 2.10.3 CONFIG REQUIRED HINTS "${Python3_SITELIB}")
 
 pybind11_add_module(${TARGET_NAME} MODULE NO_EXTRAS
   IR.cpp
