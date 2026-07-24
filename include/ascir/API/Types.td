@@ -390,8 +390,18 @@ def RmsNormTiling : APIType<"RmsNormTiling"> {
 }
 
 def LayerNormTiling : APIType<"LayerNormTiling"> {
-  let mnemonic = "layernorm_tiling";
+  let mnemonic = "layer_norm_tiling";
   let apiName = "LayerNormTiling";
+}
+
+def LayerNormSeparateTiling : APIType<"LayerNormSeparateTiling"> {
+  let mnemonic = "layer_norm_separate_tiling";
+  let apiName = "LayerNormSeparateTiling";
+}
+
+def LayerNormPara : APIType<"LayerNormPara"> {
+  let mnemonic = "layer_norm_para";
+  let apiName = "AscendC::LayerNormPara";
 }
 
 def ScheduleType : APIType<"ScheduleType"> {

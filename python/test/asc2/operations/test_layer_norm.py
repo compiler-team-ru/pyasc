@@ -1,13 +1,20 @@
 import asc2
 import pytest
 import torch
+from asc.runtime import config
+
+tolerances = {
+    torch.float32: {"rtol": 1e-5, "atol": 1e-5},
+    torch.float16: {"rtol": 1e-3, "atol": 1e-3},
+    torch.bfloat16: {"rtol": 1e-2, "atol": 1e-2},
+}
 
 
 @asc2.jit(always_compile=True)
 def layer_norm_1d(x_ptr: asc2.GlobalAddress, gamma_ptr: asc2.GlobalAddress, beta_ptr: asc2.GlobalAddress,
                   out_ptr: asc2.GlobalAddress, mean_ptr: asc2.GlobalAddress, var_ptr: asc2.GlobalAddress,
                   size: asc2.ConstExpr, tile_size: asc2.ConstExpr, tile_per_block: asc2.ConstExpr,
-                  epsilon: asc2.ConstExpr, mv_repeat: asc2.ConstExpr) -> None:
+                  epsilon: asc2.ConstExpr, mv_repeat: asc2.ConstExpr, output_rstd: asc2.ConstExpr) -> None:
     x_gm = asc2.global_tensor(x_ptr, [size])
     gamma_gm = asc2.global_tensor(gamma_ptr, [size])
     beta_gm = asc2.global_tensor(beta_ptr, [size])
@@ -21,7 +28,7 @@ def layer_norm_1d(x_ptr: asc2.GlobalAddress, gamma_ptr: asc2.GlobalAddress, beta
         x_tile = asc2.copy_in(x_gm, [tile_offset], [tile_size])
         gamma_tile = asc2.copy_in(gamma_gm, [tile_offset], [tile_size])
         beta_tile = asc2.copy_in(beta_gm, [tile_offset], [tile_size])
-        out_tile, mean_tile, var_tile = asc2.layer_norm(x_tile, gamma_tile, beta_tile, epsilon)
+        out_tile, mean_tile, var_tile = asc2.layer_norm(x_tile, gamma_tile, beta_tile, epsilon, output_rstd=output_rstd)
         asc2.copy_out(out_tile, out_gm, [tile_offset])
         mean_buf = asc2.broadcast_to(mean_tile, [mv_repeat])
         var_buf = asc2.broadcast_to(var_tile, [mv_repeat])
@@ -33,7 +40,7 @@ def layer_norm_1d(x_ptr: asc2.GlobalAddress, gamma_ptr: asc2.GlobalAddress, beta
 def layer_norm_2d(x_ptr: asc2.GlobalAddress, gamma_ptr: asc2.GlobalAddress, beta_ptr: asc2.GlobalAddress,
                   out_ptr: asc2.GlobalAddress, mean_ptr: asc2.GlobalAddress, var_ptr: asc2.GlobalAddress,
                   num_rows: asc2.ConstExpr, num_cols: asc2.ConstExpr, epsilon: asc2.ConstExpr,
-                  mv_repeat: asc2.ConstExpr) -> None:
+                  mv_repeat: asc2.ConstExpr, output_rstd: asc2.ConstExpr) -> None:
     x_gm = asc2.global_tensor(x_ptr, [num_rows, num_cols])
     gamma_gm = asc2.global_tensor(gamma_ptr, [num_cols])
     beta_gm = asc2.global_tensor(beta_ptr, [num_cols])
@@ -44,7 +51,7 @@ def layer_norm_2d(x_ptr: asc2.GlobalAddress, gamma_ptr: asc2.GlobalAddress, beta
         x_tile = asc2.copy_in(x_gm, [i, 0], [1, num_cols])
         gamma_tile = asc2.copy_in(gamma_gm, [0], [num_cols])
         beta_tile = asc2.copy_in(beta_gm, [0], [num_cols])
-        out_tile, mean_tile, var_tile = asc2.layer_norm(x_tile, gamma_tile, beta_tile, epsilon)
+        out_tile, mean_tile, var_tile = asc2.layer_norm(x_tile, gamma_tile, beta_tile, epsilon, output_rstd=output_rstd)
         asc2.copy_out(out_tile, out_gm, [i, 0])
         mean_buf = asc2.broadcast_to(mean_tile, [mv_repeat])
         var_buf = asc2.broadcast_to(var_tile, [mv_repeat])
@@ -52,7 +59,8 @@ def layer_norm_2d(x_ptr: asc2.GlobalAddress, gamma_ptr: asc2.GlobalAddress, beta
         asc2.copy_out(var_buf, var_gm, [i * mv_repeat])
 
 
-@pytest.mark.parametrize("dtype", [torch.float16, torch.float32])
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32])
+@pytest.mark.parametrize("output_rstd", [True, False])
 @pytest.mark.parametrize("core_num, size", [
     (1, 1024),
     (2, 2048),
@@ -60,7 +68,9 @@ def layer_norm_2d(x_ptr: asc2.GlobalAddress, gamma_ptr: asc2.GlobalAddress, beta
     (8, 8192),
     (16, 16384),
 ])
-def test_layer_norm_1d(dtype, core_num, size):
+def test_layer_norm_1d(dtype, output_rstd, core_num, size, require_c310, platform):
+    if dtype == torch.bfloat16:
+        require_c310()
     epsilon = 1e-3
     x = torch.randn(size, dtype=dtype)
     gamma = torch.randn(size, dtype=dtype)
@@ -70,13 +80,13 @@ def test_layer_norm_1d(dtype, core_num, size):
     num_tiles = asc2.ceildiv(size, tile_size)
     tile_per_block = asc2.ceildiv(num_tiles, core_num)
     mv_repeat = 16 if dtype == torch.float16 else 8
-    mean = torch.empty(num_tiles * mv_repeat, dtype=dtype)
-    var = torch.empty(num_tiles * mv_repeat, dtype=dtype)
+    mean = torch.empty(num_tiles * mv_repeat, dtype=torch.float32)
+    var = torch.empty(num_tiles * mv_repeat, dtype=torch.float32)
     layer_norm_1d[core_num](x, gamma, beta, out, mean, var, size, tile_size, tile_per_block, epsilon=epsilon,
-                            mv_repeat=mv_repeat)
+                            mv_repeat=mv_repeat, output_rstd=output_rstd)
     expected = torch.empty_like(x)
-    expected_mean = torch.empty(num_tiles, dtype=dtype)
-    expected_var = torch.empty(num_tiles, dtype=dtype)
+    expected_mean = torch.empty(num_tiles, dtype=torch.float32)
+    expected_var = torch.empty(num_tiles, dtype=torch.float32)
     for i in range(num_tiles):
         start = i * tile_size
         end = min(start + tile_size, size)
@@ -87,14 +97,17 @@ def test_layer_norm_1d(dtype, core_num, size):
                                                              eps=epsilon)
         expected_mean[i] = tile_mean
         expected_var[i] = tile_var
-    torch.testing.assert_close(out, expected, rtol=1e-3, atol=1e-3)
+        if output_rstd or config.platform_to_arch(platform) == config.CompilationArch.C220:
+            expected_var[i] = 1.0 / torch.sqrt(tile_var + epsilon)
+    torch.testing.assert_close(out, expected, **tolerances[dtype])
     recieve_mean = mean[::mv_repeat]
     recieve_var = var[::mv_repeat]
-    torch.testing.assert_close(expected_mean, recieve_mean, rtol=1e-3, atol=1e-3)
-    torch.testing.assert_close(expected_var, recieve_var, rtol=1e-3, atol=1e-3)
+    torch.testing.assert_close(expected_mean, recieve_mean, **tolerances[dtype])
+    torch.testing.assert_close(expected_var, recieve_var, **tolerances[dtype])
 
 
-@pytest.mark.parametrize("dtype", [torch.float16, torch.float32])
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16, torch.float32])
+@pytest.mark.parametrize("output_rstd", [True, False])
 @pytest.mark.parametrize("core_num, size", [
     (1, (2, 32)),
     (16, (16, 128)),
@@ -102,7 +115,9 @@ def test_layer_norm_1d(dtype, core_num, size):
     (32, (64, 256)),
     (32, (64, 512)),
 ])
-def test_layer_norm_2d(dtype, core_num, size):
+def test_layer_norm_2d(dtype, output_rstd, core_num, size, require_c310, platform):
+    if dtype == torch.bfloat16:
+        require_c310()
     epsilon = 1e-3
     num_rows, num_cols = size
     x = torch.randn(num_rows, num_cols, dtype=dtype)
@@ -110,14 +125,17 @@ def test_layer_norm_2d(dtype, core_num, size):
     beta = torch.randn(num_cols, dtype=dtype)
     out = torch.empty_like(x)
     mv_repeat = 16 if dtype == torch.float16 else 8
-    mean = torch.empty(num_rows * mv_repeat, dtype=dtype)
-    var = torch.empty(num_rows * mv_repeat, dtype=dtype)
-    layer_norm_2d[core_num](x, gamma, beta, out, mean, var, num_rows, num_cols, epsilon=epsilon, mv_repeat=mv_repeat)
+    mean = torch.empty(num_rows * mv_repeat, dtype=torch.float32)
+    var = torch.empty(num_rows * mv_repeat, dtype=torch.float32)
+    layer_norm_2d[core_num](x, gamma, beta, out, mean, var, num_rows, num_cols, epsilon=epsilon, mv_repeat=mv_repeat,
+                            output_rstd=output_rstd)
     expected = torch.nn.functional.layer_norm(x, [num_cols], gamma, beta, eps=epsilon)
-    expected_mean = x.mean(dim=1)
-    expected_var = x.var(dim=1, unbiased=False)
-    torch.testing.assert_close(out, expected, rtol=1e-3, atol=1e-3)
+    expected_mean = x.float().mean(dim=1)
+    expected_var = x.float().var(dim=1, unbiased=False)
+    if output_rstd or config.platform_to_arch(platform) == config.CompilationArch.C220:
+        expected_var = 1.0 / torch.sqrt(expected_var + epsilon)
+    torch.testing.assert_close(out, expected, **tolerances[dtype])
     extracted_mean = mean[::mv_repeat]
     extracted_var = var[::mv_repeat]
-    torch.testing.assert_close(extracted_mean, expected_mean, rtol=1e-3, atol=1e-3)
-    torch.testing.assert_close(extracted_var, expected_var, rtol=1e-3, atol=1e-3)
+    torch.testing.assert_close(extracted_mean, expected_mean, **tolerances[dtype])
+    torch.testing.assert_close(extracted_var, expected_var, **tolerances[dtype])

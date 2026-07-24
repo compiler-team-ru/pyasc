@@ -375,82 +375,110 @@ struct ConvertLayerNorm : ConvertOp<asctile::LayerNormOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    static Value createLayerNormTiling(
-        ConvertRewriter& rewriter, Location loc, ArrayRef<int64_t> shape, bool isBasicBlock, int typeSize)
+    static std::pair<Value, int> createLayerNormSeparateTiling(
+        ConvertRewriter& rewriter, Location loc, ArrayRef<int64_t> shape, int typeSize, int rLengthWithPadding,
+        int gammaTypeSize)
     {
         ascir::ConstantOpBuilder consts(rewriter);
-        auto [bLength, inHLength] = unpack2DShape(shape);
-        auto sLength = 1;
-        auto hLength = static_cast<int>(llvm::alignTo<ascendc::ubBlockSize>(inHLength * typeSize) / typeSize);
-        auto originalHLength = inHLength;
-        auto inputXSize = bLength * sLength * hLength;
-        auto meanVarSize = bLength * sLength;
-        auto lastDimValueBack = 1.0F / static_cast<float>(originalHLength);
+        auto [aLength, rLength] = unpack2DShape(shape);
+        auto inputXSize = aLength * rLengthWithPadding;
+        auto meanVarSize = aLength;
+        auto rValueBack = 1.0F / static_cast<float>(rLength);
+        uint32_t k = 0;
+        uint32_t temp = rLength;
+        while (temp > 1) {
+            temp >>= 1;
+            k++;
+        }
+        auto k2Rec = 1.0F / static_cast<float>(1 << k);
+        auto k2RRec = static_cast<float>(1 << k) / static_cast<float>(rLength);
+        uint32_t rHeadLength = rLength <= 128 ? rLength : 1 << k;
+        constexpr uint32_t sregLower = 64;
+        uint32_t halfAddCount = (rHeadLength / 2 + sregLower - 1) / sregLower;
+        uint32_t halfAddRepeatTimes = 0;
+        uint32_t tempCount = halfAddCount;
+        while (tempCount > sregLower) {
+            tempCount = (tempCount + sregLower - 1) / sregLower;
+            halfAddRepeatTimes++;
+        }
         auto halfCoeff = (typeSize == sizeof(float) ? 1 : 2);
         auto tmpBufSize = totalUbSize / static_cast<int>(sizeof(float));
-        auto oneTmpSize = tmpBufSize / 3;
         auto numberOfTmpBuf = 3;
+        auto oneTmpSize = tmpBufSize / numberOfTmpBuf;
         if (typeSize == halfSizeInByte) {
             oneTmpSize = (oneTmpSize * 2) / halfCoeff;
         }
-        oneTmpSize = std::min(oneTmpSize, inputXSize);
-        auto bsLength = oneTmpSize / hLength;
-        if (isBasicBlock) {
-            bsLength = bsLength < basicBlkBslength ? 1 : bsLength / basicBlkBslength * basicBlkBslength;
-        } else if (bsLength > maxRepeat) {
-            bsLength = maxRepeat;
+        auto inputXSizeFloat = (typeSize == halfSizeInByte) ? inputXSize / 2 : inputXSize;
+        oneTmpSize = std::min(oneTmpSize, inputXSizeFloat);
+        auto aCurLength = std::min(static_cast<int>(oneTmpSize / rLengthWithPadding), maxRepeat);
+        if (aCurLength == 0) {
+            aCurLength = 1;
         }
-        oneTmpSize = bsLength * hLength;
-        auto inputRoundSize = oneTmpSize;
-        auto loopRound = inputXSize / oneTmpSize;
-        auto inputTailSize = inputXSize % oneTmpSize;
+        oneTmpSize = aCurLength * rLengthWithPadding;
+        auto oneTmpSizeOriginal = (typeSize == halfSizeInByte) ? oneTmpSize * 2 : oneTmpSize;
+        auto arCurLength = oneTmpSize;
+        auto inputRoundSize = oneTmpSizeOriginal;
+        auto loopRound = inputXSize / oneTmpSizeOriginal;
+        auto inputTailSize = inputXSize % oneTmpSizeOriginal;
         auto inputTailPos = inputXSize - inputTailSize;
-        auto bshCurLength = oneTmpSize;
-        auto bsCurLength = bsLength;
+        auto meanVarRoundSize = aCurLength;
+        auto meanVarTailSize = inputTailSize / rLengthWithPadding;
+        auto meanVarTailPos = meanVarSize - meanVarTailSize;
         auto firstTmpStartPos = 0;
         auto secondTmpStartPos = oneTmpSize;
         auto thirdTmpStartPos = oneTmpSize * 2;
-        auto meanTmpTensorPos = oneTmpSize * numberOfTmpBuf;
-        auto meanTmpTensorSize = bsLength;
-        auto varianceTmpTensorPos = meanTmpTensorPos + meanTmpTensorSize;
-        auto varianceTmpTensorSize = bsLength;
-        auto meanVarRoundSize = bsLength;
-        auto meanVarTailSize = inputTailSize / hLength;
-        auto meanVarTailPos = meanVarSize - meanVarTailSize;
-        return emitasc::InitStructBuilder(rewriter.getType<ascendc::LayerNormTilingType>())
-            .addField("bLength", consts.i32(bLength))
-            .addField("sLength", consts.i32(sLength))
-            .addField("hLength", consts.i32(hLength))
-            .addField("originalHLength", consts.i32(originalHLength))
-            .addField("inputXSize", consts.i32(inputXSize))
-            .addField("meanVarSize", consts.i32(meanVarSize))
-            .addField("numberOfTmpBuf", consts.i32(numberOfTmpBuf))
-            .addField("meanTmpTensorPos", consts.i32(meanTmpTensorPos))
-            .addField("meanTmpTensorSize", consts.i32(meanTmpTensorSize))
-            .addField("varianceTmpTensorPos", consts.i32(varianceTmpTensorPos))
-            .addField("varianceTmpTensorSize", consts.i32(varianceTmpTensorSize))
-            .addField("tmpBufSize", consts.i32(tmpBufSize))
-            .addField("oneTmpSize", consts.i32(oneTmpSize))
-            .addField("firstTmpStartPos", consts.i32(firstTmpStartPos))
-            .addField("secondTmpStartPos", consts.i32(secondTmpStartPos))
-            .addField("thirdTmpStartPos", consts.i32(thirdTmpStartPos))
-            .addField("loopRound", consts.i32(loopRound))
-            .addField("inputRoundSize", consts.i32(inputRoundSize))
-            .addField("inputTailSize", consts.i32(inputTailSize))
-            .addField("inputTailPos", consts.i32(inputTailPos))
-            .addField("meanVarRoundSize", consts.i32(meanVarRoundSize))
-            .addField("meanVarTailSize", consts.i32(meanVarTailSize))
-            .addField("meanVarTailPos", consts.i32(meanVarTailPos))
-            .addField("bshCurLength", consts.i32(bshCurLength))
-            .addField("bsCurLength", consts.i32(bsCurLength))
-            .addField("lastDimValueBack", consts.f32(lastDimValueBack))
+        auto varianceTmpTensorPos = oneTmpSize * numberOfTmpBuf;
+        auto varianceTmpTensorSize = aCurLength;
+        auto stage1FloatSize = oneTmpSize * numberOfTmpBuf + aCurLength;
+        int stage2FloatSize =
+            gammaTypeSize == sizeof(float) ? 2 * aLength * rLengthWithPadding : (2 * aLength + 2) * rLengthWithPadding;
+        auto sharedBufFloatSize = std::max(stage1FloatSize, stage2FloatSize);
+        auto tilingValue = emitasc::InitStructBuilder(rewriter.getType<ascendc::LayerNormSeparateTilingType>())
+                               .addField("aLength", consts.i32(aLength))
+                               .addField("rLength", consts.i32(rLength))
+                               .addField("halfAddRepeatTimes", consts.i32(halfAddRepeatTimes))
+                               .addField("rHeadLength", consts.i32(rHeadLength))
+                               .addField("k2Rec", consts.f32(k2Rec))
+                               .addField("k2RRec", consts.f32(k2RRec))
+                               .addField("inputXSize", consts.i32(inputXSize))
+                               .addField("meanVarSize", consts.i32(meanVarSize))
+                               .addField("numberOfTmpBuf", consts.i32(numberOfTmpBuf))
+                               .addField("varianceTmpTensorPos", consts.i32(varianceTmpTensorPos))
+                               .addField("varianceTmpTensorSize", consts.i32(varianceTmpTensorSize))
+                               .addField("tmpBufSize", consts.i32(sharedBufFloatSize))
+                               .addField("oneTmpSize", consts.i32(oneTmpSize))
+                               .addField("firstTmpStartPos", consts.i32(firstTmpStartPos))
+                               .addField("secondTmpStartPos", consts.i32(secondTmpStartPos))
+                               .addField("thirdTmpStartPos", consts.i32(thirdTmpStartPos))
+                               .addField("loopRound", consts.i32(loopRound))
+                               .addField("inputRoundSize", consts.i32(inputRoundSize))
+                               .addField("inputTailSize", consts.i32(inputTailSize))
+                               .addField("inputTailPos", consts.i32(inputTailPos))
+                               .addField("meanVarRoundSize", consts.i32(meanVarRoundSize))
+                               .addField("meanVarTailSize", consts.i32(meanVarTailSize))
+                               .addField("meanVarTailPos", consts.i32(meanVarTailPos))
+                               .addField("arCurLength", consts.i32(arCurLength))
+                               .addField("aCurLength", consts.i32(aCurLength))
+                               .addField("rValueBack", consts.f32(rValueBack))
+                               .create(rewriter, loc);
+        return {tilingValue, sharedBufFloatSize};
+    }
+
+    static Value createLayerNormPara(
+        ConvertRewriter& rewriter, Location loc, int aLength, int rLength, int rLengthWithPadding)
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        return emitasc::InitStructBuilder(rewriter.getType<ascendc::LayerNormParaType>())
+            .addField("aLength", consts.i32(aLength))
+            .addField("rLength", consts.i32(rLength))
+            .addField("rLengthWithPadding", consts.i32(rLengthWithPadding))
             .create(rewriter, loc);
     }
 
     LogicalResult matchAndRewrite(asctile::LayerNormOp op, ConvertRewriter& rewriter) const override
     {
         auto loc = op.getLoc();
-        auto tensorType = cast<asctile::LocalTensorType>(op.getResult().getType());
+        auto tensorType = cast<asctile::LocalTensorType>(op.getOutput().getType());
         auto shape = tensorType.getShape();
         if (!check1D2DShape(op, shape))
             return failure();
@@ -459,16 +487,24 @@ struct ConvertLayerNorm : ConvertOp<asctile::LayerNormOp> {
         auto betaTensor = rewriter.getRemappedValue(op.getBeta());
         auto epsilon = rewriter.getRemappedValue(op.getEpsilon());
         auto dst = createTensorOp(rewriter, loc, tensorType);
-        constexpr bool isBasicBlock = false;
         auto typeSize = static_cast<int>(ascendc::getElementTypeSize(tensorType));
-        auto [bLength, inHLength] = unpack2DShape(shape);
-        auto meanVarSize = bLength;
-        auto dstMean = createTensorOp(rewriter, loc, meanVarSize, tensorType.getElementType());
-        auto dstVariance = createTensorOp(rewriter, loc, meanVarSize, tensorType.getElementType());
-        Value tiling = createLayerNormTiling(rewriter, loc, shape, isBasicBlock, typeSize);
-        rewriter.create<ascendc::LayerNormOp>(
-            loc, isBasicBlock, dst, dstMean, dstVariance, src, gammaTensor, betaTensor, epsilon, tiling);
-        rewriter.replaceOp(op, {dst, dstMean, dstVariance});
+        auto gammaType = cast<asctile::LocalTensorType>(op.getGamma().getType());
+        auto gammaTypeSize = static_cast<int>(ascendc::getElementTypeSize(gammaType));
+        auto [aLength, rLength] = unpack2DShape(shape);
+        auto rLengthWithPadding = static_cast<int>(llvm::alignTo<ascendc::ubBlockSize>(rLength * typeSize) / typeSize);
+        auto meanVarSize = aLength;
+        auto dstMeanFloat = createTensorOp(rewriter, loc, meanVarSize, rewriter.getF32Type());
+        auto dstVarRstdFloat = createTensorOp(rewriter, loc, meanVarSize, rewriter.getF32Type());
+        auto [separateTiling, sharedBufFloatSize] =
+            createLayerNormSeparateTiling(rewriter, loc, shape, typeSize, rLengthWithPadding, gammaTypeSize);
+        Value para = createLayerNormPara(rewriter, loc, aLength, rLength, rLengthWithPadding);
+        auto sharedBufSize = sharedBufFloatSize * static_cast<int>(sizeof(float));
+        auto sharedBufTensor = createTensorOp(rewriter, loc, sharedBufSize, rewriter.getIntegerType(8, false));
+        auto lnOp = rewriter.create<ascendc::LayerNormOp>(
+            loc, dst, dstMeanFloat, dstVarRstdFloat, src, gammaTensor, betaTensor, epsilon, separateTiling, para,
+            sharedBufTensor);
+        lnOp.setOutputRstdAttr(op.getOutputRstdAttr());
+        rewriter.replaceOp(op, {dst, dstMeanFloat, dstVarRstdFloat});
         return success();
     }
 };

@@ -350,8 +350,8 @@ def rms_norm(input: LocalTensor, gamma: LocalTensor, epsilon: RuntimeFloat) -> L
 
 
 @require_jit
-def layer_norm(input: LocalTensor, gamma: LocalTensor, beta: LocalTensor,
-               epsilon: RuntimeFloat) -> Tuple[LocalTensor, LocalTensor, LocalTensor]:
+def layer_norm(input: LocalTensor, gamma: LocalTensor, beta: LocalTensor, epsilon: RuntimeFloat,
+               output_rstd: bool = True) -> Tuple[LocalTensor, LocalTensor, LocalTensor]:
     """
     Computes Layer Normalization of ``input``.
 
@@ -359,19 +359,23 @@ def layer_norm(input: LocalTensor, gamma: LocalTensor, beta: LocalTensor,
     then scales by learnable parameter ``gamma`` and shifts by learnable parameter ``beta``.
     This is commonly used in transformer architectures.
 
-    The supported data types for the inputs are: ``float16``, ``float32``.
+    The supported data types for the inputs are: ``float16``, ``bfloat16``, ``float32``.
 
     Args:
-        input: The input tensor to normalize (1D or 2D)
-        gamma: The scale parameter tensor (1D, same length as last dimension of input)
-        beta: The shift parameter tensor (1D, same length as last dimension of input)
+        input: The input tensor to normalize with shape [A, R] for 2D or [R] for 1D
+        gamma: The scale parameter tensor with shape [R] (same length as last dimension of input)
+        beta: The shift parameter tensor with shape [R] (same length as last dimension of input)
         epsilon: Small constant added for numerical stability
+        output_rstd: If True (default), the third output is the reciprocal of standard deviation (rstd).
+            If False, the third output is the variance. Note: on C220 architecture,
+            this parameter is ignored and rstd is always returned.
 
     Returns:
         Tuple[LocalTensor, LocalTensor, LocalTensor]: A tuple containing:
-            - output: The normalized tensor with same shape as input
-            - mean: The mean tensor with shape [B, S] for 2D input or [B] for 1D input
-            - variance: The variance tensor with shape [B, S] for 2D input or [B] for 1D input
+            - output: The normalized tensor with same shape and dtype as input
+            - mean: The mean tensor with shape [A] for 2D input or [1] for 1D input (always float32)
+            - rstd or variance: If output_rstd=True, returns reciprocal of standard deviation;
+              otherwise returns variance. Shape [A] for 2D input or [1] for 1D input (always float32)
 
     Raises:
         TypeError: If input, gamma, or beta is not a LocalTensor
@@ -384,26 +388,27 @@ def layer_norm(input: LocalTensor, gamma: LocalTensor, beta: LocalTensor,
             input = asc2.copy_in(x_gm, [0, 0], [32, 128])
             gamma = asc2.copy_in(gamma_gm, [0], [128])
             beta = asc2.copy_in(beta_gm, [0], [128])
-            output, mean, variance = asc2.layer_norm(input, gamma, beta, 1e-5)
+            output, mean, rstd = asc2.layer_norm(input, gamma, beta, 1e-5)
 
-        Apply LayerNorm to a 1D tensor: ::
+        Apply LayerNorm to a 1D tensor with variance output: ::
 
             input = asc2.copy_in(x_gm, [0], [128])
             gamma = asc2.copy_in(gamma_gm, [0], [128])
             beta = asc2.copy_in(beta_gm, [0], [128])
-            output, mean, variance = asc2.layer_norm(input, gamma, beta, 1e-6)
+            output, mean, variance = asc2.layer_norm(input, gamma, beta, 1e-6, output_rstd=False)
     """
     for name, value in ("input", input), ("gamma", gamma), ("beta", beta):
         check_type(name, value, LocalTensor)
-        check_dtype(name, value, (KT.float16, KT.float32))
+        check_dtype(name, value, (KT.float16, KT.bfloat16, KT.float32))
         verify_location(value.location, name, TensorLocation.UB)
     check_runtime_float("epsilon", epsilon)
     if input.rank > 2:
         raise RuntimeError("Tensor dimensionality greater than two is not supported.")
     input_type = input.to_ir().get_type()
     mean_var_shape = [input.shape[0]] if input.rank == 2 else [1]
-    mean_var_type = ir.clone_shaped_type(input_type, mean_var_shape)
-    handles = global_builder.get_ir_builder().create_asctile_LayerNormOp(input_type, mean_var_type, mean_var_type,
-                                                                         input.to_ir(), gamma.to_ir(), beta.to_ir(),
-                                                                         _mat(epsilon, input.dtype).to_ir())
-    return LocalTensor(handles[0]), LocalTensor(handles[1]), LocalTensor(handles[2])
+    builder = global_builder.get_ir_builder()
+    mean_var_type = ir.get_asctile_LocalTensorType(mean_var_shape, builder.get_f32_type())
+    op = builder.create_asctile_LayerNormOp(input_type, mean_var_type, mean_var_type, input.to_ir(), gamma.to_ir(),
+                                            beta.to_ir(),
+                                            _mat(epsilon, KT.float32).to_ir(), output_rstd)
+    return LocalTensor(op.get_result(0)), LocalTensor(op.get_result(1)), LocalTensor(op.get_result(2))

@@ -1146,14 +1146,6 @@ void bindCreateAscTileOperations(py::class_<PyOpBuilder>& clss)
             [](PyOpBuilder& self, Type result, const std::vector<Value>& inputs, const std::string& code) -> Value {
                 return self.create<asctile::InlineVFOp>(result, ValueRange{inputs}, StringRef(code));
             })
-        .def(
-            "create_asctile_LayerNormOp",
-            [](PyOpBuilder& self, const Type& result, const Type& mean, const Type& variance, const Value& input,
-               const Value& gamma, const Value& beta, const Value& epsilon) {
-                auto operation = self.create<asctile::LayerNormOp>(result, mean, variance, input, gamma, beta, epsilon);
-                return py::make_tuple(
-                    Value(operation.getResult()), Value(operation.getMean()), Value(operation.getVariance()));
-            })
 #include "ascir/Dialect/AscTile/IR/AscTileOpBindings.h.inc"
         ;
 }

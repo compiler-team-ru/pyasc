@@ -339,12 +339,16 @@ func.func @emit_rms_norm(%dst: !ascendc.local_tensor<*xf32>, %src: !ascendc.loca
   return
 }
 
-// CHECK-LABEL: void emit_layer_norm(AscendC::LocalTensor<float> v1, AscendC::LocalTensor<float> v2, AscendC::LocalTensor<float> v3, AscendC::LocalTensor<float> v4, AscendC::LocalTensor<float> v5, AscendC::LocalTensor<float> v6, float v7, LayerNormTiling v8) {
-// CHECK-NEXT: AscendC::LayerNorm<float, 0>(v1, v2, v3, v4, v5, v6, v7, v8);
+// CHECK-LABEL: void emit_layer_norm(AscendC::LocalTensor<float> v1, AscendC::LocalTensor<float> v2, AscendC::LocalTensor<float> v3, AscendC::LocalTensor<float> v4, AscendC::LocalTensor<float> v5, AscendC::LocalTensor<float> v6, float v7, AscendC::LocalTensor<uint8_t> v8, AscendC::LayerNormPara v9, LayerNormSeparateTiling v10) {
+// CHECK-NEXT: {
+// CHECK-NEXT:   static constexpr AscendC::LayerNormConfig lnConfig = {.isNoBeta = false, .isNoGamma = false, .isOnlyOutput = false, .isOutputRstd = true};
+// CHECK-NEXT:   AscendC::LayerNorm<float, float, false, lnConfig>(v1, v2, v3, v4, v5, v6, v7, v8, v9, v10);
+// CHECK-NEXT: }
+// CHECK-NEXT: ;
 // CHECK-NEXT: return;
 // CHECK-NEXT: }
-func.func @emit_layer_norm(%dst: !ascendc.local_tensor<*xf32>, %dstMean: !ascendc.local_tensor<*xf32>, %dstVar: !ascendc.local_tensor<*xf32>, %src: !ascendc.local_tensor<*xf32>, %gamma: !ascendc.local_tensor<*xf32>, %beta: !ascendc.local_tensor<*xf32>, %epsilon: f32, %tiling: !ascendc.layernorm_tiling) {
-  ascendc.layer_norm %dst, %dstMean, %dstVar, %src, %gamma, %beta, %epsilon, %tiling : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, f32, !ascendc.layernorm_tiling
+func.func @emit_layer_norm(%dst: !ascendc.local_tensor<*xf32>, %dstMean: !ascendc.local_tensor<*xf32>, %dstVarRstd: !ascendc.local_tensor<*xf32>, %src: !ascendc.local_tensor<*xf32>, %gamma: !ascendc.local_tensor<*xf32>, %beta: !ascendc.local_tensor<*xf32>, %epsilon: f32, %sharedTmpBuffer: !ascendc.local_tensor<*xui8>, %para: !ascendc.layer_norm_para, %separateTiling: !ascendc.layer_norm_separate_tiling) {
+  ascendc.layer_norm %dst, %dstMean, %dstVarRstd, %src, %gamma, %beta, %epsilon, %separateTiling, %para, %sharedTmpBuffer {outputRstd} : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, f32, !ascendc.layer_norm_separate_tiling, !ascendc.layer_norm_para, !ascendc.local_tensor<*xui8>
   return
 }
 
