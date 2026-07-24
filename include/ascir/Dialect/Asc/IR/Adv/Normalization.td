@@ -42,15 +42,18 @@ def AscendC_RmsNormOp : VectorOp<"rms_norm", "RmsNorm", [
 def AscendC_LayerNormOp : VectorOp<"layer_norm", "LayerNorm", [
   OpWithDstInterface, OpWithSrcInterface
 ]> {
-  let arguments = (ins UnitAttr:$basicBlock, AscendC_LocalTensor:$dst,
-                   AscendC_LocalTensor:$dstMean, AscendC_LocalTensor:$dstVariance,
+  let arguments = (ins AscendC_LocalTensor:$dst,
+                   AscendC_LocalTensor:$dstMean, AscendC_LocalTensor:$dstVarRstd,
                    AscendC_LocalTensor:$src, AscendC_LocalTensor:$gamma,
                    AscendC_LocalTensor:$beta, AnyType:$epsilon,
-                   AscendC_LayerNormTiling:$tiling);
+                   AscendC_LayerNormSeparateTiling:$separateTiling,
+                   AscendC_LayerNormPara:$para,
+                   AscendC_LocalTensor:$sharedTmpBuffer,
+                   UnitAttr:$outputRstd);
   let extraClassDeclaration = extraClassDeclarationBase # [{
     SmallVector<Value> getSrcTensors() { return {getSrc(), getGamma(), getBeta()}; }
     SmallVector<Value> getDstTensors() {
-      return {getDst(), getDstMean(), getDstVariance()};
+      return {getDst(), getDstMean(), getDstVarRstd(), getSharedTmpBuffer()};
     }
   }];
 }

@@ -246,15 +246,15 @@ def RmsNormOp : AscTile_Op<"rms_norm", [Pure, AllElementTypesMatch<["input", "ga
   }];
 }
 
-def LayerNormOp : AscTile_Op<"layer_norm", [Pure, AllElementTypesMatch<["input", "gamma", "beta"]>,
-  AllTypesMatch<["input", "result"]>, ShapedMatchElemType<"input", "epsilon">]> {
+def LayerNormOp : AscTile_Op<"layer_norm", [Pure, AllElementTypesMatch<["gamma", "beta"]>,
+  AllTypesMatch<["input", "output"]>]> {
   let summary = "Compute LayerNorm function over a tensor";
   let arguments = (ins FloatLocalTensor:$input, FloatLocalTensor:$gamma, FloatLocalTensor:$beta,
-                   AscTile_Float:$epsilon);
-  let results = (outs FloatLocalTensor:$result, FloatLocalTensor:$mean, FloatLocalTensor:$variance);
+                   F32:$epsilon, UnitAttr:$outputRstd);
+  let results = (outs FloatLocalTensor:$output, FloatLocalTensor:$mean, FloatLocalTensor:$outputVarRstd);
   let assemblyFormat = [{
     $input `,` $gamma `,` $beta `,` $epsilon attr-dict `:` type($input) `,` type($gamma) `,` type($beta) `,` type($mean)
-    `,` type($variance)
+    `,` type($outputVarRstd)
   }];
 }
 
