@@ -1,4 +1,4 @@
-name: pyasc_action
+name: PR-pipeline_pyasc
 
 concurrency:
   max: 5
@@ -48,7 +48,9 @@ stages:
               echo "Compile_Ascend_X86: ${{ steps.revise_image.outputs.Compile_Ascend_X86 }}"
               echo ${org_name}
         if: "${{ default() }}"
-        runs-on: ["codearts-hosted", "ubuntu-latest", "x64", "large"]
+        runs-on: ["dedicate-hosted", "x64", "small"]
+        container:
+          image: swr.cn-north-4.myhuaweicloud.com/ci_cann/ubuntu20.04.05_x86:k8s_v1.1006
       JOB_pr:
         name: Test_get-pr
         steps:
@@ -57,8 +59,17 @@ stages:
             identifier: process_checkout
             uses: checkout
             with:
-              ref: ${{ atomgit.event.pull_request.merge_commit_sha || atomgit.sha }}
+              ref: ${{ atomgit.event.pull_request.merge_commit_sha }}
               token: ${{ secrets.GIT_TOKEN }}
+          - name: Check merge commit sha
+            shell: bash
+            run: |
+              # === shell 核心逻辑 ===
+              if [[ -z "${{ atomgit.event.pull_request.merge_commit_sha }}" ]]; then
+                echo "virtual merging failed, message: Conflict detected"
+                exit 1
+              fi
+              echo "${{ atomgit.event.pull_request.merge_commit_sha }}"
           -
             name: get_pr
             identifier: get_pr
@@ -218,6 +229,7 @@ stages:
             identifier: process_checkout
             uses: checkout
             with:
+              ref: ${{ atomgit.event.pull_request.merge_commit_sha }}
               token: ${{secrets.GIT_TOKEN}}
               path: "./runner"
           -
