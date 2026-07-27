@@ -125,13 +125,13 @@ def transpose_nlast_axis(
             load_offsets[load_axes[2]] = id2
             store_offsets[store_shape_axis - 2] = id2
 
-        tile = asc2.copy_in(input_tensor, load_offsets, ub_load_shape, real_shape=load_real_shape)
+        tile = asc2.copy_in(input_tensor, load_offsets, ub_load_shape)
         tile2 = tile.transpose(*permute)
 
         asc2.copy_out(tile2, output_tensor, store_offsets, real_shape=store_real_shape)
 
 
-def launch_nlast_axis(input, permute, axis, axis_step, cores, dtype, runs, profiler):
+def launch_nlast_axis(input, permute, axis, axis_step, unroll_factor, cores, dtype, runs, profiler):
     input_shape = list(input.shape)
     output_shape = [input_shape[permute[i]] for i in range(0, len(input_shape))]
     output = torch.zeros(output_shape, dtype=dtype)
@@ -167,7 +167,7 @@ def launch_nlast_axis(input, permute, axis, axis_step, cores, dtype, runs, profi
     with profiler.profile():
         for _ in range(runs):
             transpose_nlast_axis[cores](input, output, input_shape, axis_step, load_axes, store_shape_axis,
-                                        ub_load_shape, load_shape, permute, block_count, 1)
+                                        ub_load_shape, load_shape, permute, block_count, unroll_factor)
     return output
 
 
@@ -198,18 +198,14 @@ def transpose_one_axis(
     output_tensor = asc2.global_tensor(output_ptr, output_shape)
     for i in asc2.range(asc2.block_idx(), block_count, asc2.block_num(), unroll_factor=unroll_factor):
         offset = i * axis_step
-        read_count = axis_step if offset + axis_step < input_shape[
-            load_shape_axis] else input_shape[load_shape_axis] - offset
         read_offsets = [0] * (load_shape_axis) + [offset] + [0] * (len(load_shape) - 1 - load_shape_axis)
-        read_shape = load_shape[:load_shape_axis] + [read_count] + load_shape[load_shape_axis + 1:]
-        load_tensor = asc2.copy_in(input_tensor, read_offsets, ub_load_shape, real_shape=read_shape)
+        load_tensor = asc2.copy_in(input_tensor, read_offsets, ub_load_shape)
         transposed_tensor = load_tensor.transpose(*permute)
         write_offsets = [0] * (store_shape_axis) + [offset] + [0] * (len(store_shape) - 1 - store_shape_axis)
-        store_real_shape = store_shape[:store_shape_axis] + [read_count] + store_shape[store_shape_axis + 1:]
-        asc2.copy_out(transposed_tensor, output_tensor, write_offsets, real_shape=store_real_shape)
+        asc2.copy_out(transposed_tensor, output_tensor, write_offsets)
 
 
-def launch_one_axis(input, permute, axis, axis_step, cores, dtype, runs, profiler):
+def launch_one_axis(input, permute, axis, axis_step, unroll_factor, cores, dtype, runs, profiler):
     input_shape = list(input.shape)
     output_shape = [input_shape[permute[i]] for i in range(0, len(input_shape))]
     items_in_block = 32 // input.element_size()
@@ -233,8 +229,20 @@ def launch_one_axis(input, permute, axis, axis_step, cores, dtype, runs, profile
     with profiler.profile():
         for _ in range(runs):
             transpose_one_axis[cores](input, output, input_shape, axis_step, load_shape_axis, store_shape_axis,
-                                      ub_load_shape, load_shape, permute, block_count, 1)
+                                      ub_load_shape, load_shape, permute, block_count, unroll_factor)
     return output
+
+
+@asc2.jit(reuse_alloc=1)
+def simple_copy(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_lenth, tile_shape: asc2.ConstExpr,
+                unroll_factor: asc2.ConstExpr):
+    in_gm = asc2.global_tensor(input_ptr, [input_lenth])
+    out_gm = asc2.global_tensor(output_ptr, [input_lenth])
+    total_repeats = asc2.ceildiv(input_lenth, tile_shape)
+
+    for i in asc2.range(asc2.block_idx(), total_repeats, asc2.block_num(), unroll_factor=unroll_factor):
+        data = asc2.copy_in(in_gm, [i * tile_shape], [tile_shape])
+        asc2.copy_out(data, out_gm, [i * tile_shape])
 
 
 # Split tensor by 2 dimensions (store_axis), loads subpart
@@ -281,7 +289,7 @@ def transpose_2_axis(
         read_count[load_shape_axis0] = count0
         read_count[load_shape_axis1] = count1
 
-        load_tensor = asc2.copy_in(input_tensor, read_offsets, ub_load_shape, real_shape=read_count)
+        load_tensor = asc2.copy_in(input_tensor, read_offsets, ub_load_shape)
         transposed_tensor = load_tensor.transpose(*permute)
 
         write_offsets = [0] * len(load_shape)
@@ -291,7 +299,7 @@ def transpose_2_axis(
         write_count[store_axis[0]] = count0
         write_count[store_axis[1]] = count1
 
-        asc2.copy_out(transposed_tensor, output_tensor, write_offsets, real_shape=write_count)
+        asc2.copy_out(transposed_tensor, output_tensor, write_offsets)
 
 
 def launch_2axis(input, permute, axis, step, dtype, cores, unroll_factor, runs, profiler):
@@ -322,6 +330,52 @@ def launch_2axis(input, permute, axis, step, dtype, cores, unroll_factor, runs, 
     return output
 
 
+def simplify_shape(input, permute):
+    # Remove empty dimensions (of one element)
+    dim_dec = [0] * len(permute)
+    counter = 0
+    for i in range(0, len(permute)):
+        dim_dec[i] = counter
+        if input[i] == 1:
+            counter = counter + 1
+            dim_dec[i] = -1
+    new_permute = []
+    new_shape = []
+    for i in range(0, len(input)):
+        if dim_dec[i] != -1:
+            new_shape = new_shape + [input[i]]
+    for i in range(0, len(permute)):
+        if dim_dec[permute[i]] != -1:
+            new_permute = new_permute + [permute[i] - dim_dec[permute[i]]]
+    permute = new_permute
+    input = new_shape
+    # Merge dimensions together if they keep order in permute: 2,3,0,1 -> 1,0
+    assert (len(input) == len(permute))
+    result_shape = []
+    dims = []
+    # Check dimensions we can merge
+    for i in range(0, len(input)):
+        if i > 0 and permute[i - 1] + 1 == permute[i]:
+            result_shape[-1] = result_shape[-1] * input[i]
+            dims.append(dims[-1])
+        else:
+            result_shape.append(input[i])
+            dims.append(permute[i])
+    # fix dim order
+    dim_id = 0
+    for i in range(0, len(input)):
+        count = dims.count(i)
+        if count > 0:
+            dims = [dim_id if j == i else j for j in dims]
+            dim_id = dim_id + 1
+    # remove duplicates
+    result_permute = []
+    for i in dims:
+        if len(result_permute) == 0 or result_permute[-1] != i:
+            result_permute.append(i)
+    return result_shape, result_permute
+
+
 # yapf: disable
 @pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
 @pytest.mark.parametrize("test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes, compile_params, runtime_params, tiling_key, tiling_params", [
@@ -344,7 +398,7 @@ def launch_2axis(input, permute, axis, step, dtype, cores, unroll_factor, runs, 
 # yapf: enable
 def test_transpose(profiler, runs, kernel_type, test_name, block_num, input_shapes, input_dtypes, output_shapes,
                    output_dtypes, compile_params, runtime_params, tiling_key, tiling_params):
-    input_shape = input_shapes[0]
+    raw_input_shape = input_shapes[0]
     input_dtype = input_dtypes[0]
     in_cut_index = tiling_params[1]
     out_cut_index = tiling_params[2]
@@ -352,50 +406,21 @@ def test_transpose(profiler, runs, kernel_type, test_name, block_num, input_shap
     out_ub_factor = tiling_params[4]
     ub_size = tiling_params[10]
     unroll_factor = runtime_params[0]
-    permute = runtime_params[1]
+    raw_permute = runtime_params[1]
 
-    # workaround for shapes
-    if permute == [2, 3, 0, 1]:
-        input_shape = [input_shape[0] * input_shape[1], input_shape[2] * input_shape[3]]
-        permute = [1, 0]
-    elif permute == [3, 0, 1, 2]:
-        input_shape = [input_shape[0] * input_shape[1] * input_shape[2], input_shape[3]]
-        permute = [1, 0]
-    elif permute == [1, 2, 3, 0]:
-        input_shape = [input_shape[0], input_shape[1] * input_shape[2] * input_shape[3]]
-        permute = [1, 0]
-    elif permute == [2, 0, 1, 3]:
-        input_shape = [input_shape[0] * input_shape[1], input_shape[2], input_shape[3]]
-        permute = [1, 0, 2]
-
-    if input_shape == [383, 383, 100] and permute == [0, 2, 1]:
-        in_cut_index = 0
-        in_ub_factor = 1
-    elif input_shape == [826, 512, 64] and permute == [0, 2, 1]:
-        in_cut_index = 0
-        in_ub_factor = 1
-    elif input_shape == [20, 200, 200] and permute == [1, 0, 2]:
-        tiling_key = 10002
-        in_cut_index = 1
-        in_ub_factor = 3
-    elif input_shape == [1024, 107, 31, 3] and permute == [2, 1, 0, 3]:
-        out_ub_factor = 128
-    elif input_shape == [13, 64, 256, 28] and permute == [2, 1, 3, 0]:
-        out_ub_factor = 8
-    elif input_shape == [1484, 32, 1484] and permute == [2, 1, 0]:
-        in_ub_factor = 64
-        out_ub_factor = 16
-    elif input_shape == [644, 32, 644] and permute == [2, 1, 0]:
-        in_ub_factor = 64
-        out_ub_factor = 16
-    elif input_shape == [12, 64 * 44 * 80] and permute == [1, 0]:
-        tiling_key = 10002
+    input_shape, permute = simplify_shape(raw_input_shape, raw_permute)
 
     input = torch.randn(input_shape).to(input_dtype)
     out_shape = [input_shape[permute[i]] for i in range(0, len(input_shape))]
     out = torch.zeros(out_shape, dtype=input_dtype)
     items_in_block = 32 // input_dtype.itemsize
-    if tiling_key == 10001 and len(permute) == 2:
+    if len(input_shape) == 1:
+        tile_size = min(ub_size // unroll_factor // input.element_size(), asc2.ceildiv(input_shape[0], block_num))
+        tile_size = asc2.ceildiv(tile_size, items_in_block) * items_in_block
+        with profiler.profile():
+            for _ in range(runs):
+                simple_copy[block_num](input, out, input_shape[0], tile_size, unroll_factor)
+    elif tiling_key == 10001 and len(permute) == 2:
         width = input_shape[1]
         height = input_shape[0]
         load_sizes = tiling_params[29]
@@ -435,7 +460,7 @@ def test_transpose(profiler, runs, kernel_type, test_name, block_num, input_shap
         axis = list(input.shape).index(longest_axis)
 
         axis_step = asc2.ceildiv(input.shape[axis], block_num)
-        out = launch_one_axis(input, permute, axis, axis_step, block_num, input_dtype, runs, profiler)
+        out = launch_one_axis(input, permute, axis, axis_step, unroll_factor, block_num, input_dtype, runs, profiler)
     elif tiling_key == 10004:  #Split on N-last dims
         assert (len(input_shape) == 3 or len(input_shape) == 4)
         iterate_axis = 0
@@ -446,7 +471,8 @@ def test_transpose(profiler, runs, kernel_type, test_name, block_num, input_shap
                 iterate_axis = axis
                 step = ub_size // subtensor_size
                 break
-        out = launch_nlast_axis(input, permute, iterate_axis, step, block_num, input_dtype, runs, profiler)
+        out = launch_nlast_axis(input, permute, iterate_axis, step, unroll_factor, block_num, input_dtype, runs,
+                                profiler)
     elif tiling_key == 10002:  #Split on single axis
         longest_axis = max(input.shape)
         axis = list(input.shape).index(longest_axis)
@@ -456,7 +482,7 @@ def test_transpose(profiler, runs, kernel_type, test_name, block_num, input_shap
         assert (ub_fit > 0)
         axis_step = min(axis_step, ub_fit)
 
-        out = launch_one_axis(input, permute, axis, axis_step, block_num, input_dtype, runs, profiler)
+        out = launch_one_axis(input, permute, axis, axis_step, unroll_factor, block_num, input_dtype, runs, profiler)
     elif tiling_key == 10003:  #Split on two axes
         input_shape = list(input.shape)
         step = [in_ub_factor, out_ub_factor]

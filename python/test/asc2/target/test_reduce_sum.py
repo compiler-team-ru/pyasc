@@ -27,8 +27,7 @@ def reduce_sum_rows(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
     for i in asc2.range(asc2.block_idx(), max_blocks, asc2.block_num(), unroll_factor=unroll_factor):
         cache = asc2.zeros([tile_shape[0]], dtype=in_gm.dtype)
         for j in asc2.range(iters, gm_barrier=True):
-            block = asc2.copy_in(in_gm, [i * tile_shape[0], j * tile_shape[1]], tile_shape, real_shape=tile_shape,
-                                 pad_value=0)
+            block = asc2.copy_in(in_gm, [i * tile_shape[0], j * tile_shape[1]], tile_shape, pad_value=0)
             block = asc2.reduce_sum(block, 1)
             cache = cache + block
         asc2.copy_out(cache, out_gm, [i * tile_shape[0]])
@@ -40,14 +39,13 @@ def reduce_sum_cols(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddres
     in_gm = asc2.global_tensor(input_ptr, [input_num_rows, input_num_cols])
     out_gm = asc2.global_tensor(output_ptr, [output_length])
 
-    max_blocks = asc2.ceildiv(input_num_cols, tile_shape[1])
-    iters = asc2.ceildiv(input_num_rows, tile_shape[0])
+    max_blocks = asc2.ceildiv(input_num_rows, tile_shape[1])
+    iters = asc2.ceildiv(input_num_cols, tile_shape[0])
 
     for j in asc2.range(asc2.block_idx(), max_blocks, asc2.block_num(), unroll_factor=unroll_factor):
         cache = asc2.zeros([tile_shape[1]], dtype=in_gm.dtype)
         for i in asc2.range(iters, gm_barrier=True):
-            block = asc2.copy_in(in_gm, [i * tile_shape[0], j * tile_shape[1]], tile_shape, real_shape=tile_shape,
-                                 pad_value=0)
+            block = asc2.copy_in(in_gm, [i * tile_shape[0], j * tile_shape[1]], tile_shape, pad_value=0)
             block = asc2.reduce_sum(block, 0)
             cache = cache + block
         asc2.copy_out(cache, out_gm, [j * tile_shape[1]])
@@ -65,22 +63,6 @@ def reduce_none(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, i
     for i in asc2.range(asc2.block_idx(), total_repeats, asc2.block_num(), unroll_factor=unroll_factor):
         data = asc2.copy_in(in_gm, [i * block_portion], [block_portion])
         asc2.copy_out(data, out_gm, [i * block_portion])
-
-
-def simplify_shape(shape, axes):
-    if len(axes) == 0 or [shape[i] for i in axes] == [1] * len(axes):
-        # nothing to reduce
-        return [1, math.prod(shape)], 0
-    if set(axes) == set([i for i in range(0, len(shape))]):
-        # reduce all
-        return [1, math.prod(shape)], 1
-    if set(axes) == set([i for i in range(0, len(axes))]):
-        # reduce first n axes
-        return [math.prod(shape[:len(axes)]), math.prod(shape[len(axes):])], 0
-    if set(axes) == set([len(shape) - 1 - i for i in range(0, len(axes))]):
-        # reduce last n axes
-        return [math.prod(shape[:-len(axes)]), math.prod(shape[-len(axes):])], 1
-    raise RuntimeError(f'Unsupported axes: {axes}')
 
 
 # yapf: disable
@@ -145,13 +127,26 @@ def test_reduce_sum(profiler, runs, kernel_type, test_name, block_num, input_sha
     input_shape = input_shapes[0]
     output_shape = output_shapes[0]
     dtype = input_dtypes[0]
-    ub_factor_a = tiling_params[2] if tiling_params else 1
-    ub_factor_r = tiling_params[5] if tiling_params else 1
+    ub_factor_a = tiling_params[2]
+    ub_factor_r = tiling_params[5]
     unroll_factor = runtime_params[0]
-    axises = runtime_params[1]
+    axis = runtime_params[1][0]
 
     keep_dims = (len(input_shape) == len(output_shape))
-    input_shape_2d, axis = simplify_shape(input_shape, axises)
+    input_shape_2d = input_shape
+
+    if len(input_shape) == 1:
+        axis = 1
+        input_shape_2d = [1, input_shape[0]]
+    elif axis == 0:
+        num_cols = math.prod(input_shape[1:])
+        input_shape_2d = [input_shape[0], num_cols]
+    elif axis == len(input_shape) - 1:
+        axis = 1
+        num_rows = math.prod(input_shape[:-1])
+        input_shape_2d = [num_rows, input_shape[-1]]
+    else:
+        raise NotImplementedError("ReduceSum for middle dimension(s) is not implemented yet")
 
     length_a = input_shape_2d[1 - axis] if ub_factor_a == 1 else ub_factor_a
     length_r = input_shape_2d[axis] if ub_factor_r == 1 else ub_factor_r
