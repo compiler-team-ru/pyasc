@@ -9,7 +9,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
-set +e
+set -e
 set -o pipefail
 
 REPOSITORY_NAME="pyasc"
@@ -37,6 +37,7 @@ lcov --version
 gcov --version
 mkdir -p "${WORKSPACE}/build_out" || exit 1
 
+set +e
 LOG_DO python3 -m pip wheel . --wheel-dir="${WORKSPACE}"
 ret=$?
 if [[ ${ret} -eq 0 ]]; then

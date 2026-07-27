@@ -9,7 +9,8 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 # -----------------------------------------------------------------------------------------------------------
 
-set +e
+set -e
+set -o pipefail
 
 echo "${ut_type:-}"
 echo "${TARGET_BRANCH:-}"
@@ -40,6 +41,7 @@ main(){
     export LLVM_INSTALL_PREFIX=/home/jenkins/opensource/llvm
     export LD_LIBRARY_PATH="${ASCEND_HOME_PATH}/tools/simulator/Ascend910B1/lib:${LD_LIBRARY_PATH:-}"
 
+    set +e
     local obs_base="https://ascend-ci.obs.cn-north-4.myhuaweicloud.com/${obs_path}/cann-pyasc_linux-x86_64_ubuntu24.whl"
     local p_name="pyasc-1.1.1+gf870bf7-cp310-cp310-linux_x86_64.whl"
     if ! wget -O "${p_name}" "${obs_base}"; then
