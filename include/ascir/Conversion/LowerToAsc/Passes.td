@@ -118,10 +118,14 @@ def LowerAscTileDataTransfer : Pass<"asclower-asctile-data-transfer", "func::Fun
     Converts AscTile memory transfer operations to Ascend C equivalents:
     - **LoadOp (UB destination)**: Creates `DataCopyPadExtL0Op` from GM to UB with optional padding
     - **LoadOp (L1 destination)**: Creates `DataCopyL2Op` with Nd2Nz params for cube matrix format
+      - Supports `transposeAL1` attribute for transposed matrix A loads (uses Dn2Nz params when srcDValue > 65535)
+      - Supports `transposeBL1` attribute for transposed matrix B loads
     - **StoreOp (from UB)**: Creates `DataCopyPadExtL2Op` to GM
     - **StoreFixpipeOp (from L0C)**: Creates `FixpipeOp` with optional relu/quantize flags
     - **CopyFixpipeOp (L0C to L1)**: Creates `FixpipeOp` with NZ layout for L0C-to-L1 transfer
     - **CopyOp (L1 to L0A/L0B)**: Creates `LoadDataG2LOp` or `LoadDataWithTransposeOp` with fractal layout
+      - Supports `transposeAL0` attribute for transposed matrix A copies
+      - Supports `transposeBL0` attribute for transposed matrix B copies
     - **GetValueOp/SetValueOp**: Creates global tensor scalar get/set operations
 
     Handles both static and dynamic tensor shapes, computing linear offsets from multi-dimensional indices.
