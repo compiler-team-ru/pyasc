@@ -38,9 +38,6 @@ class Platform(Enum):
     Ascend910_9382 = "Ascend910_9382"
     Ascend910_9391 = "Ascend910_9391"
     Ascend910_9392 = "Ascend910_9392"
-    Ascend910_9579 = "Ascend910_9579"
-    Ascend910_9589 = "Ascend910_9589"
-    Ascend910_9599 = "Ascend910_9599"
     Ascend950PR_950z = "Ascend950PR_950z"
     Ascend950PR_9579 = "Ascend950PR_9579"
     Ascend950PR_957b = "Ascend950PR_957b"
@@ -133,6 +130,6 @@ def platform_to_arch(platform: Union[Platform, str]) -> CompilationArch:
     platform_name = Platform(platform).value
     if platform_name.startswith("Ascend910B") or platform_name.startswith("Ascend910_93"):
         return CompilationArch.C220
-    if platform_name.startswith("Ascend910_95") or platform_name.startswith("Ascend950PR_95"):
+    if platform_name.startswith("Ascend950PR_95"):
         return CompilationArch.C310
     raise ValueError(f"There is no compilation arch for '{platform.value}' platform")

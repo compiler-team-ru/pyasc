@@ -95,8 +95,7 @@ def get_platform_info(platform: Platform) -> PlatformInfo:
     if platform in (Platform.Ascend910_9362, Platform.Ascend910_9372, Platform.Ascend910_9381, Platform.Ascend910_9382,
                     Platform.Ascend910_9391, Platform.Ascend910_9392):
         return info_910_93
-    if platform in (Platform.Ascend910_9579, Platform.Ascend910_9589, Platform.Ascend910_9599,
-                    Platform.Ascend950PR_950z, Platform.Ascend950PR_9579, Platform.Ascend950PR_957b,
+    if platform in (Platform.Ascend950PR_950z, Platform.Ascend950PR_9579, Platform.Ascend950PR_957b,
                     Platform.Ascend950PR_957c, Platform.Ascend950PR_957d, Platform.Ascend950PR_9589,
                     Platform.Ascend950PR_958b, Platform.Ascend950PR_9599):
         return dataclass_replace(info_910_93, ub_size=248 * 1024, bt_size=4 * 1024)

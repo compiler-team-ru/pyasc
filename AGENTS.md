@@ -199,7 +199,6 @@ Other options in @python/asc/runtime/compiler.py (CompileOptions dataclass).
 ### Hardware Targets
 - Ascend 910B series (C220 architecture): Ascend910B1, B2, B2C, B3, B4, B4-1
 - Ascend 910_93 series (C220): Ascend910_9362, 9372, 9381, 9382, 9391, 9392
-- Ascend 910_95 series (C310): Ascend910_9579, 9589, 9599
 - Ascend 950PR series (C310): Ascend950PR_950z, 9579, 957b, 957c, 957d, 9589, 958b, 9599
 - Automatic sync insertion per hardware variant
 - BufID-based sync for C310 platforms (InsertBufIdSync)

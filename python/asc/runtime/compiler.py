@@ -360,8 +360,7 @@ class Compiler:
 
     def _check_compile_options(self) -> bool:
         is_soc_version_valid = self.soc_version.value.startswith("Ascend910B") or \
-            self.soc_version.value.startswith("Ascend910_93") or self.soc_version.value.startswith("Ascend910_95") or \
-            self.soc_version.value.startswith("Ascend950PR_95")
+            self.soc_version.value.startswith("Ascend910_93") or self.soc_version.value.startswith("Ascend950PR_95")
         is_core_type_valid = self.options.kernel_type is None or (isinstance(self.options.kernel_type, KernelType) and \
             self.options.kernel_type.value <= 7 and self.options.kernel_type.value >= 0)
         is_opt_level_valid = self.options.opt_level in [1, 2, 3]
