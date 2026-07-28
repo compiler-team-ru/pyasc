@@ -6,32 +6,15 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-import asc2
 import numpy as np
 
-
-@asc2.jit(always_compile=True)
-def vadd_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, size: int,
-                tile_size: asc2.ConstExpr[int], tile_per_block: asc2.ConstExpr[int]):
-    x_gm = asc2.global_tensor(x_ptr, [size])
-    y_gm = asc2.global_tensor(y_ptr, [size])
-    out_gm = asc2.global_tensor(out_ptr, [size])
-    base_offset = asc2.block_idx() * tile_size * tile_per_block
-    for i in range(tile_per_block):
-        tile_offset = base_offset + i * tile_size
-        x = asc2.copy_in(x_gm, [tile_offset], [tile_size])
-        y = asc2.copy_in(y_gm, [tile_offset], [tile_size])
-        out = x + y
-        asc2.copy_out(out, out_gm, [tile_offset])
+from ..target.test_vadd import add as vadd_kernel
 
 
 def vadd_launch(x: np.ndarray, y: np.ndarray) -> np.ndarray:
     out = np.empty_like(x)
-    size = out.size
     core_num = 16
-    tile_size = 128
-    num_tiles = asc2.ceildiv(size, tile_size)
-    vadd_kernel[core_num](x, y, out, size, tile_size, asc2.ceildiv(num_tiles, core_num))
+    vadd_kernel[core_num](x, y, out, out.size, tile_length=128, unroll_factor=2, always_compile=True)
     return out
 
 
