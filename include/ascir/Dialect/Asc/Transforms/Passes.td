@@ -171,7 +171,7 @@ def FuseBufIdSync : Pass<"ascendc-fuse-bufid-sync", "func::FuncOp"> {
       - Remove `rls_buf` after middle operations (only last op needs it)
     - Pipeline types tracked: PIPE_V (vector), PIPE_MTE2 (GM→UB load), PIPE_MTE3 (UB→GM store)
 
-    After optimization, removes the `bufId` attribute from all operations. Used on Ascend 910_95 hardware.
+    After optimization, removes the `bufId` attribute from all operations. Used on C310 architecture.
   }];
 }
 
@@ -244,11 +244,11 @@ def InputOutputTensor : Pass<"ascendc-input-output-tensor", "func::FuncOp"> {
 }
 
 def InsertBufIdSync : Pass<"ascendc-insert-bufid-sync", "func::FuncOp"> {
-  let summary = "Insert get_buf/rls_buf synchronization around operations for BufId-based tracking on Ascend 910_95";
+  let summary = "Insert get_buf/rls_buf synchronization around operations for BufId-based tracking on C310 arch";
   let constructor = "mlir::ascendc::createInsertBufIdSyncPass()";
   let dependentDialects = ["ascendc::AscendCDialect"];
   let description = [{
-    Inserts BufId synchronization for Ascend 910_95 hardware using buffer ID tracking:
+    Inserts BufId synchronization for Ascend hardware with C310 architecture using buffer ID tracking:
     1. Assigns unique `bufId` to each tensor allocation (`LocalTensorV3Op`, `TBufGetTensorOp`)
     2. For each operation using a tensor, inserts `get_buf` before and `rls_buf` after
     3. Tracks pipeline type per operation: PIPE_MTE1 (L1 load), PIPE_MTE2 (GM load), PIPE_MTE3 (GM store),
@@ -268,7 +268,7 @@ def InsertBiasBufIdSync : Pass<"ascendc-insert-bias-bufid-sync", "func::FuncOp">
     in C2 position (bias tensor memory).
 
     This pass ensures proper synchronization between bias tensor access and matrix multiplication operations
-    on Ascend 910_95 hardware. The pass:
+    on C310 architecture. The pass:
     1. Finds `LocalTensorV3Op` in C2 position with a `bufId` attribute
     2. Extracts the `bufId` value from this tensor
     3. For each `MmadOp` with `cmatrixSource` parameter:

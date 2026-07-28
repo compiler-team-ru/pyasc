@@ -13,7 +13,7 @@
 - Reach **≈90% of the performance of hand-optimized Ascend C operators** for representative workloads.
 - Provide a NumPy-like operation set: arithmetic, reductions, shape manipulation, masking, atomics.
 - **[Main engineering challenge]** Automate synchronization insertion, UB memory allocation, and ping-pong optimization through compiler passes and compiler hints.
-- Support Ascend **A2** (910B), **A3** (910C — two 910B dies in one package), and **A5** (950) hardware families.
+- Support Ascend **A2/A3** (910B/910C platforms, C220 arch), and **A5** (950 platforms, C310 arch) hardware families.
 
 **Relationship to PyAsc1 (`asc`):**
 PyAsc2 is implemented *on top of* the existing PyAsc infrastructure. The `asc2.jit` decorator re-uses `JITFunction`, the same AST-to-IR codegen, the same MLIR pass manager, and the same Bisheng compilation step. What is new is the `asctile` MLIR dialect and a dedicated lowering pipeline that converts tile-level IR down to the `ascendc` dialect before the existing backend takes over.
@@ -325,7 +325,7 @@ These operate on the `asctile` dialect before lowering begins.
 | `LegalizeMatmul` | Rewrite `MatmulOp`/`MatmulAccOp` into the form expected by the AscLower passes |
 | `TransformMathOps` | Specialise generic `math.*` ops into tile-aware equivalents that the AscLower pass knows how to handle |
 | `TransformStoreFixpipe` | Convert eligible `StoreOp`s of L0C tiles into `StoreFixpipeOp` |
-| `UnscalarizeReduction` (910_95 only) | Replace scalar-tail reductions with vector forms |
+| `UnscalarizeReduction` (C310 only) | Replace scalar-tail reductions with vector forms |
 | `UnrollLoop` | Physically unroll loops tagged by `unroll_factor` |
 | `Canonicalizer`, `CSE` | Standard MLIR cleanup between stages |
 
@@ -357,7 +357,7 @@ Once all `asctile` ops are gone, the existing ascendc pipeline takes over:
 |-------|-----------|
 | **Lowering glue** | `PrivatizeFunc`, `FillAscOperands`, `FixupMmadAccParams`, `LowerToL0` |
 | **Memory allocation** | `InputOutputTensor`, `ReuseUBAllocation`, `HoistTensorAllocation`, `FuseVFBlock` (when `vf_fusion=True`), `AllocateTensor` (when `static_alloc=True`) / `MaterializeTensor` (otherwise), `UnifyPipe` |
-| **Synchronization** | `EraseSync`, `HoistQueBind`, then either `InsertSync` (910B / 910_93) or `InsertBufIdSync` + `FuseBufIdSync` (910_95); finally `UnifyPipe`. `VerifySync` runs when `verify_sync=True` |
+| **Synchronization** | `EraseSync`, `HoistQueBind`, then either `InsertSync` (C220) or `InsertBufIdSync` + `FuseBufIdSync` (C310); finally `UnifyPipe`. `VerifySync` runs when `verify_sync=True` |
 | **Optimization** | `LICM`, `SCCP`, `Canonicalizer` |
 | **Postprocessing** | `DeclarePyStruct`, `GenerateBoilerplate`, `DefineCubeOnly` (when `matmul_cube_only=True`), `LegalizeKernelArgs`, `DetectKernelType`, `DetectEnableDebug`, `ComputeMemoryConsumption` |
 
@@ -384,9 +384,9 @@ Two strategies, selected per compilation:
 | Strategy | Option | How it works |
 |----------|--------|-------------|
 | **TPipe-managed** | `static_alloc=False` | `MaterializeTensor` emits `TPipe` + `AllocTensor`/`FreeTensor` in the generated Ascend C. Flexible; incurs scalar overhead per tile. Default on 910B / 910_93. |
-| **Static allocation** | `static_alloc=True` | `AllocateTensor` computes a fixed layout at compile time and emits direct UB address arithmetic. Zero scalar overhead; requires all tile sizes to be statically known. Default on 910_95. |
+| **Static allocation** | `static_alloc=True` | `AllocateTensor` computes a fixed layout at compile time and emits direct UB address arithmetic. Zero scalar overhead; requires all tile sizes to be statically known. Default on C310. |
 
-`static_alloc` is `Optional[bool]`; when left at `None`, `Compiler.__init__` resolves it to `True` on 910_95 and `False` otherwise.
+`static_alloc` is `Optional[bool]`; when left at `None`, `Compiler.__init__` resolves it to `True` on C310 and `False` otherwise.
 
 **UB pressure reduction (both modes):**
 - `HoistTensorAllocation` — move allocations above loops so one allocation covers all iterations.
@@ -398,8 +398,8 @@ Two strategies, selected per compilation:
 Because asc2 users don't write `set_flag`/`wait_flag`, all synchronization is inserted by the compiler:
 
 - `insert_sync=True` is set automatically by `asc2.jit`.
-- On **910B / 910_93**: `InsertSync` uses the classic queue-position–based algorithm.
-- On **910_95**: `InsertBufIdSync` uses a newer algorithm that reduces sync overhead by tracking buffer IDs rather than queue positions; `FuseBufIdSync` merges adjacent sync ops.
+- On **C220**: `InsertSync` uses the classic queue-position–based algorithm.
+- On **C310**: `InsertBufIdSync` uses a newer algorithm that reduces sync overhead by tracking buffer IDs rather than queue positions; `FuseBufIdSync` merges adjacent sync ops.
 - `verify_sync=True` runs an additional `VerifySync` pass after sync insertion as a sanity check.
 
 ---
@@ -474,7 +474,7 @@ _TODO: to be filled in._
 |--------|-----------------------|--------|
 | `run_asc2_passes` | `True` | Enable AscTile + AscLower pipeline |
 | `insert_sync` | `True` | Auto-insert sync barriers |
-| `static_alloc` | `None` → arch-dependent (`True` on 910_95, `False` on 910B / 910_93) | Static vs TPipe-managed UB allocation |
+| `static_alloc` | `None` → arch-dependent (`True` on C310, `False` on C220) | Static vs TPipe-managed UB allocation |
 | `reuse_alloc` | `0` | Reuse freed UB regions |
 | `vf_fusion` | `False` | Fuse consecutive vector ops into Ascend C MicroAPI VF blocks |
 | `verify_sync` | `False` | Run `VerifySync` pass after sync insertion |
