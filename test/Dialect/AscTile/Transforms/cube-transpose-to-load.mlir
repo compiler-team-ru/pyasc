@@ -4,8 +4,8 @@
 // CHECK-SAME: %[[TENSOR:.*]]: tensor<32x128xf16, #asctile.global>)
 // CHECK-NEXT: %[[C0:.*]] = arith.constant 0 : i32
 // CHECK-NEXT: %[[PAD:.*]] = arith.constant 0.000000e+00 : f16
-// CHECK-NEXT: %[[LOAD:.*]] = asctile.load %[[TENSOR]][%[[C0]], %[[C0]]], %[[PAD]] {asctile.transpose_a} : tensor<32x128xf16, #asctile.global>, tensor<32x128xf16, #asctile.local<L1>>
-// CHECK-NEXT: %[[COPY:.*]] = asctile.copy %[[LOAD]][%[[C0]], %[[C0]]] {asctile.transpose_a} : tensor<32x128xf16, #asctile.local<L1>>, tensor<128x32xf16, #asctile.local<L0A>>
+// CHECK-NEXT: %[[LOAD:.*]] = asctile.load %[[TENSOR]][%[[C0]], %[[C0]]], %[[PAD]] {asctile.transpose_a_l0} : tensor<32x128xf16, #asctile.global>, tensor<32x128xf16, #asctile.local<L1>>
+// CHECK-NEXT: %[[COPY:.*]] = asctile.copy %[[LOAD]][%[[C0]], %[[C0]]] {asctile.transpose_a_l0} : tensor<32x128xf16, #asctile.local<L1>>, tensor<128x32xf16, #asctile.local<L0A>>
 // CHECK-NEXT: return %[[COPY]] : tensor<128x32xf16, #asctile.local<L0A>>
 // CHECK-NEXT:}
 func.func @transpose_l0a_basic(%arg0: tensor<32x128xf16, #asctile.global>) -> tensor<128x32xf16, #asctile.local<L0A>> {
@@ -21,8 +21,8 @@ func.func @transpose_l0a_basic(%arg0: tensor<32x128xf16, #asctile.global>) -> te
 // CHECK-SAME: %[[TENSOR:.*]]: tensor<64x32xf16, #asctile.global>)
 // CHECK-NEXT: %[[C0:.*]] = arith.constant 0 : i32
 // CHECK-NEXT: %[[PAD:.*]] = arith.constant 0.000000e+00 : f16
-// CHECK-NEXT: %[[LOAD:.*]] = asctile.load %[[TENSOR]][%[[C0]], %[[C0]]], %[[PAD]] {asctile.transpose_b} : tensor<64x32xf16, #asctile.global>, tensor<64x32xf16, #asctile.local<L1>>
-// CHECK-NEXT: %[[COPY:.*]] = asctile.copy %[[LOAD]][%[[C0]], %[[C0]]] {asctile.transpose_b} : tensor<64x32xf16, #asctile.local<L1>>, tensor<32x64xf16, #asctile.local<L0B>>
+// CHECK-NEXT: %[[LOAD:.*]] = asctile.load %[[TENSOR]][%[[C0]], %[[C0]]], %[[PAD]] {asctile.transpose_b_l0} : tensor<64x32xf16, #asctile.global>, tensor<64x32xf16, #asctile.local<L1>>
+// CHECK-NEXT: %[[COPY:.*]] = asctile.copy %[[LOAD]][%[[C0]], %[[C0]]] {asctile.transpose_b_l0} : tensor<64x32xf16, #asctile.local<L1>>, tensor<32x64xf16, #asctile.local<L0B>>
 // CHECK-NEXT: return %[[COPY]] : tensor<32x64xf16, #asctile.local<L0B>>
 // CHECK-NEXT:}
 func.func @transpose_l0b_basic(%arg0: tensor<64x32xf16, #asctile.global>) -> tensor<32x64xf16, #asctile.local<L0B>> {
@@ -56,8 +56,8 @@ func.func @transpose_ub_not_transformed(%arg0: tensor<32x128xf16, #asctile.globa
 // CHECK-SAME: %[[TENSOR:.*]]: tensor<16x32xf32, #asctile.global>)
 // CHECK-NEXT: %[[C0:.*]] = arith.constant 0 : i32
 // CHECK-NEXT: %[[PAD:.*]] = arith.constant 0.000000e+00 : f32
-// CHECK-NEXT: %[[LOAD:.*]] = asctile.load %[[TENSOR]][%[[C0]], %[[C0]]], %[[PAD]] {asctile.transpose_a} : tensor<16x32xf32, #asctile.global>, tensor<16x32xf32, #asctile.local<L1>>
-// CHECK-NEXT: %[[COPY:.*]] = asctile.copy %[[LOAD]][%[[C0]], %[[C0]]] {asctile.transpose_a} : tensor<16x32xf32, #asctile.local<L1>>, tensor<32x16xf32, #asctile.local<L0A>>
+// CHECK-NEXT: %[[LOAD:.*]] = asctile.load %[[TENSOR]][%[[C0]], %[[C0]]], %[[PAD]] {asctile.transpose_a_l0} : tensor<16x32xf32, #asctile.global>, tensor<16x32xf32, #asctile.local<L1>>
+// CHECK-NEXT: %[[COPY:.*]] = asctile.copy %[[LOAD]][%[[C0]], %[[C0]]] {asctile.transpose_a_l0} : tensor<16x32xf32, #asctile.local<L1>>, tensor<32x16xf32, #asctile.local<L0A>>
 // CHECK-NEXT: return %[[COPY]] : tensor<32x16xf32, #asctile.local<L0A>>
 // CHECK-NEXT:}
 func.func @transpose_l0a_f32(%arg0: tensor<16x32xf32, #asctile.global>) -> tensor<32x16xf32, #asctile.local<L0A>> {
@@ -67,4 +67,38 @@ func.func @transpose_l0a_f32(%arg0: tensor<16x32xf32, #asctile.global>) -> tenso
   %copy = asctile.copy %load[%c0_i32, %c0_i32] : tensor<16x32xf32, #asctile.local<L1>>, tensor<16x32xf32, #asctile.local<L0A>>
   %transpose = asctile.transpose %copy, [1 : i32, 0 : i32] : tensor<16x32xf32, #asctile.local<L0A>> to tensor<32x16xf32, #asctile.local<L0A>>
   return %transpose : tensor<32x16xf32, #asctile.local<L0A>>
+}
+
+// CHECK-LABEL: func.func @transpose_l1_a_fp32(
+// CHECK-SAME: %[[TENSOR:.*]]: tensor<32x64xf32, #asctile.global>)
+// CHECK-NEXT: %[[C0:.*]] = arith.constant 0 : i32
+// CHECK-NEXT: %[[PAD:.*]] = arith.constant 0.000000e+00 : f32
+// CHECK-NEXT: %[[LOAD:.*]] = asctile.load %[[TENSOR]][%[[C0]], %[[C0]]], %[[PAD]] {asctile.transpose_a_l1} : tensor<32x64xf32, #asctile.global>, tensor<64x32xf32, #asctile.local<L1>>
+// CHECK-NEXT: %[[COPY:.*]] = asctile.copy %[[LOAD]][%[[C0]], %[[C0]]] {asctile.transpose_a_l1} : tensor<64x32xf32, #asctile.local<L1>>, tensor<64x32xf32, #asctile.local<L0A>>
+// CHECK-NEXT: return %[[COPY]] : tensor<64x32xf32, #asctile.local<L0A>>
+// CHECK-NEXT:}
+func.func @transpose_l1_a_fp32(%arg0: tensor<32x64xf32, #asctile.global>) -> tensor<64x32xf32, #asctile.local<L0A>> {
+  %c0_i32 = arith.constant 0 : i32
+  %cst = arith.constant 0.000000e+00 : f32
+  %load = asctile.load %arg0[%c0_i32, %c0_i32], %cst : tensor<32x64xf32, #asctile.global>, tensor<32x64xf32, #asctile.local<L1>>
+  %transpose = asctile.transpose %load, [1 : i32, 0 : i32] : tensor<32x64xf32, #asctile.local<L1>> to tensor<64x32xf32, #asctile.local<L1>>
+  %copy = asctile.copy %transpose[%c0_i32, %c0_i32] : tensor<64x32xf32, #asctile.local<L1>>, tensor<64x32xf32, #asctile.local<L0A>>
+  return %copy : tensor<64x32xf32, #asctile.local<L0A>>
+}
+
+// CHECK-LABEL: func.func @transpose_l1_b_fp32(
+// CHECK-SAME: %[[TENSOR:.*]]: tensor<64x32xf32, #asctile.global>)
+// CHECK-NEXT: %[[C0:.*]] = arith.constant 0 : i32
+// CHECK-NEXT: %[[PAD:.*]] = arith.constant 0.000000e+00 : f32
+// CHECK-NEXT: %[[LOAD:.*]] = asctile.load %[[TENSOR]][%[[C0]], %[[C0]]], %[[PAD]] {asctile.transpose_b_l1} : tensor<64x32xf32, #asctile.global>, tensor<32x64xf32, #asctile.local<L1>>
+// CHECK-NEXT: %[[COPY:.*]] = asctile.copy %[[LOAD]][%[[C0]], %[[C0]]] {asctile.transpose_b_l1} : tensor<32x64xf32, #asctile.local<L1>>, tensor<32x64xf32, #asctile.local<L0B>>
+// CHECK-NEXT: return %[[COPY]] : tensor<32x64xf32, #asctile.local<L0B>>
+// CHECK-NEXT:}
+func.func @transpose_l1_b_fp32(%arg0: tensor<64x32xf32, #asctile.global>) -> tensor<32x64xf32, #asctile.local<L0B>> {
+  %c0_i32 = arith.constant 0 : i32
+  %cst = arith.constant 0.000000e+00 : f32
+  %load = asctile.load %arg0[%c0_i32, %c0_i32], %cst : tensor<64x32xf32, #asctile.global>, tensor<64x32xf32, #asctile.local<L1>>
+  %transpose = asctile.transpose %load, [1 : i32, 0 : i32] : tensor<64x32xf32, #asctile.local<L1>> to tensor<32x64xf32, #asctile.local<L1>>
+  %copy = asctile.copy %transpose[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<L1>>, tensor<32x64xf32, #asctile.local<L0B>>
+  return %copy : tensor<32x64xf32, #asctile.local<L0B>>
 }

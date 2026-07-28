@@ -63,11 +63,25 @@ struct MarkTileOperandInMmad : OpRewritePattern<asctile::LoadOp> {
 
         std::optional<bool> isTensorA;
         for (auto& use : op->getUses()) {
-            auto copyOp = dyn_cast<asctile::CopyOp>(use.getOwner());
-            if (!copyOp) {
-                op.emitError() << "L1 tensor is expected to be used for copy operations only.";
+            auto* user = use.getOwner();
+            asctile::CopyOp copyOp;
+            if (auto directCopy = dyn_cast<asctile::CopyOp>(user)) {
+                copyOp = directCopy;
+            } else if (auto transposeOp = dyn_cast<asctile::TransposeOp>(user)) {
+                if (!transposeOp->hasOneUse()) {
+                    op.emitError() << "TransposeOp after L1 load must have exactly one use.";
+                    return failure();
+                }
+                copyOp = dyn_cast<asctile::CopyOp>(*transposeOp->user_begin());
+                if (!copyOp) {
+                    op.emitError() << "TransposeOp after L1 load must be used by CopyOp.";
+                    return failure();
+                }
+            } else {
+                op.emitError() << "L1 tensor is expected to be used for copy or transpose operations only.";
                 return failure();
             }
+            assert(copyOp && "copyOp must be initialized");
             auto l0TileLoc = copyOp.getType().getLoc();
             if (l0TileLoc != TensorLocation::L0A && l0TileLoc != TensorLocation::L0B &&
                 l0TileLoc != TensorLocation::BT) {
@@ -89,7 +103,6 @@ struct MarkTileOperandInMmad : OpRewritePattern<asctile::LoadOp> {
             return success();
         }
 
-        // If we are here it means that processed L1 tensor is for B.
         return failure();
     }
 };

@@ -294,7 +294,8 @@ def transpose(input: LocalTensor, *axis: int) -> LocalTensor:
     if list(axis) == list(range(0, rank)):  # Identity transformation
         return input
     if rank == 2:
-        verify_location(input.location, "input", (TensorLocation.UB, TensorLocation.L0A, TensorLocation.L0B))
+        verify_location(input.location, "input",
+                        (TensorLocation.UB, TensorLocation.L1, TensorLocation.L0A, TensorLocation.L0B))
     else:
         verify_location(input.location, "input", TensorLocation.UB)
     if set(axis) != set(range(0, rank)):

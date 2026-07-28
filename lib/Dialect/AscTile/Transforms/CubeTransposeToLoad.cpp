@@ -30,7 +30,7 @@ namespace {
 
 constexpr const char* const fusibleAttr = "asctile.fusible";
 
-void markTranspose(asctile::TransposeOp op)
+void markTransposeCopy(asctile::TransposeOp op)
 {
     auto tileLoc = op.getType().getLoc();
     if (tileLoc != TensorLocation::L0A && tileLoc != TensorLocation::L0B)
@@ -56,6 +56,27 @@ void markTranspose(asctile::TransposeOp op)
     op->setAttr(fusibleAttr, UnitAttr::get(op.getContext()));
 }
 
+void markTransposeLoad(asctile::TransposeOp op)
+{
+    auto tileLoc = op.getType().getLoc();
+    if (tileLoc != TensorLocation::L1)
+        return;
+    auto loadOp = op.getOperand().getDefiningOp<asctile::LoadOp>();
+    if (!loadOp || !loadOp->hasOneUse())
+        return;
+    if (loadOp.getType().getShape().size() != 2)
+        return;
+    if (!op->hasOneUse())
+        return;
+    auto copyOp = dyn_cast<asctile::CopyOp>(*op->user_begin());
+    if (!copyOp)
+        return;
+    auto copyLoc = copyOp.getType().getLoc();
+    if (copyLoc != TensorLocation::L0A && copyLoc != TensorLocation::L0B)
+        return;
+    op->setAttr(fusibleAttr, UnitAttr::get(op.getContext()));
+}
+
 struct CubeTransposeToLoad : OpRewritePattern<asctile::TransposeOp> {
     using OpRewritePattern::OpRewritePattern;
 
@@ -64,22 +85,47 @@ struct CubeTransposeToLoad : OpRewritePattern<asctile::TransposeOp> {
         if (!op->hasAttrOfType<UnitAttr>(fusibleAttr))
             return failure();
         auto opType = op.getType();
-        auto copyOp = op.getOperand().getDefiningOp<asctile::CopyOp>();
-        const auto* attr =
-            opType.getLoc() == TensorLocation::L0A ? asctile::attr::transposeA : asctile::attr::transposeB;
-        auto* loadOp = copyOp.getBase().getDefiningOp();
-        rewriter.startOpModification(loadOp);
-        loadOp->setAttr(attr, rewriter.getUnitAttr());
-        rewriter.finalizeOpModification(loadOp);
-        auto copyOpType = copyOp.getType();
-        auto shape = copyOpType.getShape();
-        Type newType = LocalTensorType::get({shape[1], shape[0]}, opType.getElementType(), copyOpType.getLoc());
-        auto newCopyOp = rewriter.create<asctile::CopyOp>(op.getLoc(), newType, copyOp.getBase(), copyOp.getOffsets());
-        rewriter.replaceOp(copyOp, newCopyOp);
-        rewriter.startOpModification(newCopyOp);
-        newCopyOp->setAttr(attr, rewriter.getUnitAttr());
-        rewriter.finalizeOpModification(newCopyOp);
-        rewriter.replaceOp(op, newCopyOp);
+        auto tileLoc = opType.getLoc();
+        if (tileLoc == TensorLocation::L0A || tileLoc == TensorLocation::L0B) {
+            auto copyOp = op.getOperand().getDefiningOp<asctile::CopyOp>();
+            const auto* attr =
+                tileLoc == TensorLocation::L0A ? asctile::attr::transposeAL0 : asctile::attr::transposeBL0;
+            auto* loadOp = copyOp.getBase().getDefiningOp();
+            rewriter.startOpModification(loadOp);
+            loadOp->setAttr(attr, rewriter.getUnitAttr());
+            rewriter.finalizeOpModification(loadOp);
+            auto copyOpType = copyOp.getType();
+            auto shape = copyOpType.getShape();
+            Type newType = LocalTensorType::get({shape[1], shape[0]}, opType.getElementType(), copyOpType.getLoc());
+            auto newCopyOp =
+                rewriter.create<asctile::CopyOp>(op.getLoc(), newType, copyOp.getBase(), copyOp.getOffsets());
+            rewriter.replaceOp(copyOp, newCopyOp);
+            rewriter.startOpModification(newCopyOp);
+            newCopyOp->setAttr(attr, rewriter.getUnitAttr());
+            rewriter.finalizeOpModification(newCopyOp);
+            rewriter.replaceOp(op, newCopyOp);
+        } else if (tileLoc == TensorLocation::L1) {
+            auto loadOp = op.getOperand().getDefiningOp<asctile::LoadOp>();
+            auto copyOp = dyn_cast<asctile::CopyOp>(*op->user_begin());
+            if (!copyOp)
+                return failure();
+            auto copyLoc = copyOp.getType().getLoc();
+            const auto* attr =
+                copyLoc == TensorLocation::L0A ? asctile::attr::transposeAL1 : asctile::attr::transposeBL1;
+            auto loadType = loadOp.getType();
+            auto shape = loadType.getShape();
+            auto newLoadType = LocalTensorType::get({shape[1], shape[0]}, opType.getElementType(), loadType.getLoc());
+            auto newLoadOp = rewriter.create<asctile::LoadOp>(
+                op.getLoc(), newLoadType, loadOp.getBase(), loadOp.getOffsets(), loadOp.getPadValue(),
+                loadOp.getRealShape());
+            newLoadOp->setAttrs(loadOp->getAttrs());
+            newLoadOp->setAttr(attr, rewriter.getUnitAttr());
+            rewriter.startOpModification(copyOp);
+            copyOp->setAttr(attr, rewriter.getUnitAttr());
+            rewriter.finalizeOpModification(copyOp);
+            rewriter.replaceOp(loadOp, newLoadOp);
+            rewriter.replaceOp(op, newLoadOp);
+        }
         return success();
     }
 };
@@ -88,7 +134,8 @@ struct CubeTransposeToLoadPass : public asctile::impl::CubeTransposeToLoadBase<C
     void runOnOperation() override
     {
         func::FuncOp funcOp = getOperation();
-        funcOp->walk(markTranspose);
+        funcOp->walk(markTransposeCopy);
+        funcOp->walk(markTransposeLoad);
         MLIRContext* context = &getContext();
         RewritePatternSet patterns(context);
         patterns.insert<CubeTransposeToLoad>(context);

@@ -354,6 +354,11 @@ def Nd2NzParams : APIType<"Nd2NzParams"> {
   let apiName = "AscendC::Nd2NzParams";
 }
 
+def Dn2NzParams : APIType<"Dn2NzParams"> {
+  let mnemonic = "dn2nz_params";
+  let apiName = "AscendC::Dn2NzParams";
+}
+
 def Nz2NdParams : APIType<"Nz2NdParams"> {
   let mnemonic = "nz2nd_params";
   let apiName = "AscendC::Nz2NdParams";

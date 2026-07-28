@@ -18,29 +18,58 @@ def CubeTransposeToLoad : Pass<"asctile-cube-transpose-to-load", "func::FuncOp">
   let constructor = "mlir::asctile::createCubeTransposeToLoadPass()";
   let description = [{
     This pass eliminates `asctile.transpose` operations on cube (matrix multiplication) operands in L0A/L0B
-    buffers by adding `transposeA` or `transposeB` attributes to the underlying load and copy operations.
+    buffers and on L1 buffers by adding appropriate attributes to the underlying load and copy operations.
 
-    The transformation applies when:
+    For L0A/L0B operands the transformation applies when:
     1. The transpose result is in L0A or L0B buffer (cube operands)
     2. The transpose input is a `copy` operation with exactly one use
     3. The copy's source is a `load` operation with exactly one use
 
     The pass:
     - Removes the transpose operation
-    - Adds `transposeA` attribute to load and copy if result is in L0A
-    - Adds `transposeB` attribute to load and copy if result is in L0B
+    - Adds `transposeAL0` attribute to load and copy if result is in L0A
+    - Adds `transposeBL0` attribute to load and copy if result is in L0B
     - Swaps the dimensions in the copy result type (transposed shape)
 
-    Example transformation:
+    For L1 operands the transformation applies when:
+    1. The transpose result is in L1 buffer
+    2. The transpose input is a `load` operation with exactly one use
+    3. The transpose has exactly one use which is a `copy` operation to L0A or L0B
+
+    The pass:
+    - Removes the transpose operation
+    - Adds `transposeAL1` attribute to load and copy if copy destination is L0A (matrix A)
+    - Adds `transposeBL1` attribute to load and copy if copy destination is L0B (matrix B)
+    - Swaps the dimensions in the load result type (transposed shape)
+
+    Example transformations:
     ```mlir
-    // Before: separate load, copy, and transpose
+    // L0A/L0B case - Before: separate load, copy, and transpose
     %0 = load %tensor[%i, %j], %pad : tensor, tensor<32x128xf16, L1>
     %1 = copy %0[%x, %y] : tensor<32x128xf16, L1>, tensor<32x128xf16, L0A>
     %2 = transpose %1 : tensor<32x128xf16, L0A> to tensor<128x32xf16, L0A>
 
     // After: transpose attribute propagated, transpose op removed
-    %0 = load %tensor[%i, %j], %pad {transposeA} : tensor, tensor<32x128xf16, L1>
-    %1 = copy %0[%x, %y] {transposeA} : tensor<128x32xf16, L1>, tensor<128x32xf16, L0A>
+    %0 = load %tensor[%i, %j], %pad {transposeAL0} : tensor, tensor<32x128xf16, L1>
+    %1 = copy %0[%x, %y] {transposeAL0} : tensor<128x32xf16, L1>, tensor<128x32xf16, L0A>
+
+    // L1 case for matrix A - Before: load, transpose, and copy to L0A
+    %0 = load %tensor[%i, %j], %pad : tensor, tensor<16x70000xf16, L1>
+    %1 = transpose %0 : tensor<16x70000xf16, L1> to tensor<70000x16xf16, L1>
+    %2 = copy %1[%x, %y] : tensor<70000x16xf16, L1>, tensor<70000x16xf16, L0A>
+
+    // After: transposeAL1 attribute propagated, transpose op removed
+    %0 = load %tensor[%i, %j], %pad {transposeAL1} : tensor, tensor<70000x16xf16, L1>
+    %2 = copy %0[%x, %y] {transposeAL1} : tensor<70000x16xf16, L1>, tensor<70000x16xf16, L0A>
+
+    // L1 case for matrix B - Before: load, transpose, and copy to L0B
+    %0 = load %tensor[%i, %j], %pad : tensor, tensor<70000x16xf16, L1>
+    %1 = transpose %0 : tensor<70000x16xf16, L1> to tensor<16x70000xf16, L1>
+    %2 = copy %1[%x, %y] : tensor<16x70000xf16, L1>, tensor<16x70000xf16, L0B>
+
+    // After: transposeBL0 attribute propagated, transpose op removed
+    %0 = load %tensor[%i, %j], %pad {transposeBL0} : tensor, tensor<16x70000xf16, L1>
+    %2 = copy %0[%x, %y] {transposeBL0} : tensor<16x70000xf16, L1>, tensor<16x70000xf16, L0B>
     ```
   }];
 }
