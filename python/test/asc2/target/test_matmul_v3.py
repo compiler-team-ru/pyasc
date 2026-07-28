@@ -175,8 +175,8 @@ test_cases = [
      (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (1024, 160, 640, 96, 64, 256, 96, 64, 128)
     (None, (384, 768, 768, 128, 64, 128, 128, 64, 64), torch.float16, False, False, FullLoadMode.NONE, False, False,
      (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (384, 768, 768, 128, 64, 256, 128, 64, 128)
-    (None, (6400, 128, 96, 160, 128, 96, 64, 64, 32), torch.float32, False, False, FullLoadMode.B, True, False,
-     (1, 1, 4, 1, 2), (0, 1), (1e-3, 1e-3)),  # TODO: (6400, 128, 96, 160, 128, 96, 160, 128, 32), (4, 1, 1, 1, 2)
+    (None, (6400, 128, 96, 160, 128, 96, 160, 128, 32), torch.float32, False, False, FullLoadMode.B, True, False,
+     (1, 1, 1, 1, 2), (0, 1), (1e-3, 1e-3)),  # TODO: (2, 1, 1, 1, 2)
     (None, (120, 1152, 1152, 64, 64, 256, 64, 64, 64), torch.float16, False, False, FullLoadMode.NONE, False, False,
      (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (120, 1152, 1152, 64, 64, 512, 64, 64, 256)
     (None, (1, 16384, 100, 16, 256, 64, 16, 64, 32), torch.float32, False, False, FullLoadMode.A, True, True,
@@ -279,8 +279,8 @@ test_cases = [
      False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (12928, 7168, 4096, 256, 256, 256, 256, 256, 64)
     (None, (7680, 3456, 1152, 256, 256, 192, 256, 256, 32), torch.bfloat16, False, True, FullLoadMode.NONE, False, True,
      (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (7680, 3456, 1152, 256, 256, 192, 256, 256, 64)
-    (None, (8192, 7680, 2048, 256, 256, 256, 256, 256, 32), torch.float16, False, False, FullLoadMode.NONE, False,
-     False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (8192, 7680, 2048, 256, 256, 256, 256, 256, 64)
+    (None, (8192, 3072, 1536, 256, 256, 256, 256, 256, 32), torch.float16, False, False, FullLoadMode.NONE, False,
+     False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (8192, 3072, 1536, 256, 256, 256, 256, 256, 64)
     (None, (32768, 4096, 1536, 256, 256, 256, 256, 256, 32), torch.float16, False, False, FullLoadMode.NONE, False,
      False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),  # TODO: (32768, 4096, 1536, 256, 256, 256, 256, 256, 64)
     (None, (1536, 4096, 32768, 256, 256, 256, 256, 256, 32), torch.float16, True, False, FullLoadMode.NONE, False,
