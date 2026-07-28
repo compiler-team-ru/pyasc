@@ -43,34 +43,25 @@ constexpr int64_t dstRepStride = 8;
 constexpr int64_t src0RepStride = 8;
 constexpr int64_t src1RepStride = 8;
 
-int64_t getRepeatTimes(ShapedType type)
+int64_t getRepeatElements(ShapedType type)
 {
-    auto sizeType = ascendc::getElementTypeSize(type);
-    assert((sizeType == 1 || sizeType == 2 || sizeType == 4 || sizeType == 8) && "Unsupported element type");
-    auto numElemsPerRepeat = ascendc::repeatBlockSize / sizeType;
-    return llvm::divideCeilSigned(type.getNumElements(), numElemsPerRepeat);
+    int64_t sizeType = ascendc::getElementTypeSize(type);
+    assert((sizeType == 1 || sizeType == 2 || sizeType == 4 || sizeType == 8) && "Unsupported element type size");
+    return ascendc::repeatBlockSize / sizeType;
 }
 
-std::pair<uint64_t, uint64_t> getMask(ShapedType type)
+int64_t getRepeatTimes(ShapedType type)
 {
-    auto sizeType = ascendc::getElementTypeSize(type);
-    assert((sizeType == 2 || sizeType == 4) && "Unsupported element type");
-    // TODO: Add correct calculation for bitmasks depending on type.getNumElements()
-    auto mask = llvm::maskTrailingOnes<uint64_t>(ascendc::bitmaskSize);
-    if (sizeType == 2)
-        return {mask, mask};
-    return {0UL, mask};
+    return llvm::divideCeilSigned(type.getNumElements(), getRepeatElements(type));
 }
 
 template <class OpT>
-void fillMask(OpBuilder& builder, Location loc, ConstantOpBuilder& consts, ShapedType srcType, OpT op)
+void fillMask(ConstantOpBuilder& consts, ShapedType srcType, OpT op)
 {
     op.setIsSetMask(true);
     if (op->hasAttr(ascendc::attr::maskSet))
         return;
-    auto [maskHVal, maskLVal] = getMask(srcType);
-    auto mask = builder.create<emitasc::MaskOp>(
-        loc, consts.i64(static_cast<int64_t>(maskHVal)), consts.i64(static_cast<int64_t>(maskLVal)));
+    Value mask = consts.i64(getRepeatElements(srcType));
     op.getMaskMutable().assign(mask);
 }
 
@@ -80,8 +71,7 @@ void fillOperation(OpType op)
     OpBuilder builder(op);
     ConstantOpBuilder consts(builder);
     auto srcType = dyn_cast<ShapedType>(op.getSrc().getType());
-    auto loc = op.getLoc();
-    fillMask(builder, loc, consts, srcType, op);
+    fillMask(consts, srcType, op);
     auto repeatTimes = consts.i64(getRepeatTimes(srcType));
     op.getRepeatTimesMutable().assign(repeatTimes);
     auto dstBlkStrideVal = consts.i64(dstBlkStride);
@@ -89,7 +79,7 @@ void fillOperation(OpType op)
     auto dstRepStrideVal = consts.i64(dstRepStride);
     auto src0RepStrideVal = consts.i64(src0RepStride);
     auto repeatParams = builder.create<ascendc::ConstructOp>(
-        loc, builder.getType<ascendc::UnaryRepeatParamsType>(),
+        op.getLoc(), builder.getType<ascendc::UnaryRepeatParamsType>(),
         ValueRange{dstBlkStrideVal, src0BlkStrideVal, dstRepStrideVal, src0RepStrideVal});
     op.getRepeatParamsMutable().assign(repeatParams);
 }
@@ -100,8 +90,7 @@ void fillOperation(OpType op)
     OpBuilder builder(op);
     ConstantOpBuilder consts(builder);
     auto srcType = dyn_cast<ShapedType>(op.getSrc0().getType());
-    auto loc = op.getLoc();
-    fillMask(builder, loc, consts, srcType, op);
+    fillMask(consts, srcType, op);
     auto repeatTimes = consts.i64(getRepeatTimes(srcType));
     op.getRepeatTimesMutable().assign(repeatTimes);
     auto dstBlkStrideVal = consts.i64(dstBlkStride);
@@ -111,7 +100,7 @@ void fillOperation(OpType op)
     auto src0RepStrideVal = consts.i64(src0RepStride);
     auto src1RepStrideVal = consts.i64(src1RepStride);
     auto repeatParams = builder.create<ascendc::ConstructOp>(
-        loc, builder.getType<ascendc::BinaryRepeatParamsType>(),
+        op.getLoc(), builder.getType<ascendc::BinaryRepeatParamsType>(),
         ValueRange{
             dstBlkStrideVal, src0BlkStrideVal, src1BlkStrideVal, dstRepStrideVal, src0RepStrideVal, src1RepStrideVal});
     op.getRepeatParamsMutable().assign(repeatParams);
@@ -122,8 +111,7 @@ void fillOperation(ascendc::DuplicateL0Op op)
     OpBuilder builder(op);
     ConstantOpBuilder consts(builder);
     auto scalarType = dyn_cast<ShapedType>(op.getDst().getType());
-    auto loc = op.getLoc();
-    fillMask(builder, loc, consts, scalarType, op);
+    fillMask(consts, scalarType, op);
     auto repeatTimes = consts.i64(getRepeatTimes(scalarType));
     op.getRepeatTimesMutable().assign(repeatTimes);
 }
@@ -133,10 +121,8 @@ void fillOperation(ascendc::VecScalarL0Op op)
     OpBuilder builder(op);
     ConstantOpBuilder consts(builder);
     auto srcType = dyn_cast<ShapedType>(op.getSrc().getType());
-    auto loc = op.getLoc();
     auto elemType = dyn_cast<ShapedType>(op.getScalar().getType());
-
-    fillMask(builder, loc, consts, srcType, op);
+    fillMask(consts, srcType, op);
     auto repeatTimes = consts.i64(getRepeatTimes(srcType));
     op.getRepeatTimesMutable().assign(repeatTimes);
     auto dstBlkStrideVal = consts.i64(dstBlkStride);
@@ -144,7 +130,7 @@ void fillOperation(ascendc::VecScalarL0Op op)
     auto dstRepStrideVal = consts.i64(dstRepStride);
     auto src0RepStrideVal = consts.i64(src0RepStride);
     auto repeatParams = builder.create<ascendc::ConstructOp>(
-        loc, builder.getType<ascendc::UnaryRepeatParamsType>(),
+        op.getLoc(), builder.getType<ascendc::UnaryRepeatParamsType>(),
         ValueRange{dstBlkStrideVal, src0BlkStrideVal, dstRepStrideVal, src0RepStrideVal});
     op.getRepeatParamsMutable().assign(repeatParams);
 }
