@@ -109,16 +109,16 @@ def EraseSync : Pass<"ascendc-erase-sync", "func::FuncOp"> {
 }
 
 def FillAscOperands : Pass<"ascendc-fill-asc-operands", "func::FuncOp"> {
-  let summary = "Fill default mask, repeat_times, and repeat_params operands for L0/L2 Ascend C operations";
+  let summary = "Fill default cal_count, mask, repeat_times, and repeat_params operands for L0/L2 Ascend C operations";
   let constructor = "mlir::ascendc::createFillAscOperandsPass()";
-  let dependentDialects = ["ascendc::AscendCDialect", "emitasc::EmitAscDialect"];
+  let dependentDialects = ["arith::ArithDialect", "ascendc::AscendCDialect"];
   let description = [{
     Populates default operands for vector operations based on tensor shape:
     - **L0 operations**: Fills `mask`, `repeat_times`, and `repeat_params` (stride values)
     - **L2 operations**: Fills `cal_count` with number of elements
 
-    Default stride values: block_stride=1, repeat_stride=8. Mask is computed based on element type size
-    (32-bit: high=0, low=0xFFFFFFFF; 16-bit: high=low=0xFFFFFFFF). Repeat times calculated as ceil(numElements / numPerRepeat).
+    Default stride values: block_stride=1, repeat_stride=8. Mask is computed based on element type size (1, 2, 4, 8).
+    Repeat times calculated as ceil(numElements / numPerRepeat).
   }];
 }
 
