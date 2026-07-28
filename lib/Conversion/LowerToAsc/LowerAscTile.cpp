@@ -226,19 +226,12 @@ struct ConvertSoftmax : ConvertOp<asctile::SoftmaxOp> {
 
     static int64_t getSoftMaxMinTmpSize(int64_t srcM, int64_t srcK, int64_t dataTypeSize)
     {
-        // Formula for Ascend950 from
-        // https://gitcode.com/cann/asc-devkit/blob/42692fd472e73567158163189a89eafcc9e4902b/impl/adv_api/tiling/activation/softmax_tiling.cpp#L123
-        constexpr int64_t softmaxDefaultBlkSize = 32;
-        constexpr int64_t softmaxTmpFlashUpdateCount = 4;
+        // Formula from
+        // https://gitcode.com/cann/asc-devkit/blob/b0fb6c8f89686dadc9b99fd114d9635eb5564dbf/impl/adv_api/detail/activation/softmax/regbase/3510/softmax_impl.h#L1188
         constexpr int64_t softmaxFloatSize = 4;
-        constexpr int64_t basicTileNum = softmaxDefaultBlkSize / softmaxFloatSize;
-        constexpr int64_t softmaxBasicBlockUnit = 64;
-        int64_t elementNumPerBlk = softmaxDefaultBlkSize / dataTypeSize;
-        int64_t needSize1 = srcM * (basicTileNum + srcK) + softmaxBasicBlockUnit * softmaxTmpFlashUpdateCount +
-                            (srcM + basicTileNum - 1) / basicTileNum * basicTileNum;
-        int64_t needSize2 = srcM * (elementNumPerBlk + srcK);
-        int64_t needSize = std::max(needSize1, needSize2);
-        return needSize * softmaxFloatSize;
+        int64_t b32DataNumPerBlock = 32 / dataTypeSize;
+        int64_t offset = ((srcM + b32DataNumPerBlock - 1) / b32DataNumPerBlock) * b32DataNumPerBlock;
+        return (offset * 2 + srcM * srcK) * softmaxFloatSize;
     }
 
     LogicalResult matchAndRewrite(asctile::SoftmaxOp op, ConvertRewriter& rewriter) const override
