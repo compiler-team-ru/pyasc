@@ -108,8 +108,9 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
 
 @overload
 def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Iterable[int],
-            location: Union[str, TensorLocation] = TensorLocation.UB, *,
-            real_shape: Optional[Iterable[RuntimeInt]] = None, pad_value: RuntimeNumeric = 0) -> LocalTensor:
+            location: Union[str,
+                            TensorLocation] = TensorLocation.UB, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
+            pad_value: Optional[RuntimeNumeric] = None) -> LocalTensor:
     ...
 
 
@@ -122,7 +123,7 @@ def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt]) -> PlainValue:
 def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[Iterable[int]] = None,
             location: Union[str,
                             TensorLocation] = TensorLocation.UB, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
-            pad_value: RuntimeNumeric = 0) -> Union[LocalTensor, PlainValue]:
+            pad_value: Optional[RuntimeNumeric] = None) -> Union[LocalTensor, PlainValue]:
     """
     Copy data from a global tensor into a local tensor or scalar value.
 
@@ -146,7 +147,9 @@ def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[It
             The local tensor will have the given ``shape``, but only ``real_shape`` elements are loaded;
             remaining elements are filled with ``pad_value``. Must match the rank of ``shape`` and each dimension must
             not exceed the corresponding tensor dimension. Not supported for ``TensorLocation.L1``, ``L0A``, or ``L0B``.
-        pad_value: The value to use for padding when ``real_shape`` is provided. Default is 0.
+            If ``pad_value`` is specified but ``real_shape`` is not, ``real_shape`` defaults to ``shape``.
+        pad_value: The value to use for padding when ``real_shape`` is provided. If neither ``real_shape`` nor
+            ``pad_value`` is specified, no padding is applied (pad sections contain uninitialized data).
 
     Returns:
         LocalTensor: A local tensor loaded from the global tensor (when ``shape`` is provided)
@@ -202,7 +205,11 @@ def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[It
     if location == TensorLocation.UB:
         check_data_alignment(shape, src.dtype)
     ir_type = ir.get_asctile_LocalTensorType(list(shape), src.dtype.to_ir(), location)
-    pad_value = _mat(pad_value, src.dtype).to_ir() if pad_value is not None else None
+    if pad_value is not None and real_shape is None:
+        real_shape = shape
+    if real_shape is not None and pad_value is None:
+        pad_value = 0
+    pad_value = _mat(pad_value if pad_value is not None else 0, src.dtype).to_ir()
     real_shape = [] if real_shape is None else to_ir_list(verify_real_shape(real_shape, shape))
     handle = builder.create_asctile_LoadOp(ir_type, src.to_ir(), offsets, pad_value, real_shape)
     return LocalTensor(handle)
