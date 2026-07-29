@@ -63,10 +63,10 @@ A5 adds the following hardware capabilities relative to A2: <sup>[[58]](#ref-58)
 
 #### 2.4.2 Implications for the Three DSL Challenges
 
-- **Sync insertion.** Three levels now coexist with different sync models: basic_api keeps explicit `set_flag` / `wait_flag` and TPipe events; MicroAPI adds `MaskReg` predication at the register-tile granularity (masks are not barriers — barriers remain basic_api's responsibility); SIMT-API adds warp-level primitives for fine-grained sync. A DSL must decide which model to expose (or hide) and stay coherent across levels.
-- **Ping-pong.** The on-chip TPUSH / TPOP ring buffer on A5 removes the GM round-trip for Cube ↔ Vector handoff — the cost model of a pipelined stage shifts substantially. On MicroAPI, pipelining is a concern at register-tile granularity, not UB-tile granularity, because loops iterate over `RegTensor` chunks.
-- **UB memory allocation.** Two new address-spaces to plan: the register file (first-class in MicroAPI) and the reserved consumer SRAM segment for the TPUSH / TPOP ring buffer (on A5, a fixed exclusion zone inside UB or L1). The DSL allocator must model both.
-- **Portability.** Targeting only basic_api is the conservative choice but forfeits A5's register-file throughput. Targeting MicroAPI reaches the register file but requires c310 (A5-only builds). A DSL that claims to target A2 + A5 must lower to basic_api only, or implement per-target lowering.
+- **Sync insertion.** Three levels now coexist with different sync models: basic_api keeps explicit `set_flag` / `wait_flag` and TPipe events; Ascend C Reg (register API) adds `MaskReg` predication at the register-tile granularity (masks are not barriers — barriers remain basic_api's responsibility); SIMT-API adds warp-level primitives for fine-grained sync. A DSL must decide which model to expose (or hide) and stay coherent across levels.
+- **Ping-pong.** The on-chip TPUSH / TPOP ring buffer on A5 removes the GM round-trip for Cube ↔ Vector handoff — the cost model of a pipelined stage shifts substantially. On register API, pipelining is a concern at register-tile granularity, not UB-tile granularity, because loops iterate over `RegTensor` chunks.
+- **UB memory allocation.** Two new address-spaces to plan: the register file (first-class in register API) and the reserved consumer SRAM segment for the TPUSH / TPOP ring buffer (on A5, a fixed exclusion zone inside UB or L1). The DSL allocator must model both.
+- **Portability.** Targeting only basic_api is the conservative choice but forfeits A5's register-file throughput. Targeting register API reaches the register file but requires c310 (A5-only builds). A DSL that claims to target A2 + A5 must lower to basic_api only, or implement per-target lowering.
 
 ---
 
@@ -476,7 +476,7 @@ _TODO: to be filled in._
 | `insert_sync` | `True` | Auto-insert sync barriers |
 | `static_alloc` | `None` → arch-dependent (`True` on C310, `False` on C220) | Static vs TPipe-managed UB allocation |
 | `reuse_alloc` | `0` | Reuse freed UB regions |
-| `vf_fusion` | `False` | Fuse consecutive vector ops into Ascend C MicroAPI VF blocks |
+| `vf_fusion` | `False` | Fuse consecutive vector ops into VF (vector function) blocks |
 | `verify_sync` | `False` | Run `VerifySync` pass after sync insertion |
 | `matmul_cube_only` | `False` | Emit cube-only kernels (drives `DefineCubeOnly`) |
 | `auto_sync` | `True` | Pass `--cce-auto-sync` to Bisheng (separate from MLIR `insert_sync`) |

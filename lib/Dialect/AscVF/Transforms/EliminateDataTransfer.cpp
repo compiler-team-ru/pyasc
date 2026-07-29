@@ -32,7 +32,7 @@ SmallVector<SmallVector<Operation*>> collectLoadStoreOpsByBlock(ascvf::VFGroupOp
     groupOp.walk([&](Block* block) {
         SmallVector<Operation*> blockOps;
         for (auto& op : *block) {
-            if (isa<ascvf::LoadMicroOp, ascvf::StoreMicroOp>(op)) {
+            if (isa<ascvf::LoadOp, ascvf::StoreOp>(op)) {
                 blockOps.emplace_back(&op);
             }
         }
@@ -49,18 +49,18 @@ void eliminateRedundantLoadsAfterStores(ascvf::VFGroupOp groupOp)
     for (auto& blockOps : loadStoreGroups) {
         ValueMap<SmallVector<Operation*>> tensorToLoadStoreOps;
         for (auto* op : blockOps) {
-            if (auto loadOp = dyn_cast<ascvf::LoadMicroOp>(op)) {
+            if (auto loadOp = dyn_cast<ascvf::LoadOp>(op)) {
                 tensorToLoadStoreOps[loadOp.getSrcTensor()].emplace_back(loadOp);
-            } else if (auto storeOp = dyn_cast<ascvf::StoreMicroOp>(op)) {
+            } else if (auto storeOp = dyn_cast<ascvf::StoreOp>(op)) {
                 tensorToLoadStoreOps[storeOp.getDstTensor()].emplace_back(storeOp);
             }
         }
         for (auto& pair : tensorToLoadStoreOps) {
             Value lastStoredReg;
             for (auto* op : pair.second) {
-                if (auto storeOp = dyn_cast<ascvf::StoreMicroOp>(op)) {
+                if (auto storeOp = dyn_cast<ascvf::StoreOp>(op)) {
                     lastStoredReg = storeOp.getSrcReg();
-                } else if (auto loadOp = dyn_cast<ascvf::LoadMicroOp>(op)) {
+                } else if (auto loadOp = dyn_cast<ascvf::LoadOp>(op)) {
                     if (lastStoredReg) {
                         loadOp.getDstReg().replaceAllUsesWith(lastStoredReg);
                         loadOp->erase();
@@ -83,9 +83,9 @@ void eliminateOverwrittenStores(ascvf::VFGroupOp groupOp)
     }
     ValueMap<SmallVector<Operation*>> tensorToLoadStoreOps;
     groupOp.walk([&](Operation* op) {
-        if (auto loadOp = dyn_cast<ascvf::LoadMicroOp>(op)) {
+        if (auto loadOp = dyn_cast<ascvf::LoadOp>(op)) {
             tensorToLoadStoreOps[loadOp.getSrcTensor()].emplace_back(loadOp);
-        } else if (auto storeOp = dyn_cast<ascvf::StoreMicroOp>(op)) {
+        } else if (auto storeOp = dyn_cast<ascvf::StoreOp>(op)) {
             tensorToLoadStoreOps[storeOp.getDstTensor()].emplace_back(storeOp);
         }
     });
@@ -94,7 +94,7 @@ void eliminateOverwrittenStores(ascvf::VFGroupOp groupOp)
         auto& ops = pair.second;
         // Delete the last store if it's to a non-output tensor
         // (the value won't be used outside the VFGroupOp)
-        if (auto lastStore = dyn_cast<ascvf::StoreMicroOp>(ops.back())) {
+        if (auto lastStore = dyn_cast<ascvf::StoreOp>(ops.back())) {
             if (!outputTensors.count(lastStore.getDstTensor())) {
                 opsToDelete.insert(lastStore);
             }
@@ -102,7 +102,7 @@ void eliminateOverwrittenStores(ascvf::VFGroupOp groupOp)
         // Erase overwritten stores
         bool hasSeenStore = false;
         for (auto* op : llvm::make_range(ops.rbegin(), ops.rend())) {
-            if (auto storeOp = dyn_cast<ascvf::StoreMicroOp>(op)) {
+            if (auto storeOp = dyn_cast<ascvf::StoreOp>(op)) {
                 if (hasSeenStore) {
                     opsToDelete.insert(storeOp);
                 }
@@ -122,7 +122,7 @@ void mergeDuplicateLoadsFromSameAddress(ascvf::VFGroupOp groupOp)
     groupOp.walk([&](Block* block) {
         ValueMap<Value> tensorToFirstLoadedReg;
         for (auto& op : llvm::make_early_inc_range(*block)) {
-            auto loadOp = dyn_cast<ascvf::LoadMicroOp>(op);
+            auto loadOp = dyn_cast<ascvf::LoadOp>(op);
             if (!loadOp)
                 continue;
             auto srcTensor = loadOp.getSrcTensor();

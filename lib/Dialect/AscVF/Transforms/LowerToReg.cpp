@@ -21,7 +21,7 @@
 
 namespace mlir {
 namespace ascvf {
-#define GEN_PASS_DEF_LOWERTOMICRO
+#define GEN_PASS_DEF_LOWERTOREG
 #include "ascir/Dialect/AscVF/Transforms/Passes.h.inc"
 } // namespace ascvf
 } // namespace mlir
@@ -51,14 +51,14 @@ ascendc::RegTensorOp createRegTensor(OpBuilder builder, Type elemType)
     return regTensorOp;
 }
 
-ascvf::LoadMicroOp createLoad(OpBuilder builder, Value dstReg, Value srcTensor, Value offset)
+ascvf::LoadOp createLoad(OpBuilder builder, Value dstReg, Value srcTensor, Value offset)
 {
-    return builder.create<ascvf::LoadMicroOp>(builder.getUnknownLoc(), dstReg, srcTensor, offset);
+    return builder.create<ascvf::LoadOp>(builder.getUnknownLoc(), dstReg, srcTensor, offset);
 }
 
-ascvf::StoreMicroOp createStore(OpBuilder builder, Value dstTensor, Value srcReg, Value offset, Value mask)
+ascvf::StoreOp createStore(OpBuilder builder, Value dstTensor, Value srcReg, Value offset, Value mask)
 {
-    return builder.create<ascvf::StoreMicroOp>(builder.getUnknownLoc(), dstTensor, offset, srcReg, mask);
+    return builder.create<ascvf::StoreOp>(builder.getUnknownLoc(), dstTensor, offset, srcReg, mask);
 }
 
 template <typename ReduceOpType>
@@ -182,7 +182,7 @@ public:
         };
     }
 
-    template <typename ReduceL2Op, typename AccumulateMicroOp, typename ReduceMicroOp>
+    template <typename ReduceL2Op, typename AccumulateRegOp, typename ReduceRegOp>
     auto reduce()
     {
         return [&](ReduceL2Op reduceOp) {
@@ -193,7 +193,7 @@ public:
             auto accReg = createRegTensor(builder, elemType);
             auto acc0Reg = createRegTensor(builder, elemType);
             Value neutral = getNeutralElement<ReduceL2Op>(consts, elemType);
-            builder.create<ascendc::DuplicateScalarMicroOp>(builder.getUnknownLoc(), accReg, neutral);
+            builder.create<ascendc::DuplicateScalarRegOp>(builder.getUnknownLoc(), accReg, neutral);
             auto maskAll = createMask(builder, elemType, ascendc::MaskPattern::ALL);
             auto repeatTimes = builder.create<arith::DivSIOp>(
                 builder.getUnknownLoc(), builder.getIndexType(), calCount, oneRepeatSize);
@@ -205,7 +205,7 @@ public:
             auto updateMask = createUpdateMask(builder, calCountVar.getResult(), elemType);
             auto mulOp = builder.create<arith::MulIOp>(builder.getUnknownLoc(), loop.getInductionVar(), oneRepeatSize);
             createLoad(builder, srcReg, reduceOp.getSrc(), mulOp);
-            builder.create<AccumulateMicroOp>(builder.getUnknownLoc(), accReg, accReg, srcReg, maskAll);
+            builder.create<AccumulateRegOp>(builder.getUnknownLoc(), accReg, accReg, srcReg, maskAll);
 
             builder.setInsertionPointAfter(loop);
             auto remOp = builder.create<arith::RemSIOp>(builder.getUnknownLoc(), calCount, oneRepeatSize);
@@ -213,15 +213,15 @@ public:
                 builder.getUnknownLoc(), arith::CmpIPredicate::ne, remOp.getResult(), consts.index(0));
             auto ifOp = builder.create<scf::IfOp>(builder.getUnknownLoc(), cmpOp.getResult(), false);
             builder.setInsertionPointToStart(ifOp.getBody());
-            builder.create<ascendc::DuplicateScalarMicroOp>(builder.getUnknownLoc(), acc0Reg, neutral);
+            builder.create<ascendc::DuplicateScalarRegOp>(builder.getUnknownLoc(), acc0Reg, neutral);
             auto lastIter = builder.create<arith::MulIOp>(builder.getUnknownLoc(), repeatTimes, oneRepeatSize);
             createLoad(builder, srcReg, reduceOp.getSrc(), lastIter);
             auto tailMask = createUpdateMask(builder, calCountVar.getResult(), elemType);
-            builder.create<ascendc::SelectMicroOp>(builder.getUnknownLoc(), acc0Reg, srcReg, acc0Reg, tailMask);
-            builder.create<AccumulateMicroOp>(builder.getUnknownLoc(), accReg, accReg, acc0Reg, maskAll);
+            builder.create<ascendc::SelectRegOp>(builder.getUnknownLoc(), acc0Reg, srcReg, acc0Reg, tailMask);
+            builder.create<AccumulateRegOp>(builder.getUnknownLoc(), accReg, accReg, acc0Reg, maskAll);
 
             builder.setInsertionPointAfter(ifOp);
-            builder.create<ReduceMicroOp>(builder.getUnknownLoc(), dstReg, accReg, maskAll);
+            builder.create<ReduceRegOp>(builder.getUnknownLoc(), dstReg, accReg, maskAll);
             auto maskOne = createMask(builder, elemType, ascendc::MaskPattern::VL1);
             createStore(builder, reduceOp.getDst(), dstReg, consts.index(0), maskOne);
             reduceOp.erase();
@@ -238,7 +238,7 @@ public:
             auto tmpReg = createRegTensor(builder, elemType);
             createLoad(builder, srcReg, duplicateOp.getScalar(), consts.index(0));
             auto maskAll = createMask(builder, elemType, ascendc::MaskPattern::ALL);
-            builder.create<ascendc::DuplicateMicroOp>(builder.getUnknownLoc(), tmpReg, srcReg, maskAll);
+            builder.create<ascendc::DuplicateRegOp>(builder.getUnknownLoc(), tmpReg, srcReg, maskAll);
 
             auto calCountVar = builder.create<emitasc::VariableOp>(
                 builder.getUnknownLoc(), MemRefType::get(1, builder.getIntegerType(32U, false)), calCount);
@@ -293,39 +293,39 @@ void lowerToMicro(ascvf::VecScopeOp vecScopeOp, Value calCount, Type groupType)
     vecScopeOp.walk([&](Operation* op) {
         llvm::TypeSwitch<Operation*>(op)
             .Case<ascendc::ReduceMaxL2Op>(
-                factory.reduce<ascendc::ReduceMaxL2Op, ascendc::MaxMicroOp, ascendc::ReduceMaxMicroOp>())
+                factory.reduce<ascendc::ReduceMaxL2Op, ascendc::MaxRegOp, ascendc::ReduceMaxRegOp>())
             .Case<ascendc::ReduceSumL2Op>(
-                factory.reduce<ascendc::ReduceSumL2Op, ascendc::AddMicroOp, ascendc::ReduceSumMicroOp>())
+                factory.reduce<ascendc::ReduceSumL2Op, ascendc::AddRegOp, ascendc::ReduceSumRegOp>())
             .Case<ascendc::ReduceMinL2Op>(
-                factory.reduce<ascendc::ReduceMinL2Op, ascendc::MinMicroOp, ascendc::ReduceMinMicroOp>())
+                factory.reduce<ascendc::ReduceMinL2Op, ascendc::MinRegOp, ascendc::ReduceMinRegOp>())
             .Case<ascendc::DuplicateL2Op>(factory.duplicate())
             // BinaryOp
-            .Case<ascendc::AddL2Op>(factory.binary<ascendc::AddMicroOp>())
-            .Case<ascendc::AndL2Op>(factory.binary<ascendc::AndMicroOp>())
-            .Case<ascendc::DivL2Op>(factory.binary<ascendc::DivMicroOp>())
-            .Case<ascendc::MaxL2Op>(factory.binary<ascendc::MaxMicroOp>())
-            .Case<ascendc::MinL2Op>(factory.binary<ascendc::MinMicroOp>())
-            .Case<ascendc::MulL2Op>(factory.binary<ascendc::MulMicroOp>())
-            .Case<ascendc::MulAddDstL2Op>(factory.binary<ascendc::MulAddDstMicroOp>())
-            .Case<ascendc::OrL2Op>(factory.binary<ascendc::OrMicroOp>())
-            .Case<ascendc::PreluL2Op>(factory.binary<ascendc::PreluMicroOp>())
-            .Case<ascendc::SubL2Op>(factory.binary<ascendc::SubMicroOp>())
+            .Case<ascendc::AddL2Op>(factory.binary<ascendc::AddRegOp>())
+            .Case<ascendc::AndL2Op>(factory.binary<ascendc::AndRegOp>())
+            .Case<ascendc::DivL2Op>(factory.binary<ascendc::DivRegOp>())
+            .Case<ascendc::MaxL2Op>(factory.binary<ascendc::MaxRegOp>())
+            .Case<ascendc::MinL2Op>(factory.binary<ascendc::MinRegOp>())
+            .Case<ascendc::MulL2Op>(factory.binary<ascendc::MulRegOp>())
+            .Case<ascendc::MulAddDstL2Op>(factory.binary<ascendc::MulAddDstRegOp>())
+            .Case<ascendc::OrL2Op>(factory.binary<ascendc::OrRegOp>())
+            .Case<ascendc::PreluL2Op>(factory.binary<ascendc::PreluRegOp>())
+            .Case<ascendc::SubL2Op>(factory.binary<ascendc::SubRegOp>())
             // UnaryOp
-            .Case<ascendc::AbsL2Op>(factory.unary<ascendc::AbsMicroOp>())
-            .Case<ascendc::ExpL2Op>(factory.unary<ascendc::ExpMicroOp>())
-            .Case<ascendc::LnL2Op>(factory.unary<ascendc::LnMicroOp>())
-            .Case<ascendc::NegL2Op>(factory.unary<ascendc::NegMicroOp>())
-            .Case<ascendc::NotL2Op>(factory.unary<ascendc::NotMicroOp>())
-            .Case<ascendc::ReluL2Op>(factory.unary<ascendc::ReluMicroOp>())
-            .Case<ascendc::SqrtL2Op>(factory.unary<ascendc::SqrtMicroOp>())
+            .Case<ascendc::AbsL2Op>(factory.unary<ascendc::AbsRegOp>())
+            .Case<ascendc::ExpL2Op>(factory.unary<ascendc::ExpRegOp>())
+            .Case<ascendc::LnL2Op>(factory.unary<ascendc::LnRegOp>())
+            .Case<ascendc::NegL2Op>(factory.unary<ascendc::NegRegOp>())
+            .Case<ascendc::NotL2Op>(factory.unary<ascendc::NotRegOp>())
+            .Case<ascendc::ReluL2Op>(factory.unary<ascendc::ReluRegOp>())
+            .Case<ascendc::SqrtL2Op>(factory.unary<ascendc::SqrtRegOp>())
             // VecScalarOp
-            .Case<ascendc::AddsL2Op>(factory.vecScalar<ascendc::AddsMicroOp>())
-            .Case<ascendc::LeakyReluL2Op>(factory.vecScalar<ascendc::LeakyReluMicroOp>())
-            .Case<ascendc::MaxsL2Op>(factory.vecScalar<ascendc::MaxsMicroOp>())
-            .Case<ascendc::MinsL2Op>(factory.vecScalar<ascendc::MinsMicroOp>())
-            .Case<ascendc::MulsL2Op>(factory.vecScalar<ascendc::MulsMicroOp>())
-            .Case<ascendc::ShiftLeftL2Op>(factory.vecScalar<ascendc::ShiftLeftsMicroOp>())
-            .Case<ascendc::ShiftRightL2Op>(factory.vecScalar<ascendc::ShiftRightsMicroOp>());
+            .Case<ascendc::AddsL2Op>(factory.vecScalar<ascendc::AddsRegOp>())
+            .Case<ascendc::LeakyReluL2Op>(factory.vecScalar<ascendc::LeakyReluRegOp>())
+            .Case<ascendc::MaxsL2Op>(factory.vecScalar<ascendc::MaxsRegOp>())
+            .Case<ascendc::MinsL2Op>(factory.vecScalar<ascendc::MinsRegOp>())
+            .Case<ascendc::MulsL2Op>(factory.vecScalar<ascendc::MulsRegOp>())
+            .Case<ascendc::ShiftLeftL2Op>(factory.vecScalar<ascendc::ShiftLeftsRegOp>())
+            .Case<ascendc::ShiftRightL2Op>(factory.vecScalar<ascendc::ShiftRightsRegOp>());
     });
 }
 
@@ -346,7 +346,7 @@ ascvf::VecScopeOp wrapInVecScope(OpBuilder& builder, const SmallVector<Operation
     return vecScope;
 }
 
-struct LowerToMicroPass : public ascvf::impl::LowerToMicroBase<LowerToMicroPass> {
+struct LowerToRegPass : public ascvf::impl::LowerToRegBase<LowerToRegPass> {
     void runOnOperation() override
     {
         func::FuncOp funcOp = getOperation();
@@ -368,4 +368,4 @@ struct LowerToMicroPass : public ascvf::impl::LowerToMicroBase<LowerToMicroPass>
 
 } // namespace
 
-std::unique_ptr<Pass> mlir::ascvf::createLowerToMicroPass() { return std::make_unique<LowerToMicroPass>(); }
+std::unique_ptr<Pass> mlir::ascvf::createLowerToRegPass() { return std::make_unique<LowerToRegPass>(); }

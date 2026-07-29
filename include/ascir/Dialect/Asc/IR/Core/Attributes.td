@@ -361,7 +361,7 @@ def AscendC_MaskPattern : I32EnumAttr<"MaskPattern", "", [
   I32EnumAttrCase<"ALLF", 15>,
 ]>{
   let cppNamespace = "::mlir::ascendc";
-  let description = "Represents AscendC::MicroAPI::MaskPattern";
+  let description = "Represents AscendC::Reg::MaskPattern";
   let underlyingType = "uint8_t";
 }
 
@@ -385,7 +385,7 @@ def AscendC_MemType : I32EnumAttr<"MemType", "", [
   I32EnumAttrCase<"SCALAR_ALL", 5>,
 ]>{
   let cppNamespace = "::mlir::ascendc";
-  let description = "Represents AscendC::MicroAPI::MemType";
+  let description = "Represents AscendC::Reg::MemType";
   let underlyingType = "uint8_t";
 }
 

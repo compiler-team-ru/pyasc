@@ -35,7 +35,7 @@ enum class Order { ConstantOp, RegTensorOp, CreateMaskOp, DuplicateOp, Expr, Any
 Order getOrder(Operation* op)
 {
     return llvm::TypeSwitch<Operation*, Order>(op)
-        .Case([](ascendc::DuplicateScalarMicroOp) { return Order::DuplicateOp; })
+        .Case([](ascendc::DuplicateScalarRegOp) { return Order::DuplicateOp; })
         .Case([](arith::ConstantOp) { return Order::ConstantOp; })
         .Case([](ascendc::CreateMaskOp) { return Order::CreateMaskOp; })
         .Case<

@@ -22,10 +22,10 @@ using namespace mlir;
 using namespace mlir::ascvf;
 
 //===----------------------------------------------------------------------===//
-// LoadMicroOp
+// LoadOp
 //===----------------------------------------------------------------------===//
 
-LogicalResult LoadMicroOp::verify()
+LogicalResult LoadOp::verify()
 {
     if (!getOperation()->getParentOfType<ascvf::VecScopeOp>()) {
         return emitOpError("The operation must belong to vec_scope");
@@ -34,10 +34,10 @@ LogicalResult LoadMicroOp::verify()
 }
 
 //===----------------------------------------------------------------------===//
-// StoreMicroOp
+// StoreOp
 //===----------------------------------------------------------------------===//
 
-LogicalResult StoreMicroOp::verify()
+LogicalResult StoreOp::verify()
 {
     if (!getOperation()->getParentOfType<ascvf::VecScopeOp>()) {
         return emitOpError("The operation must belong to vec_scope");

@@ -35,9 +35,9 @@ ValueVector getUsedLocalTensors(ascvf::VecScopeOp vecScope)
 {
     ValueVector usedLocalTensors;
     vecScope.walk([&](Operation* op) {
-        if (auto load = dyn_cast<ascvf::LoadMicroOp>(op)) {
+        if (auto load = dyn_cast<ascvf::LoadOp>(op)) {
             usedLocalTensors.emplace_back(load.getSrcTensor());
-        } else if (auto store = dyn_cast<ascvf::StoreMicroOp>(op)) {
+        } else if (auto store = dyn_cast<ascvf::StoreOp>(op)) {
             usedLocalTensors.emplace_back(store.getDstTensor());
         }
     });
@@ -69,7 +69,7 @@ void materialize(ascvf::VecScopeOp vecScopeOp, Type groupType)
     vecScopeOp->walk([&](Operation* op) {
         OpBuilder builder(op);
         ascir::ConstantOpBuilder consts(builder);
-        if (auto load = dyn_cast<ascvf::LoadMicroOp>(op)) {
+        if (auto load = dyn_cast<ascvf::LoadOp>(op)) {
             Value tensor = load.getSrcTensor();
             auto shape = cast<ascendc::LocalTensorType>(tensor.getType()).getShape();
             auto resultType = MemRefType::get(shape, groupType, {}, static_cast<int>(ascendc::AddressSpace::ubuf));
@@ -77,7 +77,7 @@ void materialize(ascvf::VecScopeOp vecScopeOp, Type groupType)
                 builder.getUnknownLoc(), resultType, addrTensors[tensor], IntegerAttr{}, load.getOffset());
             builder.create<ascendc::DataCopyLoadOp>(builder.getUnknownLoc(), load.getDstReg(), srcAddr);
             load.erase();
-        } else if (auto store = dyn_cast<ascvf::StoreMicroOp>(op)) {
+        } else if (auto store = dyn_cast<ascvf::StoreOp>(op)) {
             Value tensor = store.getDstTensor();
             auto shape = cast<ascendc::LocalTensorType>(tensor.getType()).getShape();
             auto resultType = MemRefType::get(shape, groupType, {}, static_cast<int>(ascendc::AddressSpace::ubuf));

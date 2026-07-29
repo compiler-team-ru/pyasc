@@ -177,7 +177,7 @@ void defineAscVFPasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_find_vf_group", createFindVFGroupPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_fuse_vf_for", createFuseVFForPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_local_mem_bar", createInsertLocalMemBarPass);
-    DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_to_micro", createLowerToMicroPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_to_reg", createLowerToRegPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_materialize_load_store", createMaterializeLoadStorePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_reorder_ops_in_vec_scope", createReorderOpsInVecScopePass);
 }

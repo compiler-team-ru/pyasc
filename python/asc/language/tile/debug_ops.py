@@ -20,8 +20,8 @@ def inline_vf(code: str, shape: Tuple[int, ...], dtype: DataType,
     """
     Embed Ascend C VF (vector function) code within a kernel.
 
-    This is an escape hatch for advanced users who need to express vector-fusion operations (e.g., Ascend C MicroAPI
-    calls) that are not covered by the built-in API. The provided code string is injected verbatim as the body of a
+    This is an escape hatch for advanced users who need to express vector-fusion operations (e.g., Ascend C Reg calls)
+    that are not covered by the built-in API. The provided code string is injected verbatim as the body of a
     ``__VEC_SCOPE__`` block in the generated Ascend C source.
 
     Tensors are referenced by positional placeholders: ``$0`` is always the output tensor, and ``$1``, ``$2``, ... refer
@@ -45,7 +45,7 @@ def inline_vf(code: str, shape: Tuple[int, ...], dtype: DataType,
         RuntimeError: If any input tensor is not located in UB memory or shape is invalid.
 
     Examples:
-        Embed an inline vector multiply-add (``x * y + z``) using Ascend C MicroAPI: ::
+        Embed an inline vector multiply-add (``x * y + z``) using Ascend C register API: ::
 
             out = asc2.inline_vf(
                 '''
@@ -53,12 +53,12 @@ def inline_vf(code: str, shape: Tuple[int, ...], dtype: DataType,
                 auto* x_ptr = reinterpret_cast<__ubuf__ float*>($1.GetPhyAddr());
                 auto* y_ptr = reinterpret_cast<__ubuf__ float*>($2.GetPhyAddr());
                 auto* z_ptr = reinterpret_cast<__ubuf__ float*>($3.GetPhyAddr());
-                AscendC::MicroAPI::RegTensor<float> result_reg;
+                AscendC::Reg::RegTensor<float> result_reg;
                 . . .
-                AscendC::MicroAPI::MaskReg mask_reg = AscendC::MicroAPI::UpdateMask<float>(mask);
-                AscendC::MicroAPI::DataCopy(x_reg, x_ptr);
-                AscendC::MicroAPI::DataCopy(y_reg, y_ptr);
-                AscendC::MicroAPI::Mul(xy_reg, x_reg, y_reg, mask_reg);
+                AscendC::Reg::MaskReg mask_reg = AscendC::Reg::UpdateMask<float>(mask);
+                AscendC::Reg::DataCopy(x_reg, x_ptr);
+                AscendC::Reg::DataCopy(y_reg, y_ptr);
+                AscendC::Reg::Mul(xy_reg, x_reg, y_reg, mask_reg);
                 . . .
                 ''',
                 x.shape, x.dtype, [x, y, z])

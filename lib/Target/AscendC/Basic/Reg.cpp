@@ -53,8 +53,8 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::RegTe
 LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::DuplicateScalarRegOp op)
 {
     auto& os = emitter.ostream();
-    os << "Duplicate(" << emitter.getOrCreateName(op.getDstReg()) << ", " << emitter.getOrCreateName(op.getScalar())
-       << ")";
+    os << "Duplicate" << "(" << emitter.getOrCreateName(op.getDstReg()) << ", "
+       << emitter.getOrCreateName(op.getScalar()) << ")";
     return success();
 }
 

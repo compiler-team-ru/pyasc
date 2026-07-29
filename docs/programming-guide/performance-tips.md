@@ -134,17 +134,17 @@ out = asc2.inline_vf(
     auto* x_ptr = reinterpret_cast<__ubuf__ float*>($1.GetPhyAddr());
     auto* y_ptr = reinterpret_cast<__ubuf__ float*>($2.GetPhyAddr());
     auto* z_ptr = reinterpret_cast<__ubuf__ float*>($3.GetPhyAddr());
-    AscendC::MicroAPI::RegTensor<float> x_reg, y_reg, z_reg, xy_reg, result_reg;
+    AscendC::Reg::RegTensor<float> x_reg, y_reg, z_reg, xy_reg, result_reg;
     uint32_t count = 256;
     for (uint16_t i = 0; i < 4; i += 1) {
       uint32_t offset = i * 64;
-      AscendC::MicroAPI::MaskReg mask = AscendC::MicroAPI::UpdateMask<float>(count);
-      AscendC::MicroAPI::DataCopy(x_reg, x_ptr + offset);
-      AscendC::MicroAPI::DataCopy(y_reg, y_ptr + offset);
-      AscendC::MicroAPI::Mul(xy_reg, x_reg, y_reg, mask);
-      AscendC::MicroAPI::DataCopy(z_reg, z_ptr + offset);
-      AscendC::MicroAPI::Add(result_reg, xy_reg, z_reg, mask);
-      AscendC::MicroAPI::DataCopy(out_ptr + offset, result_reg, mask);
+      AscendC::Reg::MaskReg mask = AscendC::Reg::UpdateMask<float>(count);
+      AscendC::Reg::DataCopy(x_reg, x_ptr + offset);
+      AscendC::Reg::DataCopy(y_reg, y_ptr + offset);
+      AscendC::Reg::Mul(xy_reg, x_reg, y_reg, mask);
+      AscendC::Reg::DataCopy(z_reg, z_ptr + offset);
+      AscendC::Reg::Add(result_reg, xy_reg, z_reg, mask);
+      AscendC::Reg::DataCopy(out_ptr + offset, result_reg, mask);
     }
     """,
     shape=x.shape, dtype=x.dtype, inputs=[x, y, z])

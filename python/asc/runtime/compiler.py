@@ -95,7 +95,7 @@ class CompileOptions:
 
     vf_fusion: bool = False
     """
-    Fuse groups of consecutive vector operations into VF blocks using Ascend C MicroAPI.
+    Fuse groups of consecutive vector operations into VF blocks using Ascend C register API.
     This feature may help to eliminate unnecessary memory transfers and improve data locality.
     """
 
@@ -227,7 +227,7 @@ class Compiler:
         passes.common.add_canonicalizer(pm)
         if self.options.vf_fusion:
             passes.ascvf.add_find_vf_group(pm)
-            passes.ascvf.add_lower_to_micro(pm)
+            passes.ascvf.add_lower_to_reg(pm)
             passes.common.add_canonicalizer(pm)
             passes.common.add_cse(pm)
             passes.ascvf.add_reorder_ops_in_vec_scope(pm)

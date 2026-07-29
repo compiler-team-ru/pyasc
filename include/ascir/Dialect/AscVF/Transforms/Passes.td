@@ -67,21 +67,21 @@ def InsertLocalMemBar : Pass<"ascvf-insert-local-mem-bar", "func::FuncOp"> {
   let dependentDialects = ["ascvf::AscVFDialect"];
 }
 
-def LowerToMicro : Pass<"ascvf-lower-to-micro", "func::FuncOp"> {
-  let summary = "Lowers L2 operations to micro-level operations with loops";
+def LowerToReg : Pass<"ascvf-lower-to-reg", "func::FuncOp"> {
+  let summary = "Lowers L2 operations to register-level operations with loops";
   let description = [{
     Converts L2 operations (binary, unary, reduce, duplicate) into micro-level
     operations by wrapping them in VecScopeOp, creating VFForOp loops, allocating
     register tensors, and inserting load/store micro operations.
   }];
-  let constructor = "mlir::ascvf::createLowerToMicroPass()";
+  let constructor = "mlir::ascvf::createLowerToRegPass()";
   let dependentDialects = ["ascendc::AscendCDialect", "emitasc::EmitAscDialect", "ascvf::AscVFDialect"];
 }
 
 def MaterializeLoadStore : Pass<"ascvf-materialize-load-store", "func::FuncOp"> {
   let summary = "Materializes abstract load/store micro ops into data copy operations";
   let description = [{
-    Converts LoadMicroOp and StoreMicroOp operations into concrete data copy
+    Converts LoadOp and StoreOp operations into concrete data copy
     operations with physical addresses, creating LocalTensorGetPhyAddrV2Op and
     DataCopyLoadOp/DataCopyStoreOp operations.
   }];
