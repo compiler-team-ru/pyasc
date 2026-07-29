@@ -184,8 +184,8 @@ def CopyToL0OpInterface : AscendC_OpInterface<"CopyToL0Op", [
   let description = "Copy from GM or L1 (TPosition A1/B1) to L0 (A2/B2)";
 }
 
-def MicroAPIOpInterface : AscendC_OpInterface<"MicroAPIOp", [APIOpInterface]> {
-  let description = "Base interface for operations representing Micro Ascend C API";
+def RegOpInterface : AscendC_OpInterface<"RegOp", [APIOpInterface]> {
+  let description = "Base interface for operations representing register API";
 }
 
 //===----------------------------------------------------------------------===//
@@ -283,21 +283,21 @@ def VecScalarL2OpInterface : AscendC_OpInterface<"VecScalarL2Op", [VecScalarOpIn
 }
 
 //===----------------------------------------------------------------------===//
-// MicroAPI operations
+// Register API operations
 //===----------------------------------------------------------------------===//
 
-def BinaryMicroOpInterface : AscendC_OpInterface<"BinaryMicroOp", [MicroAPIOpInterface]> {
-  let description = "Binary operation (MicroAPI)";
+def BinaryRegOpInterface : AscendC_OpInterface<"BinaryRegOp", [RegOpInterface]> {
+  let description = "Binary operation (register API)";
   let methods = [getDstReg, getSrc0Reg, getSrc1Reg, getMaskReg];
 }
 
-def UnaryMicroOpInterface : AscendC_OpInterface<"UnaryMicroOp", [MicroAPIOpInterface]> {
-  let description = "Unary operation (MicroAPI)";
+def UnaryRegOpInterface : AscendC_OpInterface<"UnaryRegOp", [RegOpInterface]> {
+  let description = "Unary operation (register API)";
   let methods = [getDstReg, getSrcReg, getMaskReg];
 }
 
-def VecScalarMicroOpInterface : AscendC_OpInterface<"VecScalarMicroOp", [MicroAPIOpInterface]> {
-  let description = "Vector scalar operation (MicroAPI)";
+def VecScalarRegOpInterface : AscendC_OpInterface<"VecScalarRegOp", [RegOpInterface]> {
+  let description = "Vector scalar operation (register API)";
   let methods = [getDstReg, getSrcReg, getScalar, getMaskReg];
 }
 

@@ -30,25 +30,25 @@ def vmuladd_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, z_ptr: 
             __ubuf__ float* v48 = reinterpret_cast<__ubuf__ float*>($2.GetPhyAddr());
             __ubuf__ float* v49 = reinterpret_cast<__ubuf__ float*>($3.GetPhyAddr());
             __ubuf__ float* v50 = reinterpret_cast<__ubuf__ float*>($0.GetPhyAddr());
-            AscendC::MicroAPI::RegTensor<float> v51;
-            AscendC::MicroAPI::RegTensor<float> v52;
-            AscendC::MicroAPI::RegTensor<float> v53;
-            AscendC::MicroAPI::RegTensor<float> v55;
-            AscendC::MicroAPI::RegTensor<float> v56;
+            AscendC::Reg::RegTensor<float> v51;
+            AscendC::Reg::RegTensor<float> v52;
+            AscendC::Reg::RegTensor<float> v53;
+            AscendC::Reg::RegTensor<float> v55;
+            AscendC::Reg::RegTensor<float> v56;
             uint32_t v57 = 32;
             for (uint16_t v58 = 0; v58 < static_cast<uint16_t>(1); v58 += 1) {
               uint32_t v59 = v58 * 64;
-              AscendC::MicroAPI::MaskReg v60 = AscendC::MicroAPI::UpdateMask<float>(v57);
+              AscendC::Reg::MaskReg v60 = AscendC::Reg::UpdateMask<float>(v57);
               __ubuf__ float* v61 = v47 + v59;
-              AscendC::MicroAPI::DataCopy(v51, v61);
+              AscendC::Reg::DataCopy(v51, v61);
               __ubuf__ float* v62 = v48 + v59;
-              AscendC::MicroAPI::DataCopy(v52, v62);
-              AscendC::MicroAPI::Mul(v53, v51, v52, v60);
+              AscendC::Reg::DataCopy(v52, v62);
+              AscendC::Reg::Mul(v53, v51, v52, v60);
               __ubuf__ float* v63 = v49 + v59;
-              AscendC::MicroAPI::DataCopy(v55, v63);
-              AscendC::MicroAPI::Add(v56, v53, v55, v60);
+              AscendC::Reg::DataCopy(v55, v63);
+              AscendC::Reg::Add(v56, v53, v55, v60);
               __ubuf__ float* v64 = v50 + v59;
-              AscendC::MicroAPI::DataCopy(v64, v56, v60);
+              AscendC::Reg::DataCopy(v64, v56, v60);
             }
             """, x.shape, x.dtype, [x, y, z])
         asc2.copy_out(out, out_gm, [tile_offset])

@@ -77,7 +77,7 @@ def AscendC_Mask : AscendC_Type<"Mask", "mask"> {
 }
 
 def AscendC_MaskReg : AscendC_Type<"MaskReg", "mask_reg"> {
-  let description = "Represents AscendC::MicroAPI::MaskReg";
+  let description = "Represents AscendC::Reg::MaskReg";
 }
 
 def AscendC_Matmul : AscendC_Type<"Matmul", "matmul"> {
@@ -185,7 +185,7 @@ def AscendC_Queue : AscendC_BaseQueueType<"Queue", "queue"> {
 
 def AscendC_RegTensor : AscendC_Type<"RegTensor", "reg_tensor"> {
   let summary = "Reg tensor from UB";
-  let description = "Represents AscendC::MicroAPI::RegTensor";
+  let description = "Represents AscendC::Reg::RegTensor";
   let parameters = (ins "Type":$elementType);
   let assemblyFormat = "`<` $elementType `>`";
 }

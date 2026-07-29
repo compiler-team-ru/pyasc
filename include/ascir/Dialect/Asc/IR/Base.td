@@ -281,31 +281,31 @@ multiclass VecScalarL012Op<string baseMnemonic, string apiName, list<Trait> trai
 }
 
 //===----------------------------------------------------------------------===//
-// MicroAPI operations
+// Register API operations
 //===----------------------------------------------------------------------===//
 
-class MicroAPIOp<string mnemonic, string apiName, list<Trait> traits = []>
-    : APIOp<mnemonic, "MicroAPI::" # apiName, [MicroAPIOpInterface] # traits> {
-  let description = "`AscendC::" # apiName # "` is a MicroAPI operation.\n";
+class RegOp<string mnemonic, string apiName, list<Trait> traits = []>
+    : APIOp<mnemonic, "Reg::" # apiName, [RegOpInterface] # traits> {
+  let description = "`AscendC::Reg::" # apiName # "` is a register API operation.\n";
 }
 
-class BinaryMicroOp<string baseMnemonic, string apiName, list<Trait> traits = []>
-    : MicroAPIOp<baseMnemonic # "_micro", apiName, [BinaryMicroOpInterface] # traits> {
-  let description = "`AscendC::MicroAPI::" # apiName # "` is a binary MicroAPI operation.\n";
+class BinaryRegOp<string baseMnemonic, string apiName, list<Trait> traits = []>
+    : RegOp<baseMnemonic # "_reg", apiName, [BinaryRegOpInterface] # traits> {
+  let description = "`AscendC::Reg::" # apiName # "` is a binary register API operation.\n";
   let arguments = (ins AscendC_RegTensor:$dstReg, AscendC_RegTensor:$src0Reg,
                    AscendC_RegTensor:$src1Reg, AscendC_MaskReg:$maskReg);
 }
 
-class UnaryMicroOp<string baseMnemonic, string apiName, list<Trait> traits = []>
-    : MicroAPIOp<baseMnemonic # "_micro", apiName, [UnaryMicroOpInterface] # traits> {
-  let description = "`AscendC::MicroAPI::" # apiName # "` is a unary MicroAPI operation.\n";
+class UnaryRegOp<string baseMnemonic, string apiName, list<Trait> traits = []>
+    : RegOp<baseMnemonic # "_reg", apiName, [UnaryRegOpInterface] # traits> {
+  let description = "`AscendC::Reg::" # apiName # "` is a unary register API operation.\n";
   let arguments = (ins AscendC_RegTensor:$dstReg, AscendC_RegTensor:$srcReg,
                    AscendC_MaskReg:$maskReg);
 }
 
-class VecScalarMicroOp<string baseMnemonic, string apiName, list<Trait> traits = []>
-    : MicroAPIOp<baseMnemonic # "_micro", apiName, [VecScalarMicroOpInterface] # traits> {
-  let description = "`AscendC::MicroAPI::" # apiName # "` is a vector scalar MicroAPI operation.\n";
+class VecScalarRegOp<string baseMnemonic, string apiName, list<Trait> traits = []>
+    : RegOp<baseMnemonic # "_reg", apiName, [VecScalarRegOpInterface] # traits> {
+  let description = "`AscendC::Reg::" # apiName # "` is a vector scalar register API operation.\n";
   let arguments = (ins AscendC_RegTensor:$dstReg, AscendC_RegTensor:$srcReg, AnyType: $scalar,
                    AscendC_MaskReg:$maskReg);
 }
