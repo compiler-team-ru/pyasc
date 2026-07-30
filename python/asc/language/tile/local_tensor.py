@@ -100,6 +100,15 @@ class LocalTensor(IRValue):
     def __floordiv__(self, other: Union[Self, RuntimeNumeric]) -> Self:
         return self / other
 
+    def __and__(self, other: Union[Self, RuntimeNumeric]) -> Self:
+        ...
+
+    def __or__(self, other: Union[Self, RuntimeNumeric]) -> Self:
+        ...
+
+    def __xor__(self, other: Union[Self, RuntimeNumeric]) -> Self:
+        ...
+
     def __lshift__(self, other: RuntimeInt) -> Self:
         ...
 
@@ -163,6 +172,12 @@ class LocalTensor(IRValue):
 
     def __pos__(self) -> Self:
         return self
+
+    def __invert__(self) -> Self:
+        ...
+
+    def __abs__(self) -> Self:
+        return self.abs()
 
     def sin(self) -> Self:
         ...
@@ -232,7 +247,7 @@ class LocalTensor(IRValue):
     def squeeze(self, *axis: int) -> Self:
         ...
 
-    def transpose(self) -> Self:
+    def transpose(self, *axis: int) -> Self:
         ...
 
 

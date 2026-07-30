@@ -49,42 +49,6 @@ struct ConvertToL2 : ConvertOp<ArithOp> {
     }
 };
 
-template <typename ArithOp, typename L2Op>
-struct ConvertBitwiseToL2 : public ConvertOp<ArithOp> {
-    using ConvertOp<ArithOp>::ConvertOp;
-    using ConvertOp<ArithOp>::createTensorOp;
-    using ConvertOp<ArithOp>::createReCastOp;
-
-    LogicalResult matchAndRewrite(ArithOp op, ConvertRewriter& rewriter) const override
-    {
-        ascir::ConstantOpBuilder consts(rewriter);
-        auto shapedTy = cast<asctile::LocalTensorType>(op.getType());
-        auto resType = shapedTy.getElementType();
-        I1ReplacementType replType(op.getContext());
-        auto supportedElemTy = replType.iType;
-        auto needCast = resType != supportedElemTy;
-        auto src0 = rewriter.getRemappedValue(op->getOperand(0));
-        auto src1 = rewriter.getRemappedValue(op->getOperand(1));
-        Location loc = op.getLoc();
-        Value dst = createTensorOp(rewriter, loc, shapedTy.getShape(), resType);
-        needCast &= cast<ShapedType>(dst.getType()).getElementType() != supportedElemTy;
-        if (needCast) {
-            SmallVector<int64_t> newShape(shapedTy.getShape());
-            newShape[0] *= shapedTy.getElementTypeBitWidth();
-            newShape[0] /= supportedElemTy.getIntOrFloatBitWidth();
-            src0 = createReCastOp(rewriter, loc, src0, newShape, supportedElemTy);
-            src1 = createReCastOp(rewriter, loc, src1, newShape, supportedElemTy);
-            dst = createReCastOp(rewriter, loc, dst, newShape, supportedElemTy);
-        }
-        rewriter.create<L2Op>(loc, dst, src0, src1, consts.i64(1));
-        if (needCast) {
-            dst = createReCastOp(rewriter, loc, dst, shapedTy.getShape(), resType);
-        }
-        rewriter.replaceOp(op, dst);
-        return success();
-    }
-};
-
 struct LowerArithBinaryPass : public asclower::impl::LowerArithBinaryBase<LowerArithBinaryPass> {
     void runOnOperation() override
     {
@@ -111,7 +75,7 @@ struct LowerArithBinaryPass : public asclower::impl::LowerArithBinaryBase<LowerA
             ConvertToL2<arith::MaximumFOp, ascendc::MaxL2Op>, ConvertToL2<arith::MinimumFOp, ascendc::MinL2Op>,
             ConvertToL2<arith::MaxSIOp, ascendc::MaxL2Op>, ConvertToL2<arith::MinSIOp, ascendc::MinL2Op>,
             ConvertToL2<arith::MaxNumFOp, ascendc::MaxL2Op>, ConvertToL2<arith::MinNumFOp, ascendc::MinL2Op>,
-            ConvertBitwiseToL2<arith::AndIOp, ascendc::AndL2Op>, ConvertBitwiseToL2<arith::OrIOp, ascendc::OrL2Op>
+            ConvertToL2<arith::AndIOp, ascendc::AndL2Op>, ConvertToL2<arith::OrIOp, ascendc::OrL2Op>
             //
             >(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())

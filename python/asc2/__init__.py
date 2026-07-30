@@ -69,6 +69,9 @@ from asc.language.tile.atomic_ops import (
 )
 from asc.language.tile.binary_ops import (
     add,
+    bitwise_and,
+    bitwise_or,
+    bitwise_xor,
     div,
     equal,
     greater,
@@ -117,6 +120,7 @@ from asc.language.tile.shape_ops import (
 )
 from asc.language.tile.unary_ops import (
     abs,
+    bitwise_not,
     ceil,
     cos,
     cosh,
@@ -167,6 +171,9 @@ __all__ += [
     "atomic_min",
     # binary_ops
     "add",
+    "bitwise_and",
+    "bitwise_or",
+    "bitwise_xor",
     "div",
     "equal",
     "greater",
@@ -210,6 +217,7 @@ __all__ += [
     "transpose",
     # unary_ops
     "abs",
+    "bitwise_not",
     "ceil",
     "cos",
     "cosh",

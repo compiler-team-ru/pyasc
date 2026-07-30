@@ -1137,11 +1137,6 @@ void bindCreateAscTileOperations(py::class_<PyOpBuilder>& clss)
             },
             py::arg("highBits"), py::arg("lowBits"), py::arg("other") = py::none())
         .def(
-            "create_asctile_ReluOp",
-            [](PyOpBuilder& self, Value operand) -> Value {
-                return self.create<asctile::ReluOp>(operand.getType(), operand);
-            })
-        .def(
             "create_asctile_InlineVFOp",
             [](PyOpBuilder& self, Type result, const std::vector<Value>& inputs, const std::string& code) -> Value {
                 return self.create<asctile::InlineVFOp>(result, ValueRange{inputs}, StringRef(code));

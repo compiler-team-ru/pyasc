@@ -79,6 +79,10 @@ Arithmetic operations
     :nosignatures:
 
     add
+    bitwise_and
+    bitwise_not
+    bitwise_or
+    bitwise_xor
     div
     equal
     greater

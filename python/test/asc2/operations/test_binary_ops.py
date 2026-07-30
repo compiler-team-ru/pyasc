@@ -17,6 +17,9 @@ binary_ops = [
      [torch.int16, torch.int32, torch.int64, torch.float16, torch.bfloat16, torch.float32]),
     (asc2.sub, torch.sub, all_formats,
      [torch.int16, torch.int32, torch.int64, torch.float16, torch.bfloat16, torch.float32]),
+    (asc2.bitwise_and, torch.bitwise_and, all_formats, [torch.int8, torch.int16, torch.int32, torch.int64]),
+    (asc2.bitwise_or, torch.bitwise_or, all_formats, [torch.int8, torch.int16, torch.int32, torch.int64]),
+    (asc2.bitwise_xor, torch.bitwise_xor, all_formats, [torch.int8, torch.int16, torch.int32, torch.int64]),
     (asc2.left_shift, torch.bitwise_left_shift, [VS], [torch.int16, torch.int32, torch.int64]),
     (asc2.right_shift, torch.bitwise_right_shift, [VS], [torch.int16, torch.int32, torch.int64]),
     (asc2.maximum, torch.maximum, all_formats,
@@ -35,9 +38,9 @@ def kernel(x_ptr, y_ptr, z_ptr, block_length: asc2.ConstExpr, fmt: asc2.ConstExp
         yt = asc2.copy_in(asc2.global_tensor(y_ptr, [32]), [0], [block_length])
     elif fmt == VS:
         xt = asc2.copy_in(asc2.global_tensor(x_ptr, [32]), [0], [block_length])
-        yt = y_ptr
+        yt = asc2.copy_in(asc2.global_tensor(y_ptr, [1]), [0])
     elif fmt == SV:
-        xt = x_ptr
+        xt = asc2.copy_in(asc2.global_tensor(x_ptr, [1]), [0])
         yt = asc2.copy_in(asc2.global_tensor(y_ptr, [32]), [0], [block_length])
 
     if mask_type == NO_MASK:
@@ -86,7 +89,11 @@ def handle_mask(gold, mask_type, count, other, hibits, lowbits) -> torch.Tensor:
                                                           for f in fmts
                                                           for d in dtypes])
 def test_binary_operations(require_c310, asc_op, torch_op, fmt, dtype, mask_type):
-    if dtype in (torch.bfloat16, torch.int8, torch.int64) or (asc_op is asc2.div and not dtype.is_floating_point):
+    if any((
+            dtype in (torch.bfloat16, torch.int8, torch.int64),
+            asc_op is asc2.div and not dtype.is_floating_point,
+            asc_op in (asc2.bitwise_and, asc2.bitwise_or, asc2.bitwise_xor) and dtype != torch.int16,
+    )):
         require_c310()
     if mask_type == COUNT_MASK and dtype in (torch.int8, torch.int64):
         pytest.skip("L0 API has incorrect assertion")
@@ -100,7 +107,7 @@ def test_binary_operations(require_c310, asc_op, torch_op, fmt, dtype, mask_type
             elif input_dtype.is_signed:
                 return torch.randint(1, 100, (size, ), dtype=input_dtype)
         else:
-            return torch.tensor(2, dtype=input_dtype)
+            return torch.tensor([2], dtype=input_dtype)
 
     if fmt == VV:
         x = create_input(dtype, True)

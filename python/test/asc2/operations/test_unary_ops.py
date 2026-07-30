@@ -4,6 +4,7 @@ import torch
 
 unary_ops = [
     (asc2.abs, torch.abs, [torch.int8, torch.int16, torch.int32, torch.int64, torch.float16, torch.float32]),
+    (asc2.bitwise_not, torch.bitwise_not, [torch.int8, torch.int16, torch.int32, torch.int64]),
     (asc2.ceil, torch.ceil, [torch.float16, torch.float32]),
     (asc2.cos, torch.cos, [torch.float16, torch.float32]),
     (asc2.cosh, torch.cosh, [torch.float16, torch.float32]),
@@ -35,7 +36,8 @@ def kernel(x_ptr: asc2.GlobalAddress, z_ptr: asc2.GlobalAddress, block_length: a
 @pytest.mark.parametrize("asc_op, torch_op, dtype",
                          [(asc_op, torch_op, d) for asc_op, torch_op, dtypes in unary_ops for d in dtypes])
 def test_unary_operations(require_c310, asc_op, torch_op, dtype):
-    if dtype not in (torch.float16, torch.float32):
+    non_c310_dtypes = (torch.int16, ) if asc_op is asc2.bitwise_not else (torch.float16, torch.float32)
+    if dtype not in non_c310_dtypes:
         require_c310()
 
     def create_input(dtype: torch.dtype):

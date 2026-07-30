@@ -986,6 +986,22 @@ struct ConvertTransposeUB : ConvertOp<asctile::TransposeOp> {
     }
 };
 
+struct ConvertBitwiseNot : ConvertOp<asctile::BitwiseNotOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    LogicalResult matchAndRewrite(asctile::BitwiseNotOp op, ConvertRewriter& rewriter) const override
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        Location loc = op.getLoc();
+        Value dst = createTensorOp(rewriter, loc, op.getType());
+        Value src = rewriter.getRemappedValue(op.getOperand());
+        rewriter.create<ascendc::NotL2Op>(loc, dst, src, consts.i64(calCount(dst)));
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
 struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePass> {
     void runOnOperation() override
     {
@@ -1016,7 +1032,7 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
             ConvertVecScalarToL2<asctile::DivSOp, ascendc::DivsL2Op, ascendc::DivL2Op>,
             ConvertToL2<asctile::MinSOp, ascendc::MinsL2Op>, ConvertToL2<asctile::MaxSOp, ascendc::MaxsL2Op>,
             ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>, ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>,
-            ConvertTransposeUB
+            ConvertTransposeUB, ConvertBitwiseNot
             //
             >(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())

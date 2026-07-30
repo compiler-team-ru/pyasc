@@ -20,7 +20,7 @@ T = TypeVar("T")
 
 
 def op_unary_impl(
-    input: Union[LocalTensor, RuntimeNumeric], build_float: Callable[..., IRHandle],
+    input: Union[LocalTensor, RuntimeNumeric], build_float: Optional[Callable[..., IRHandle]] = None,
     build_int: Optional[Callable[..., IRHandle]] = None, support_dtypes: Optional[Tuple[DataType]] = None,
     support_scalar: bool = False, support_loc: Tuple[TensorLocation, ...] = (TensorLocation.UB, )
 ) -> Union[LocalTensor, PlainValue]:
@@ -248,8 +248,8 @@ def sqrt(input: Union[LocalTensor, RuntimeFloat]) -> Union[LocalTensor, PlainVal
 @require_jit
 @set_docstring("ReLU value", support_dtypes=(KT.float16, KT.float32))
 def relu(input: LocalTensor) -> LocalTensor:
-    return op_unary_impl(input,
-                         global_builder.get_ir_builder().create_asctile_ReluOp, support_dtypes=(KT.float16, KT.float32),
+    build = lambda handle: global_builder.get_ir_builder().create_asctile_ReluOp(handle.get_type(), handle)
+    return op_unary_impl(input, build_float=build, support_dtypes=(KT.float16, KT.float32),
                          support_loc=(TensorLocation.UB, TensorLocation.L0C))
 
 
@@ -259,6 +259,14 @@ def relu(input: LocalTensor) -> LocalTensor:
 def negative(input: LocalTensor) -> LocalTensor:
     check_dtype("input", input, (KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32))
     return input * (-1)
+
+
+@bind_tensor_method(name="__invert__", unary_op="~")
+@require_jit
+@set_docstring("NOT (bitwise)", support_dtypes=(KT.int8, KT.int16, KT.int32, KT.int64))
+def bitwise_not(input: LocalTensor) -> LocalTensor:
+    build = lambda handle: global_builder.get_ir_builder().create_asctile_BitwiseNotOp(handle.get_type(), handle)
+    return op_unary_impl(input, build_int=build, support_dtypes=(KT.int8, KT.int16, KT.int32, KT.int64))
 
 
 @bind_tensor_method

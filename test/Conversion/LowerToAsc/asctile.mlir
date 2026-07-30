@@ -556,6 +556,18 @@ func.func @lower_divs(%arg0: tensor<4x256xf32, #asctile.local<UB>>, %arg1: f32) 
   return %0 : tensor<4x256xf32, #asctile.local<UB>>
 }
 
+// CHECK-LABEL: func.func @lower_bitwise_not(%arg0: tensor<32xi32, #asctile.local<UB>>) -> tensor<32xi32, #asctile.local<UB>> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : tensor<32xi32, #asctile.local<UB>> to !ascendc.local_tensor<32xi32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <32xi32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<32xi32> to tensor<32xi32, #asctile.local<UB>>
+// CHECK-NEXT:  ascendc.not_l2 %1, %0, %c32_i64 : !ascendc.local_tensor<32xi32>, !ascendc.local_tensor<32xi32>, i64
+// CHECK-NEXT:  return %2 : tensor<32xi32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @lower_bitwise_not(%arg0: tensor<32xi32, #asctile.local<UB>>) -> tensor<32xi32, #asctile.local<UB>> {
+  %0 = asctile.bitwise_not %arg0 : tensor<32xi32, #asctile.local<UB>>
+  return %0 : tensor<32xi32, #asctile.local<UB>>
+}
+
 // -----
 
 module attributes {asc.compilation_arch = "c310"} {
