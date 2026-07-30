@@ -12,7 +12,8 @@ from typing import Iterable, Tuple
 from ..._C import ir
 from ..core.dtype import KnownTypes as KT
 from ..core.utils import global_builder, require_jit
-from .local_tensor import LocalTensor, TensorLocation, bind_tensor_method
+from .local_tensor import LocalTensor, bind_tensor_method
+from .tensor_location import TensorLocation
 from .validation import check_dtype, check_type, verify_location, verify_shape, check_data_alignment
 
 

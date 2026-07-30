@@ -210,14 +210,15 @@ void bindEnums(py::module& m)
         .def_static(
             "symbolize", [](uint8_t selMode) -> ascendc::SELMODE { return static_cast<ascendc::SELMODE>(selMode); });
 
-    py::enum_<asctile::TensorLocation>(m, "asctile_TensorLocation", py::module_local())
-        .value("BT", asctile::TensorLocation::BT)
-        .value("L0A", asctile::TensorLocation::L0A)
-        .value("L0B", asctile::TensorLocation::L0B)
-        .value("L0C", asctile::TensorLocation::L0C)
-        .value("L1", asctile::TensorLocation::L1)
-        .value("UB", asctile::TensorLocation::UB)
-        .value("FIX", asctile::TensorLocation::FIX)
+    py::enum_<asctile::TensorLocation>(
+        m, "asctile_TensorLocation", py::module_local(), "A memory location of a :py:class:`LocalTensor`.")
+        .value("BT", asctile::TensorLocation::BT, "Bias Table buffer (Cube)")
+        .value("L0A", asctile::TensorLocation::L0A, "L0A buffer (Cube)")
+        .value("L0B", asctile::TensorLocation::L0B, "L0B buffer (Cube)")
+        .value("L0C", asctile::TensorLocation::L0C, "L0C buffer (Cube)")
+        .value("L1", asctile::TensorLocation::L1, "L1 buffer (Cube)")
+        .value("UB", asctile::TensorLocation::UB, "Unified buffer (Vector)")
+        .value("FIX", asctile::TensorLocation::FIX, "FixPipe buffer (Not supported)")
         .def(py::init([](const std::string& name) {
             auto normName = StringRef(name).upper();
             if (auto loc = asctile::symbolizeTensorLocation(normName))

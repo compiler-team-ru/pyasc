@@ -13,7 +13,8 @@ from ..core.dtype import KnownTypes as KT
 from ..core.ir_value import RuntimeInt, materialize_ir_value as _mat
 from ..core.utils import global_builder, require_jit
 from .global_tensor import GlobalTensor
-from .local_tensor import LocalTensor, TensorLocation
+from .local_tensor import LocalTensor
+from .tensor_location import TensorLocation
 from .validation import check_dtype, check_type, verify_location, verify_runtime_ints
 
 

@@ -12,7 +12,8 @@ from typing import Any, Generator, Iterable, Optional, Union, overload
 from ..core.dtype import KnownTypes as KT
 from ..core.ir_value import RuntimeInt, RuntimeNumeric, materialize_ir_value as _mat
 from ..core.utils import global_builder, require_jit
-from .local_tensor import LocalTensor, TensorLocation
+from .local_tensor import LocalTensor
+from .tensor_location import TensorLocation
 from .utils import create_tile, infer_common_dtype
 from .validation import check_dtype, check_runtime_int, check_type, verify_location, verify_runtime_ints
 

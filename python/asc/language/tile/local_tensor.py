@@ -17,12 +17,12 @@ from typing_extensions import Self, TypeAlias
 from ..._C import ir
 from ..core.dtype import DataType
 from ..core.ir_value import IRHandle, IRValue, PlainValue, RuntimeInt, RuntimeNumeric
+from .tensor_location import TensorLocation
 from .validation import check_type
 
 T = TypeVar("T")
 
 RoundMode: TypeAlias = ir.asctile_RoundMode
-TensorLocation: TypeAlias = ir.asctile_TensorLocation
 
 
 class LocalTensor(IRValue):

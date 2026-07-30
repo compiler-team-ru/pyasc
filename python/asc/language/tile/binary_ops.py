@@ -13,7 +13,8 @@ from ...common.compat import isinstance
 from ..core.dtype import DataType, KnownTypes as KT
 from ..core.ir_value import IRHandle, RuntimeInt, RuntimeNumeric
 from ..core.utils import global_builder, require_jit
-from .local_tensor import BinaryOperandTypeError, LocalTensor, TensorLocation, bind_tensor_method
+from .local_tensor import BinaryOperandTypeError, LocalTensor, bind_tensor_method
+from .tensor_location import TensorLocation
 from .utils import check_bias, create_tile, infer_common_dtype, infer_common_shape
 from .validation import check_dtype, check_runtime_int, check_type, verify_location
 

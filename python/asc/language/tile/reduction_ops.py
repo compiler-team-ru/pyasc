@@ -12,7 +12,8 @@ from ..._C import ir
 from ..core.dtype import DataType, KnownTypes as KT
 from ..core.ir_value import PlainValue
 from ..core.utils import global_builder, require_jit
-from .local_tensor import LocalTensor, TensorLocation, bind_tensor_method
+from .local_tensor import LocalTensor, bind_tensor_method
+from .tensor_location import TensorLocation
 from .validation import check_dtype, check_type, verify_location
 
 

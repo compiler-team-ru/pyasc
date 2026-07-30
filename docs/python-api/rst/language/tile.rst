@@ -17,6 +17,7 @@ Kernel API
 
     LocalTensor
     GlobalTensor
+    TensorLocation
 
 
 Programming model

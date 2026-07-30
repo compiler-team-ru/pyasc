@@ -13,8 +13,7 @@ from ...common.compat import isinstance
 from ..core.dtype import DataType
 from ..core.ir_value import PlainValue, RuntimeInt
 from ..core.utils import get_type_name
-
-TensorLocation = ir.asctile_TensorLocation  # avoid top-level import of .local_tensor
+from .tensor_location import TensorLocation
 
 
 class DataTyped(Protocol):

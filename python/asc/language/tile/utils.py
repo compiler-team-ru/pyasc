@@ -14,7 +14,8 @@ from ..core.dtype import DataType, KnownTypes as KT
 from ..core.ir_value import PlainValue, RuntimeNumeric
 from ..core.tensor import TensorShape
 from ..core.utils import global_builder
-from .local_tensor import BinaryOperandTypeError, LocalTensor, TensorLocation
+from .local_tensor import BinaryOperandTypeError, LocalTensor
+from .tensor_location import TensorLocation
 from .validation import check_dtype, check_type, verify_location
 
 
