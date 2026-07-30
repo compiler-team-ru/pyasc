@@ -12,6 +12,7 @@ add_mlir_dialect_library(MLIRAscTileTransforms
   FoldCast.cpp
   LegalizeMatmul.cpp
   MarkReuseSource.cpp
+  MergeCVGroups.cpp
   PromotePureOps.cpp
   SplitCubeLoad.cpp
   TransformMathOps.cpp
