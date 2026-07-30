@@ -22,6 +22,7 @@ T = TypeVar("T")
 
 common_support_dtypes = (KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32)
 compare_support_dtypes = (KT.int16, KT.int32, KT.float16, KT.bfloat16, KT.float32)
+bitwise_support_dtypes = (KT.int8, KT.int16, KT.int32, KT.int64)
 
 
 def check_numeric_tensor_like(name: str, value: Any, support_dtypes: Tuple[DataType, ...]) -> None:
@@ -31,13 +32,8 @@ def check_numeric_tensor_like(name: str, value: Any, support_dtypes: Tuple[DataT
         verify_location(value.location, name, TensorLocation.UB)
 
 
-def op_binary_impl(
-    input: Union[LocalTensor, RuntimeNumeric],
-    other: Union[LocalTensor, RuntimeNumeric],
-    build_int: Callable[..., IRHandle],
-    build_float: Callable[..., IRHandle],
-    support_dtypes: Tuple[DataType, ...],
-) -> LocalTensor:
+def unify_tensors(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor, RuntimeNumeric],
+                  support_dtypes: Tuple[DataType, ...]) -> Tuple[LocalTensor, LocalTensor]:
     for name, value in ("input", input), ("other", other):
         check_numeric_tensor_like(name, value, support_dtypes)
     if not isinstance(input, LocalTensor) and not isinstance(other, LocalTensor):
@@ -46,6 +42,18 @@ def op_binary_impl(
     result_shape = infer_common_shape(input, other)
     input = create_tile(input, result_dtype, result_shape)
     other = create_tile(other, result_dtype, result_shape)
+    return input, other
+
+
+def op_binary_impl(
+    input: Union[LocalTensor, RuntimeNumeric],
+    other: Union[LocalTensor, RuntimeNumeric],
+    build_int: Callable[..., IRHandle],
+    build_float: Callable[..., IRHandle],
+    support_dtypes: Tuple[DataType, ...],
+) -> LocalTensor:
+    input, other = unify_tensors(input, other, support_dtypes)
+    result_dtype = input.dtype
     if result_dtype.is_int():
         handle = build_int(input.to_ir(), other.to_ir())
     elif result_dtype.is_float():
@@ -57,17 +65,17 @@ def op_binary_impl(
 
 def op_compare_impl(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor, RuntimeNumeric],
                     mode: ir.CompareMode) -> LocalTensor:
-    for name, value in ("input", input), ("other", other):
-        check_numeric_tensor_like(name, value, compare_support_dtypes)
-    if not isinstance(input, LocalTensor) and not isinstance(other, LocalTensor):
-        raise BinaryOperandTypeError(f"At least one operand must be tensor, got {type(input)} and {type(other)}")
-    result_dtype = infer_common_dtype(input, other)
-    result_shape = infer_common_shape(input, other)
-    input = create_tile(input, result_dtype, result_shape)
-    other = create_tile(other, result_dtype, result_shape)
+    input, other = unify_tensors(input, other, compare_support_dtypes)
     builder = global_builder.get_ir_builder()
     ir_type = ir.clone_shaped_type(input.to_ir().get_type(), builder.get_i1_type())
     handle = builder.create_asctile_CmpOp(ir_type, input.to_ir(), other.to_ir(), mode)
+    return LocalTensor(handle)
+
+
+def op_bitwise_impl(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor, RuntimeNumeric],
+                    build: Callable[..., IRHandle]) -> LocalTensor:
+    input, other = unify_tensors(input, other, bitwise_support_dtypes)
+    handle = build(input.to_ir(), other.to_ir())
     return LocalTensor(handle)
 
 
@@ -209,6 +217,27 @@ def minimum(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor,
     builder = global_builder.get_ir_builder()
     return op_binary_impl(input, other, builder.create_arith_MinSIOp, builder.create_arith_MinimumFOp,
                           common_support_dtypes)
+
+
+@bind_tensor_method(name="__and__", binary_op="&")
+@require_jit
+@set_docstring("AND (bitwise)", bitwise_support_dtypes)
+def bitwise_and(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor, RuntimeNumeric]) -> LocalTensor:
+    return op_bitwise_impl(input, other, global_builder.get_ir_builder().create_arith_AndIOp)
+
+
+@bind_tensor_method(name="__or__", binary_op="|")
+@require_jit
+@set_docstring("OR (bitwise)", bitwise_support_dtypes)
+def bitwise_or(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor, RuntimeNumeric]) -> LocalTensor:
+    return op_bitwise_impl(input, other, global_builder.get_ir_builder().create_arith_OrIOp)
+
+
+@bind_tensor_method(name="__xor__", binary_op="^")
+@require_jit
+@set_docstring("XOR (bitwise)", bitwise_support_dtypes)
+def bitwise_xor(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor, RuntimeNumeric]) -> LocalTensor:
+    return bitwise_or(input, other) & (~bitwise_and(input, other))
 
 
 @bind_tensor_method(name="__lshift__", binary_op="<<")

@@ -338,4 +338,11 @@ def InlineVFOp : AscTile_Op<"inline_vf", [Pure]> {
   let assemblyFormat = "`(` $inputs `)` $code attr-dict `:` functional-type($inputs, results)";
 }
 
+def BitwiseNotOp : AscTile_Op<"bitwise_not", [Pure, AllTypesMatch<["operand", "result"]>]> {
+  let summary = "Compute the bitwise NOT of a tensor";
+  let arguments = (ins IntLocalTensor:$operand);
+  let results = (outs IntLocalTensor:$result);
+  let assemblyFormat = "$operand attr-dict `:` type($operand)";
+}
+
 #endif // ASCTILE_OPS_TD
