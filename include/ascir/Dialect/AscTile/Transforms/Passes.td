@@ -141,6 +141,44 @@ def MarkReuseSource : Pass<"asctile-mark-reuse-source", "func::FuncOp"> {
   }];
 }
 
+def MergeCVGroups : Pass<"asctile-merge-cv-groups", "func::FuncOp"> {
+  let summary = "Merge adjacent cube_group or vector_group operations of the same type into a single group";
+  let constructor = "mlir::asctile::createMergeCVGroupsPass()";
+  let dependentDialects = ["asctile::AscTileDialect"];
+  let description = [{
+    This pass merges consecutive `asctile.cube_group` or `asctile.vector_group` operations of the same type
+    into a single group region.
+
+    The pass identifies maximal runs of adjacent groups of the same type (Cube or Vector) and merges them
+    into a single group. Operations classified as "neither" (scalar operations, control flow) act as barriers
+    that separate runs.
+
+    When merging groups, the pass:
+    - Collects all internal operations from each group in topological order
+    - Computes external operands (values defined outside the run and used inside)
+    - Computes external results (values produced inside the run and used outside)
+    - Remaps intermediate SSA values (results of earlier groups used by later groups become internal)
+    - Deduplicates operands that are used by multiple groups in the run
+
+    Example transformation:
+    ```mlir
+    // Before: three separate cube groups
+    %r1 = asctile.cube_group(%g1, %c0) { ^bb0(%a, %b): %ld = load %a[%b]; yield %ld }
+    %r2 = asctile.cube_group(%r1, %c0) { ^bb0(%a, %b): %cp = copy %a[%b]; yield %cp }
+    %r3 = asctile.cube_group(%g1, %c0) { ^bb0(%a, %b): %ld2 = load %a[%b]; yield %ld2 }
+
+    // After: single merged cube group
+    %merged = asctile.cube_group(%g1, %c0) {
+    ^bb0(%a, %b):
+      %ld = load %a[%b]
+      %cp = copy %ld[%b]
+      %ld2 = load %a[%b]
+      yield %cp, %ld2
+    }
+    ```
+  }];
+}
+
 def PromotePureOps : Pass<"asctile-promote-pure-ops", "func::FuncOp"> {
   let summary = "Hoist pure operations upward within their blocks to enable code motion optimizations";
   let constructor = "mlir::asctile::createPromotePureOpsPass()";
