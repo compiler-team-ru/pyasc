@@ -14,6 +14,7 @@ from ..core.dtype import KnownTypes as KT
 from ..core.utils import global_builder, require_jit
 from .local_tensor import LocalTensor, bind_tensor_method
 from .tensor_location import TensorLocation
+from .utils import infer_common_shape_impl
 from .validation import check_dtype, check_type, verify_location, verify_shape, check_data_alignment
 
 
@@ -74,6 +75,75 @@ def broadcast_to(input: LocalTensor, *shape: int) -> LocalTensor:
     result_type = ir.clone_shaped_type(input.to_ir().get_type(), shape)
     handle = global_builder.get_ir_builder().create_asctile_BroadcastOp(result_type, input.to_ir())
     return LocalTensor(handle)
+
+
+# @require_jit is not needed
+def broadcast_shapes(*shapes: Iterable[int]) -> Tuple[int, ...]:
+    """
+    Compute the common shape that all input shapes can be broadcast to.
+
+    This function applies broadcasting rules to determine the smallest shape that is compatible with all provided
+    shapes. Shorter shapes are padded with 1s on the left, then dimensions are compared element-wise, and each
+    dimension must either match or be of size 1.
+
+    Args:
+        shapes: Variable number of shapes (each shape is an iterable of integers)
+
+    Returns:
+        Tuple[int, ...]: The common broadcast shape
+
+    Raises:
+        ValueError: If no shapes are provided
+        RuntimeError: If the shapes are incompatible and cannot be broadcast together
+
+    Examples:
+        Compute common shape for multiple shapes: ::
+
+            common = broadcast_shapes([256], [16, 256])   # returns (16, 256)
+            common = broadcast_shapes([1, 256], [16, 1])  # returns (16, 256)
+    """
+    if not shapes:
+        raise ValueError("'shapes' must be provided")
+    shapes = tuple(verify_shape(shape, f"shapes[{i}]") for i, shape in enumerate(shapes))
+    common_shape = shapes[0]
+    if len(shapes) == 1:
+        return common_shape
+    for shape in shapes:
+        common_shape = infer_common_shape_impl(common_shape, shape)
+    return common_shape
+
+
+@require_jit
+def broadcast_tensors(*tensors: LocalTensor) -> Tuple[LocalTensor, ...]:
+    """
+    Broadcast all input tensors to a common shape.
+
+    This function computes the common broadcast shape using :py:func:`broadcast_shapes` and then broadcasts each
+    tensor to that shape using :py:func:`broadcast_to`.
+
+    The supported data types are the same as for :py:func:`broadcast_to` function.
+
+    Args:
+        tensors: Variable number of LocalTensors to broadcast
+
+    Returns:
+        Tuple[LocalTensor, ...]: A tuple of tensors, all broadcasted to the common shape
+
+    Raises:
+        TypeError: If any input is not a LocalTensor or has an unsupported dtype
+        RuntimeError: If the tensor shapes are incompatible and cannot be broadcast together
+
+    Examples:
+        Broadcast multiple tensors to a common shape: ::
+
+            t1 = asc2.copy_in(x, [0], [256])          # shape [256]
+            t2 = asc2.copy_in(y, [0, 0], [16, 256])   # shape [16, 256]
+            t1_bc, t2_bc = broadcast_tensors(t1, t2)  # both have shape [16, 256]
+    """
+    if len(tensors) < 2:
+        return tensors
+    common_shape = broadcast_shapes(tensor.shape for tensor in tensors)
+    return tuple(tensor.broadcast_to(common_shape) for tensor in tensors)
 
 
 @bind_tensor_method

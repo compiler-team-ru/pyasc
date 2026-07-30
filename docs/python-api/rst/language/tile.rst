@@ -166,6 +166,8 @@ Shape manipulation operations
     :toctree: generated
     :nosignatures:
 
+    broadcast_shapes
+    broadcast_tensors
     broadcast_to
     expand_dims
     ravel
