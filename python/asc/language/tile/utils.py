@@ -94,6 +94,20 @@ def infer_common_dtype(lhs: Union[LocalTensor, RuntimeNumeric], rhs: Union[Local
     raise RuntimeError(f"Unable to infer common dtype between {lhs_dtype} and {rhs_dtype}")
 
 
+def infer_common_shape_impl(lhs_shape: Tuple[int, ...], rhs_shape: Tuple[int, ...]) -> Tuple[int, ...]:
+    if lhs_shape == rhs_shape:
+        return lhs_shape
+    rank = max(len(lhs_shape), len(rhs_shape))
+    lhs_padded = (1, ) * (rank - len(lhs_shape)) + lhs_shape
+    rhs_padded = (1, ) * (rank - len(rhs_shape)) + rhs_shape
+    result = []
+    for dim_lhs, dim_rhs in zip(lhs_padded, rhs_padded):
+        if dim_lhs != dim_rhs and dim_lhs != 1 and dim_rhs != 1:
+            raise RuntimeError(f"Shapes are not broadcastable: {lhs_shape} vs. {rhs_shape}")
+        result.append(max(dim_lhs, dim_rhs))
+    return tuple(result)
+
+
 def infer_common_shape(lhs: Union[LocalTensor, RuntimeNumeric], rhs: Union[LocalTensor,
                                                                            RuntimeNumeric]) -> Tuple[int, ...]:
     lhs_is_tile = isinstance(lhs, LocalTensor)
@@ -106,15 +120,7 @@ def infer_common_shape(lhs: Union[LocalTensor, RuntimeNumeric], rhs: Union[Local
         return lhs.shape
     if lhs.shape == rhs.shape:
         return lhs.shape
-    rank = max(len(lhs.shape), len(rhs.shape))
-    lhs_padded = (1, ) * (rank - len(lhs.shape)) + lhs.shape
-    rhs_padded = (1, ) * (rank - len(rhs.shape)) + rhs.shape
-    result = []
-    for dim_lhs, dim_rhs in zip(lhs_padded, rhs_padded):
-        if dim_lhs != dim_rhs and dim_lhs != 1 and dim_rhs != 1:
-            raise RuntimeError(f"Shapes are not broadcastable: {lhs.shape} vs. {rhs.shape}")
-        result.append(max(dim_lhs, dim_rhs))
-    return tuple(result)
+    return infer_common_shape_impl(lhs.shape, rhs.shape)
 
 
 def check_bias(bias: Optional[LocalTensor], size: int) -> None:

@@ -106,6 +106,8 @@ from asc.language.tile.prog_model_ops import (
     block_num,
 )
 from asc.language.tile.shape_ops import (
+    broadcast_shapes,
+    broadcast_tensors,
     broadcast_to,
     expand_dims,
     ravel,
@@ -198,6 +200,8 @@ __all__ += [
     "block_idx",
     "block_num",
     # shape_ops
+    "broadcast_shapes",
+    "broadcast_tensors",
     "broadcast_to",
     "expand_dims",
     "ravel",
