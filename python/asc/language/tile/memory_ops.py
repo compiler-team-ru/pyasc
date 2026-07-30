@@ -13,7 +13,8 @@ from ..core.dtype import KnownTypes as KT
 from ..core.ir_value import IRHandle, PlainValue, RuntimeInt, RuntimeNumeric, materialize_ir_value as _mat
 from ..core.utils import global_builder, require_jit
 from .global_tensor import GlobalTensor
-from .local_tensor import LocalTensor, TensorLocation
+from .local_tensor import LocalTensor
+from .tensor_location import TensorLocation, TensorLocLike
 from .validation import check_data_alignment, check_type, verify_location, verify_runtime_ints, verify_shape
 
 
@@ -36,7 +37,7 @@ def verify_real_shape(real_shape: Iterable[RuntimeInt], shape: Tuple[int, ...]) 
 
 @require_jit
 def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape: Optional[Iterable[int]] = None,
-         location: Optional[Union[str, TensorLocation]] = None) -> LocalTensor:
+         location: Optional[TensorLocLike] = None) -> LocalTensor:
     """
     Copy a local tensor to a new local tensor, optionally reshaping and relocating.
 
@@ -59,7 +60,7 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
         LocalTensor: A new tensor that is a copy of the source tensor
 
     Raises:
-        TypeError: If src is not a LocalTensor or location is not a TensorLocation
+        TypeError: If src is not a LocalTensor or location is not a TensorLocation-like
         RuntimeError: If shape is invalid, data alignment check fails, or offsets rank mismatch
 
     Examples:
@@ -108,8 +109,7 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
 
 @overload
 def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Iterable[int],
-            location: Union[str,
-                            TensorLocation] = TensorLocation.UB, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
+            location: TensorLocLike = TensorLocation.UB, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
             pad_value: Optional[RuntimeNumeric] = None) -> LocalTensor:
     ...
 
@@ -121,8 +121,7 @@ def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt]) -> PlainValue:
 
 @require_jit
 def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[Iterable[int]] = None,
-            location: Union[str,
-                            TensorLocation] = TensorLocation.UB, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
+            location: TensorLocLike = TensorLocation.UB, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
             pad_value: Optional[RuntimeNumeric] = None) -> Union[LocalTensor, PlainValue]:
     """
     Copy data from a global tensor into a local tensor or scalar value.
@@ -156,7 +155,7 @@ def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[It
         PlainValue: A scalar value loaded from the global tensor (when ``shape`` is None)
 
     Raises:
-        TypeError: If src is not a GlobalTensor or location is not a TensorLocation
+        TypeError: If src is not a GlobalTensor or location is not a TensorLocation-like
         RuntimeError: If shape is invalid, data alignment check fails, offsets rank mismatch,
             real_shape exceeds tensor shape, or ``real_shape`` is used with ``TensorLocation.L1``, ``L0A``, or ``L0B``
 

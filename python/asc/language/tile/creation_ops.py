@@ -13,14 +13,15 @@ from ..._C import ir
 from ..core.dtype import DataType, KnownTypes as KT
 from ..core.ir_value import PlainValue, RuntimeNumeric, materialize_ir_value
 from ..core.utils import global_builder, require_jit
-from .local_tensor import LocalTensor, RoundMode, TensorLocation
+from .local_tensor import LocalTensor, RoundMode
+from .tensor_location import TensorLocation, TensorLocLike
 from .utils import check_bias, constant_tile, splat_tile
 from .validation import check_dtype, check_type, verify_location, verify_shape
 
 
 @require_jit
 def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] = None,
-         location: Union[str, TensorLocation] = TensorLocation.UB) -> LocalTensor:
+         location: TensorLocLike = TensorLocation.UB) -> LocalTensor:
     """
     Create a tensor filled with a scalar value.
 
@@ -36,7 +37,7 @@ def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] 
         LocalTensor: A new tensor filled with the specified value
 
     Raises:
-        TypeError: If value is not a numeric type, dtype is not a DataType, or location is not a TensorLocation
+        TypeError: If value is not a numeric type, dtype is not a DataType, or location is not a TensorLocation-like
         RuntimeError: If shape is invalid or dtype is not supported
 
     Examples:
@@ -70,8 +71,7 @@ def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] 
 
 
 @require_jit
-def full_like(input: LocalTensor, value: RuntimeNumeric,
-              location: Optional[Union[str, TensorLocation]] = None) -> LocalTensor:
+def full_like(input: LocalTensor, value: RuntimeNumeric, location: Optional[TensorLocLike] = None) -> LocalTensor:
     """
     Create a tensor filled with a scalar value, with the same shape and dtype as the input tensor.
 
@@ -80,7 +80,7 @@ def full_like(input: LocalTensor, value: RuntimeNumeric,
     Args:
         input: The input tensor to match shape and dtype.
         value: The scalar value to fill the tensor with.
-        location: The memory location for the tensor. Default is ``TensorLocation.UB``.
+        location: The memory location for the tensor. Default is ``input.location``.
 
     Returns:
         LocalTensor: A new tensor filled with the specified value
@@ -100,8 +100,7 @@ def full_like(input: LocalTensor, value: RuntimeNumeric,
 
 
 @require_jit
-def zeros(shape: Iterable[int], dtype: DataType = KT.int32,
-          location: Union[str, TensorLocation] = TensorLocation.UB) -> LocalTensor:
+def zeros(shape: Iterable[int], dtype: DataType = KT.int32, location: TensorLocLike = TensorLocation.UB) -> LocalTensor:
     """
     Create a tensor filled with zeros.
 
@@ -132,7 +131,7 @@ def zeros(shape: Iterable[int], dtype: DataType = KT.int32,
 
 
 @require_jit
-def zeros_like(input: LocalTensor, location: Optional[Union[str, TensorLocation]] = None) -> LocalTensor:
+def zeros_like(input: LocalTensor, location: Optional[TensorLocLike] = None) -> LocalTensor:
     """
     Create a tensor filled with zeros, with the same shape and dtype as the input tensor.
 
@@ -140,7 +139,7 @@ def zeros_like(input: LocalTensor, location: Optional[Union[str, TensorLocation]
 
     Args:
         input: The input tensor to match shape and dtype.
-        location: The memory location for the tensor. Default is ``TensorLocation.UB``.
+        location: The memory location for the tensor. Default is ``input.location``.
 
     Returns:
         LocalTensor: A new tensor filled with zeros

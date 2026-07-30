@@ -11,7 +11,8 @@ from typing import Optional, Iterable, Tuple
 from ..._C import ir
 from ..core.dtype import DataType
 from ..core.utils import global_builder
-from .local_tensor import LocalTensor, TensorLocation
+from .local_tensor import LocalTensor
+from .tensor_location import TensorLocation
 from .validation import check_type, verify_location, verify_shape
 
 
