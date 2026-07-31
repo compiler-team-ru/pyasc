@@ -9,6 +9,10 @@ on:
       ut_package:
         type: string
         default: 'ut_cov_*.tar.gz'
+      spec:
+        required: false
+        type: string
+        default: 'large'
       image_version:
         required: true
         type: string
@@ -70,6 +74,9 @@ jobs:
             ${{ steps.process_checkout.outputs.path }}/${{ inputs.ut_package }}
           object-prefix: ${{ env.obs_path }}/
     if: "${{ default() }}"
-    runs-on: [dedicate-hosted, x64, large]
+    runs-on:
+      - dedicate-hosted
+      - x64
+      - ${{ inputs.spec }}
     container:
       image: swr.cn-north-4.myhuaweicloud.com/ci_cann/${{ inputs.image_version }}
