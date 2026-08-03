@@ -34,29 +34,27 @@ public:
     void runOnOperation() override
     {
         auto moduleOp = getOperation();
+        if (moduleOp->hasAttr(attr::kernelType))
+            return;
         auto hasVectorOps = false;
         auto hasCubeOps = false;
-
         moduleOp.walk([&hasVectorOps, &hasCubeOps](Operation* op) {
-            if (!hasVectorOps && isa<ascendc::VectorOp>(op))
+            if (!hasVectorOps && isa<VectorOp>(op))
                 hasVectorOps = true;
-            if (!hasCubeOps && isa<ascendc::MmadOp, ascendc::MmadWithBiasOp, ascendc::RegistMatmulObjOp>(op))
+            if (!hasCubeOps && isa<MmadOp, MmadWithBiasOp, RegistMatmulObjOp>(op))
                 hasCubeOps = true;
             if (hasVectorOps && hasCubeOps)
                 return WalkResult::interrupt();
             return WalkResult::advance();
         });
-
         StringRef kernelType;
         if (hasVectorOps && hasCubeOps)
-            kernelType = "mixed";
+            kernelType = attr::kernelMixed;
         else if (hasCubeOps)
-            kernelType = "cube";
+            kernelType = attr::kernelCube;
         else
-            kernelType = "vector";
-
-        auto kernelTypeAttr = StringAttr::get(moduleOp.getContext(), kernelType);
-        moduleOp->setAttr(ascendc::attr::kernelType, kernelTypeAttr);
+            kernelType = attr::kernelVector;
+        moduleOp->setAttr(attr::kernelType, StringAttr::get(moduleOp.getContext(), kernelType));
     }
 };
 
