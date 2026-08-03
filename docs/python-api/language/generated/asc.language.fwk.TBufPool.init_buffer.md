@@ -2,7 +2,7 @@
 
 #### TBufPool.init_buffer(que: [TQue](../fwk.md#asc.language.fwk.TQue), num: int = 0, len: int = 0) → None
 
-#### TBufPool.init_buffer(buf: [TBuf](../fwk.md#asc.language.fwk.TBuf), num: int = 0) → None
+#### TBufPool.init_buffer(buf: [TBuf](../fwk.md#tbuf), len: int = 0) → None
 
 调用TBufPool::InitBuffer接口为TQue/TBuf进行内存分配。
 

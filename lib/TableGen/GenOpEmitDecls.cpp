@@ -54,6 +54,6 @@ void GenOpEmitsDecls::run(raw_ostream& os)
     }
 }
 
-TableGen::Emitter::OptClass<GenOpEmitsDecls>
-    registration("gen-opemit-decls", "Generate op emit methods from MLIR operation decls");
+TableGen::Emitter::OptClass<GenOpEmitsDecls> registration(
+    "gen-opemit-decls", "Generate op emit methods from MLIR operation decls");
 } // namespace

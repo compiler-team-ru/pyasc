@@ -257,11 +257,11 @@ StringRef CodeEmitter::getOrCreateName(Block& block)
 bool CodeEmitter::shouldMapToUnsigned(IntegerType::SignednessSemantics val)
 {
     switch (val) {
-    case IntegerType::Signless:
-    case IntegerType::Signed:
-        return false;
-    case IntegerType::Unsigned:
-        return true;
+        case IntegerType::Signless:
+        case IntegerType::Signed:
+            return false;
+        case IntegerType::Unsigned:
+            return true;
     }
     llvm_unreachable("Unexpected IntegerType::SignednessSemantics");
 }
@@ -292,14 +292,14 @@ void CodeEmitter::printFloat(const APFloat& value)
         // Use default values of toString except don't truncate zeros.
         value.toString(strValue, 0, 0, false);
         switch (llvm::APFloatBase::SemanticsToEnum(value.getSemantics())) {
-        case llvm::APFloatBase::S_IEEEsingle:
-            os << "(float)";
-            break;
-        case llvm::APFloatBase::S_IEEEdouble:
-            os << "(double)";
-            break;
-        default:
-            break;
+            case llvm::APFloatBase::S_IEEEsingle:
+                os << "(float)";
+                break;
+            case llvm::APFloatBase::S_IEEEdouble:
+                os << "(double)";
+                break;
+            default:
+                break;
         };
         os << strValue;
     } else if (value.isNaN()) {
@@ -347,17 +347,17 @@ LogicalResult CodeEmitter::emitVariableDeclaration(OpResult opResult, bool trail
 LogicalResult CodeEmitter::emitAssignPrefix(Operation& op)
 {
     switch (op.getNumResults()) {
-    case 0:
-        break;
-    case 1: {
-        OpResult result = op.getResult(0);
-        if (failed(emitVariableDeclaration(result, /*trailingSemicolon=*/false)))
-            return failure();
-        os << " = ";
-        break;
-    }
-    default:
-        llvm_unreachable("emission for multiple results is not implemented");
+        case 0:
+            break;
+        case 1: {
+            OpResult result = op.getResult(0);
+            if (failed(emitVariableDeclaration(result, /*trailingSemicolon=*/false)))
+                return failure();
+            os << " = ";
+            break;
+        }
+        default:
+            llvm_unreachable("emission for multiple results is not implemented");
     }
     return success();
 }
@@ -375,30 +375,30 @@ LogicalResult CodeEmitter::emitLabel(Block& block)
 void CodeEmitter::emitAddressSpace(ascendc::AddressSpace addressSpace)
 {
     switch (addressSpace) {
-    case ascendc::AddressSpace::Default:
-        // print nothing
-        break;
-    case ascendc::AddressSpace::gm:
-        os << "__gm__ ";
-        break;
-    case ascendc::AddressSpace::ca:
-        os << "__ca__ ";
-        break;
-    case ascendc::AddressSpace::cb:
-        os << "__cb__ ";
-        break;
-    case ascendc::AddressSpace::cc:
-        os << "__cc__ ";
-        break;
-    case ascendc::AddressSpace::ubuf:
-        os << "__ubuf__ ";
-        break;
-    case ascendc::AddressSpace::cbuf:
-        os << "__cbuf__ ";
-        break;
-    case ascendc::AddressSpace::fbuf:
-        os << "__fbuf__ ";
-        break;
+        case ascendc::AddressSpace::Default:
+            // print nothing
+            break;
+        case ascendc::AddressSpace::gm:
+            os << "__gm__ ";
+            break;
+        case ascendc::AddressSpace::ca:
+            os << "__ca__ ";
+            break;
+        case ascendc::AddressSpace::cb:
+            os << "__cb__ ";
+            break;
+        case ascendc::AddressSpace::cc:
+            os << "__cc__ ";
+            break;
+        case ascendc::AddressSpace::ubuf:
+            os << "__ubuf__ ";
+            break;
+        case ascendc::AddressSpace::cbuf:
+            os << "__cbuf__ ";
+            break;
+        case ascendc::AddressSpace::fbuf:
+            os << "__fbuf__ ";
+            break;
     }
 }
 
@@ -788,32 +788,32 @@ LogicalResult CodeEmitter::emitAscMatmulType(Location loc, Type type, bool emitA
 LogicalResult CodeEmitter::emitIntegerType(IntegerType& iType, Location loc, Type type, bool emitAsUnsigned)
 {
     switch (iType.getWidth()) {
-    case dtypeBitWidth1:
-        return (os << "bool"), success();
-    case dtypeBitWidth8:
-    case dtypeBitWidth16:
-    case dtypeBitWidth32:
-    case dtypeBitWidth64:
-        if (shouldMapToUnsigned(iType.getSignedness()) || emitAsUnsigned)
-            return (os << "uint" << iType.getWidth() << "_t"), success();
-        else
-            return (os << "int" << iType.getWidth() << "_t"), success();
-    default:
-        return emitError(loc, "cannot emit integer type ") << type;
+        case dtypeBitWidth1:
+            return (os << "bool"), success();
+        case dtypeBitWidth8:
+        case dtypeBitWidth16:
+        case dtypeBitWidth32:
+        case dtypeBitWidth64:
+            if (shouldMapToUnsigned(iType.getSignedness()) || emitAsUnsigned)
+                return (os << "uint" << iType.getWidth() << "_t"), success();
+            else
+                return (os << "int" << iType.getWidth() << "_t"), success();
+        default:
+            return emitError(loc, "cannot emit integer type ") << type;
     }
 }
 
 LogicalResult CodeEmitter::emitFloatType(FloatType& fType, Location loc, Type type, bool /*emitAsUnsigned*/)
 {
     switch (fType.getWidth()) {
-    case dtypeBitWidth16:
-        return (os << "half"), success();
-    case dtypeBitWidth32:
-        return (os << "float"), success();
-    case dtypeBitWidth64:
-        return (os << "double"), success();
-    default:
-        return emitError(loc, "cannot emit float type ") << type;
+        case dtypeBitWidth16:
+            return (os << "half"), success();
+        case dtypeBitWidth32:
+            return (os << "float"), success();
+        case dtypeBitWidth64:
+            return (os << "double"), success();
+        default:
+            return emitError(loc, "cannot emit float type ") << type;
     }
 }
 
@@ -883,12 +883,12 @@ LogicalResult CodeEmitter::emitAscMrgSortSrcListType(Location loc, Type type, bo
 LogicalResult CodeEmitter::emitTypes(Location loc, ArrayRef<Type> types)
 {
     switch (types.size()) {
-    case 0:
-        os << "void";
-        return success();
-    case dtypeBitWidth1:
-        return emitType(loc, types.front());
-    default:
-        llvm_unreachable("unsupported emission of types array");
+        case 0:
+            os << "void";
+            return success();
+        case dtypeBitWidth1:
+            return emitType(loc, types.front());
+        default:
+            llvm_unreachable("unsupported emission of types array");
     }
 }

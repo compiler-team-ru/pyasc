@@ -73,11 +73,14 @@ run_test_npu_perf() {
 }
 
 test_examples=(
-    "./python/tutorials/01_add/add.py"
-    "./python/tutorials/02_add_framework/add_framework.py"
-    "./python/tutorials/03_matmul_mix/matmul_mix.py"
-    "./python/tutorials/04_matmul_cube_only/matmul_cube_only.py"
-    "./python/tutorials/05_matmul_leakyrelu/matmul_leakyrelu.py"
+    "./examples/01_add/add.py"
+    "./examples/02_add_framework/add_framework.py"
+    "./examples/03_matmul_mix/matmul_mix.py"
+    "./examples/04_matmul_cube_only/matmul_cube_only.py"
+    "./examples/05_matmul_leakyrelu/matmul_leakyrelu.py"
+    "./examples/06_gelu/gelu.py"
+    "./examples/07_swiglu/swiglu.py"
+    "./examples/08_rmsnorm/rmsnorm.py"
 )
 
 test_examples_perf=(
@@ -88,7 +91,7 @@ test_examples_perf=(
 passed_examples=()
 failed_examples=()
 sed -i 's/Model/NPU/g' ./python/test/kernels/*.py
-sed -i 's/Model/NPU/g' ./python/tutorials/0*/*.py
+sed -i 's/default="Model"/default="NPU"/g' ./examples/0*/*.py
 
 for example_torch in "${test_examples[@]}"; do
     if run_test "$example_torch"; then

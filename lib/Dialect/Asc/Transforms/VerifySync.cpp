@@ -51,6 +51,9 @@ struct VerifySyncPass : public ascendc::impl::VerifySyncBase<VerifySyncPass> {
         if (allocTensorOp) {
             auto* it = llvm::find_if(operations, [&](Operation* op) {
                 auto exAllocOp = dyn_cast<ascendc::TQueBindAllocTensorOp>(op);
+                if (!exAllocOp) {
+                    return false;
+                }
                 return exAllocOp.getTensor() == allocTensorOp.getTensor();
             });
             if (it != operations.end()) {

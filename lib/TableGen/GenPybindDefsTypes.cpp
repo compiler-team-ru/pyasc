@@ -46,7 +46,7 @@ void GenPybindDefsTypes::run(raw_ostream& os)
     }
 }
 
-TableGen::Emitter::OptClass<GenPybindDefsTypes>
-    registration("gen-pybind-defs-types", "Generate PyOpBuilder methods from API Types defs");
+TableGen::Emitter::OptClass<GenPybindDefsTypes> registration(
+    "gen-pybind-defs-types", "Generate PyOpBuilder methods from API Types defs");
 
 } // namespace

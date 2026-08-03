@@ -125,8 +125,8 @@ public:
         builder.restoreInsertionPoint(pt);
     }
 
-    Operation*
-    create(StringRef operationName, ValueRange operands, TypeRange types = {}, ArrayRef<NamedAttribute> attributes = {})
+    Operation* create(
+        StringRef operationName, ValueRange operands, TypeRange types = {}, ArrayRef<NamedAttribute> attributes = {})
     {
         return builder.create(loc, builder.getStringAttr(operationName), operands, types, attributes);
     }

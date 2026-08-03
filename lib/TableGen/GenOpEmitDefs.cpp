@@ -188,26 +188,26 @@ bool printTemplateParam(
         std::string elementTypeVar = "elType" + std::to_string(i);
         std::string attrTypeVar = "iAttr" + std::to_string(i);
         switch (paramTypes[i]) {
-        case mlir::asc::kInferType: // infer operand type
-            printInferOperandType(os, genGetterName(args, i), templateTypeVar);
-            break;
-        // infer operand element type, such as get T form LocalTensor<T>
-        case mlir::asc::kInferElementType:
-            printInferElementType(os, genGetterName(args, i), templateTypeVar, elementTypeVar);
-            break;
-        case mlir::asc::kInferEnumType: // pass by attr
-            printInferEnumType(
-                os, genGetterName(args, i),
-                mlir::asc::removeAscDialectNameSpace(args[i].cppType, def->getValueAsString("cppNamespace")),
-                attrTypeVar);
-            break;
-        case mlir::asc::kInferValue: // pass by value
-            printOperandValue(os, genGetterName(args, i));
-            break;
-        case mlir::asc::kTemplateType:  // pass by template type
-        case mlir::asc::kInferTypeAttr: // type attribute, use directly as template type
-            printTemplateType(os, genGetterName(args, i), templateTypeVar);
-            break;
+            case mlir::asc::kInferType: // infer operand type
+                printInferOperandType(os, genGetterName(args, i), templateTypeVar);
+                break;
+            // infer operand element type, such as get T form LocalTensor<T>
+            case mlir::asc::kInferElementType:
+                printInferElementType(os, genGetterName(args, i), templateTypeVar, elementTypeVar);
+                break;
+            case mlir::asc::kInferEnumType: // pass by attr
+                printInferEnumType(
+                    os, genGetterName(args, i),
+                    mlir::asc::removeAscDialectNameSpace(args[i].cppType, def->getValueAsString("cppNamespace")),
+                    attrTypeVar);
+                break;
+            case mlir::asc::kInferValue: // pass by value
+                printOperandValue(os, genGetterName(args, i));
+                break;
+            case mlir::asc::kTemplateType:  // pass by template type
+            case mlir::asc::kInferTypeAttr: // type attribute, use directly as template type
+                printTemplateType(os, genGetterName(args, i), templateTypeVar);
+                break;
         }
     }
     os << mlir::asc::kOutTemplateCallEnd;
@@ -292,7 +292,7 @@ void GenOpEmitsDefs::run(raw_ostream& os)
     }
 }
 
-TableGen::Emitter::OptClass<GenOpEmitsDefs>
-    registration("gen-opemit-defs", "Generate op emit methods from MLIR operation defs");
+TableGen::Emitter::OptClass<GenOpEmitsDefs> registration(
+    "gen-opemit-defs", "Generate op emit methods from MLIR operation defs");
 
 } // namespace

@@ -58,28 +58,28 @@ LogicalResult mlir::printOperation(CodeEmitter& emitter, arith::CmpIOp op)
     auto& os = emitter.ostream();
     os << emitter.getOrCreateName(op.getLhs()) << " ";
     switch (op.getPredicate()) {
-    case arith::CmpIPredicate::eq:
-        os << "==";
-        break;
-    case arith::CmpIPredicate::ne:
-        os << "!=";
-        break;
-    case arith::CmpIPredicate::sle:
-    case arith::CmpIPredicate::ule:
-        os << "<=";
-        break;
-    case arith::CmpIPredicate::slt:
-    case arith::CmpIPredicate::ult:
-        os << "<";
-        break;
-    case arith::CmpIPredicate::sge:
-    case arith::CmpIPredicate::uge:
-        os << ">=";
-        break;
-    case arith::CmpIPredicate::sgt:
-    case arith::CmpIPredicate::ugt:
-        os << ">";
-        break;
+        case arith::CmpIPredicate::eq:
+            os << "==";
+            break;
+        case arith::CmpIPredicate::ne:
+            os << "!=";
+            break;
+        case arith::CmpIPredicate::sle:
+        case arith::CmpIPredicate::ule:
+            os << "<=";
+            break;
+        case arith::CmpIPredicate::slt:
+        case arith::CmpIPredicate::ult:
+            os << "<";
+            break;
+        case arith::CmpIPredicate::sge:
+        case arith::CmpIPredicate::uge:
+            os << ">=";
+            break;
+        case arith::CmpIPredicate::sgt:
+        case arith::CmpIPredicate::ugt:
+            os << ">";
+            break;
     }
     os << " " << emitter.getOrCreateName(op.getRhs());
     return success();
@@ -93,35 +93,35 @@ LogicalResult mlir::printOperation(CodeEmitter& emitter, arith::CmpFOp op)
     auto& os = emitter.ostream();
     os << emitter.getOrCreateName(op.getLhs()) << " ";
     switch (op.getPredicate()) {
-    case arith::CmpFPredicate::OEQ:
-    case arith::CmpFPredicate::UEQ:
-        os << "==";
-        break;
-    case arith::CmpFPredicate::ONE:
-    case arith::CmpFPredicate::UNE:
-        os << "!=";
-        break;
-    case arith::CmpFPredicate::OLE:
-    case arith::CmpFPredicate::ULE:
-        os << "<=";
-        break;
-    case arith::CmpFPredicate::OLT:
-    case arith::CmpFPredicate::ULT:
-        os << "<";
-        break;
-    case arith::CmpFPredicate::OGE:
-    case arith::CmpFPredicate::UGE:
-        os << ">=";
-        break;
-    case arith::CmpFPredicate::OGT:
-    case arith::CmpFPredicate::UGT:
-        os << ">";
-        break;
-    case arith::CmpFPredicate::AlwaysFalse:
-    case arith::CmpFPredicate::AlwaysTrue:
-    case arith::CmpFPredicate::ORD:
-    case arith::CmpFPredicate::UNO:
-        llvm_unreachable("unsupported predicate in arith.cmpf operation");
+        case arith::CmpFPredicate::OEQ:
+        case arith::CmpFPredicate::UEQ:
+            os << "==";
+            break;
+        case arith::CmpFPredicate::ONE:
+        case arith::CmpFPredicate::UNE:
+            os << "!=";
+            break;
+        case arith::CmpFPredicate::OLE:
+        case arith::CmpFPredicate::ULE:
+            os << "<=";
+            break;
+        case arith::CmpFPredicate::OLT:
+        case arith::CmpFPredicate::ULT:
+            os << "<";
+            break;
+        case arith::CmpFPredicate::OGE:
+        case arith::CmpFPredicate::UGE:
+            os << ">=";
+            break;
+        case arith::CmpFPredicate::OGT:
+        case arith::CmpFPredicate::UGT:
+            os << ">";
+            break;
+        case arith::CmpFPredicate::AlwaysFalse:
+        case arith::CmpFPredicate::AlwaysTrue:
+        case arith::CmpFPredicate::ORD:
+        case arith::CmpFPredicate::UNO:
+            llvm_unreachable("unsupported predicate in arith.cmpf operation");
     }
     os << " " << emitter.getOrCreateName(op.getRhs());
     return success();

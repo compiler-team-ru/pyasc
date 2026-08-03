@@ -33,16 +33,16 @@
 
 ### 1️⃣ 云开发环境
 
-对于无NPU设备的用户，可使用**云开发环境**提供的NPU计算资源进行开发体验，**云开发环境**提供了在线直接运行的昇腾ARM架构环境。目前仅适用于Atlas A2系列产品，提供两种接入方式：
+对于无NPU设备的用户，可直接使用**CANNLab云开发环境**，即"**一站式开发平台**"，该平台提供了在线可直接运行的昇腾ARM架构环境，环境中已安装必备的驱动固件、软件包和依赖，无需手动安装。该平台目前仅适用于Atlas A2系列产品，提供两种接入方式：
 
-- **WebIDE开发平台**，即"**一站式开发平台**"，提供网页版的便携开发体验。
+- **WebIDE**，提供网页版的便携开发体验。
 - **VSCode IDE**，支持远程连接**云开发环境**，提供VSCode强大插件市场的支持。
 
-1. 进入开源仓Gitcode页面，单击"`云开发`"按钮，使用已认证过的华为云账号登录。若未注册或认证，请根据页面提示进行注册和认证。
+1. 进入开源仓Gitcode页面，单击"`CANNLab > 云开发`"按钮，使用已认证过的华为云账号登录。若未注册或认证，请根据页面提示进行注册和认证。
 
    <img src="./figures/cloudIDE.png" alt="云平台"  width="750px" height="90px">
 
-2. 根据页面提示创建并启动云开发环境，单击"`连接 > WebIDE 或 Visual Studio Code`"进入云开发环境，开源项目的资源默认在`/mnt/workspace`目录下。
+2. 根据页面提示创建NPU环境并配置规格，启动云开发环境后，单击"`连接 > WebIDE 或 Visual Studio Code`"进入一站式开发平台。开源项目的资源默认在`/mnt/workspace`目录下。
 
    <img src="./figures/webIDE.png" alt="云平台"  width="1000px" height="150px">
 
@@ -50,7 +50,7 @@
 >
 > - 环境默认安装了最新的商用版NPU驱动和固件、CANN包，源码下载时注意与软件配套。
 > - 本仓建议用户在WebIDE平台上使用CANN master软件包，请参考[下载安装CANN包](#3️⃣-下载安装cann包)。如用户已更新过CANN软件包则无需重新安装。
-> - 更多关于**WebIDE开发平台**的介绍，请参考[云开发平台介绍](https://gitcode.com/org/cann/discussions/54)。
+> - 更多关于**CANNLab云开发环境**的介绍，请参考[CANNLab指导](https://gitcode.com/org/cann/discussions/54)。
 > - [Huawei Developer Space插件](https://marketplace.visualstudio.com/items?itemName=HuaweiCloud.developerspace)为VSCode IDE接入**云开发环境**提供技术支持。
 
 ### 2️⃣ CANN官方Docker镜像
@@ -59,7 +59,7 @@
 
 1. 确认主机环境
 
-   - 是否已安装NPU驱动和固件，使用`npu-smi info`能够输出NPU相关信息，如没有安装，请参考[CANN软件安装指南 - 在物理机上安装](https://www.hiascend.com/document/redirect/CannCommunityInstWizard)。
+   - 是否已安装NPU驱动和固件，使用`npu-smi info`能够输出NPU相关信息，《[CANN软件安装指南](https://www.hiascend.com/document/redirect/CannCommunityInstWizard)》中“准备软件包”和“安装NPU驱动和固件”章节。驱动与固件是运行态依赖，若仅编译本项目源码，可以不安装。
    - 是否已安装Docker，使用`docker --version`能够输出Docker版本信息，如没有安装，请参考[Docker官方安装指南](https://docs.docker.com/engine/install/)。
 
 2. 下载CANN镜像
@@ -201,8 +201,9 @@ CANN包分为CANN toolkit包和CANN ops包。
 - **检查CANN包安装**：
   
     ```bash
-    # 查看CANN包的version字段提供的版本信息（默认路径安装）。WebIDE场景下，请将/usr/local替换为/home/developer
+    # 查看CANN Toolkit的version字段提供的版本信息（默认路径安装）。CANNLab场景下，请将/usr/local替换为/home/developer
     cat /usr/local/Ascend/cann/$(uname -m)-linux/ascend_toolkit_install.info
+    # 查看CANN ops的version字段提供的版本信息（默认路径安装）。CANNLab场景下，请将/usr/local替换为/home/developer
     cat /usr/local/Ascend/cann/$(uname -m)-linux/ascend_ops_install.info
     ```
 
@@ -305,6 +306,7 @@ pip install pyasc
   pip3 list | grep -w "pyasc"
   ```
 
+<a name="envvar-config"></a>
 ## ⚙️ 运行环境变量配置
 
 > [!NOTE] 使用前须知
@@ -335,9 +337,10 @@ unset LD_PRELOAD
 
 **注意：若环境中已安装多个版本的CANN软件包，设置上述环境变量时，请确保路径指向的是配套版本软件包的目录。**
 
+<a name="example-verification"></a>
 ## ▶️ 样例运行验证
 
-开发者使用Ascend C Python编程语言实现自定义算子后，可以进行算子功能验证。本代码仓提供了部分算子实现的样例，具体请参考[tutorials](../python/tutorials/)目录下的样例，样例均采用torch输入输出tensor，请确保已经完成[安装PyTorch框架和torch_npu插件](#torch_install)步骤和[运行环境变量配置](#⚙️-运行环境变量配置)步骤。
+开发者使用Ascend C Python编程语言实现自定义算子后，可以进行算子功能验证。本代码仓提供了部分算子实现的样例，具体请参考[examples](../examples)目录下的样例，样例均采用torch输入输出tensor，请确保已经完成[安装PyTorch框架和torch_npu插件](#torch_install)步骤和[运行环境变量配置](#envvar-config)步骤。
 
 - 安装PyTorch框架和torch_npu插件<a name="torch_install"></a>
 
@@ -376,11 +379,11 @@ unset LD_PRELOAD
    以Add算子为例，执行如下命令可进行功能验证。
    ```bash
    cd pyasc
-   python3 ./python/tutorials/01_add/add.py
+   python3 ./examples/01_add/add.py
    ```
-   注：完整的运行命令如下所示，通过参数[RUN_MODE]配置运行模式、参数[SOC_VERSION]配置运行环境，具体请参考[编译执行](../python/tutorials/01_add/README.md/#编译执行)。若缺省参数[RUN_MODE]默认是仿真器模式，缺省参数[SOC_VERSION]，仿真器模式下默认是`Ascend910B1`环境，NPU上板模式下默认自动检测。若选择仿真器模式，请确认相关环境变量已正确配置。
+   注：完整的运行命令如下所示，通过参数[RUN_MODE]配置运行模式、参数[SOC_VERSION]配置运行环境，具体请参考[编译执行](../examples/01_add/README.md#编译执行)。若缺省参数[RUN_MODE]默认是仿真器模式，缺省参数[SOC_VERSION]，仿真器模式下默认是`Ascend910B1`环境，NPU上板模式下默认自动检测。若选择仿真器模式，请确认相关环境变量已正确配置。
    ```bash
-   python3 ./python/tutorials/01_add/add.py -r [RUN_MODE] -v [SOC_VERSION]
+   python3 ./examples/01_add/add.py -r [RUN_MODE] -v [SOC_VERSION]
    ```
 
 ## 🧪 UT测试

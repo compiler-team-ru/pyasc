@@ -40,13 +40,13 @@ LogicalResult mlir::printOperation(CodeEmitter& codeEmitter, func::ReturnOp retu
     raw_ostream& os = codeEmitter.ostream();
     os << "return";
     switch (returnOp.getNumOperands()) {
-    case 0:
-        return success();
-    case 1:
-        os << " " << codeEmitter.getOrCreateName(returnOp.getOperand(0));
-        return success(codeEmitter.hasValueInScope(returnOp.getOperand(0)));
-    default:
-        llvm_unreachable("emission for multiple results is not implemented");
+        case 0:
+            return success();
+        case 1:
+            os << " " << codeEmitter.getOrCreateName(returnOp.getOperand(0));
+            return success(codeEmitter.hasValueInScope(returnOp.getOperand(0)));
+        default:
+            llvm_unreachable("emission for multiple results is not implemented");
     }
 }
 

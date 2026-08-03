@@ -41,7 +41,7 @@ def quant_kernel(src_gm: asc.GlobalAddress, dst_gm: asc.GlobalAddress, size: int
     dst_local = out_que.alloc_tensor(asc.int8)
     src_local = in_que_x.deque(src_global.dtype)
     tmp_buf = asc.TBuf(asc.TPosition.VECCALC)
-    pipe.init_buffer(buf=tmp_buf, num=tmp_min_bytes)
+    pipe.init_buffer(buf=tmp_buf, len=tmp_min_bytes)
     tmp_local = tmp_buf.get(asc.uint8)
     scale = 2.0
     offset = 0.9

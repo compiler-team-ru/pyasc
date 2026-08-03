@@ -337,7 +337,7 @@ class TBufPool(IRValue):
         ...
 
     @overload
-    def init_buffer(self, buf: TBuf, num: int = 0) -> None:
+    def init_buffer(self, buf: TBuf, len: int = 0) -> None:
         ...
 
     @require_jit
@@ -460,7 +460,7 @@ class TPipe(IRValue):
         ...
 
     @overload
-    def init_buffer(self, buf: TBuf, num: int = 0) -> None:
+    def init_buffer(self, buf: TBuf, len: int = 0) -> None:
         ...
 
     @require_jit
@@ -474,10 +474,10 @@ class TPipe(IRValue):
                                                                    _mat(num, KnownTypes.int_).to_ir(),
                                                                    _mat(len, KnownTypes.int_).to_ir())
 
-        @dispatcher.register(buf=TBuf, num=RuntimeInt)
-        def _(buf: TBuf, num: RuntimeInt = 0):
+        @dispatcher.register(buf=TBuf, len=RuntimeInt)
+        def _(buf: TBuf, len: RuntimeInt = 0):
             global_builder.get_ir_builder().create_asc_TPipeInitBufferOp(self.to_ir(), buf.to_ir(),
-                                                                    _mat(num, KnownTypes.int_).to_ir())
+                                                                    _mat(len, KnownTypes.int_).to_ir())
 
         dispatcher(*args, **kwargs)
 

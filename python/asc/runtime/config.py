@@ -70,8 +70,8 @@ def set_platform(
     if check and not rt.is_available():
         error_msg = "Runtime library is not available! "
         if backend == Backend.Model:
-            error_msg += f"Please export LD_LIBRARY_PATH=$ASCEND_HOME_PATH/tools/"  \
-                "simulator/{soc_version.value}/lib:$LD_LIBRARY_PATH"
+            error_msg += f"Please export LD_LIBRARY_PATH=$ASCEND_HOME_PATH/tools/" \
+                f"simulator/{soc_version.value}/lib:$LD_LIBRARY_PATH"
 
         raise RuntimeError(error_msg)
         

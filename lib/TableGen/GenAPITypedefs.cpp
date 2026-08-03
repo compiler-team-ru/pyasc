@@ -41,7 +41,7 @@ void GenAPITypedefs::run(raw_ostream& os)
     }
 }
 
-TableGen::Emitter::OptClass<GenAPITypedefs>
-    registration("gen-api-typedefs", "Generate MLIR typedefs from API type declarations");
+TableGen::Emitter::OptClass<GenAPITypedefs> registration(
+    "gen-api-typedefs", "Generate MLIR typedefs from API type declarations");
 
 } // namespace

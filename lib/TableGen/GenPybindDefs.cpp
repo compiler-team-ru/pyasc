@@ -92,7 +92,7 @@ void GenPybindDefs::run(raw_ostream& os)
     }
 }
 
-TableGen::Emitter::OptClass<GenPybindDefs>
-    registration("gen-pybind-defs", "Generate PyOpBuilder methods from MLIR operation defs");
+TableGen::Emitter::OptClass<GenPybindDefs> registration(
+    "gen-pybind-defs", "Generate PyOpBuilder methods from MLIR operation defs");
 
 } // namespace

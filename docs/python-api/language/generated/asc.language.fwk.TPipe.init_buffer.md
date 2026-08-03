@@ -2,7 +2,7 @@
 
 #### TPipe.init_buffer(que: [TQue](../fwk.md#asc.language.fwk.TQue), num: int = 0, len: int = 0) → None
 
-#### TPipe.init_buffer(buf: [TBuf](../fwk.md#asc.language.fwk.TBuf), num: int = 0) → None
+#### TPipe.init_buffer(buf: [TBuf](../fwk.md#tbuf), len: int = 0) → None
 
 用于为TQue等队列和TBuf分配内存。
 
@@ -45,5 +45,5 @@ pipe.init_buffer(que=que, num=num, len=len)
 pipe = asc.Tpipe()
 buf = asc.TBuf(asc.TPosition.A1)
 len = 128
-pipe.init_buffer(buf=buf, num=len)
+pipe.init_buffer(buf=buf, len=len)
 ```

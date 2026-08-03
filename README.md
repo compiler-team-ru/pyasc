@@ -16,6 +16,7 @@ pyasc编程接口与Ascend C类库接口一一对应，旨在提供与Ascend C�
 ├── docs                # 说明文档
 │   ├── figures         # 文档图片
 │   └── python-api      # API接口文档
+├── examples            # 供用户参考的算子开发样例
 ├── include             # 后端头文件和td文件
 │   └── ascir             ## ascir头文件和td文件
 ├── lib                 # 后端源文件
@@ -27,7 +28,6 @@ pyasc编程接口与Ascend C类库接口一一对应，旨在提供与Ascend C�
 │   ├── asc               ## 用户可见的python包，对外发布的wheel包中以此目录为主，其他代码则按需打包
 │   ├── src               ## pybind相关代码，cpp格式
 │   ├── test              ## python格式的测试用例集
-│   └── tutorials         ## 供用户参考的样例集
 └── test                # 后端的测试用例集
     ├── Dialect           ## mlir方言定义模块测试用例
     ├── Target            ## mlir目标代码转换模块测试用例
@@ -40,7 +40,7 @@ pyasc编程接口与Ascend C类库接口一一对应，旨在提供与Ascend C�
 若您希望快速体验pyasc的使用过程，请访问如下文档获取简易教程。
 
 - [构建](https://gitcode.com/cann/pyasc/blob/master/docs/quick_start.md)：介绍搭建环境、编译执行、本地验证。
-- [样例执行](https://gitcode.com/cann/pyasc/blob/master/python/tutorials/README.md)：介绍如何端到端执行样例代码。
+- [样例执行](./examples/README.md)：介绍如何端到端执行样例代码。
 
 ## 📖学习教程
 

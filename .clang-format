@@ -11,10 +11,10 @@
 #   Using clang-format to reformat a file:
 #     clang-format -i <file>
 
-BasedOnStyle: LLVM
+BasedOnStyle: Google
 ColumnLimit: 120
 AccessModifierOffset: -4
-SortIncludes: true
+SortIncludes: false
 BreakBeforeBraces:  Custom
 
 # 大括号换行配置

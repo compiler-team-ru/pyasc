@@ -332,7 +332,7 @@
 
 ## 接下来的引导
 
-- 如果您想了解更多 pyasc 算子示例，可以参考 [tutorials](../python/tutorials) 目录下的样例。
+- 如果您想了解更多 pyasc 算子示例，可以参考 [examples](../examples) 目录下的样例。
 
 - 如果您想深入了解 pyasc 的 API 接口，请参考 [API 文档](./python-api/index.md)。
 

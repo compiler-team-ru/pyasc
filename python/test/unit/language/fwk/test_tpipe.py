@@ -95,7 +95,7 @@ def test_init_buffer(mock_launcher_run):
         que = asc.TQue(asc.TPosition.VECIN, 1)
         buf = asc.TBuf(asc.TPosition.A1)
         pipe.init_buffer(que=que, num=1, len=128)
-        pipe.init_buffer(buf=buf, num=128)
+        pipe.init_buffer(buf=buf, len=128)
 
     kernel_init_buffer[1]()
     assert mock_launcher_run.call_count == 1
