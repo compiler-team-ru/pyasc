@@ -155,16 +155,13 @@ func.func @matmul_acc_wrong_acc_location(%arg0: tensor<8x8xf32, #asctile.local<U
 
 // -----
 
-func.func @cube_group_operand_count_mismatch(%arg0: tensor<64xf32, #asctile.global>) -> tensor<64xf32, #asctile.local<L1>> {
-  %c0 = arith.constant 0 : i32
-  %cst = arith.constant 0.0 : f32
-  // expected-error@below {{number of operands (1) must match number of block arguments (2)}}
-  %0 = asctile.cube_group(%arg0 : tensor<64xf32, #asctile.global>) {
-  ^bb0(%a: tensor<64xf32, #asctile.global>, %b: i32):
-    %1 = asctile.load %a[%b], %cst : tensor<64xf32, #asctile.global>, tensor<64xf32, #asctile.local<L1>>
-    asctile.yield %1 : tensor<64xf32, #asctile.local<L1>>
-  } : tensor<64xf32, #asctile.local<L1>>
-  return %0 : tensor<64xf32, #asctile.local<L1>>
+func.func @cube_group_yield_type_mismatch(%arg0: tensor<32xf32, #asctile.local<L1>>) -> tensor<32xf32, #asctile.local<UB>> {
+  // expected-error@below {{yield operand type at index 0 ('tensor<32xf32, #asctile.local<L1>>') does not match result type ('tensor<32xf32, #asctile.local<UB>>')}}
+  %0 = asctile.vector_group(%arg0 : tensor<32xf32, #asctile.local<L1>>) {
+    %1 = asctile.relu %arg0 : tensor<32xf32, #asctile.local<L1>>
+    asctile.yield %1 : tensor<32xf32, #asctile.local<L1>>
+  } : tensor<32xf32, #asctile.local<UB>>
+  return %0 : tensor<32xf32, #asctile.local<UB>>
 }
 
 // -----
@@ -172,8 +169,7 @@ func.func @cube_group_operand_count_mismatch(%arg0: tensor<64xf32, #asctile.glob
 func.func @vector_group_yield_count_mismatch(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
   // expected-error@below {{number of yield operands (2) must match number of results (1)}}
   %0 = asctile.vector_group(%arg0 : tensor<32xf32, #asctile.local<UB>>) {
-  ^bb0(%a: tensor<32xf32, #asctile.local<UB>>):
-    %1 = asctile.relu %a : tensor<32xf32, #asctile.local<UB>>
+    %1 = asctile.relu %arg0 : tensor<32xf32, #asctile.local<UB>>
     asctile.yield %1, %1 : tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>
   } : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xf32, #asctile.local<UB>>

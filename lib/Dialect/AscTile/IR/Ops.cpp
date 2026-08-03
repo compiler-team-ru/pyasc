@@ -53,20 +53,13 @@ Type getI1SameShape(Type type)
     return i1Type;
 }
 
-LogicalResult verifyCVGroupOp(
-    Operation* op, OperandRange operands, Block& block, OperandRange yieldOperands, TypeRange resultTypes)
+LogicalResult verifyCVGroupOp(Operation* op)
 {
-    if (operands.size() != block.getNumArguments()) {
-        return op->emitOpError("number of operands (")
-               << operands.size() << ") must match number of block arguments (" << block.getNumArguments() << ")";
-    }
-    for (auto [i, it] : llvm::enumerate(llvm::zip(operands.getTypes(), block.getArgumentTypes()))) {
-        auto [operandType, argType] = it;
-        if (operandType != argType) {
-            return op->emitOpError("operand type at index ")
-                   << i << " (" << operandType << ") does not match block argument type (" << argType << ")";
-        }
-    }
+    auto& block = op->getRegion(0).front();
+    if (block.getNumArguments() != 0)
+        return op->emitOpError("block is not allowed to have arguments");
+    auto yieldOperands = cast<asctile::YieldOp>(block.getTerminator()).getOperands();
+    auto resultTypes = op->getResultTypes();
     if (yieldOperands.size() != resultTypes.size()) {
         return op->emitOpError("number of yield operands (")
                << yieldOperands.size() << ") must match number of results (" << resultTypes.size() << ")";
@@ -413,23 +406,13 @@ LogicalResult MatmulAccOp::verify()
 // CubeGroupOp
 //===----------------------------------------------------------------------===//
 
-LogicalResult CubeGroupOp::verify()
-{
-    auto& block = getRegion().front();
-    auto yieldOp = cast<asctile::YieldOp>(block.getTerminator());
-    return verifyCVGroupOp(*this, getOperands(), block, yieldOp.getOperands(), getResultTypes());
-}
+LogicalResult CubeGroupOp::verify() { return verifyCVGroupOp(*this); }
 
 //===----------------------------------------------------------------------===//
 // VectorGroupOp
 //===----------------------------------------------------------------------===//
 
-LogicalResult VectorGroupOp::verify()
-{
-    auto& block = getRegion().front();
-    auto yieldOp = cast<asctile::YieldOp>(block.getTerminator());
-    return verifyCVGroupOp(*this, getOperands(), block, yieldOp.getOperands(), getResultTypes());
-}
+LogicalResult VectorGroupOp::verify() { return verifyCVGroupOp(*this); }
 
 //===----------------------------------------------------------------------===//
 // AscTileDialect

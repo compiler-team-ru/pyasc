@@ -42,11 +42,11 @@ ComputeUnit classifyByTileType(Type type)
 
 ComputeUnit classifyOperation(Operation* op)
 {
-    if (isa<asctile::CubeGroupOp, asctile::VectorGroupOp>(op))
+    if (isa<CubeGroupOp, VectorGroupOp>(op))
         return ComputeUnit::Neither;
-    if (isa<asctile::CopyOp, asctile::CopyFixpipeOp, asctile::LoadOp>(op))
+    if (isa<CopyOp, CopyFixpipeOp, LoadOp>(op))
         return classifyByTileType(op->getResult(0).getType());
-    if (isa<asctile::StoreOp, asctile::StoreFixpipeOp, asctile::AtomicRMWOp>(op))
+    if (isa<StoreOp, StoreFixpipeOp, AtomicRMWOp>(op))
         return classifyByTileType(op->getOperand(0).getType());
     for (auto type : op->getResultTypes())
         if (auto unit = classifyByTileType(type); unit != ComputeUnit::Neither)
@@ -56,21 +56,19 @@ ComputeUnit classifyOperation(Operation* op)
 
 void wrapSingleOp(Operation* op, ComputeUnit unit, OpBuilder& builder)
 {
-    SmallVector<Value> inputValues(op->getOperands());
+    SmallVector<Value> inputValues;
+    for (auto opnd : op->getOperands())
+        if (isa<LocalTensorType>(opnd.getType()))
+            inputValues.push_back(opnd);
     SmallVector<Type> resultTypes(op->getResultTypes());
     builder.setInsertionPoint(op);
     Location loc = op->getLoc();
     Operation* blockOp = (unit == ComputeUnit::Cube) ? builder.create<CubeGroupOp>(loc, resultTypes, inputValues) :
                                                        builder.create<VectorGroupOp>(loc, resultTypes, inputValues);
     Block* newBlock = &blockOp->getRegion(0).emplaceBlock();
-    for (auto input : inputValues)
-        newBlock->addArgument(input.getType(), loc);
-    IRMapping mapping;
-    for (auto [i, input] : llvm::enumerate(inputValues))
-        mapping.map(input, newBlock->getArgument(i));
     builder.setInsertionPointToEnd(newBlock);
-    Operation* clonedOp = builder.clone(*op, mapping);
-    builder.create<asctile::YieldOp>(loc, clonedOp->getResults());
+    Operation* clonedOp = builder.clone(*op);
+    builder.create<YieldOp>(loc, clonedOp->getResults());
     for (auto [i, result] : llvm::enumerate(op->getResults()))
         result.replaceAllUsesWith(blockOp->getResult(i));
     op->erase();
