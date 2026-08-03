@@ -568,6 +568,44 @@ func.func @lower_bitwise_not(%arg0: tensor<32xi32, #asctile.local<UB>>) -> tenso
   return %0 : tensor<32xi32, #asctile.local<UB>>
 }
 
+// CHECK-LABEL: func.func @lower_cube_group(%arg0: tensor<16x16xf32, #asctile.local<L0A>>, %arg1: tensor<16x16xf32, #asctile.local<L0B>>) -> tensor<16x16xf32, #asctile.local<L0C>> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg1 : tensor<16x16xf32, #asctile.local<L0B>> to !ascendc.local_tensor<16x16xf32>
+// CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %arg0 : tensor<16x16xf32, #asctile.local<L0A>> to !ascendc.local_tensor<16x16xf32>
+// CHECK-NEXT:  %2 = ascendc.if_aic(%1, %0 : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf32>) -> !ascendc.local_tensor<16x16xf32> {
+// CHECK-NEXT:    %4 = ascendc.local_tensor_auto co1() : <16x16xf32>
+// CHECK-NEXT:    %5 = emitasc.init_struct !ascendc.mmad_params("m" = %c16_i32 : i32, "n" = %c16_i32 : i32, "k" = %c16_i32 : i32)
+// CHECK-NEXT:    ascendc.mmad %4, %1, %0, %5 : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.mmad_params
+// CHECK-NEXT:    ascendc.yield %4 : !ascendc.local_tensor<16x16xf32>
+// CHECK-NEXT:  }
+// CHECK-NEXT:  %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<16x16xf32> to tensor<16x16xf32, #asctile.local<L0C>>
+// CHECK-NEXT:  return %3 : tensor<16x16xf32, #asctile.local<L0C>>
+// CHECK-NEXT:}
+func.func @lower_cube_group(%arg0: tensor<16x16xf32, #asctile.local<L0A>>, %arg1: tensor<16x16xf32, #asctile.local<L0B>>) -> tensor<16x16xf32, #asctile.local<L0C>> {
+  %0 = asctile.cube_group(%arg0, %arg1 : tensor<16x16xf32, #asctile.local<L0A>>, tensor<16x16xf32, #asctile.local<L0B>>) {
+    %1 = asctile.matmul %arg0, %arg1 : tensor<16x16xf32, #asctile.local<L0A>>, tensor<16x16xf32, #asctile.local<L0B>> -> tensor<16x16xf32, #asctile.local<L0C>>
+    asctile.yield %1 : tensor<16x16xf32, #asctile.local<L0C>>
+  } : tensor<16x16xf32, #asctile.local<L0C>>
+  return %0 : tensor<16x16xf32, #asctile.local<L0C>>
+}
+
+// CHECK-LABEL: func.func @lower_vector_group(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : tensor<32xf32, #asctile.local<UB>> to !ascendc.local_tensor<32xf32>
+// CHECK-NEXT:  %1 = ascendc.if_aiv(%0 : !ascendc.local_tensor<32xf32>) -> !ascendc.local_tensor<32xf32> {
+// CHECK-NEXT:    %3 = ascendc.local_tensor_auto veccalc() : <32xf32>
+// CHECK-NEXT:    ascendc.relu_l2 %3, %0, %c32_i64 : !ascendc.local_tensor<32xf32>, !ascendc.local_tensor<32xf32>, i64
+// CHECK-NEXT:    ascendc.yield %3 : !ascendc.local_tensor<32xf32>
+// CHECK-NEXT:  }
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<32xf32> to tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  return %2 : tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @lower_vector_group(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
+  %0 = asctile.vector_group(%arg0 : tensor<32xf32, #asctile.local<UB>>) {
+    %1 = asctile.relu %arg0 : tensor<32xf32, #asctile.local<UB>>
+    asctile.yield %1 : tensor<32xf32, #asctile.local<UB>>
+  } : tensor<32xf32, #asctile.local<UB>>
+  return %0 : tensor<32xf32, #asctile.local<UB>>
+}
+
 // -----
 
 module attributes {asc.compilation_arch = "c310"} {

@@ -1002,6 +1002,36 @@ struct ConvertBitwiseNot : ConvertOp<asctile::BitwiseNotOp> {
     }
 };
 
+template <typename GroupOp, typename IfOp>
+struct ConvertCVGroup : ConvertOp<GroupOp> {
+    using ConvertOp<GroupOp>::ConvertOp;
+    using ConvertOp<GroupOp>::createTensorOp;
+    using ConvertOp<GroupOp>::typeConverter;
+
+    LogicalResult matchAndRewrite(GroupOp op, ConvertRewriter& rewriter) const override
+    {
+        auto loc = op.getLoc();
+        SmallVector<Value> srcList;
+        if (rewriter.getRemappedValues(op.getOperands(), srcList).failed())
+            return op.emitOpError("has unsupported operands");
+        SmallVector<Type> resultTypes;
+        if (typeConverter->convertTypes(op.getResultTypes(), resultTypes).failed())
+            return op.emitOpError("failed to convert result types");
+        Region& srcRegion = op.getRegion();
+        auto ifOp = rewriter.create<IfOp>(loc, resultTypes, srcList);
+        Region& thenRegion = ifOp.getRegion();
+        thenRegion.getBlocks().splice(thenRegion.end(), srcRegion.getBlocks());
+        auto yieldOp = cast<asctile::YieldOp>(thenRegion.begin()->getTerminator());
+        SmallVector<Value> convertedOperands;
+        if (rewriter.getRemappedValues(yieldOp.getOperands(), convertedOperands).failed())
+            return yieldOp.emitOpError("has unsupported operands");
+        rewriter.setInsertionPoint(yieldOp);
+        rewriter.replaceOpWithNewOp<ascendc::YieldOp>(yieldOp, convertedOperands);
+        rewriter.replaceOp(op, ifOp.getResults());
+        return success();
+    }
+};
+
 struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePass> {
     void runOnOperation() override
     {
@@ -1015,7 +1045,7 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
             asctile::MatmulOp, asctile::ReshapeOp, asctile::BroadcastOp, asctile::AddSOp, asctile::SubSOp,
             asctile::MulSOp, asctile::DivSOp, asctile::MinSOp, asctile::MaxSOp, asctile::ShLSOp, asctile::ShRSOp,
             asctile::ReduceAs1dOp, asctile::ReduceOp, asctile::AccumulatorOp, asctile::MatmulAccOp, asctile::InlineVFOp,
-            asctile::TransposeOp, asctile::LeakyReluOp
+            asctile::TransposeOp, asctile::LeakyReluOp, asctile::CubeGroupOp, asctile::VectorGroupOp
             //
             >();
         target.addLegalDialect<
@@ -1032,7 +1062,8 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
             ConvertVecScalarToL2<asctile::DivSOp, ascendc::DivsL2Op, ascendc::DivL2Op>,
             ConvertToL2<asctile::MinSOp, ascendc::MinsL2Op>, ConvertToL2<asctile::MaxSOp, ascendc::MaxsL2Op>,
             ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>, ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>,
-            ConvertTransposeUB, ConvertBitwiseNot
+            ConvertTransposeUB, ConvertCVGroup<asctile::CubeGroupOp, ascendc::IfAICOp>, ConvertBitwiseNot,
+            ConvertCVGroup<asctile::VectorGroupOp, ascendc::IfAIVOp>
             //
             >(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())

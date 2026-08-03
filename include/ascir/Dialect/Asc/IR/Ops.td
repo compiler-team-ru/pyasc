@@ -127,7 +127,6 @@ def AscendC_IfAICOp : AscendC_Op<"if_aic", [SingleBlockImplicitTerminator<"Yield
   let results = (outs Variadic<AnyType>:$results);
   let regions = (region SizedRegion<1>:$region);
   let assemblyFormat = "(`(` $srcTensors^ `:` type($srcTensors) `)`)? (`->` type($results)^)? $region attr-dict";
-  let hasCanonicalizer = 1;
 }
 
 def AscendC_IfAIVOp : AscendC_Op<"if_aiv", [SingleBlockImplicitTerminator<"YieldOp">]> {
@@ -136,7 +135,6 @@ def AscendC_IfAIVOp : AscendC_Op<"if_aiv", [SingleBlockImplicitTerminator<"Yield
   let results = (outs Variadic<AnyType>:$results);
   let regions = (region SizedRegion<1>:$region);
   let assemblyFormat = "(`(` $srcTensors^ `:` type($srcTensors) `)`)? (`->` type($results)^)? $region attr-dict";
-  let hasCanonicalizer = 1;
 }
 
 def AscendC_FftsCrossCoreSyncOp : APIOp<"ffts_cross_core_sync", "FftsCrossCoreSync"> {
