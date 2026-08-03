@@ -133,6 +133,7 @@ def CubeGroupOp : AscTile_Op<"cube_group", [SingleBlockImplicitTerminator<"Yield
   let results = (outs Variadic<AnyType>:$results);
   let regions = (region SizedRegion<1>:$region);
   let assemblyFormat = "(`(` $operands^ `:` type($operands) `)`)? $region (`:` type($results)^)? attr-dict";
+  let hasCanonicalizer = 1;
   let hasVerifier = 1;
 }
 
@@ -142,6 +143,7 @@ def VectorGroupOp : AscTile_Op<"vector_group", [SingleBlockImplicitTerminator<"Y
   let results = (outs Variadic<AnyType>:$results);
   let regions = (region SizedRegion<1>:$region);
   let assemblyFormat = "(`(` $operands^ `:` type($operands) `)`)? $region (`:` type($results)^)? attr-dict";
+  let hasCanonicalizer = 1;
   let hasVerifier = 1;
 }
 
