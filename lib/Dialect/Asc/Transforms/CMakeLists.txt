@@ -29,6 +29,7 @@ add_mlir_dialect_library(MLIRAscTransforms
   MaterializeTensor.cpp
   Noop.cpp
   PrivatizeFunc.cpp
+  PromoteCVBlock.cpp
   ReuseTensorAllocation.cpp
   ReuseUBAllocation.cpp
   UnifyBiasTensor.cpp

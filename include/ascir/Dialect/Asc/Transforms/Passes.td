@@ -426,6 +426,18 @@ def PrivatizeFunc : Pass<"ascendc-privatize-func", "ModuleOp"> {
   }];
 }
 
+def PromoteCVBlock : Pass<"ascendc-promote-cv-block", "ModuleOp"> {
+  let summary = "Detect kernel type and promote conditional AIC/AIV blocks for pure cube or vector kernels";
+  let constructor = "mlir::ascendc::createPromoteCVBlockPass()";
+  let description = [{
+    Inspects each function for `if_aic` (AI Cube) and `if_aiv` (AI Vector) conditional blocks and sets the
+    module-level `asc.kernel_type` attribute to `cube`, `vector`, or `mixed` accordingly. For pure cube or
+    vector kernels, unwraps the conditional blocks by moving their body operations into the parent block and
+    erasing the conditional wrapper. Mixed kernels retain their conditional structure since operations target
+    different compute units.
+  }];
+}
+
 def ReuseTensorAllocation : Pass<"ascendc-reuse-tensor-allocation", "func::FuncOp"> {
   let summary = "Reuse freed on-chip allocations based on unroll_iter lifetime analysis";
   let constructor = "mlir::ascendc::createReuseTensorAllocationPass()";

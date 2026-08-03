@@ -102,6 +102,7 @@ void defineAscendCPasses(py::module& mod)
     DEFINE_ADD_PASS("add_detect_kernel_type", createDetectKernelTypePass);
     DEFINE_ADD_PASS("add_declare_py_struct", createDeclarePyStructPass);
     DEFINE_ADD_PASS("add_define_cube_only", createDefineCubeOnlyPass);
+    DEFINE_ADD_PASS("add_detect_enable_debug", createDetectEnableDebugPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_dispatch_alloc", createDispatchAllocPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_erase_sync", createEraseSyncPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_fill_asc_operands", createFillAscOperandsPass);
@@ -115,7 +116,7 @@ void defineAscendCPasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_sync", createInsertSyncPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_to_l0", createLowerToL0Pass);
     DEFINE_ADD_PASS("add_privatize_func", createPrivatizeFuncPass);
-    DEFINE_ADD_PASS("add_detect_enable_debug", createDetectEnableDebugPass);
+    DEFINE_ADD_PASS("add_promote_cv_block", createPromoteCVBlockPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_reuse_tensor_allocation", createReuseTensorAllocationPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_unify_bias_tensor", createUnifyBiasTensorPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_unify_pipe", createUnifyPipePass);

@@ -41,6 +41,7 @@ std::unique_ptr<Pass> createLowerToL0Pass();
 std::unique_ptr<Pass> createMaterializeTensorPass(bool alwaysBuf = false);
 std::unique_ptr<Pass> createNoopPass();
 std::unique_ptr<Pass> createPrivatizeFuncPass();
+std::unique_ptr<Pass> createPromoteCVBlockPass();
 std::unique_ptr<Pass> createReuseTensorAllocationPass();
 std::unique_ptr<Pass> createReuseUBAllocationPass(bool reuseInOut = false);
 std::unique_ptr<Pass> createUnifyBiasTensorPass();
