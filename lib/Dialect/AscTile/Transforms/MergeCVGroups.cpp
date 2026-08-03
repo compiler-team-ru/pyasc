@@ -56,8 +56,10 @@ SmallVector<SmallVector<Operation*>> collectRuns(Block& block)
     return runs;
 }
 
-void mergeRun(SmallVector<Operation*>& groups, OpBuilder& builder)
+void mergeRun(SmallVector<Operation*>& groups)
 {
+    if (groups.size() < 2)
+        return;
     Operation* firstGroup = groups.front();
     Location loc = firstGroup->getLoc();
     GroupType type = classifyGroup(firstGroup);
@@ -85,27 +87,18 @@ void mergeRun(SmallVector<Operation*>& groups, OpBuilder& builder)
                 externalResults.push_back(result);
                 resultTypes.push_back(result.getType());
             }
-    builder.setInsertionPoint(firstGroup);
+    OpBuilder builder(firstGroup);
     Operation* mergedGroup;
     if (type == GroupType::Cube)
         mergedGroup = builder.create<CubeGroupOp>(loc, resultTypes, externalOperands);
     else
         mergedGroup = builder.create<VectorGroupOp>(loc, resultTypes, externalOperands);
     Block* mergedBlock = &mergedGroup->getRegion(0).emplaceBlock();
-    for (Value operand : externalOperands)
-        mergedBlock->addArgument(operand.getType(), loc);
     IRMapping mapping;
-    for (auto [i, operand] : llvm::enumerate(externalOperands))
-        mapping.map(operand, mergedBlock->getArgument(i));
     builder.setInsertionPointToEnd(mergedBlock);
     for (Operation* group : groups) {
         Block& groupBlock = group->getRegion(0).front();
         auto yieldOp = cast<asctile::YieldOp>(groupBlock.getTerminator());
-        for (auto [i, arg] : llvm::enumerate(groupBlock.getArguments())) {
-            Value originalOperand = group->getOperand(i);
-            if (mapping.contains(originalOperand))
-                mapping.map(arg, mapping.lookup(originalOperand));
-        }
         for (Operation& innerOp : groupBlock.without_terminator()) {
             Operation* cloned = builder.clone(innerOp, mapping);
             for (auto [i, result] : llvm::enumerate(innerOp.getResults()))
@@ -135,11 +128,9 @@ struct MergeCVGroupsPass : public asctile::impl::MergeCVGroupsBase<MergeCVGroups
     void runOnOperation() override
     {
         getOperation().walk([&](Block* block) {
-            SmallVector<SmallVector<Operation*>> runs = collectRuns(*block);
-            OpBuilder builder(getOperation().getContext());
+            auto runs = collectRuns(*block);
             for (auto& groups : runs) {
-                if (groups.size() >= 2)
-                    mergeRun(groups, builder);
+                mergeRun(groups);
             }
         });
     }
