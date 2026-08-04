@@ -50,14 +50,6 @@ def DimOp : AscTile_Op<"dim", [Pure]> {
   let hasVerifier = 1;
 }
 
-def SplatOp : AscTile_Op<"splat", [Pure, ShapedMatchElemType<"result", "value">]> {
-  let summary = "Create a tensor filled with splat value";
-  let arguments = (ins AscTile_Numeric:$value);
-  let results = (outs NumericLocalTensor:$result);
-  let assemblyFormat = "$value attr-dict `:` qualified(type($result))";
-  let hasFolder = 1;
-}
-
 def CopyOp : AscTile_Op<"copy", [AllElementTypesMatch<["base", "result"]>]> {
   let summary = "Copy from a tensor into a new sub-tensor";
   let arguments = (ins NumericLocalTensor:$base, Variadic<I32>:$offsets);
@@ -305,15 +297,6 @@ def StoreFixpipeOp : AscTile_Op<"store_fixpipe", [AttrSizedOperandSegments, Memo
     $value `,` $base `[` $offsets `]` (`,` `(` $realShape^ `)`)? attr-dict `:` qualified(type($value)) `,`
     qualified(type($base))
   }];
-  let hasVerifier = 1;
-}
-
-def ConcatOp : AscTile_Op<"concat", [Pure, SameOperandsAndResultElementType]> {
-  let summary = "Concatenates the sequence of tiles along the first dimension";
-  let arguments = (ins Variadic<NumericLocalTensor>);
-  let results = (outs NumericLocalTensor:$result);
-  let assemblyFormat = "operands attr-dict `:` type(operands) `->` qualified(type($result))";
-  let hasFolder = 1;
   let hasVerifier = 1;
 }
 

@@ -21,6 +21,7 @@
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/Attributes.h"
@@ -1145,6 +1146,21 @@ void bindCreateAscTileOperations(py::class_<PyOpBuilder>& clss)
         ;
 }
 
+void bindCreateTensorOperations(py::class_<PyOpBuilder>& clss)
+{
+    using ret = py::return_value_policy;
+    using namespace pybind11::literals;
+
+    clss.def(
+            "create_tensor_ConcatOp",
+            [](PyOpBuilder& self, Type result, uint64_t dim, const std::vector<Value>& inputs) -> Value {
+                return self.create<tensor::ConcatOp>(result, dim, inputs);
+            })
+        .def("create_tensor_SplatOp", [](PyOpBuilder& self, Type result, Value input) -> Value {
+            return self.create<tensor::SplatOp>(result, input);
+        });
+}
+
 } // namespace
 
 namespace pybind11 {
@@ -1181,6 +1197,7 @@ void initBuilderInIRModule(py::module& m)
     bindCreateAscEventOperations(clss);
     bindCreateAscCommonOperations(clss);
     bindCreateAscTileOperations(clss);
+    bindCreateTensorOperations(clss);
 }
 
 } // namespace asc

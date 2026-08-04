@@ -82,20 +82,6 @@ struct ConvertTensor : public ConvertOp<asctile::TensorOp> {
     }
 };
 
-struct ConvertSplat : public ConvertOp<asctile::SplatOp> {
-    using ConvertOp::ConvertOp;
-
-    LogicalResult matchAndRewrite(asctile::SplatOp op, ConvertRewriter& rewriter) const override
-    {
-        ascir::ConstantOpBuilder consts(rewriter);
-        auto loc = op.getLoc();
-        Value dst = createTensorOp(rewriter, loc, op.getType());
-        rewriter.create<ascendc::DuplicateL2Op>(loc, dst, op.getValue(), consts.i64(calCount(dst)));
-        rewriter.replaceOp(op, dst);
-        return success();
-    }
-};
-
 struct ConvertRelu : ConvertOp<asctile::ReluOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
@@ -1041,11 +1027,11 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         ConversionTarget target(*context);
         target.addIllegalOp<
             //
-            asctile::TensorOp, asctile::SplatOp, asctile::ReluOp, asctile::CastOp, asctile::SoftmaxOp,
+            asctile::TensorOp, asctile::LeakyReluOp, asctile::ReluOp, asctile::CastOp, asctile::SoftmaxOp,
             asctile::MatmulOp, asctile::ReshapeOp, asctile::BroadcastOp, asctile::AddSOp, asctile::SubSOp,
             asctile::MulSOp, asctile::DivSOp, asctile::MinSOp, asctile::MaxSOp, asctile::ShLSOp, asctile::ShRSOp,
             asctile::ReduceAs1dOp, asctile::ReduceOp, asctile::AccumulatorOp, asctile::MatmulAccOp, asctile::InlineVFOp,
-            asctile::TransposeOp, asctile::LeakyReluOp, asctile::CubeGroupOp, asctile::VectorGroupOp
+            asctile::TransposeOp, asctile::CubeGroupOp, asctile::VectorGroupOp
             //
             >();
         target.addLegalDialect<
@@ -1054,7 +1040,7 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         RewritePatternSet patterns(context);
         patterns.insert<
             //
-            ConvertTensor, ConvertSplat, ConvertRelu, ConvertCast, ConvertMatmul, ConvertReshape, ConvertBroadcast,
+            ConvertTensor, ConvertRelu, ConvertCast, ConvertMatmul, ConvertReshape, ConvertBroadcast, ConvertBitwiseNot,
             ConvertSoftmax, ConvertRmsNorm, ConvertLayerNorm, ConvertAccumulator, ConvertMatmulAcc, ConvertReduceAs1d,
             ConvertReduce, ConvertInlineVF, ConvertToL2<asctile::AddSOp, ascendc::AddsL2Op>,
             ConvertVecScalarToL2<asctile::SubSOp, ascendc::SubsL2Op, ascendc::SubL2Op>,
@@ -1062,7 +1048,7 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
             ConvertVecScalarToL2<asctile::DivSOp, ascendc::DivsL2Op, ascendc::DivL2Op>,
             ConvertToL2<asctile::MinSOp, ascendc::MinsL2Op>, ConvertToL2<asctile::MaxSOp, ascendc::MaxsL2Op>,
             ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>, ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>,
-            ConvertTransposeUB, ConvertCVGroup<asctile::CubeGroupOp, ascendc::IfAICOp>, ConvertBitwiseNot,
+            ConvertTransposeUB, ConvertCVGroup<asctile::CubeGroupOp, ascendc::IfAICOp>,
             ConvertCVGroup<asctile::VectorGroupOp, ascendc::IfAIVOp>
             //
             >(converter, context);

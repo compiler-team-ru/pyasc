@@ -15,6 +15,7 @@
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/MLIRContext.h"
@@ -39,11 +40,13 @@ using namespace mlir::asclower;
 
 namespace {
 
-struct ConcatToNoop : public OpRewritePattern<asctile::ConcatOp> {
+struct ConcatToNoop : public OpRewritePattern<tensor::ConcatOp> {
     using OpRewritePattern::OpRewritePattern;
 
-    LogicalResult matchAndRewrite(asctile::ConcatOp op, PatternRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(tensor::ConcatOp op, PatternRewriter& rewriter) const override
     {
+        if (op.getDim() != 0)
+            return failure();
         SmallVector<ascendc::LocalTensorAutoOp> allocs(llvm::map_range(op.getOperands(), [](Value tensor) {
             auto castOp = tensor.getDefiningOp<UnrealizedConversionCastOp>();
             if (!castOp || castOp.getNumOperands() != 1 || castOp->getNumResults() != 1)
@@ -69,13 +72,15 @@ struct ConcatToNoop : public OpRewritePattern<asctile::ConcatOp> {
     }
 };
 
-struct ConvertConcat : public ConvertOp<asctile::ConcatOp> {
+struct ConvertConcat : public ConvertOp<tensor::ConcatOp> {
     using ConvertOp::calCount;
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
-    LogicalResult matchAndRewrite(asctile::ConcatOp op, ConvertRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(tensor::ConcatOp op, ConvertRewriter& rewriter) const override
     {
+        if (op.getDim() != 0)
+            return failure();
         auto loc = op.getLoc();
         ascir::ConstantOpBuilder consts(rewriter);
         Value dst = createTensorOp(rewriter, loc, op.getType());
@@ -107,7 +112,7 @@ struct DisplaceConcatPass : public asclower::impl::DisplaceConcatBase<DisplaceCo
         TensorTypeConverter converter;
         MLIRContext* context = &getContext();
         ConversionTarget target(*context);
-        target.addIllegalOp<asctile::ConcatOp>();
+        target.addIllegalOp<tensor::ConcatOp>();
         target.addLegalDialect<arith::ArithDialect, ascendc::AscendCDialect>();
         RewritePatternSet patterns(context);
         patterns.insert<ConvertConcat>(converter, context);

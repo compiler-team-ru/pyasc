@@ -190,39 +190,6 @@ OpFoldResult BroadcastOp::fold([[maybe_unused]] FoldAdaptor adaptor)
 }
 
 //===----------------------------------------------------------------------===//
-// ConcatOp
-//===----------------------------------------------------------------------===//
-
-OpFoldResult ConcatOp::fold([[maybe_unused]] FoldAdaptor adaptor)
-{
-    if (getNumOperands() == 1)
-        return getOperand(0);
-    return nullptr;
-}
-
-LogicalResult ConcatOp::verify()
-{
-    if (getNumOperands() < 1)
-        return emitOpError("must have at least one operand");
-    if (!llvm::all_of(getOperands(), [](Value opnd) {
-            return cast<LocalTensorType>(opnd.getType()).getLoc() == TensorLocation::UB;
-        }))
-        return emitOpError("tensor operands must have UB tensor location");
-    if (!llvm::all_equal(llvm::map_range(getOperands(), [](Value opnd) {
-            return cast<LocalTensorType>(opnd.getType()).getShape().drop_front();
-        })))
-        return emitOpError("tensor operands must have the same shape except their first dimension");
-    SmallVector<int64_t> firstDims(llvm::map_range(getOperands(), [](Value opnd) {
-        return cast<LocalTensorType>(opnd.getType()).getShape().front();
-    }));
-    SmallVector<int64_t> resultShape(cast<LocalTensorType>(getOperand(0).getType()).getShape());
-    resultShape.front() = std::accumulate(firstDims.begin(), firstDims.end(), 0, std::plus<int64_t>());
-    if (resultShape != getType().getShape())
-        return emitOpError() << "result tensor shape must be [" << resultShape << "]";
-    return success();
-}
-
-//===----------------------------------------------------------------------===//
 // TensorOp
 //===----------------------------------------------------------------------===//
 
@@ -313,18 +280,6 @@ LogicalResult LoadOp::verify()
             return emitOpError() << "real_shape exceeds tensor shape";
     }
     return success();
-}
-
-//===----------------------------------------------------------------------===//
-// SplatOp
-//===----------------------------------------------------------------------===//
-
-OpFoldResult SplatOp::fold([[maybe_unused]] FoldAdaptor adaptor)
-{
-    Attribute attr;
-    if (matchPattern(getOperand(), m_Constant(&attr)))
-        return SplatElementsAttr::get(getType(), attr);
-    return {};
 }
 
 //===----------------------------------------------------------------------===//

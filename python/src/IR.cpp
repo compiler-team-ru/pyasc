@@ -25,6 +25,7 @@
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/Builders.h"
@@ -281,7 +282,7 @@ void bindContextAndDialect(py::module& m)
             //
             arith::ArithDialect, ascendc::AscendCDialect, asctile::AscTileDialect, emitasc::EmitAscDialect,
             emitc::EmitCDialect, func::FuncDialect, math::MathDialect, memref::MemRefDialect, scf::SCFDialect,
-            vector::VectorDialect
+            tensor::TensorDialect, vector::VectorDialect
             //
             >();
         ascendc::registerExternalModels(registry);

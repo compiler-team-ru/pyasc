@@ -18,7 +18,7 @@ def DisplaceConcat : Pass<"asclower-displace-concat", "func::FuncOp"> {
   let constructor = "mlir::asclower::createDisplaceConcatPass()";
   let dependentDialects = ["arith::ArithDialect", "ascendc::AscendCDialect"];
   let description = [{
-    Rewrites `asctile.concat` operations to avoid unnecessary data copies by adjusting tensor allocations:
+    Rewrites `tensor.concat` operations to avoid unnecessary data copies by adjusting tensor allocations:
     1. **Optimization phase**: If all concat operands are from `LocalTensorAutoOp` with same position, creates
        a single combined tensor at function entry and rewrites each operand's allocation as a sub-index view
        into this combined tensor. The concat itself becomes a no-op (just an unrealized conversion cast).
@@ -95,7 +95,6 @@ def LowerAscTile : Pass<"asclower-asctile", "func::FuncOp"> {
   let description = [{
     Converts AscTile tensor operations to Ascend C equivalents:
     - **TensorOp**: Creates `GlobalTensorOp` with buffer pointer setup
-    - **SplatOp**: Creates `DuplicateL2Op` to broadcast scalar
     - **ReluOp, CastOp**: Creates corresponding L2 unary ops
     - **MatmulOp**: Creates `MmadOp` with M/N/K params derived from tensor shapes
     - **ReshapeOp**: Creates `LocalTensorReinterpretCastOp`
@@ -191,6 +190,12 @@ def LowerSCF : Pass<"asclower-scf", "func::FuncOp"> {
     This enables scf control flow to work with converted tensor types after AscTile lowering.
     Uses `TensorTypeConverter` to map `asctile::LocalTensorType` → `ascendc::LocalTensorType`.
   }];
+}
+
+def LowerTensor : Pass<"asclower-tensor", "func::FuncOp"> {
+  let summary = "Lower tensor dialect operations to ascendc operations";
+  let constructor = "mlir::asclower::createLowerTensorPass()";
+  let dependentDialects = ["arith::ArithDialect", "ascendc::AscendCDialect"];
 }
 
 def RealizeConversionCast : Pass<"asclower-realize-conversion-cast", "func::FuncOp"> {

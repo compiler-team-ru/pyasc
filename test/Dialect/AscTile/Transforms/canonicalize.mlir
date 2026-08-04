@@ -89,24 +89,6 @@ func.func @fold_reshape_back(%arg0: tensor<16x16xf32, #asctile.local<UB>>) -> te
   return %1 : tensor<16x16xf32, #asctile.local<UB>>
 }
 
-// CHECK-LABEL: func.func @fold_single_concat(%arg0: tensor<16xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>> {
-// CHECK-NEXT: return %arg0 : tensor<16xf32, #asctile.local<UB>>
-// CHECK-NEXT:}
-func.func @fold_single_concat(%arg0: tensor<16xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>> {
-  %0 = asctile.concat %arg0 : tensor<16xf32, #asctile.local<UB>> -> tensor<16xf32, #asctile.local<UB>>
-  return %0 : tensor<16xf32, #asctile.local<UB>>
-}
-
-// CHECK-LABEL: func.func @fold_splat_constant() -> tensor<4xf32, #asctile.local<UB>> {
-// CHECK-NEXT: %cst = arith.constant dense<1.000000e+00> : tensor<4xf32, #asctile.local<UB>>
-// CHECK-NEXT: return %cst : tensor<4xf32, #asctile.local<UB>>
-// CHECK-NEXT:}
-func.func @fold_splat_constant() -> tensor<4xf32, #asctile.local<UB>> {
-  %cst = arith.constant 1.0 : f32
-  %0 = asctile.splat %cst : tensor<4xf32, #asctile.local<UB>>
-  return %0 : tensor<4xf32, #asctile.local<UB>>
-}
-
 // CHECK-LABEL: func.func @fold_dim_static(%arg0: memref<*xf32, 22>) -> i32 {
 // CHECK-NEXT: %c32_i32 = arith.constant 32 : i32
 // CHECK-NEXT: return %c32_i32 : i32
