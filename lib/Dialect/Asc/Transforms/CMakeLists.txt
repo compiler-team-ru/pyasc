@@ -23,6 +23,8 @@ add_mlir_dialect_library(MLIRAscTransforms
   InputOutputTensor.cpp
   InsertBiasBufIdSync.cpp
   InsertBufIdSync.cpp
+  InsertCrossCoreSync.cpp
+  InsertSubBlockGuard.cpp
   InsertSync.cpp
   LegalizeKernelArgs.cpp
   LowerToL0.cpp

@@ -280,6 +280,60 @@ def InsertBiasBufIdSync : Pass<"ascendc-insert-bias-bufid-sync", "func::FuncOp">
   }];
 }
 
+def InsertCrossCoreSync : Pass<"ascendc-insert-cross-core-sync", "func::FuncOp"> {
+  let summary = "Insert CrossCoreSetFlag and CrossCoreWaitFlag synchronization between if_aic and if_aiv operations";
+  let constructor = "mlir::ascendc::createInsertCrossCoreSyncPass()";
+  let dependentDialects = ["ascendc::AscendCDialect"];
+  let description = [{
+    This pass inserts `ascendc.cross_core_set_flag` and `ascendc.cross_core_wait_flag` operations
+    between consecutive `ascendc.if_aic` and `ascendc.if_aiv` operations when they are
+    of different types.
+
+    Synchronization rules:
+    - No sync is inserted for the first group operation in sequence.
+    - If two consecutive groups are of the same type (both if_aic or both if_aiv), no sync is inserted.
+    - When an `if_aic` is followed by an `if_aiv`:
+      - `CrossCoreSetFlag<4, pipe>(0)` and `CrossCoreSetFlag<4, pipe>(16)` are inserted at the end
+        of the if_aic block, where `pipe` is determined by the last operation in the block.
+      - `CrossCoreWaitFlag<4, PIPE_S>(0)` is inserted at the beginning of the if_aiv block.
+    - When an `if_aiv` is followed by an `if_aic`:
+      - `CrossCoreSetFlag<4, pipe>(0)` is inserted at the end of the if_aiv block.
+      - `CrossCoreWaitFlag<4, PIPE_S>(0)` is inserted at the beginning of the if_aic block.
+
+    The pipe for `CrossCoreSetFlag` is determined by the last non-yield operation in the block:
+    - `mmad`, `mmad_with_bias` → `PIPE_M`
+    - `fixpipe` → `PIPE_FIX`
+    - `copy_to_l0` operations → `PIPE_MTE1`
+    - `fill` → `PIPE_MTE2`
+    - `data_copy` (GlobalToLocal) → `PIPE_MTE2`
+    - `data_copy` (LocalToGlobal) → `PIPE_MTE3`
+    - `local_tensor.get_value`, `local_tensor.set_value` → `PIPE_S`
+    - All other operations → `PIPE_V`
+  }];
+}
+
+def InsertSubBlockGuard : Pass<"ascendc-insert-subblock-guard", "func::FuncOp"> {
+  let summary = "Insert early return guard for non-zero sub-block indices in mixed kernel functions";
+  let constructor = "mlir::ascendc::createInsertSubBlockGuardPass()";
+  let dependentDialects = ["emitc::EmitCDialect"];
+  let description = [{
+    Inserts a guard at the beginning of kernel functions that returns early if the current sub-block
+    index is not zero. This is useful for multi-core kernels where only sub-block 0 should execute
+    the main kernel logic.
+
+    The pass only operates on functions within modules that have `asc.kernel_type = "mixed"` attribute.
+    For other kernel types (vector, cube) or modules without the attribute, the pass is a no-op.
+
+    The pass inserts the following C++ code at the function entry:
+    ```cpp
+    if (AscendC::GetSubBlockIdx() != 0) return;
+    ```
+
+    This ensures that only sub-block 0 executes the kernel body, while other sub-blocks return immediately.
+    The pass is idempotent and skips functions that already have the guard inserted.
+  }];
+}
+
 def InsertSync : Pass<"ascendc-insert-sync", "func::FuncOp"> {
   let summary = "Insert TQueBind enqueue/dequeue synchronization and scalar get/set_value barriers";
   let constructor = "mlir::ascendc::createInsertSyncPass()";
