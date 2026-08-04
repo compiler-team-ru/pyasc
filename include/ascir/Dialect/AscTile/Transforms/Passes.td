@@ -388,7 +388,7 @@ def UnrollLoop : Pass<"asctile-unroll-loop", "func::FuncOp"> {
 def UnscalarizeReduction : Pass<"asctile-unscalarize-reduction", "func::FuncOp"> {
   let summary = "Convert scalar reduction results to 1-element tiles when used in tensor operations";
   let constructor = "mlir::asctile::createUnscalarizeReductionPass()";
-  let dependentDialects = ["arith::ArithDialect", "asctile::AscTileDialect"];
+  let dependentDialects = ["arith::ArithDialect", "asctile::AscTileDialect", "tensor::TensorDialect"];
   let description = [{
     This pass avoids scalar results from `reduce_as_1d` operations when all users are scalar-tensor operations
     (adds, subs, muls, divs, mins, maxs, splat). Instead, the result is kept as a 1-element tensor, which is

@@ -218,7 +218,7 @@ func.func public @shli_constant(%arg0: tensor<32xi32, #asctile.local<UB>>) -> te
 // CHECK-NEXT:  return %0 : tensor<32xi32, #asctile.local<UB>>
 // CHECK-NEXT:}
 func.func public @shli_splat(%arg0: tensor<32xi32, #asctile.local<UB>>, %arg1: i32) -> tensor<32xi32, #asctile.local<UB>> {
-  %0 = asctile.splat %arg1 : tensor<32xi32, #asctile.local<UB>>
+  %0 = tensor.splat %arg1 : tensor<32xi32, #asctile.local<UB>>
   %1 = arith.shli %arg0, %0 : tensor<32xi32, #asctile.local<UB>>
   return %1 : tensor<32xi32, #asctile.local<UB>>
 }
@@ -239,7 +239,7 @@ func.func public @shrsi_constant(%arg0: tensor<32xi32, #asctile.local<UB>>) -> t
 // CHECK-NEXT:  return %0 : tensor<32xi32, #asctile.local<UB>>
 // CHECK-NEXT:}
 func.func public @shrsi_splat(%arg0: tensor<32xi32, #asctile.local<UB>>, %arg1: i32) -> tensor<32xi32, #asctile.local<UB>> {
-  %0 = asctile.splat %arg1 : tensor<32xi32, #asctile.local<UB>>
+  %0 = tensor.splat %arg1 : tensor<32xi32, #asctile.local<UB>>
   %1 = arith.shrsi %arg0, %0 : tensor<32xi32, #asctile.local<UB>>
   return %1 : tensor<32xi32, #asctile.local<UB>>
 }
@@ -260,7 +260,7 @@ func.func public @max_with_zero_lhs_f32(%arg0: tensor<32xf32, #asctile.local<UB>
 // CHECK-NEXT:}
 func.func public @max_with_zero_rhs_f32(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
   %cst = arith.constant 0.0 : f32
-  %0 = asctile.splat %cst : tensor<32xf32, #asctile.local<UB>>
+  %0 = tensor.splat %cst : tensor<32xf32, #asctile.local<UB>>
   %1 = arith.maximumf %arg0, %0 : tensor<32xf32, #asctile.local<UB>>
   return %1 : tensor<32xf32, #asctile.local<UB>>
 }
@@ -271,7 +271,7 @@ func.func public @max_with_zero_rhs_f32(%arg0: tensor<32xf32, #asctile.local<UB>
 // CHECK-NEXT:}
 func.func public @max_with_zero_lhs_i32(%arg0: tensor<32xi32, #asctile.local<UB>>) -> tensor<32xi32, #asctile.local<UB>> {
   %cst = arith.constant 0 : i32
-  %0 = asctile.splat %cst : tensor<32xi32, #asctile.local<UB>>
+  %0 = tensor.splat %cst : tensor<32xi32, #asctile.local<UB>>
   %1 = arith.maxsi %0, %arg0 : tensor<32xi32, #asctile.local<UB>>
   return %1 : tensor<32xi32, #asctile.local<UB>>
 }
@@ -467,7 +467,7 @@ func.func public @cmp_ge_scalar_lhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -
 // CHECK-NEXT:  return %0 : tensor<32xi1, #asctile.local<UB>>
 // CHECK-NEXT:}
 func.func public @cmp_lt_scalar_rhs_splat(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: f32) -> tensor<32xi1, #asctile.local<UB>> {
-  %splat = asctile.splat %arg1 : tensor<32xf32, #asctile.local<UB>>
+  %splat = tensor.splat %arg1 : tensor<32xf32, #asctile.local<UB>>
   %0 = asctile.cmp LT %arg0, %splat : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xi1, #asctile.local<UB>>
 }
@@ -477,7 +477,7 @@ func.func public @cmp_lt_scalar_rhs_splat(%arg0: tensor<32xf32, #asctile.local<U
 // CHECK-NEXT:  return %0 : tensor<32xi1, #asctile.local<UB>>
 // CHECK-NEXT:}
 func.func public @cmp_gt_scalar_lhs_splat(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: f32) -> tensor<32xi1, #asctile.local<UB>> {
-  %splat = asctile.splat %arg1 : tensor<32xf32, #asctile.local<UB>>
+  %splat = tensor.splat %arg1 : tensor<32xf32, #asctile.local<UB>>
   %0 = asctile.cmp GT %splat, %arg0 : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xi1, #asctile.local<UB>>
 }

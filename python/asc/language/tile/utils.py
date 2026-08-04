@@ -44,7 +44,7 @@ def constant_tile(value: Real, shape: TensorShape, dtype: DataType,
 def splat_tile(value: PlainValue, shape: TensorShape, dtype: DataType,
                loc: TensorLocation = TensorLocation.UB) -> LocalTensor:
     ir_type = ir.get_asctile_LocalTensorType(shape, dtype.to_ir(), loc)
-    handle = global_builder.get_ir_builder().create_asctile_SplatOp(ir_type, value.cast(dtype).to_ir())
+    handle = global_builder.get_ir_builder().create_tensor_SplatOp(ir_type, value.cast(dtype).to_ir())
     return LocalTensor.from_ir(handle)
 
 

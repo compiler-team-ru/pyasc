@@ -263,7 +263,6 @@ Defined in `include/ascir/Dialect/AscTile/IR/` using TableGen.
 |----------|----|-------------|
 | Tensor creation | `TensorOp` | Create a `GlobalTensor` from a pointer and shape list |
 | | `DimOp` | Read a dynamic dimension from a `GlobalTensor` at runtime |
-| | `SplatOp` | Fill a tile with a scalar constant |
 | | `AccumulatorOp` | Create a zeros tile in L0C (matmul accumulator) |
 | Memory transfer | `LoadOp` | Load tile from `GlobalTensor` with offsets → `LocalTensor` |
 | | `StoreOp` | Store `LocalTensor` to `GlobalTensor` with offsets |
@@ -285,7 +284,6 @@ Defined in `include/ascir/Dialect/AscTile/IR/` using TableGen.
 | | `MatmulAccOp` | 2-D matrix multiply accumulating into an L0C tile |
 | Shape | `ReshapeOp` | Reshape a tile |
 | | `BroadcastOp` | Broadcast tile to a wider shape |
-| | `ConcatOp` | Concatenate tiles along the first dimension |
 | Atomic | `AtomicRMWOp` | Atomic read-modify-write (add / max / min) |
 | Region / control | `CountMaskOp` | Region: conditional on element count |
 | | `BitwiseMaskOp` | Region: conditional on bitmask |
@@ -345,7 +343,7 @@ These lower `asctile.*` operations into `ascendc.*` + standard MLIR ops.
 | `LowerAscTileI1` | Handle boolean tile lowering special cases |
 | `LowerMath` | Lower remaining `math.*` ops |
 | `LowerSCF` | Lower `scf.for` loops to `ascendc`-compatible form |
-| `DisplaceConcat` | Replace `ConcatOp` with adjacent allocations / copies |
+| `DisplaceConcat` | Replace `tensor.concat` with adjacent allocations / copies |
 | `RealizeConversionCast` | Materialise any pending unrealized casts from the lowering |
 | `ExpandMask` | Lower `CountMaskOp`/`BitwiseMaskOp` regions → `ascendc.set_mask`/`wait_mask` sequences |
 

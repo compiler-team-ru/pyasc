@@ -348,5 +348,5 @@ def concat(*inputs: LocalTensor) -> LocalTensor:
         raise RuntimeError("LocalTensor dtype size must fit an integer number of bytes")
     result_shape = [sum(inp.shape[0] for inp in inputs), *same_shape]
     ir_type = ir.get_asctile_LocalTensorType(result_shape, dtype.to_ir(), TensorLocation.UB)
-    handle = global_builder.get_ir_builder().create_asctile_ConcatOp(ir_type, [inp.to_ir() for inp in inputs])
+    handle = global_builder.get_ir_builder().create_tensor_ConcatOp(ir_type, 0, [inp.to_ir() for inp in inputs])
     return LocalTensor.from_ir(handle)

@@ -1,29 +1,5 @@
 // RUN: ascir-opt -split-input-file -verify-diagnostics %s
 
-func.func @concat_non_ub_location(%arg0: tensor<16xf32, #asctile.local<L1>>, %arg1: tensor<16xf32, #asctile.local<L1>>) -> tensor<32xf32, #asctile.local<L1>> {
-  // expected-error@below {{tensor operands must have UB tensor location}}
-  %0 = asctile.concat %arg0, %arg1 : tensor<16xf32, #asctile.local<L1>>, tensor<16xf32, #asctile.local<L1>> -> tensor<32xf32, #asctile.local<L1>>
-  return %0 : tensor<32xf32, #asctile.local<L1>>
-}
-
-// -----
-
-func.func @concat_mismatched_shapes(%arg0: tensor<16x32xf32, #asctile.local<UB>>, %arg1: tensor<16x64xf32, #asctile.local<UB>>) -> tensor<32x32xf32, #asctile.local<UB>> {
-  // expected-error@below {{tensor operands must have the same shape except their first dimension}}
-  %0 = asctile.concat %arg0, %arg1 : tensor<16x32xf32, #asctile.local<UB>>, tensor<16x64xf32, #asctile.local<UB>> -> tensor<32x32xf32, #asctile.local<UB>>
-  return %0 : tensor<32x32xf32, #asctile.local<UB>>
-}
-
-// -----
-
-func.func @concat_wrong_result_shape(%arg0: tensor<16xf32, #asctile.local<UB>>, %arg1: tensor<16xf32, #asctile.local<UB>>) -> tensor<64xf32, #asctile.local<UB>> {
-  // expected-error@below {{result tensor shape must be [32]}}
-  %0 = asctile.concat %arg0, %arg1 : tensor<16xf32, #asctile.local<UB>>, tensor<16xf32, #asctile.local<UB>> -> tensor<64xf32, #asctile.local<UB>>
-  return %0 : tensor<64xf32, #asctile.local<UB>>
-}
-
-// -----
-
 func.func @tensor_wrong_sizes(%arg0: memref<*xf32, 22>, %arg1: i32) -> tensor<?x?xf32, #asctile.global> {
   // expected-error@below {{must have value in 'sizes' for each dynamic dimension}}
   %0 = asctile.tensor %arg0(%arg1) : memref<*xf32, 22>, tensor<?x?xf32, #asctile.global>

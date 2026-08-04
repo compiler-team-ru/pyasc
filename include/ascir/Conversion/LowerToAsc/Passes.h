@@ -30,6 +30,7 @@ std::unique_ptr<Pass> createLowerAscTileI1Pass();
 std::unique_ptr<Pass> createLowerAtomicPass();
 std::unique_ptr<Pass> createLowerMathPass();
 std::unique_ptr<Pass> createLowerSCFPass();
+std::unique_ptr<Pass> createLowerTensorPass();
 std::unique_ptr<Pass> createRealizeConversionCastPass();
 std::unique_ptr<Pass> createRedressI1TensorPass();
 

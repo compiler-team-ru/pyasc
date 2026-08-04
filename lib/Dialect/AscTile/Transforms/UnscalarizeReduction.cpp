@@ -13,6 +13,7 @@
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "llvm/ADT/STLExtras.h"
 
@@ -36,7 +37,7 @@ struct ConvertTileScalar : OpConversionPattern<OpT> {
     LogicalResult matchAndRewrite(
         OpT op, typename OpT::Adaptor adaptor, ConversionPatternRewriter& rewriter) const override
     {
-        auto splatOp = rewriter.create<asctile::SplatOp>(op.getValue().getLoc(), op.getType(), op.getValue());
+        auto splatOp = rewriter.create<tensor::SplatOp>(op.getValue().getLoc(), op.getType(), op.getValue());
         splatOp->setAttr(unscalarizeAttr, rewriter.getUnitAttr());
         if (isa<IntegerType>(op.getValue().getType())) {
             rewriter.replaceOpWithNewOp<IntOp>(op, adaptor.getBase(), splatOp);
@@ -65,13 +66,13 @@ struct ConvertReduce : OpConversionPattern<asctile::ReduceAs1dOp> {
     }
 };
 
-struct ConvertSplat : OpConversionPattern<asctile::SplatOp> {
+struct ConvertSplat : OpConversionPattern<tensor::SplatOp> {
     using OpConversionPattern::OpConversionPattern;
 
     LogicalResult matchAndRewrite(
-        asctile::SplatOp op, asctile::SplatOp::Adaptor adaptor, ConversionPatternRewriter& rewriter) const override
+        tensor::SplatOp op, tensor::SplatOp::Adaptor adaptor, ConversionPatternRewriter& rewriter) const override
     {
-        rewriter.replaceOpWithNewOp<asctile::BroadcastOp>(op, op.getType(), adaptor.getValue());
+        rewriter.replaceOpWithNewOp<asctile::BroadcastOp>(op, op.getType(), adaptor.getInput());
         return success();
     }
 };
@@ -81,7 +82,7 @@ bool allUnscalarizableUsers(Operation* op)
     return llvm::all_of(op->getUsers(), [](Operation* user) {
         return isa<
             asctile::AddSOp, asctile::SubSOp, asctile::MulSOp, asctile::DivSOp, asctile::MinSOp, asctile::MaxSOp,
-            asctile::SplatOp>(user);
+            tensor::SplatOp>(user);
     });
 }
 

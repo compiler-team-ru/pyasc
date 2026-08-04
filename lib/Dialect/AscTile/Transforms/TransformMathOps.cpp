@@ -13,6 +13,7 @@
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/Matchers.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
@@ -41,8 +42,8 @@ Value materializeSplatValue(OpBuilder& builder, Value cstTile)
 {
     if (auto s = getSplatValue(cstTile.getDefiningOp<arith::ConstantOp>()))
         return builder.create<arith::ConstantOp>(cstTile.getLoc(), s.value());
-    if (auto splat = cstTile.getDefiningOp<asctile::SplatOp>())
-        return splat.getValue();
+    if (auto splat = cstTile.getDefiningOp<tensor::SplatOp>())
+        return splat.getInput();
     return {};
 }
 
@@ -60,8 +61,8 @@ bool isZero(Value value)
         auto splat = getSplatValue(cstOp);
         return splat && matchPatternZero(*splat);
     }
-    if (auto splatOp = value.getDefiningOp<asctile::SplatOp>())
-        return matchPatternZero(splatOp.getValue());
+    if (auto splatOp = value.getDefiningOp<tensor::SplatOp>())
+        return matchPatternZero(splatOp.getInput());
     return false;
 }
 

@@ -18,6 +18,7 @@ add_mlir_conversion_library(MLIRLowerToAsc
   LowerAtomic.cpp
   LowerMath.cpp
   LowerSCF.cpp
+  LowerTensor.cpp
   RealizeConversionCast.cpp
   RedressI1Tensor.cpp
 

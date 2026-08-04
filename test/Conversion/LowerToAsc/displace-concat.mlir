@@ -4,7 +4,7 @@
 // CHECK-NEXT:  return %arg0 : tensor<16xf32, #asctile.local<UB>>
 // CHECK-NEXT:}
 func.func @fold_concat(%arg0: tensor<16xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>> {
-  %0 = asctile.concat %arg0 : tensor<16xf32, #asctile.local<UB>> -> tensor<16xf32, #asctile.local<UB>>
+  %0 = tensor.concat dim(0) %arg0 : (tensor<16xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>>
   return %0 : tensor<16xf32, #asctile.local<UB>>
 }
 
@@ -30,7 +30,7 @@ func.func @fully_displace_concat() -> tensor<8x16xf32, #asctile.local<UB>> {
   "tensor_user"(%2) : (!ascendc.local_tensor<5x16xf32>) -> ()
   %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<5x16xf32> to tensor<5x16xf32, #asctile.local<UB>>
   "tile_user"(%3) : (tensor<5x16xf32, #asctile.local<UB>>) -> ()
-  %4 = asctile.concat %1, %3 : tensor<3x16xf32, #asctile.local<UB>>, tensor<5x16xf32, #asctile.local<UB>> -> tensor<8x16xf32, #asctile.local<UB>>
+  %4 = tensor.concat dim(0) %1, %3 : (tensor<3x16xf32, #asctile.local<UB>>, tensor<5x16xf32, #asctile.local<UB>>) -> tensor<8x16xf32, #asctile.local<UB>>
   return %4 : tensor<8x16xf32, #asctile.local<UB>>
 }
 
@@ -45,6 +45,6 @@ func.func @fully_displace_concat() -> tensor<8x16xf32, #asctile.local<UB>> {
 // CHECK-NEXT:  ascendc.data_copy_l2 %5, %0, %c6_i64 : !ascendc.local_tensor<6xf32>, !ascendc.local_tensor<6xf32>, i64
 // CHECK-NEXT:  return %3 : tensor<16xf32, #asctile.local<UB>>
 func.func @convert_concat_fallback(%arg0: tensor<10xf32, #asctile.local<UB>>, %arg1: tensor<6xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>> {
-  %0 = asctile.concat %arg0, %arg1 : tensor<10xf32, #asctile.local<UB>>, tensor<6xf32, #asctile.local<UB>> -> tensor<16xf32, #asctile.local<UB>>
+  %0 = tensor.concat dim(0) %arg0, %arg1 : (tensor<10xf32, #asctile.local<UB>>, tensor<6xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>>
   return %0 : tensor<16xf32, #asctile.local<UB>>
 }
