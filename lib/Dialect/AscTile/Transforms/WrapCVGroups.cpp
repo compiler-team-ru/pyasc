@@ -44,9 +44,9 @@ ComputeUnit classifyOperation(Operation* op)
 {
     if (isa<CubeGroupOp, VectorGroupOp>(op))
         return ComputeUnit::Neither;
-    if (isa<CopyOp, CopyFixpipeOp, LoadOp>(op))
+    if (isa<LoadOp>(op))
         return classifyByTileType(op->getResult(0).getType());
-    if (isa<StoreOp, StoreFixpipeOp, AtomicRMWOp>(op))
+    if (isa<StoreOp, CopyOp, StoreFixpipeOp, CopyFixpipeOp, AtomicRMWOp>(op))
         return classifyByTileType(op->getOperand(0).getType());
     for (auto type : op->getResultTypes())
         if (auto unit = classifyByTileType(type); unit != ComputeUnit::Neither)
