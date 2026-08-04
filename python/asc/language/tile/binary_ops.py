@@ -21,7 +21,7 @@ from .validation import check_dtype, check_runtime_int, check_type, verify_locat
 T = TypeVar("T")
 
 common_support_dtypes = (KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32)
-compare_support_dtypes = (KT.int16, KT.int32, KT.float16, KT.bfloat16, KT.float32)
+compare_support_dtypes = (KT.int8, KT.int16, KT.int32, KT.float16, KT.bfloat16, KT.float32)
 bitwise_support_dtypes = (KT.int8, KT.int16, KT.int32, KT.int64)
 
 

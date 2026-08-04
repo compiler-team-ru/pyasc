@@ -96,13 +96,24 @@ struct ConvertCmpS : ConvertOp<asctile::CmpSOp> {
         auto loc = op.getLoc();
         auto value = rewriter.getRemappedValue(op.getValue());
         auto base = rewriter.getRemappedValue(op.getBase());
-        auto srcType = op.getBase().getType();
+        auto srcType = cast<ShapedType>(op.getBase().getType());
+        if (isa<IntegerType>(srcType.getElementType())) {
+            unsigned bitWidth = srcType.getElementTypeBitWidth();
+            if (bitWidth != 8 && bitWidth != 16 && bitWidth != 32)
+                return op.emitOpError("can only be lowered with i8, i16 or i32 tensor operands");
+            auto castToType = bitWidth == 32 ? rewriter.getF32Type() : rewriter.getF16Type();
+            auto baseCasted = createTensorOp(rewriter, loc, srcType.getShape(), castToType);
+            rewriter.create<ascendc::CastL2Op>(
+                loc, baseCasted, base, ascendc::RoundMode::CAST_NONE, consts.i64(srcType.getNumElements()));
+            base = baseCasted;
+            value = rewriter.create<arith::SIToFPOp>(loc, castToType, value);
+        }
         I1ReplacementType replType(op.getContext());
         auto dstShape = llvm::divideCeilSigned(srcType.getNumElements(), replType.width);
         Value dst = createTensorOp(rewriter, loc, dstShape, replType.iType);
         dst = createReCastOp(rewriter, loc, dst, dstShape, replType.uiType);
         auto mode = getCmpMode(op.getCmpMode());
-        Value zero = ascir::ConstantOpBuilder(rewriter).i64(0);
+        Value zero = consts.i64(0);
         rewriter.create<ascendc::CompareScalarL0Op>(
             loc, dst, base, value, mode, zero, zero,
             rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::UnaryRepeatParamsType>()));

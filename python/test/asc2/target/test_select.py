@@ -85,7 +85,8 @@ def test_select(profiler, runs, kernel_type, test_name, block_num, input_shapes,
     unroll_factor = runtime_params[0]
 
     input_shape_1d = [math.prod(input_shape)]
-    in_tensor_c = torch.randint(0, 2, input_shape_1d, dtype=torch.int32)
+    cond_dtype = input_dtypes[0]
+    in_tensor_c = torch.randint(0, 2, input_shape_1d, dtype=cond_dtype)
     in_tensor_x = torch.randn(input_shape_1d).to(dtype)
     in_tensor_y = torch.randn(input_shape_1d).to(dtype)
     out_tensor = torch.zeros(input_shape_1d, dtype=dtype)
