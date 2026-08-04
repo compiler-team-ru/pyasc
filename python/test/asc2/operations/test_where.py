@@ -9,7 +9,8 @@ TILE_SIZE = 128
 SINGLE_CORE = 1
 MULTI_CORE = 16
 
-SELECT_DTYPES = [torch.float16, torch.bfloat16, torch.float32, torch.int16, torch.int32]
+# Data types supported for where src0/src1 (int8 only supported for condition)
+where_dtypes = [torch.float16, torch.bfloat16, torch.float32, torch.int16, torch.int32]
 
 
 def create_tensor(dtype: torch.dtype) -> torch.Tensor:
@@ -30,7 +31,7 @@ def where_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, z_ptr: as
     asc2.copy_out(zt, z, [0])
 
 
-@pytest.mark.parametrize("dtype", SELECT_DTYPES)
+@pytest.mark.parametrize("dtype", where_dtypes)
 @pytest.mark.parametrize("asc_op, torch_op", [
     (asc2.equal, torch.eq),
     (asc2.not_equal, torch.ne),
@@ -59,7 +60,7 @@ def where_scalar_kernel(x_ptr: asc2.GlobalAddress, scalar, z_ptr: asc2.GlobalAdd
     asc2.copy_out(zt, z, [0])
 
 
-@pytest.mark.parametrize("dtype", SELECT_DTYPES)
+@pytest.mark.parametrize("dtype", where_dtypes)
 @pytest.mark.parametrize("asc_op, torch_op", [
     (asc2.equal, torch.eq),
     (asc2.not_equal, torch.ne),
@@ -172,12 +173,23 @@ def where_scalar_source_launch(x: torch.Tensor, *, scalar_value: int, scalar_on_
     return out
 
 
-@pytest.mark.parametrize("dtype", SELECT_DTYPES)
+@pytest.mark.parametrize("dtype", where_dtypes)
 def test_where_condition_dtypes(require_c310, dtype: torch.dtype):
     check_dtype(dtype, require_c310)
     size = TILE_SIZE
     x, y = make_data(size, dtype)
     cond = make_condition(size, "alternating", dtype)
+    out = where_with_cond_launch(cond, x, y)
+    expected = torch.where(cond.bool(), x, y)
+    torch.testing.assert_close(out, expected)
+
+
+@pytest.mark.parametrize("data_dtype", where_dtypes)
+def test_where_int8_condition(require_c310, data_dtype: torch.dtype):
+    require_c310()
+    size = TILE_SIZE
+    x, y = make_data(size, data_dtype)
+    cond = make_condition(size, "alternating", torch.int8)
     out = where_with_cond_launch(cond, x, y)
     expected = torch.where(cond.bool(), x, y)
     torch.testing.assert_close(out, expected)
