@@ -1,4 +1,4 @@
-// RUN: ascir-opt --asclower-scf %s | FileCheck %s
+// RUN: ascir-opt -asclower-scf %s | FileCheck %s
 
 // CHECK-LABEL: func.func @lower_if(%arg0: i1, %arg1: tensor<16xf32, #asctile.local<UB>>, %arg2: tensor<16xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>> {
 // CHECK-NEXT:  %0 = scf.if %arg0 -> (!ascendc.local_tensor<16xf32>) {
