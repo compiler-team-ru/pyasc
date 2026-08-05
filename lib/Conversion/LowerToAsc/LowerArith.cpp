@@ -99,6 +99,28 @@ struct ConvertNegF : public ConvertOp<arith::NegFOp> {
     }
 };
 
+struct ConvertSelect : ConvertOp<arith::SelectOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    LogicalResult matchAndRewrite(arith::SelectOp op, ConvertRewriter& rewriter) const override
+    {
+        auto loc = op.getLoc();
+        auto dst = createTensorOp(rewriter, loc, op.getType());
+        auto sel = rewriter.getRemappedValue(op.getCondition());
+        I1ReplacementType replType(op.getContext());
+        sel = createReCastOp(rewriter, loc, sel, cast<ShapedType>(sel.getType()).getShape(), replType.uiType);
+        auto src0 = rewriter.getRemappedValue(op.getTrueValue());
+        auto src1 = rewriter.getRemappedValue(op.getFalseValue());
+        auto zero = ascir::ConstantOpBuilder(rewriter).i64(0);
+        rewriter.create<ascendc::SelectL0Op>(
+            loc, dst, sel, src0, src1, ascendc::SELMODE::VSEL_TENSOR_TENSOR_MODE, zero, zero,
+            rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::BinaryRepeatParamsType>()));
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
 struct LowerArithPass : public asclower::impl::LowerArithBase<LowerArithPass> {
     void runOnOperation() override
     {
@@ -108,14 +130,15 @@ struct LowerArithPass : public asclower::impl::LowerArithBase<LowerArithPass> {
         ConversionTarget target(*context);
         target.addDynamicallyLegalOp<
             //
-            arith::ConstantOp, arith::BitcastOp, arith::NegFOp
+            arith::ConstantOp, arith::BitcastOp, arith::NegFOp, arith::SelectOp
             //
             >([&converter](Operation* op) { return converter.isLegal(op); });
         target.addLegalDialect<ascendc::AscendCDialect>();
+        target.addLegalOp<UnrealizedConversionCastOp>();
         RewritePatternSet patterns(context);
         patterns.insert<
             //
-            ConvertSplatConstant, ConvertDenseConstant, ConvertBitcast, ConvertNegF
+            ConvertSplatConstant, ConvertDenseConstant, ConvertBitcast, ConvertNegF, ConvertSelect
             //
             >(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())

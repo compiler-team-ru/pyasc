@@ -90,11 +90,11 @@ A5 adds the following hardware capabilities relative to A2: <sup>[[58]](#ref-58)
   │           asctile MLIR Dialect                           │
   │   GlobalTensorType / LocalTensorType  LoadOp / StoreOp   │
   │   BinaryOps  UnaryOps  ReductionOps  ShapeOps            │
-  │   AtomicRMWOp  MatmulOp  SoftmaxOp  SelectOp             │
-  │   CountMaskOp  BitwiseMaskOp                             │
+  │   AtomicRMWOp  MatmulOp  SoftmaxOp  CountMaskOp  ...     │
   └──────────────────────┬───────────────────────────────────┘
                          │  AscTile passes (lib/Dialect/AscTile/Transforms/)
                          │  + AscLower passes (lib/Conversion/LowerToAsc/)
+                         │  + AscendC passes (lib/Dialect/Asc/Transforms/)
   ┌──────────────────────▼───────────────────────────────────┐
   │           ascendc MLIR Dialect  (existing backend)       │
   │   LocalTensor / GlobalTensor   TPipe / TQue              │
@@ -273,8 +273,7 @@ Defined in `include/ascir/Dialect/AscTile/IR/` using TableGen.
 | | `SetValueOp` | Scalar store to `GlobalTensor` |
 | Element-wise compute | `CastOp` | Type conversion between tile dtypes |
 | | `ReluOp` | Fused ReLU |
-| | `SelectOp` | Element-wise conditional select (`where`) |
-| | `CmpOp` / `CmpSOp` | Element-wise compare (tile/tile and tile/scalar) |
+| | `CmpSOp` | Element-wise compare (vector-scalar) |
 | | `AddSOp` / `SubSOp` / `MulSOp` / `DivSOp` / `MinSOp` / `MaxSOp` / `ShLSOp` / `ShRSOp` | Vector-scalar binary ops |
 | Reduction / norm | `ReduceOp` | Reduce tile along one or more axes |
 | | `ReduceAs1dOp` | Reduce a tile to a 1-element tile or a scalar |

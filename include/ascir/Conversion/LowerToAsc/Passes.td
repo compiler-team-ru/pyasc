@@ -67,6 +67,7 @@ def LowerArith : Pass<"asclower-arith", "func::FuncOp"> {
     - **Dense non-splat constants**: Creates tensor + series of `LocalTensorSetValueOp` for each element
     - **Bitcast**: Converts to `LocalTensorReinterpretCastOp` for type reinterpretation
     - **Negf**: Converts to `MulsL2Op` with -1.0 scalar to negate floating-point tiles
+    - **SelectOp**: Creates `SelectL0Op` with VSEL_TENSOR_TENSOR mode
 
     `asctile::LocalTensorType` is converted to `ascendc::LocalTensorType` via unrealized conversion casts.
   }];
@@ -133,15 +134,12 @@ def LowerAscTileDataTransfer : Pass<"asclower-asctile-data-transfer", "func::Fun
 }
 
 def LowerAscTileI1 : Pass<"asclower-asctile-i1", "func::FuncOp"> {
-  let summary = "Lower asctile comparison and select operations with i1 tiles to ascendc L0 operations";
+  let summary = "Lower asctile comparison operation with i1 tensors to ascendc L0 operations";
   let constructor = "mlir::asclower::createLowerAscTileI1Pass()";
   let dependentDialects = ["arith::ArithDialect", "ascendc::AscendCDialect"];
   let description = [{
     Converts i1 (boolean) tensor operations to Ascend C L0-level operations with packed i8 representation:
-    - **CmpOp**: Creates `CompareL0Op` with packed i8 destination (8 boolean values per i8 byte)
-      - For integer comparisons on non-C310 targets, casts operands to float first
     - **CmpSOp**: Creates `CompareScalarL0Op` for tensor-scalar comparisons
-    - **SelectOp**: Creates `SelectL0Op` with VSEL_TENSOR_TENSOR mode
 
     Boolean tiles (i1 elements) are represented as packed i8 tensors (8 bits per byte), enabling hardware
     support for 8-way parallel boolean operations. The destination shape is ceil(numElements/8).

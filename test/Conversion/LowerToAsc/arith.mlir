@@ -45,3 +45,21 @@ func.func @lower_negf(%arg0: tensor<16xf32, #asctile.local<UB>>) -> tensor<16xf3
   %0 = arith.negf %arg0 : tensor<16xf32, #asctile.local<UB>>
   return %0 : tensor<16xf32, #asctile.local<UB>>
 }
+
+// CHECK-LABEL: func.func @lower_select(%arg0: tensor<32xi1, #asctile.local<UB>>, %arg1: tensor<32xf32, #asctile.local<UB>>, %arg2: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
+// CHECK-NEXT:  %0 = builtin.unrealized_conversion_cast %arg2 : tensor<32xf32, #asctile.local<UB>> to !ascendc.local_tensor<32xf32>
+// CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %arg1 : tensor<32xf32, #asctile.local<UB>> to !ascendc.local_tensor<32xf32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %arg0 : tensor<32xi1, #asctile.local<UB>> to !ascendc.local_tensor<4xi8>
+// CHECK-NEXT:  %3 = ascendc.local_tensor_auto veccalc() : <32xf32>
+// CHECK-NEXT:  %4 = builtin.unrealized_conversion_cast %3 : !ascendc.local_tensor<32xf32> to tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %5 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<4xi8> to !ascendc.local_tensor<4xui8>
+// CHECK-NEXT:  %6 = ascendc.reinterpret_cast %5 : !ascendc.local_tensor<4xui8> to !ascendc.local_tensor<4xui8>
+// CHECK-NEXT:  %c0_i64 = arith.constant 0 : i64
+// CHECK-NEXT:  %7 = ascendc.construct !ascendc.binary_repeat_params()
+// CHECK-NEXT:  ascendc.select_l0 %3, %6, %1, %0, %c0_i64, %c0_i64, %7 {selMode = 2 : i32} : !ascendc.local_tensor<32xf32>, !ascendc.local_tensor<4xui8>, !ascendc.local_tensor<32xf32>, !ascendc.local_tensor<32xf32>, i64, i64, !ascendc.binary_repeat_params
+// CHECK-NEXT:  return %4 : tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @lower_select(%arg0: tensor<32xi1, #asctile.local<UB>>, %arg1: tensor<32xf32, #asctile.local<UB>>, %arg2: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
+  %0 = arith.select %arg0, %arg1, %arg2 : tensor<32xi1, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>
+  return %0 : tensor<32xf32, #asctile.local<UB>>
+}

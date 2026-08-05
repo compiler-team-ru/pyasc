@@ -66,6 +66,46 @@ bool isZero(Value value)
     return false;
 }
 
+asctile::CompareMode getCmpMode(arith::CmpFPredicate pred)
+{
+    switch (pred) {
+        case arith::CmpFPredicate::OEQ:
+            return asctile::CompareMode::EQ;
+        case arith::CmpFPredicate::ONE:
+            return asctile::CompareMode::NE;
+        case arith::CmpFPredicate::OLT:
+            return asctile::CompareMode::LT;
+        case arith::CmpFPredicate::OLE:
+            return asctile::CompareMode::LE;
+        case arith::CmpFPredicate::OGT:
+            return asctile::CompareMode::GT;
+        case arith::CmpFPredicate::OGE:
+            return asctile::CompareMode::GE;
+        default:
+            llvm_unreachable("unexpected arith::CmpFPredicate");
+    }
+}
+
+asctile::CompareMode getCmpMode(arith::CmpIPredicate pred)
+{
+    switch (pred) {
+        case arith::CmpIPredicate::eq:
+            return asctile::CompareMode::EQ;
+        case arith::CmpIPredicate::ne:
+            return asctile::CompareMode::NE;
+        case arith::CmpIPredicate::slt:
+            return asctile::CompareMode::LT;
+        case arith::CmpIPredicate::sle:
+            return asctile::CompareMode::LE;
+        case arith::CmpIPredicate::sgt:
+            return asctile::CompareMode::GT;
+        case arith::CmpIPredicate::sge:
+            return asctile::CompareMode::GE;
+        default:
+            llvm_unreachable("unexpected arith::CmpIPredicate");
+    }
+}
+
 template <typename ArithOp, typename TileOp>
 struct ScalarizeArithOp : OpRewritePattern<ArithOp> {
     using OpRewritePattern<ArithOp>::OpRewritePattern;
@@ -129,8 +169,8 @@ struct MaxWithZeroToReluOp : OpRewritePattern<MaxOp> {
     }
 };
 
-struct SelectMulToLeakyRelu : OpRewritePattern<asctile::SelectOp> {
-    using OpRewritePattern<asctile::SelectOp>::OpRewritePattern;
+struct SelectMulToLeakyRelu : OpRewritePattern<arith::SelectOp> {
+    using OpRewritePattern<arith::SelectOp>::OpRewritePattern;
 
     static Value extractAlphaFromMul(Value mulResult, Value expectedX, OpBuilder& builder)
     {
@@ -155,10 +195,10 @@ struct SelectMulToLeakyRelu : OpRewritePattern<asctile::SelectOp> {
     {
         Value cmpLhs, cmpRhs;
         asctile::CompareMode mode;
-        if (auto cmpOp = selMask.getDefiningOp<asctile::CmpOp>()) {
+        if (auto cmpOp = selMask.getDefiningOp<arith::CmpFOp>()) {
             cmpLhs = cmpOp.getLhs();
             cmpRhs = cmpOp.getRhs();
-            mode = cmpOp.getCmpMode();
+            mode = getCmpMode(cmpOp.getPredicate());
         } else if (auto cmpSOp = selMask.getDefiningOp<asctile::CmpSOp>()) {
             cmpLhs = cmpSOp.getBase();
             cmpRhs = cmpSOp.getValue();
@@ -183,7 +223,7 @@ struct SelectMulToLeakyRelu : OpRewritePattern<asctile::SelectOp> {
         return {x, alpha};
     }
 
-    LogicalResult matchAndRewrite(asctile::SelectOp op, PatternRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(arith::SelectOp op, PatternRewriter& rewriter) const override
     {
         auto type = op.getType();
         if (!isa<asctile::LocalTensorType>(type))
@@ -191,7 +231,7 @@ struct SelectMulToLeakyRelu : OpRewritePattern<asctile::SelectOp> {
         auto elemType = cast<ShapedType>(type).getElementType();
         if (!elemType.isF16() && !elemType.isF32())
             return failure();
-        auto [x, alpha] = matchLeakyRelu(op.getSelMask(), op.getSrc0(), op.getSrc1(), rewriter);
+        auto [x, alpha] = matchLeakyRelu(op.getCondition(), op.getTrueValue(), op.getFalseValue(), rewriter);
         if (!x)
             return failure();
         rewriter.replaceOpWithNewOp<asctile::LeakyReluOp>(op, type, x, alpha);
@@ -199,8 +239,9 @@ struct SelectMulToLeakyRelu : OpRewritePattern<asctile::SelectOp> {
     }
 };
 
-struct ScalarizeCompare : OpRewritePattern<asctile::CmpOp> {
-    using OpRewritePattern::OpRewritePattern;
+template <typename CmpOp>
+struct ScalarizeCompare : OpRewritePattern<CmpOp> {
+    using OpRewritePattern<CmpOp>::OpRewritePattern;
 
     static asctile::CompareMode invertCmpMode(asctile::CompareMode mode)
     {
@@ -221,10 +262,10 @@ struct ScalarizeCompare : OpRewritePattern<asctile::CmpOp> {
         llvm_unreachable("unexpected cmpmode");
     }
 
-    LogicalResult matchAndRewrite(asctile::CmpOp op, PatternRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(CmpOp op, PatternRewriter& rewriter) const override
     {
         Value newLhs, newRhs;
-        auto mode = op.getCmpMode();
+        auto mode = getCmpMode(op.getPredicate());
         if (auto splat = materializeSplatValue(rewriter, op.getLhs())) {
             newLhs = op.getRhs();
             newRhs = splat;
@@ -299,7 +340,7 @@ public:
             ScalarizeArithRhsOp<arith::DivFOp, asctile::DivSOp>, ScalarizeShL, ScalarizeShR,
             ScalarizeArithOp<arith::MaximumFOp, asctile::MaxSOp>, ScalarizeArithOp<arith::MaxSIOp, asctile::MaxSOp>,
             ScalarizeArithOp<arith::MinimumFOp, asctile::MinSOp>, ScalarizeArithOp<arith::MinSIOp, asctile::MinSOp>,
-            ScalarizeCompare
+            ScalarizeCompare<arith::CmpFOp>, ScalarizeCompare<arith::CmpIOp>
             //
             >(context, /*benefit=*/1);
         if (applyPatternsAndFoldGreedily(op, std::move(patterns)).failed())

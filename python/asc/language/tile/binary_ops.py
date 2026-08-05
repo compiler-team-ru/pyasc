@@ -64,11 +64,16 @@ def op_binary_impl(
 
 
 def op_compare_impl(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor, RuntimeNumeric],
-                    mode: ir.CompareMode) -> LocalTensor:
+                    pred_float: ir.CmpFPredicate, pred_int: ir.CmpIPredicate) -> LocalTensor:
     input, other = unify_tensors(input, other, compare_support_dtypes)
     builder = global_builder.get_ir_builder()
-    ir_type = ir.clone_shaped_type(input.to_ir().get_type(), builder.get_i1_type())
-    handle = builder.create_asctile_CmpOp(ir_type, input.to_ir(), other.to_ir(), mode)
+    if input.dtype.is_float():
+        build = builder.create_arith_CmpFOp
+        pred = pred_float
+    else:
+        build = builder.create_arith_CmpIOp
+        pred = pred_int
+    handle = build(pred, input.to_ir(), other.to_ir())
     return LocalTensor(handle)
 
 
@@ -132,42 +137,42 @@ def set_docstring(name: str, support_dtypes: Tuple[DataType, ...], rhs_scalar_on
 @require_jit
 @set_docstring("'equality' comparison", compare_support_dtypes)
 def equal(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor, RuntimeNumeric]) -> LocalTensor:
-    return op_compare_impl(input, other, ir.CompareMode.EQ)
+    return op_compare_impl(input, other, ir.CmpFPredicate.OEQ, ir.CmpIPredicate.eq)
 
 
 @bind_tensor_method(name="__ne__", binary_op="!=")
 @require_jit
 @set_docstring("'inequality' comparison", compare_support_dtypes)
 def not_equal(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor, RuntimeNumeric]) -> LocalTensor:
-    return op_compare_impl(input, other, ir.CompareMode.NE)
+    return op_compare_impl(input, other, ir.CmpFPredicate.ONE, ir.CmpIPredicate.ne)
 
 
 @bind_tensor_method(name="__gt__", binary_op=">")
 @require_jit
 @set_docstring("'greater' comparison", compare_support_dtypes)
 def greater(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor, RuntimeNumeric]) -> LocalTensor:
-    return op_compare_impl(input, other, ir.CompareMode.GT)
+    return op_compare_impl(input, other, ir.CmpFPredicate.OGT, ir.CmpIPredicate.sgt)
 
 
 @bind_tensor_method(name="__ge__", binary_op=">=")
 @require_jit
 @set_docstring("'greater or equal' comparison", compare_support_dtypes)
 def greater_equal(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor, RuntimeNumeric]) -> LocalTensor:
-    return op_compare_impl(input, other, ir.CompareMode.GE)
+    return op_compare_impl(input, other, ir.CmpFPredicate.OGE, ir.CmpIPredicate.sge)
 
 
 @bind_tensor_method(name="__lt__", binary_op="<")
 @require_jit
 @set_docstring("'less' comparison", compare_support_dtypes)
 def less(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor, RuntimeNumeric]) -> LocalTensor:
-    return op_compare_impl(input, other, ir.CompareMode.LT)
+    return op_compare_impl(input, other, ir.CmpFPredicate.OLT, ir.CmpIPredicate.slt)
 
 
 @bind_tensor_method(name="__le__", binary_op="<=")
 @require_jit
 @set_docstring("'less or equal' comparison", compare_support_dtypes)
 def less_equal(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor, RuntimeNumeric]) -> LocalTensor:
-    return op_compare_impl(input, other, ir.CompareMode.LE)
+    return op_compare_impl(input, other, ir.CmpFPredicate.OLE, ir.CmpIPredicate.sle)
 
 
 @bind_tensor_method(name="__add__", binary_op="+")
