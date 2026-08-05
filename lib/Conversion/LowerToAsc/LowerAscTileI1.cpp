@@ -50,42 +50,6 @@ ascendc::CMPMODE getCmpMode(asctile::CompareMode mode)
     llvm_unreachable("unexpected cmpmode");
 }
 
-struct ConvertCmp : public ConvertOp<asctile::CmpOp> {
-    using ConvertOp::ConvertOp;
-
-    LogicalResult matchAndRewrite(asctile::CmpOp op, ConvertRewriter& rewriter) const override
-    {
-        auto loc = op.getLoc();
-        Value src0 = rewriter.getRemappedValue(op.getLhs());
-        Value src1 = rewriter.getRemappedValue(op.getRhs());
-        auto srcType = cast<ShapedType>(src0.getType());
-        Value zero = ascir::ConstantOpBuilder(rewriter).i64(0);
-        if (isa<IntegerType>(srcType.getElementType()) && !ascendc::isTargetArchC310(op)) {
-            unsigned bitWidth = srcType.getElementTypeBitWidth();
-            if (bitWidth != 16 && bitWidth != 32)
-                return op.emitOpError("can only be lowered with i16 or i32 tensor operands");
-            auto castToType = bitWidth == 16 ? rewriter.getF16Type() : rewriter.getF32Type();
-            auto src0Casted = createTensorOp(rewriter, loc, srcType.getShape(), castToType);
-            auto src1Casted = createTensorOp(rewriter, loc, srcType.getShape(), castToType);
-            rewriter.create<ascendc::CastL2Op>(loc, src0Casted, src0, ascendc::RoundMode::CAST_NONE, zero);
-            rewriter.create<ascendc::CastL2Op>(loc, src1Casted, src1, ascendc::RoundMode::CAST_NONE, zero);
-            src0 = src0Casted;
-            src1 = src1Casted;
-        }
-        auto srcNumElems = srcType.getNumElements();
-        I1ReplacementType replType(op.getContext());
-        int64_t dstShape = llvm::divideCeilSigned(srcNumElems, replType.width);
-        Value dst = createTensorOp(rewriter, loc, dstShape, replType.iType);
-        dst = createReCastOp(rewriter, loc, dst, dstShape, replType.uiType);
-        ascendc::CMPMODE cmpMode = getCmpMode(op.getCmpMode());
-        rewriter.create<ascendc::CompareL0Op>(
-            loc, dst, src0, src1, cmpMode, zero, zero,
-            rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::BinaryRepeatParamsType>()));
-        rewriter.replaceOp(op, dst);
-        return success();
-    }
-};
-
 struct ConvertCmpS : ConvertOp<asctile::CmpSOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
@@ -122,29 +86,6 @@ struct ConvertCmpS : ConvertOp<asctile::CmpSOp> {
     }
 };
 
-struct ConvertSelect : ConvertOp<asctile::SelectOp> {
-    using ConvertOp::ConvertOp;
-    using ConvertOp::createTensorOp;
-
-    LogicalResult matchAndRewrite(asctile::SelectOp op, ConvertRewriter& rewriter) const override
-    {
-        ascir::ConstantOpBuilder consts(rewriter);
-        auto loc = op.getLoc();
-        auto dst = createTensorOp(rewriter, loc, op.getType());
-        auto sel = rewriter.getRemappedValue(op.getSelMask());
-        I1ReplacementType replType(op.getContext());
-        sel = createReCastOp(rewriter, loc, sel, cast<ShapedType>(sel.getType()).getShape(), replType.uiType);
-        auto src0 = rewriter.getRemappedValue(op.getSrc0());
-        auto src1 = rewriter.getRemappedValue(op.getSrc1());
-        auto zero = consts.i64(0);
-        rewriter.create<ascendc::SelectL0Op>(
-            loc, dst, sel, src0, src1, ascendc::SELMODE::VSEL_TENSOR_TENSOR_MODE, zero, zero,
-            rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::BinaryRepeatParamsType>()));
-        rewriter.replaceOp(op, dst);
-        return success();
-    }
-};
-
 struct LowerAscTileI1Pass : public asclower::impl::LowerAscTileI1Base<LowerAscTileI1Pass> {
     void runOnOperation() override
     {
@@ -152,11 +93,11 @@ struct LowerAscTileI1Pass : public asclower::impl::LowerAscTileI1Base<LowerAscTi
         TensorTypeConverter converter;
         MLIRContext* context = &getContext();
         ConversionTarget target(*context);
-        target.addIllegalOp<asctile::CmpOp, asctile::CmpSOp, asctile::SelectOp>();
+        target.addIllegalOp<asctile::CmpSOp>();
         target.addLegalDialect<arith::ArithDialect, ascendc::AscendCDialect>();
         target.addLegalOp<UnrealizedConversionCastOp>();
         RewritePatternSet patterns(context);
-        patterns.insert<ConvertCmp, ConvertCmpS, ConvertSelect>(converter, context);
+        patterns.insert<ConvertCmpS>(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())
             signalPassFailure();
     }

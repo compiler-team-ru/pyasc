@@ -337,7 +337,7 @@ func.func public @max_with_non_zero_rhs_i32(%arg0: tensor<32xi32, #asctile.local
 // CHECK-NEXT:}
 func.func public @cmp_lt_scalar_rhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xi1, #asctile.local<UB>> {
   %cst = arith.constant dense<1.57070313> : tensor<32xf32, #asctile.local<UB>>
-  %0 = asctile.cmp LT %arg0, %cst : tensor<32xf32, #asctile.local<UB>>
+  %0 = arith.cmpf olt, %arg0, %cst : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xi1, #asctile.local<UB>>
 }
 
@@ -348,7 +348,7 @@ func.func public @cmp_lt_scalar_rhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -
 // CHECK-NEXT:}
 func.func public @cmp_gt_scalar_rhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xi1, #asctile.local<UB>> {
   %cst = arith.constant dense<1.57070313> : tensor<32xf32, #asctile.local<UB>>
-  %0 = asctile.cmp GT %arg0, %cst : tensor<32xf32, #asctile.local<UB>>
+  %0 = arith.cmpf ogt, %arg0, %cst : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xi1, #asctile.local<UB>>
 }
 
@@ -359,7 +359,7 @@ func.func public @cmp_gt_scalar_rhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -
 // CHECK-NEXT:}
 func.func public @cmp_eq_scalar_rhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xi1, #asctile.local<UB>> {
   %cst = arith.constant dense<1.57070313> : tensor<32xf32, #asctile.local<UB>>
-  %0 = asctile.cmp EQ %arg0, %cst : tensor<32xf32, #asctile.local<UB>>
+  %0 = arith.cmpf oeq, %arg0, %cst : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xi1, #asctile.local<UB>>
 }
 
@@ -370,7 +370,7 @@ func.func public @cmp_eq_scalar_rhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -
 // CHECK-NEXT:}
 func.func public @cmp_ne_scalar_rhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xi1, #asctile.local<UB>> {
   %cst = arith.constant dense<1.57070313> : tensor<32xf32, #asctile.local<UB>>
-  %0 = asctile.cmp NE %arg0, %cst : tensor<32xf32, #asctile.local<UB>>
+  %0 = arith.cmpf one, %arg0, %cst : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xi1, #asctile.local<UB>>
 }
 
@@ -381,7 +381,7 @@ func.func public @cmp_ne_scalar_rhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -
 // CHECK-NEXT:}
 func.func public @cmp_le_scalar_rhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xi1, #asctile.local<UB>> {
   %cst = arith.constant dense<1.57070313> : tensor<32xf32, #asctile.local<UB>>
-  %0 = asctile.cmp LE %arg0, %cst : tensor<32xf32, #asctile.local<UB>>
+  %0 = arith.cmpf ole, %arg0, %cst : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xi1, #asctile.local<UB>>
 }
 
@@ -392,7 +392,7 @@ func.func public @cmp_le_scalar_rhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -
 // CHECK-NEXT:}
 func.func public @cmp_ge_scalar_rhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xi1, #asctile.local<UB>> {
   %cst = arith.constant dense<1.57070313> : tensor<32xf32, #asctile.local<UB>>
-  %0 = asctile.cmp GE %arg0, %cst : tensor<32xf32, #asctile.local<UB>>
+  %0 = arith.cmpf oge, %arg0, %cst : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xi1, #asctile.local<UB>>
 }
 
@@ -403,7 +403,7 @@ func.func public @cmp_ge_scalar_rhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -
 // CHECK-NEXT:}
 func.func public @cmp_lt_scalar_lhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xi1, #asctile.local<UB>> {
   %cst = arith.constant dense<1.57070313> : tensor<32xf32, #asctile.local<UB>>
-  %0 = asctile.cmp LT %cst, %arg0 : tensor<32xf32, #asctile.local<UB>>
+  %0 = arith.cmpf olt, %cst, %arg0 : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xi1, #asctile.local<UB>>
 }
 
@@ -414,7 +414,7 @@ func.func public @cmp_lt_scalar_lhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -
 // CHECK-NEXT:}
 func.func public @cmp_gt_scalar_lhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xi1, #asctile.local<UB>> {
   %cst = arith.constant dense<1.57070313> : tensor<32xf32, #asctile.local<UB>>
-  %0 = asctile.cmp GT %cst, %arg0 : tensor<32xf32, #asctile.local<UB>>
+  %0 = arith.cmpf ogt, %cst, %arg0 : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xi1, #asctile.local<UB>>
 }
 
@@ -425,7 +425,7 @@ func.func public @cmp_gt_scalar_lhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -
 // CHECK-NEXT:}
 func.func public @cmp_eq_scalar_lhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xi1, #asctile.local<UB>> {
   %cst = arith.constant dense<1.57070313> : tensor<32xf32, #asctile.local<UB>>
-  %0 = asctile.cmp EQ %cst, %arg0 : tensor<32xf32, #asctile.local<UB>>
+  %0 = arith.cmpf oeq, %cst, %arg0 : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xi1, #asctile.local<UB>>
 }
 
@@ -436,7 +436,7 @@ func.func public @cmp_eq_scalar_lhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -
 // CHECK-NEXT:}
 func.func public @cmp_ne_scalar_lhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xi1, #asctile.local<UB>> {
   %cst = arith.constant dense<1.57070313> : tensor<32xf32, #asctile.local<UB>>
-  %0 = asctile.cmp NE %cst, %arg0 : tensor<32xf32, #asctile.local<UB>>
+  %0 = arith.cmpf one, %cst, %arg0 : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xi1, #asctile.local<UB>>
 }
 
@@ -447,7 +447,7 @@ func.func public @cmp_ne_scalar_lhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -
 // CHECK-NEXT:}
 func.func public @cmp_le_scalar_lhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xi1, #asctile.local<UB>> {
   %cst = arith.constant dense<1.57070313> : tensor<32xf32, #asctile.local<UB>>
-  %0 = asctile.cmp LE %cst, %arg0 : tensor<32xf32, #asctile.local<UB>>
+  %0 = arith.cmpf ole, %cst, %arg0 : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xi1, #asctile.local<UB>>
 }
 
@@ -458,7 +458,7 @@ func.func public @cmp_le_scalar_lhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -
 // CHECK-NEXT:}
 func.func public @cmp_ge_scalar_lhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xi1, #asctile.local<UB>> {
   %cst = arith.constant dense<1.57070313> : tensor<32xf32, #asctile.local<UB>>
-  %0 = asctile.cmp GE %cst, %arg0 : tensor<32xf32, #asctile.local<UB>>
+  %0 = arith.cmpf oge, %cst, %arg0 : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xi1, #asctile.local<UB>>
 }
 
@@ -468,7 +468,7 @@ func.func public @cmp_ge_scalar_lhs(%arg0: tensor<32xf32, #asctile.local<UB>>) -
 // CHECK-NEXT:}
 func.func public @cmp_lt_scalar_rhs_splat(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: f32) -> tensor<32xi1, #asctile.local<UB>> {
   %splat = tensor.splat %arg1 : tensor<32xf32, #asctile.local<UB>>
-  %0 = asctile.cmp LT %arg0, %splat : tensor<32xf32, #asctile.local<UB>>
+  %0 = arith.cmpf olt, %arg0, %splat : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xi1, #asctile.local<UB>>
 }
 
@@ -478,16 +478,16 @@ func.func public @cmp_lt_scalar_rhs_splat(%arg0: tensor<32xf32, #asctile.local<U
 // CHECK-NEXT:}
 func.func public @cmp_gt_scalar_lhs_splat(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: f32) -> tensor<32xi1, #asctile.local<UB>> {
   %splat = tensor.splat %arg1 : tensor<32xf32, #asctile.local<UB>>
-  %0 = asctile.cmp GT %splat, %arg0 : tensor<32xf32, #asctile.local<UB>>
+  %0 = arith.cmpf ogt, %splat, %arg0 : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xi1, #asctile.local<UB>>
 }
 
 // CHECK-LABEL: func.func public @cmp_no_scalarization(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xi1, #asctile.local<UB>> {
-// CHECK-NEXT:  %0 = asctile.cmp LT %arg0, %arg1 : tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %0 = arith.cmpf olt, %arg0, %arg1 : tensor<32xf32, #asctile.local<UB>>
 // CHECK-NEXT:  return %0 : tensor<32xi1, #asctile.local<UB>>
 // CHECK-NEXT:}
 func.func public @cmp_no_scalarization(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xi1, #asctile.local<UB>> {
-  %0 = asctile.cmp LT %arg0, %arg1 : tensor<32xf32, #asctile.local<UB>>
+  %0 = arith.cmpf olt, %arg0, %arg1 : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xi1, #asctile.local<UB>>
 }
 
@@ -499,9 +499,9 @@ func.func public @cmp_no_scalarization(%arg0: tensor<32xf32, #asctile.local<UB>>
 func.func public @leaky_relu_cmp_mulf_f32(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
   %zero = arith.constant dense<0.0> : tensor<32xf32, #asctile.local<UB>>
   %alpha = arith.constant dense<0.01> : tensor<32xf32, #asctile.local<UB>>
-  %cmp = asctile.cmp GE %arg0, %zero : tensor<32xf32, #asctile.local<UB>>
+  %cmp = arith.cmpf oge, %arg0, %zero : tensor<32xf32, #asctile.local<UB>>
   %mul = arith.mulf %arg0, %alpha : tensor<32xf32, #asctile.local<UB>>
-  %result = asctile.select %cmp, %arg0, %mul : tensor<32xf32, #asctile.local<UB>>
+  %result = arith.select %cmp, %arg0, %mul :  tensor<32xi1, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>
   return %result : tensor<32xf32, #asctile.local<UB>>
 }
 
@@ -513,9 +513,9 @@ func.func public @leaky_relu_cmp_mulf_f32(%arg0: tensor<32xf32, #asctile.local<U
 func.func public @leaky_relu_cmp_mulf_f16(%arg0: tensor<32xf16, #asctile.local<UB>>) -> tensor<32xf16, #asctile.local<UB>> {
   %zero = arith.constant dense<0.0> : tensor<32xf16, #asctile.local<UB>>
   %alpha = arith.constant dense<0.01> : tensor<32xf16, #asctile.local<UB>>
-  %cmp = asctile.cmp GE %arg0, %zero : tensor<32xf16, #asctile.local<UB>>
+  %cmp = arith.cmpf oge, %arg0, %zero : tensor<32xf16, #asctile.local<UB>>
   %mul = arith.mulf %arg0, %alpha : tensor<32xf16, #asctile.local<UB>>
-  %result = asctile.select %cmp, %arg0, %mul : tensor<32xf16, #asctile.local<UB>>
+  %result = arith.select %cmp, %arg0, %mul : tensor<32xi1, #asctile.local<UB>>, tensor<32xf16, #asctile.local<UB>>
   return %result : tensor<32xf16, #asctile.local<UB>>
 }
 
@@ -527,9 +527,9 @@ func.func public @leaky_relu_cmp_mulf_f16(%arg0: tensor<32xf16, #asctile.local<U
 func.func public @leaky_relu_inverted_lt_f32(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
   %zero = arith.constant dense<0.0> : tensor<32xf32, #asctile.local<UB>>
   %alpha = arith.constant dense<0.01> : tensor<32xf32, #asctile.local<UB>>
-  %cmp = asctile.cmp LT %arg0, %zero : tensor<32xf32, #asctile.local<UB>>
+  %cmp = arith.cmpf olt, %arg0, %zero : tensor<32xf32, #asctile.local<UB>>
   %mul = arith.mulf %arg0, %alpha : tensor<32xf32, #asctile.local<UB>>
-  %result = asctile.select %cmp, %mul, %arg0 : tensor<32xf32, #asctile.local<UB>>
+  %result = arith.select %cmp, %mul, %arg0 : tensor<32xi1, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>
   return %result : tensor<32xf32, #asctile.local<UB>>
 }
 
@@ -541,21 +541,21 @@ func.func public @leaky_relu_cmps_muls_f32(%arg0: tensor<32xf32, #asctile.local<
   %zero_scalar = arith.constant 0.0 : f32
   %cmp = asctile.cmps GE %arg0, %zero_scalar : tensor<32xf32, #asctile.local<UB>>
   %mul = asctile.muls %arg0, %arg1 : tensor<32xf32, #asctile.local<UB>>
-  %result = asctile.select %cmp, %arg0, %mul : tensor<32xf32, #asctile.local<UB>>
+  %result = arith.select %cmp, %arg0, %mul : tensor<32xi1, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>
   return %result : tensor<32xf32, #asctile.local<UB>>
 }
 
 // CHECK-LABEL: func.func public @no_leaky_relu_i32(%arg0: tensor<32xi32, #asctile.local<UB>>) -> tensor<32xi32, #asctile.local<UB>> {
-// CHECK-NEXT:  %c0_i32 = arith.constant 0 : i32
-// CHECK-NEXT:  %0 = asctile.cmps GE %arg0, %c0_i32 : tensor<32xi32, #asctile.local<UB>>
-// CHECK-NEXT:  %1 = asctile.select %0, %arg0, %arg0 : tensor<32xi32, #asctile.local<UB>>
-// CHECK-NEXT:  return %1 : tensor<32xi32, #asctile.local<UB>>
+// CHECK:       %0 = asctile.cmps GE %arg0, %c0_i32 : tensor<32xi32, #asctile.local<UB>>
+// CHECK-NEXT:  %1 = asctile.muls %arg0, %c-1_i32 : tensor<32xi32, #asctile.local<UB>>
+// CHECK-NEXT:  %2 = arith.select %0, %arg0, %1 : tensor<32xi1, #asctile.local<UB>>, tensor<32xi32, #asctile.local<UB>>
+// CHECK-NEXT:  return %2 : tensor<32xi32, #asctile.local<UB>>
 // CHECK-NEXT:}
 func.func public @no_leaky_relu_i32(%arg0: tensor<32xi32, #asctile.local<UB>>) -> tensor<32xi32, #asctile.local<UB>> {
   %zero = arith.constant dense<0> : tensor<32xi32, #asctile.local<UB>>
-  %alpha = arith.constant dense<1> : tensor<32xi32, #asctile.local<UB>>
-  %cmp = asctile.cmp GE %arg0, %zero : tensor<32xi32, #asctile.local<UB>>
+  %alpha = arith.constant dense<-1> : tensor<32xi32, #asctile.local<UB>>
+  %cmp = arith.cmpi sge, %arg0, %zero : tensor<32xi32, #asctile.local<UB>>
   %mul = arith.muli %arg0, %alpha : tensor<32xi32, #asctile.local<UB>>
-  %result = asctile.select %cmp, %arg0, %mul : tensor<32xi32, #asctile.local<UB>>
+  %result = arith.select %cmp, %arg0, %mul : tensor<32xi1, #asctile.local<UB>>, tensor<32xi32, #asctile.local<UB>>
   return %result : tensor<32xi32, #asctile.local<UB>>
 }

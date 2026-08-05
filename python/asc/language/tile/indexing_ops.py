@@ -67,8 +67,7 @@ def where(mask: LocalTensor, src0: Union[LocalTensor, RuntimeNumeric], src1: Uni
     src_dtype = infer_common_dtype(src0, src1)
     src0 = create_tile(src0, src_dtype, mask.shape)
     src1 = create_tile(src1, src_dtype, mask.shape)
-    handle = global_builder.get_ir_builder().create_asctile_SelectOp(src0.to_ir().get_type(), mask.to_ir(),
-                                                                     src0.to_ir(), src1.to_ir())
+    handle = global_builder.get_ir_builder().create_arith_SelectOp(mask.to_ir(), src0.to_ir(), src1.to_ir())
     return LocalTensor(handle)
 
 

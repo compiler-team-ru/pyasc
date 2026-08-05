@@ -139,14 +139,6 @@ def VectorGroupOp : AscTile_Op<"vector_group", [SingleBlockImplicitTerminator<"Y
   let hasVerifier = 1;
 }
 
-def CmpOp : AscTile_Op<"cmp", [Pure, SameTypeOperands, TypesMatchWith<
-    "result type has i1 element type and same shape as operands", "lhs", "result", "::getI1SameShape($_self)">]> {
-  let summary = "Compute element-wise comparison of two tiles";
-  let arguments = (ins NumericLocalTensor:$lhs, NumericLocalTensor:$rhs, AscTile_CompareModeAttr:$cmpMode);
-  let results = (outs LocalTensorOf<[I1]>:$result);
-  let assemblyFormat = "$cmpMode $lhs `,` $rhs attr-dict `:` qualified(type($lhs))";
-}
-
 class AscTile_VecScalarOp<string mnemonic, string kind, list<Trait> traits = []> : AscTile_Op<mnemonic, traits # [
   Pure, AllTypesMatch<["base", "result"]>, ShapedMatchElemType<"base", "value">]> {
   let summary = "Compute element-wise " # kind # " of tensor and scalar";
@@ -195,15 +187,6 @@ def ReshapeOp : AscTile_Op<"reshape", [Pure, SameOperandsAndResultElementType,
   let results = (outs NumericLocalTensor:$out);
   let assemblyFormat = "$in attr-dict `:` qualified(type($in)) `to` qualified(type($out))";
   let hasFolder = 1;
-}
-
-def SelectOp : AscTile_Op<"select", [Pure, AllTypesMatch<["src0", "src1", "result"]>, TypesMatchWith<
-    "mask type has i1 element type and same shape as operands and result", "result", "selMask",
-    "::getI1SameShape($_self)">]> {
-  let summary = "Select elements from two tiles depending on a mask";
-  let arguments = (ins LocalTensorOf<[I1]>:$selMask, NumericLocalTensor:$src0, NumericLocalTensor:$src1);
-  let results = (outs NumericLocalTensor:$result);
-  let assemblyFormat = "$selMask `,` $src0 `,` $src1 attr-dict `:` qualified(type($result))";
 }
 
 def ReduceAs1dOp : AscTile_Op<"reduce_as_1d", [Pure, AllElementTypesMatch<["operand", "result"]>]> {
