@@ -11,6 +11,7 @@ add_mlir_dialect_library(MLIRAscTileTransforms
   DetectBiasLoad.cpp
   FoldCast.cpp
   LegalizeMatmul.cpp
+  MarkMatmulAccWithBias.cpp
   MarkReuseSource.cpp
   MergeCVGroups.cpp
   PromotePureOps.cpp

@@ -125,7 +125,7 @@ func.func @lower_matmul_acc_from_accumulator(%arg0: tensor<8x16xf32, #asctile.lo
 // CHECK-NEXT:}
 func.func @lower_matmul_acc_from_accumulator_with_bias(%arg0: tensor<8x16xf32, #asctile.local<L0A>>, %arg1: tensor<16x8xf32, #asctile.local<L0B>>, %arg2: tensor<8xf16, #asctile.local<BT>>) -> tensor<8x8xf32, #asctile.local<L0C>> {
   %0 = asctile.accumulator %arg2 : tensor<8x8xf32, #asctile.local<L0C>>, tensor<8xf16, #asctile.local<BT>>
-  asctile.matmul_acc %0, %arg0, %arg1 : tensor<8x8xf32, #asctile.local<L0C>>, tensor<8x16xf32, #asctile.local<L0A>>, tensor<16x8xf32, #asctile.local<L0B>>
+  asctile.matmul_acc %0, %arg0, %arg1 {asctile.has_bias} : tensor<8x8xf32, #asctile.local<L0C>>, tensor<8x16xf32, #asctile.local<L0A>>, tensor<16x8xf32, #asctile.local<L0B>>
   return %0 : tensor<8x8xf32, #asctile.local<L0C>>
 }
 

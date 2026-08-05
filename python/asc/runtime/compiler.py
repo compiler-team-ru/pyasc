@@ -189,6 +189,7 @@ class Compiler:
             passes.asctile.add_cube_transpose_to_load(pm)
             passes.asctile.add_legalize_matmul(pm)
             passes.common.add_canonicalizer(pm)
+            passes.asctile.add_mark_matmul_acc_with_bias(pm)
             passes.asctile.add_fold_cast(pm)
             passes.asctile.add_transform_math_ops(pm)
             passes.asctile.add_transform_store_fixpipe(pm)
@@ -199,6 +200,8 @@ class Compiler:
                 passes.asctile.add_unscalarize_reduction(pm)
                 passes.common.add_canonicalizer(pm)
                 passes.common.add_cse(pm)
+            passes.asctile.add_wrap_cv_groups(pm)
+            passes.asctile.add_merge_cv_groups(pm)
             passes.asclower.add_expand_math(pm)
             passes.asclower.add_redress_i1_tensor(pm)
             passes.asclower.add_lower_arith(pm)
@@ -214,6 +217,7 @@ class Compiler:
             passes.common.add_canonicalizer(pm)
             passes.asclower.add_realize_conversion_cast(pm)
             passes.asclower.add_expand_mask(pm)
+            passes.ascendc.add_promote_cv_block(pm)
             passes.ascendc.add_fill_asc_operands(pm)
             passes.ascendc.add_fixup_mmad_acc_params_pass(pm)
         passes.ascendc.add_input_output_tensor(pm)
@@ -247,6 +251,9 @@ class Compiler:
         passes.common.add_licm(pm)
         passes.common.add_sccp(pm)
         passes.common.add_canonicalizer(pm)
+        if self.options.run_asc2_passes:
+            passes.ascendc.add_promote_cv_block(pm)
+            passes.ascendc.add_insert_cross_core_sync(pm)
         if self.options.insert_sync:
             passes.ascendc.add_erase_sync(pm)
             passes.ascendc.add_hoist_que_bind(pm)
@@ -370,6 +377,8 @@ class Compiler:
     def _schedule_postprocessing(self, pm: passes.PassManager) -> None:
         passes.ascendc.add_declare_py_struct(pm)
         passes.ascendc.add_generate_boilerplate(pm)
+        if self.options.run_asc2_passes:
+            passes.ascendc.add_insert_subblock_guard(pm)
         if self.options.matmul_cube_only:
             passes.ascendc.add_define_cube_only(pm)
         passes.ascendc.add_legalize_kernel_args(pm, set_ffts_addr=(self.arch != CompilationArch.C310))

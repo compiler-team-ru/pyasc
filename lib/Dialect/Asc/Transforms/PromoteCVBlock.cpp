@@ -37,7 +37,7 @@ void runOnFunction(func::FuncOp func)
         kernelType = attr::kernelCube;
     });
     auto walk = func.walk([&](IfAIVOp op) {
-        if (!kernelType.empty()) {
+        if (kernelType == attr::kernelCube) {
             kernelType = attr::kernelMixed;
             return WalkResult::interrupt();
         }
