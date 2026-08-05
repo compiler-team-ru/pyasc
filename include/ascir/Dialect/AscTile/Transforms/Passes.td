@@ -132,6 +132,31 @@ def LegalizeMatmul : Pass<"asctile-legalize-matmul", "func::FuncOp"> {
   }];
 }
 
+def MarkMatmulAccWithBias : Pass<"asctile-mark-matmul-acc-with-bias", "func::FuncOp"> {
+  let summary = "Mark matmul_acc operations that have bias in their accumulator";
+  let constructor = "mlir::asctile::createMarkMatmulAccWithBiasPass()";
+  let description = [{
+    This pass identifies `asctile.matmul_acc` operations whose accumulator operand
+    comes from an `asctile.accumulator` operation with a bias input. When such a
+    pattern is detected, the pass marks the `matmul_acc` operation with the
+    `asctile.has_bias` unit attribute.
+
+    This marking is used by downstream passes to generate optimized code paths
+    that handle bias addition during the matrix multiplication operation.
+
+    Example:
+    ```mlir
+    // Before:
+    %acc = asctile.accumulator %bias : tensor<16x16xf32, #asctile.local<L0C>>, tensor<16xf32, #asctile.local<BT>>
+    asctile.matmul_acc %acc, %a, %b : ...
+
+    // After:
+    %acc = asctile.accumulator %bias : tensor<16x16xf32, #asctile.local<L0C>>, tensor<16xf32, #asctile.local<BT>>
+    asctile.matmul_acc %acc, %a, %b {asctile.has_bias} : ...
+    ```
+  }];
+}
+
 def MarkReuseSource : Pass<"asctile-mark-reuse-source", "func::FuncOp"> {
   let summary = "Mark reduction operations to reuse source when its operand is not used anymore";
   let constructor = "mlir::asctile::createMarkReuseSourcePass()";

@@ -13,6 +13,9 @@
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Math/IR/Math.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/IRMapping.h"
 
 namespace mlir {
@@ -48,6 +51,8 @@ ComputeUnit classifyOperation(Operation* op)
         return classifyByTileType(op->getResult(0).getType());
     if (isa<StoreOp, CopyOp, StoreFixpipeOp, CopyFixpipeOp, AtomicRMWOp>(op))
         return classifyByTileType(op->getOperand(0).getType());
+    if (!isa<arith::ArithDialect, asctile::AscTileDialect, math::MathDialect, tensor::TensorDialect>(op->getDialect()))
+        return ComputeUnit::Neither;
     for (auto type : op->getResultTypes())
         if (auto unit = classifyByTileType(type); unit != ComputeUnit::Neither)
             return unit;

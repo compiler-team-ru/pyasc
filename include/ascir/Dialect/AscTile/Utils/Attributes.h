@@ -17,6 +17,7 @@ namespace asctile {
 namespace attr {
 
 LITERAL gmBarrier = "asctile.gm_barrier";
+LITERAL hasBias = "asctile.has_bias";
 LITERAL isBias = "asctile.is_bias";
 LITERAL isMatrixA = "asctile.is_matrix_a";
 LITERAL reuseSource = "asctile.reuse_source";

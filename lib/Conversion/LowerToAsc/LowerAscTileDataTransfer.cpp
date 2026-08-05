@@ -741,25 +741,35 @@ struct ConvertCopyFixpipe : ConvertOp<asctile::CopyFixpipeOp> {
         Value src = rewriter.getRemappedValue(value);
         Value dst = createTensorOp(rewriter, loc, op.getType());
         auto srcType = cast<ascendc::BaseTensorType>(src.getType());
-        assert(value.getType().getLoc() == asctile::TensorLocation::L0C && "tensor must be located in L0C");
+        assert(value.getType().getLoc() == asctile::TensorLocation::L0C && "tensor must be located in L0C.");
         auto dstType = cast<ascendc::BaseTensorType>(dst.getType());
-        assert(dstType.getElementType() != rewriter.getF32Type() && "dst type in L1 shouldn't be float32");
+        auto dstLoc = op.getType().getLoc();
+        bool isToUB = dstLoc == asctile::TensorLocation::UB;
+        assert((isToUB || dstLoc == asctile::TensorLocation::L1) && "dst should be in L1 or UB");
+        assert((isToUB || dstType.getElementType() != rewriter.getF32Type()) && "dst type in L1 shouldn't be float32");
         ascir::ConstantOpBuilder consts(rewriter);
         SmallVector<Value> srcShape = getStaticShape(rewriter, srcType);
         SmallVector<Value> dstShape = getStaticShape(rewriter, dstType);
         auto const1 = consts.i32(1);
         Value linearOffset = linearizeOffset(rewriter, loc, dstShape, op.getOffsets());
         src = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcType, src, linearOffset);
-        auto dstStride = rewriter.create<arith::MulIOp>(
-            loc, srcShape[0], consts.i32(cubeKBlockBytes / ascendc::getElementTypeSize(op.getType())));
-        auto paramsBuilder =
-            emitasc::InitStructBuilder(
-                ascendc::FixpipeParamsC310Type::get(
-                    op.getContext(), ascendc::CO2LayoutAttr::get(op.getContext(), ascendc::CO2Layout::NZ)))
-                .addField("nSize", srcShape[1])
-                .addField("mSize", srcShape[0])
-                .addField("srcStride", srcShape[0])
-                .addField("dstStride", dstStride);
+        auto co2Layout = isToUB ? ascendc::CO2Layout::ROW_MAJOR : ascendc::CO2Layout::NZ;
+        Value srcStride, dstStride;
+        if (isToUB) {
+            srcStride = consts.i32(static_cast<int32_t>(llvm::alignTo<ascendc::cubeBlockSize>(srcType.getShape()[0])));
+            dstStride = dstShape[1];
+        } else {
+            srcStride = srcShape[0];
+            dstStride = rewriter.create<arith::MulIOp>(
+                loc, srcShape[0], consts.i32(cubeKBlockBytes / ascendc::getElementTypeSize(op.getType())));
+        }
+        auto paramsBuilder = emitasc::InitStructBuilder(
+                                 ascendc::FixpipeParamsC310Type::get(
+                                     op.getContext(), ascendc::CO2LayoutAttr::get(op.getContext(), co2Layout)))
+                                 .addField("nSize", srcShape[1])
+                                 .addField("mSize", srcShape[0])
+                                 .addField("srcStride", srcStride)
+                                 .addField("dstStride", dstStride);
         if (op.getRelu())
             paramsBuilder.addField("reluEn", const1);
         if (op.getQuantize()) {
@@ -775,10 +785,11 @@ struct ConvertCopyFixpipe : ConvertOp<asctile::CopyFixpipeOp> {
         }
         Value params = paramsBuilder.create(rewriter, loc);
         Value layout = rewriter.create<ascendc::ConstructOp>(
-            loc, rewriter.getType<ascendc::CO2LayoutType>(),
-            ValueRange{consts.i32(static_cast<int32_t>(ascendc::CO2Layout::NZ))}, ArrayAttr{}, true, true);
-        auto fixPipeConfig = rewriter.create<ascendc::ConstructOp>(
-            loc, rewriter.getType<ascendc::FixpipeConfigType>(), ValueRange{layout}, ArrayAttr{}, true, true);
+            loc, rewriter.getType<ascendc::CO2LayoutType>(), ValueRange{consts.i32(static_cast<int32_t>(co2Layout))},
+            ArrayAttr{}, true, true);
+        Value fixPipeConfig = rewriter.create<ascendc::ConstructOp>(
+            loc, rewriter.getType<ascendc::FixpipeConfigType>(), ValueRange{layout, consts.i1(isToUB)}, ArrayAttr{},
+            true, true);
         rewriter.create<ascendc::FixpipeOp>(loc, dst, src, params, fixPipeConfig);
         rewriter.replaceOp(op, dst);
         return success();

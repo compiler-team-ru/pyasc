@@ -869,7 +869,7 @@ func.func @lower_store_4d_tensor(%arg0: memref<*xf32, 22>, %arg1: tensor<32x32x3
 // CHECK-NEXT:  %6 = ascendc.construct !ascendc.quant_mode_t(%c16_i32) [!ascendc.quant_mode_t] constexpr static : i32
 // CHECK-NEXT:  %7 = emitasc.init_struct !ascendc.fixpipe_params_c310<0 : i32>("nSize" = %c32_i32 : i32, "mSize" = %c16_i32 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c256_i32 : i32, "reluEn" = %c1_i32 : i32, "quantPre" = %6 : !ascendc.quant_mode_t)
 // CHECK-NEXT:  %8 = ascendc.construct !ascendc.co2_layout(%c0_i32) constexpr static : i32
-// CHECK-NEXT:  %9 = ascendc.construct !ascendc.fixpipe_config(%8) constexpr static : !ascendc.co2_layout
+// CHECK-NEXT:  %9 = ascendc.construct !ascendc.fixpipe_config(%8, %false) constexpr static : !ascendc.co2_layout, i1
 // CHECK-NEXT:  ascendc.fixpipe %1, %5, %7, %9 : !ascendc.local_tensor<16x32xbf16>, !ascendc.local_tensor<16x32xf32>, !ascendc.fixpipe_params_c310<0 : i32>, !ascendc.fixpipe_config
 // CHECK-NEXT:  return %2 : tensor<16x32xbf16, #asctile.local<L1>>
 // CHECK-NEXT:}
@@ -1022,4 +1022,22 @@ func.func @lower_load_gm_l1_transpose_a_l1(%arg0: memref<*xf16, 22>, %arg1: i32,
   %0 = asctile.tensor %arg0(%arg1, %arg2) : memref<*xf16, 22>, tensor<?x?xf16, #asctile.global>
   %1 = asctile.load %0[%arg3, %arg4], %cst {asctile.transpose_a_l1} : tensor<?x?xf16, #asctile.global>, tensor<64x16xf16, #asctile.local<L1>>
   return %1 : tensor<64x16xf16, #asctile.local<L1>>
+}
+
+// CHECK-LABEL: func.func @lower_copy_fixpipe_to_ub_relu(%arg0: tensor<16x32xf32, #asctile.local<L0C>>, %arg1: i32, %arg2: i32) -> tensor<16x32xf32, #asctile.local<UB>> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : tensor<16x32xf32, #asctile.local<L0C>> to !ascendc.local_tensor<16x32xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <16x32xf32>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<16x32xf32> to tensor<16x32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %3 = arith.muli %arg1, %c32_i32 : i32
+// CHECK-NEXT:  %4 = arith.addi %arg2, %3 : i32
+// CHECK-NEXT:  %5 = ascendc.local_tensor.subindex %0[%4] : !ascendc.local_tensor<16x32xf32>, i32, !ascendc.local_tensor<16x32xf32>
+// CHECK-NEXT:  %6 = emitasc.init_struct !ascendc.fixpipe_params_c310<1 : i32>("nSize" = %c32_i32 : i32, "mSize" = %c16_i32 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c32_i32 : i32, "reluEn" = %c1_i32 : i32)
+// CHECK-NEXT:  %7 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
+// CHECK-NEXT:  %8 = ascendc.construct !ascendc.fixpipe_config(%7, %true) constexpr static : !ascendc.co2_layout, i1
+// CHECK-NEXT:  ascendc.fixpipe %1, %5, %6, %8 : !ascendc.local_tensor<16x32xf32>, !ascendc.local_tensor<16x32xf32>, !ascendc.fixpipe_params_c310<1 : i32>, !ascendc.fixpipe_config
+// CHECK-NEXT:  return %2 : tensor<16x32xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @lower_copy_fixpipe_to_ub_relu(%arg0: tensor<16x32xf32, #asctile.local<L0C>>, %arg1: i32, %arg2: i32) -> tensor<16x32xf32, #asctile.local<UB>> {
+  %0 = asctile.copy_fixpipe %arg0 [%arg1, %arg2] {relu} : tensor<16x32xf32, #asctile.local<L0C>>, tensor<16x32xf32, #asctile.local<UB>>
+  return %0 : tensor<16x32xf32, #asctile.local<UB>>
 }

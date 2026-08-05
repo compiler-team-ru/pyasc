@@ -204,3 +204,32 @@ def test_matmul_acc_with_bias(m, k, n, dtype, bias_dtype, k_tiles):
     matmul_acc_bias_kernel[1](a, b, bias, c, a.shape, b.shape, bias.shape, c.shape, k_tiles)
     c_ref = a.to(torch.float32) @ b.to(torch.float32) + bias
     torch.testing.assert_close(c, c_ref, atol=1e-3, rtol=1e-3)
+
+
+@asc2.jit(always_compile=True)
+def matmul_add_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr: asc2.GlobalAddress,
+                      a_shape: asc2.ConstExpr, b_shape: asc2.ConstExpr, c_shape: asc2.ConstExpr):
+    a_gm = asc2.global_tensor(a_ptr, a_shape)
+    b_gm = asc2.global_tensor(b_ptr, b_shape)
+    c_gm = asc2.global_tensor(c_ptr, c_shape)
+    a = asc2.copy_in(a_gm, [0, 0], a_shape, asc2.TensorLocation.L0A)
+    b = asc2.copy_in(b_gm, [0, 0], b_shape, asc2.TensorLocation.L0B)
+    c = a @ b
+    c_ub = asc2.copy(c, location=asc2.TensorLocation.UB)
+    res = c_ub + c_ub
+    asc2.copy_out(res, c_gm, [0, 0])
+
+
+@pytest.mark.parametrize("m, k, n", [
+    (16, 16, 16),
+    (32, 64, 64),
+    (64, 64, 64),
+])
+def test_matmul_add(m, k, n):
+    a = (torch.rand((m, k), dtype=torch.float16) - .5) * 10
+    b = (torch.rand((k, n), dtype=torch.float16) - .5) * 10
+    c = torch.zeros((m, n), dtype=torch.float32)
+    matmul_add_kernel[1](a, b, c, a.shape, b.shape, c.shape)
+    c_ref = a.to(torch.float32) @ b.to(torch.float32)
+    res_ref = c_ref + c_ref
+    torch.testing.assert_close(c, res_ref, atol=1e-3, rtol=1e-3)

@@ -23,6 +23,7 @@ std::unique_ptr<Pass> createCubeTransposeToLoadPass();
 std::unique_ptr<Pass> createDetectBiasLoadPass();
 std::unique_ptr<Pass> createFoldCastPass();
 std::unique_ptr<Pass> createLegalizeMatmulPass();
+std::unique_ptr<Pass> createMarkMatmulAccWithBiasPass();
 std::unique_ptr<Pass> createMarkReuseSourcePass();
 std::unique_ptr<Pass> createMergeCVGroupsPass();
 std::unique_ptr<Pass> createPromotePureOpsPass();

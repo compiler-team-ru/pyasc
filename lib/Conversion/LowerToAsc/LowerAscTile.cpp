@@ -796,8 +796,7 @@ struct ConvertMatmulAcc : ConvertOp<asctile::MatmulAccOp> {
     {
         ascir::ConstantOpBuilder consts(rewriter);
         auto loc = op.getLoc();
-        auto acc = op.getAcc();
-        auto dst = rewriter.getRemappedValue(acc);
+        auto dst = rewriter.getRemappedValue(op.getAcc());
         auto matrixA = rewriter.getRemappedValue(op.getMatrixA());
         auto matrixB = rewriter.getRemappedValue(op.getMatrixB());
         auto matrixATensorShape = cast<ascendc::LocalTensorType>(matrixA.getType()).getShape();
@@ -814,8 +813,7 @@ struct ConvertMatmulAcc : ConvertOp<asctile::MatmulAccOp> {
                           .addField("m", consts.i32(matrixATensorShape[0]))
                           .addField("n", consts.i32(matrixBTensorShape[1]))
                           .addField("k", consts.i32(matrixBTensorShape[0]));
-        auto accOp = acc.getDefiningOp<asctile::AccumulatorOp>();
-        bool hasBias = accOp && accOp.getBias();
+        bool hasBias = op->hasAttrOfType<UnitAttr>(asctile::attr::hasBias);
         params.addField("cmatrixInitVal", consts.i1(!hasBias));
         params.addField("cmatrixSource", consts.i1(hasBias));
         auto mmadParams = params.create(rewriter, loc);

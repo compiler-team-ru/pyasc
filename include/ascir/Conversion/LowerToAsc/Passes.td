@@ -122,7 +122,7 @@ def LowerAscTileDataTransfer : Pass<"asclower-asctile-data-transfer", "func::Fun
       - Supports `transposeBL1` attribute for transposed matrix B loads
     - **StoreOp (from UB)**: Creates `DataCopyPadExtL2Op` to GM
     - **StoreFixpipeOp (from L0C)**: Creates `FixpipeOp` with optional relu/quantize flags
-    - **CopyFixpipeOp (L0C to L1)**: Creates `FixpipeOp` with NZ layout for L0C-to-L1 transfer
+    - **CopyFixpipeOp (L0C to L1/UB)**: Creates `FixpipeOp` with NZ layout for L0C-to-L1 or L0C-to-UB transfer
     - **CopyOp (L1 to L0A/L0B)**: Creates `LoadDataG2LOp` or `LoadDataWithTransposeOp` with fractal layout
       - Supports `transposeAL0` attribute for transposed matrix A copies
       - Supports `transposeBL0` attribute for transposed matrix B copies
