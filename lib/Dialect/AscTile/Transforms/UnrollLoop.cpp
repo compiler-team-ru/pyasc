@@ -28,41 +28,69 @@ namespace {
 
 class Annotator {
     bool enable;
-    int64_t iterOffset;
+    int64_t loopId = 0;
 
-public:
-    Annotator(bool enable, int64_t iterOffset) : enable(enable), iterOffset(iterOffset) {}
-    ~Annotator() = default;
-
-    void advance(int64_t unrollFactor) { iterOffset += unrollFactor; }
-
-    void operator()(unsigned iter, Operation* op, OpBuilder builder) const
+    void setI64Attr(StringRef name, int64_t value, Operation* op, Builder builder) const
     {
         if (enable)
-            op->setAttr(attr::unrollIter, builder.getI64IntegerAttr(iterOffset + iter));
+            op->setAttr(name, builder.getI64IntegerAttr(value));
+    }
+
+public:
+    explicit Annotator(bool enable) : enable(enable) {}
+    ~Annotator() = default;
+
+    void applyLoopId(Operation* op) { setI64Attr(attr::unrolledLoop, loopId++, op, Builder(op)); }
+
+    void operator()(unsigned iter, Operation* op, Builder builder) const
+    {
+        setI64Attr(attr::unrollIter, static_cast<int64_t>(iter), op, builder);
     }
 };
+
+int64_t getUnrollFactor(scf::ForOp loop)
+{
+    if (auto a = loop->getAttrOfType<IntegerAttr>(attr::unrollFactor))
+        return std::max(1L, a.getValue().getSExtValue());
+    return 1L;
+}
+
+void wrapLoopBeforeUnroll(scf::ForOp loop)
+{
+    int64_t unrollFactor = getUnrollFactor(loop);
+    if (unrollFactor <= 1)
+        return;
+    OpBuilder builder(loop);
+    auto exec = builder.create<scf::ExecuteRegionOp>(loop.getLoc(), loop.getResultTypes());
+    exec->setAttr(attr::unrollFactor, builder.getI64IntegerAttr(unrollFactor));
+    auto* body = &exec.getRegion().emplaceBlock();
+    loop->moveBefore(body, body->end());
+    loop->replaceAllUsesWith(exec.getResults());
+    builder.setInsertionPointToEnd(body);
+    builder.create<scf::YieldOp>(loop.getLoc(), loop.getResults());
+}
 
 struct UnrollLoopPass : public asctile::impl::UnrollLoopBase<UnrollLoopPass> {
     UnrollLoopPass(const UnrollLoopOptions& options) : UnrollLoopBase(options) {}
 
     void runOnOperation() override
     {
+        Annotator annotator(annotate);
         auto op = getOperation();
-        Annotator annotator(annotate, 0);
-        op.walk([this, &annotator](scf::ForOp loop) {
-            int64_t unrollFactor = 0;
-            if (auto a = loop->getAttrOfType<IntegerAttr>(attr::unrollFactor)) {
-                unrollFactor = a.getValue().getSExtValue();
-            }
+        op.walk(wrapLoopBeforeUnroll);
+        op.walk([&](scf::ForOp loop) {
+            int64_t unrollFactor = getUnrollFactor(loop);
             loop->removeAttr(attr::unrollFactor);
             if (unrollFactor <= 1)
                 return;
+            Builder builder(loop);
+            for (auto& op : loop.getBody()->without_terminator())
+                annotator(unrollFactor, &op, builder);
             auto result = loopUnrollByFactor(loop, unrollFactor, annotator);
-            annotator.advance(unrollFactor);
             if (failed(result))
                 signalPassFailure();
         });
+        op.walk([&](scf::ExecuteRegionOp exec) { annotator.applyLoopId(exec); });
     }
 };
 

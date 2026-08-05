@@ -26,6 +26,7 @@ LITERAL transposeBL0 = "asctile.transpose_b_l0";
 LITERAL transposeBL1 = "asctile.transpose_b_l1";
 LITERAL transposeDims = "asctile.transpose_dims";
 LITERAL unrollFactor = "asctile.unroll_factor";
+LITERAL unrolledLoop = "asctile.unrolled_loop";
 LITERAL unrollIter = "asctile.unroll_iter";
 
 } // namespace attr
