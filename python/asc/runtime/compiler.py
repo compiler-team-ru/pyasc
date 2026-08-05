@@ -209,7 +209,7 @@ class Compiler:
             passes.asclower.add_lower_atomic(pm)
             passes.asclower.add_lower_asctile_data_transfer(pm)
             passes.asclower.add_lower_asctile(pm)
-            passes.asclower.add_lower_asctile_i1(pm)
+            passes.asclower.add_lower_asctile_to_basic(pm)
             passes.asclower.add_lower_math(pm)
             passes.asclower.add_lower_scf(pm)
             passes.asclower.add_lower_tensor(pm)

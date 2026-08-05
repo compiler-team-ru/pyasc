@@ -88,22 +88,15 @@ def LowerArithBinary : Pass<"asclower-arith-binary", "func::FuncOp"> {
 }
 
 def LowerAscTile : Pass<"asclower-asctile", "func::FuncOp"> {
-  let summary = "Lower core asctile dialect operations to ascendc compute and neural network operations";
+  let summary = "Lower asctile operations to ascendc operations representing framework and high-level API";
   let constructor = "mlir::asclower::createLowerAscTilePass()";
   let dependentDialects = [
     "arith::ArithDialect", "ascvf::AscVFDialect", "ascendc::AscendCDialect", "emitasc::EmitAscDialect",
   ];
   let description = [{
-    Converts AscTile tensor operations to Ascend C equivalents:
-    - **TensorOp**: Creates `GlobalTensorOp` with buffer pointer setup
-    - **ReluOp, CastOp**: Creates corresponding L2 unary ops
-    - **MatmulOp**: Creates `MmadOp` with M/N/K params derived from tensor shapes
-    - **ReshapeOp**: Creates `LocalTensorReinterpretCastOp`
-    - **BroadcastOp**: Creates `DuplicateL2Op` for 1-element tiles or `BroadcastOp` for larger tiles
-    - **SoftmaxOp/RmsNormOp**: Creates library ops with tiling/shape info params
-    - **ReduceAs1dOp/ReduceOp**: Creates reduction ops with pattern-based shape decomposition
-    - **Scalar-tensor ops (adds, subs, muls, divs, mins, maxs, shls, shrs)**: Creates L2 scalar variants
-    - **AccumulatorOp/MatmulAccOp**: Sets up L0C accumulator for matrix multiplication accumulation
+    Converts AscTile high-level operations to Ascend C and AscVF equivalents. Handles tensor setup, neural network
+    operations (softmax, rmsnorm, layernorm) with computed tiling parameters, reshape and broadcast, reductions with
+    pattern-based shape decomposition, inline vector fusion code, and other.
   }];
 }
 
@@ -133,16 +126,16 @@ def LowerAscTileDataTransfer : Pass<"asclower-asctile-data-transfer", "func::Fun
   }];
 }
 
-def LowerAscTileI1 : Pass<"asclower-asctile-i1", "func::FuncOp"> {
-  let summary = "Lower asctile comparison operation with i1 tensors to ascendc L0 operations";
-  let constructor = "mlir::asclower::createLowerAscTileI1Pass()";
-  let dependentDialects = ["arith::ArithDialect", "ascendc::AscendCDialect"];
+def LowerAscTileToBasic : Pass<"asclower-asctile-to-basic", "func::FuncOp"> {
+  let summary = "Lower asctile operations to ascendc operations representing basic API";
+  let constructor = "mlir::asclower::createLowerAscTileToBasicPass()";
+  let dependentDialects = ["arith::ArithDialect", "ascendc::AscendCDialect", "emitasc::EmitAscDialect"];
   let description = [{
-    Converts i1 (boolean) tensor operations to Ascend C L0-level operations with packed i8 representation:
-    - **CmpSOp**: Creates `CompareScalarL0Op` for tensor-scalar comparisons
-
-    Boolean tiles (i1 elements) are represented as packed i8 tensors (8 bits per byte), enabling hardware
-    support for 8-way parallel boolean operations. The destination shape is ceil(numElements/8).
+    Converts AscTile basic operations to their Ascend C equivalents. Handles element-wise arithmetic with scalar
+    operands (add, sub, mul, div, min, max, shifts), unary operations (relu, cast, leaky_relu, bitwise_not), matrix
+    multiplication (matmul, matmul_acc), reductions (sum, max, min), transpose on UB tensors, and scalar comparisons.
+    For C310 target architectures, scalar subtraction and division are lowered through a duplicate-then-vector pattern
+    instead of direct scalar operations.
   }];
 }
 
