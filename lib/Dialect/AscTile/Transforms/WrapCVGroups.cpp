@@ -53,7 +53,7 @@ ComputeUnit classifyOperation(Operation* op)
         return classifyByTileType(op->getOperand(0).getType());
     if (!isa<arith::ArithDialect, asctile::AscTileDialect, math::MathDialect, tensor::TensorDialect>(op->getDialect()))
         return ComputeUnit::Neither;
-    for (auto type : op->getResultTypes())
+    for (auto type : llvm::concat<Type>(op->getResultTypes(), op->getOperandTypes()))
         if (auto unit = classifyByTileType(type); unit != ComputeUnit::Neither)
             return unit;
     return ComputeUnit::Neither;
