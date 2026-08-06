@@ -10,6 +10,7 @@
 
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/AscTile/Utils/Attributes.h"
+#include "ascir/Dialect/Utils/CVGroupCanonicalization.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/IR/Builders.h"
@@ -25,92 +26,6 @@ using namespace mlir;
 using namespace mlir::asctile;
 
 namespace {
-
-template <typename CVGroupOp>
-struct EraseEmptyGroup : public OpRewritePattern<CVGroupOp> {
-    using OpRewritePattern<CVGroupOp>::OpRewritePattern;
-
-    LogicalResult matchAndRewrite(CVGroupOp op, PatternRewriter& rewriter) const override
-    {
-        Block* body = op.getBody();
-        if (!body->without_terminator().empty())
-            return failure();
-        auto yieldOperands = cast<YieldOp>(body->getTerminator()).getOperands();
-        rewriter.replaceOp(op, yieldOperands);
-        return success();
-    };
-};
-
-template <typename CVGroupOp>
-struct EraseUnusedOperands : public OpRewritePattern<CVGroupOp> {
-    using OpRewritePattern<CVGroupOp>::OpRewritePattern;
-
-    LogicalResult matchAndRewrite(CVGroupOp op, PatternRewriter& rewriter) const override
-    {
-        BitVector unusedOperands(op.getNumOperands());
-        Block* body = op.getBody();
-        for (unsigned i = 0; i < op.getNumOperands(); i++) {
-            auto userInsideGroup = [op](Operation* user) { return op->isProperAncestor(user) && !isa<YieldOp>(user); };
-            if (llvm::none_of(op.getOperand(i).getUsers(), userInsideGroup))
-                unusedOperands.set(i);
-        }
-        if (unusedOperands.none())
-            return failure();
-        rewriter.modifyOpInPlace(op, [&] { op->eraseOperands(unusedOperands); });
-        return success();
-    };
-};
-
-template <typename CVGroupOp>
-struct EraseUnusedResults : public OpRewritePattern<CVGroupOp> {
-    enum struct ResultKind { Used, Forwarded, Unused };
-
-    using OpRewritePattern<CVGroupOp>::OpRewritePattern;
-
-    LogicalResult matchAndRewrite(CVGroupOp op, PatternRewriter& rewriter) const override
-    {
-        unsigned numResults = op.getNumResults();
-        if (numResults == 0)
-            return failure();
-        SmallVector<ResultKind, 4> results(numResults, ResultKind::Used);
-        auto yieldOp = cast<YieldOp>(op.getBody()->getTerminator());
-        for (unsigned i = 0; i < numResults; i++) {
-            auto result = op.getResult(i);
-            if (result.use_empty()) {
-                results[i] = ResultKind::Unused;
-            } else {
-                auto* forwardDef = yieldOp.getOperand(i).getDefiningOp();
-                // CV group cannot be nested, and its block cannot have arguments.
-                // Therefore, any block argument can be safely considered a forwarded value.
-                if (!forwardDef || !op->isProperAncestor(forwardDef))
-                    results[i] = ResultKind::Forwarded;
-            }
-        }
-        if (results.front() == ResultKind::Used && llvm::all_equal(results))
-            return failure();
-        SmallVector<Type, 4> newTypes;
-        for (auto [kind, type] : llvm::zip_equal(results, op.getResultTypes()))
-            if (kind == ResultKind::Used)
-                newTypes.push_back(type);
-        auto newOp = rewriter.create<CVGroupOp>(op.getLoc(), newTypes, op.getOperands());
-        rewriter.inlineRegionBefore(op.getRegion(), newOp.getRegion(), newOp.getRegion().end());
-        SmallVector<Value, 4> newYields, newResults;
-        unsigned resultIdx = 0;
-        for (auto [kind, result, yield] : llvm::zip_equal(results, op.getResults(), yieldOp.getOperands())) {
-            if (kind == ResultKind::Used) {
-                newYields.push_back(yield);
-                newResults.push_back(newOp.getResult(resultIdx++));
-            } else if (kind == ResultKind::Forwarded) {
-                newResults.push_back(yield);
-            } else if (kind == ResultKind::Unused) {
-                newResults.push_back(Value{});
-            }
-        }
-        rewriter.modifyOpInPlace(yieldOp, [&] { yieldOp->setOperands(newYields); });
-        rewriter.replaceOp(op, newResults);
-        return success();
-    }
-};
 
 template <typename OpT>
 OpFoldResult foldCastLike(OpT op, bool allowTransitCast = true)
@@ -451,8 +366,9 @@ LogicalResult MatmulAccOp::verify()
 
 void CubeGroupOp::getCanonicalizationPatterns(RewritePatternSet& results, MLIRContext* context)
 {
-    results.add<EraseEmptyGroup<CubeGroupOp>, EraseUnusedOperands<CubeGroupOp>, EraseUnusedResults<CubeGroupOp>>(
-        context);
+    results.add<
+        ascir::EraseEmptyGroup<CubeGroupOp, YieldOp>, ascir::EraseUnusedOperands<CubeGroupOp, YieldOp>,
+        ascir::EraseUnusedResults<CubeGroupOp, YieldOp>>(context);
 }
 
 LogicalResult CubeGroupOp::verify() { return verifyCVGroupOp(*this); }
@@ -463,8 +379,9 @@ LogicalResult CubeGroupOp::verify() { return verifyCVGroupOp(*this); }
 
 void VectorGroupOp::getCanonicalizationPatterns(RewritePatternSet& results, MLIRContext* context)
 {
-    results.add<EraseEmptyGroup<VectorGroupOp>, EraseUnusedOperands<VectorGroupOp>, EraseUnusedResults<VectorGroupOp>>(
-        context);
+    results.add<
+        ascir::EraseEmptyGroup<VectorGroupOp, YieldOp>, ascir::EraseUnusedOperands<VectorGroupOp, YieldOp>,
+        ascir::EraseUnusedResults<VectorGroupOp, YieldOp>>(context);
 }
 
 LogicalResult VectorGroupOp::verify() { return verifyCVGroupOp(*this); }
