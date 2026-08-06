@@ -135,3 +135,14 @@ func.func @store_not_wrapped(%arg0: tensor<32xf32, #asctile.global>) {
   asctile.store %0, %arg0[%c0] : tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.global>
   return
 }
+
+// CHECK-LABEL: func.func @matmul_acc_cube_group(%arg0: tensor<16x16xf32, #asctile.local<L0C>>, %arg1: tensor<16x16xf16, #asctile.local<L0A>>, %arg2: tensor<16x16xf16, #asctile.local<L0B>>) {
+// CHECK-NEXT:  asctile.cube_group(%arg0, %arg1, %arg2 : tensor<16x16xf32, #asctile.local<L0C>>, tensor<16x16xf16, #asctile.local<L0A>>, tensor<16x16xf16, #asctile.local<L0B>>) {
+// CHECK-NEXT:    asctile.matmul_acc %arg0, %arg1, %arg2 : tensor<16x16xf32, #asctile.local<L0C>>, tensor<16x16xf16, #asctile.local<L0A>>, tensor<16x16xf16, #asctile.local<L0B>>
+// CHECK-NEXT:  }
+// CHECK-NEXT:  return
+// CHECK-NEXT:}
+func.func @matmul_acc_cube_group(%arg0: tensor<16x16xf32, #asctile.local<L0C>>, %arg1: tensor<16x16xf16, #asctile.local<L0A>>, %arg2: tensor<16x16xf16, #asctile.local<L0B>>) {
+  asctile.matmul_acc %arg0, %arg1, %arg2 : tensor<16x16xf32, #asctile.local<L0C>>, tensor<16x16xf16, #asctile.local<L0A>>, tensor<16x16xf16, #asctile.local<L0B>>
+  return
+}
