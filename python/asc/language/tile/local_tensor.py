@@ -17,7 +17,8 @@ from typing_extensions import Self, TypeAlias
 from ..._C import ir
 from ..core.dtype import DataType
 from ..core.ir_value import IRHandle, IRValue, PlainValue, RuntimeInt, RuntimeNumeric
-from .tensor_location import TensorLocation
+from ..core.utils import DefaultValued, OverloadDispatcher
+from .tensor_location import TensorLocation, TensorLocLike
 from .validation import check_type
 
 T = TypeVar("T")
@@ -30,6 +31,10 @@ class LocalTensor(IRValue):
     A local tensor is a multi-dimensional array of values in local memory (Unified Buffer, L1 Cache, etc.)
 
     Each element is of :py:attr:`dtype` type and number of elements is defined by :py:attr:`shape` tuple.
+
+    .. rubric:: Special methods
+
+    .. automethod:: to
     """
 
     dtype: DataType
@@ -72,10 +77,32 @@ class LocalTensor(IRValue):
     def to_ir(self) -> IRHandle:
         return self.handle
 
+    @overload
     def to(self, dtype: DataType, round_mode: RoundMode = RoundMode.Default) -> Self:
-        """Forwards to :py:func:`cast` function."""
-        from .creation_ops import cast
-        return cast(self, dtype, round_mode)
+        ...
+
+    @overload
+    def to(self, location: TensorLocLike) -> Self:
+        ...
+
+    def to(self, *args, **kwargs) -> Self:
+        """Transforms data type (see :py:func:`cast`) or location (see :py:func:`copy`) of a tensor."""
+
+        dispatcher = OverloadDispatcher("asc2.LocalTensor.to")
+
+        @dispatcher.register(dtype=DataType, round_mode=DefaultValued(RoundMode, RoundMode.Default))
+        def to_dtype(dtype, round_mode):
+            from .creation_ops import cast
+            return cast(self, dtype, round_mode)
+
+        @dispatcher.register(location=Union[TensorLocation, str])
+        def to_location(location):
+            if location == self.location:
+                return self
+            from .memory_ops import copy
+            return copy(self, location=location)
+
+        return dispatcher(*args, **kwargs)
 
     @property
     def T(self) -> Self:
