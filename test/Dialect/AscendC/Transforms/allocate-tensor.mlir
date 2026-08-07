@@ -146,7 +146,7 @@ func.func @test_a1_2d() {
 }
 
 // CHECK-LABEL: func.func @test_b1_normalized() {
-// CHECK-NEXT: %0 = ascendc.local_tensor_v3 a1, 0, 256 : !ascendc.local_tensor<3x16xf32>
+// CHECK-NEXT: %0 = ascendc.local_tensor_v3 a1, 0, 128 : !ascendc.local_tensor<3x16xf32>
 // CHECK-NEXT: return
 // CHECK-NEXT:}
 func.func @test_b1_normalized() {
@@ -155,7 +155,7 @@ func.func @test_b1_normalized() {
 }
 
 // CHECK-LABEL: func.func @test_a1_unaligned() {
-// CHECK-NEXT: %0 = ascendc.local_tensor_v3 a1, 0, 256 : !ascendc.local_tensor<3x5xf32>
+// CHECK-NEXT: %0 = ascendc.local_tensor_v3 a1, 0, 128 : !ascendc.local_tensor<3x5xf32>
 // CHECK-NEXT: return
 // CHECK-NEXT:}
 func.func @test_a1_unaligned() {
@@ -227,8 +227,8 @@ func.func @test_b2_unaligned_f16() {
 }
 
 // CHECK-LABEL: func.func @test_multiple_unaligned_a1() {
-// CHECK-NEXT: %0 = ascendc.local_tensor_v3 a1, 0, 256 : !ascendc.local_tensor<2x3xf32>
-// CHECK-NEXT: %1 = ascendc.local_tensor_v3 a1, 1024, 256 : !ascendc.local_tensor<5x7xf32>
+// CHECK-NEXT: %0 = ascendc.local_tensor_v3 a1, 0, 128 : !ascendc.local_tensor<2x3xf32>
+// CHECK-NEXT: %1 = ascendc.local_tensor_v3 a1, 512, 128 : !ascendc.local_tensor<5x7xf32>
 // CHECK-NEXT: return
 // CHECK-NEXT:}
 func.func @test_multiple_unaligned_a1() {
