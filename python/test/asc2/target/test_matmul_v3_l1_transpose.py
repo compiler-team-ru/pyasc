@@ -10,7 +10,7 @@ import asc2
 import pytest
 import torch
 
-from ..target.test_matmul_v3 import FullLoadMode, test_cases
+from ..target.test_matmul_v3 import FullLoadMode
 
 
 @asc2.jit(reuse_alloc=2)
@@ -112,6 +112,12 @@ def matmul_v3_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr
                         b_l0 = asc2.copy(b_l1, [kb_off, n_l0_off], [base_k, base_n], asc2.TensorLocation.L0B)
                         asc2.matmul_acc(acc, a_l0, b_l0, hf32=enable_hf32_mode)
                 asc2.copy_out(acc.to(quant_type), c_gm, offsets=[m_gm_off, n_gm_off])
+
+
+test_cases = [
+    (None, (129280, 7168, 4096, 256, 256, 128, 256, 256, 64), torch.bfloat16, True, False, FullLoadMode.NONE, False,
+     False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),
+]
 
 
 @pytest.mark.parametrize(

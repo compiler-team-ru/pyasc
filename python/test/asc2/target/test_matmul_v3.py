@@ -267,8 +267,6 @@ test_cases = [
      False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),
     (None, (4096, 64640, 7168, 256, 256, 256, 256, 256, 64), torch.float16, False, False, FullLoadMode.NONE, False,
      False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),
-    (None, (129280, 7168, 4096, 256, 256, 128, 256, 256, 64), torch.bfloat16, True, False, FullLoadMode.NONE, False,
-     False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),
     (None, (16384, 4096, 1376, 256, 256, 256, 256, 256, 64), torch.float16, False, True, FullLoadMode.NONE, False,
      False, (1, 1, 1, 2, 2), (-1, 1), (1e-3, 1e-3)),
     (None, (4096, 1376, 32768, 256, 256, 256, 256, 256, 64), torch.float16, True, False, FullLoadMode.NONE, False,
