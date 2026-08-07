@@ -13,7 +13,7 @@ import torch
 from ..target.test_matmul_v3 import FullLoadMode, test_cases
 
 
-@asc2.jit(reuse_alloc=0)
+@asc2.jit(reuse_alloc=2)
 def matmul_v3_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr: asc2.GlobalAddress,
                      bias_ptr: asc2.GlobalAddress, a_shape: asc2.ConstExpr, b_shape: asc2.ConstExpr,
                      m_L1: asc2.ConstExpr, n_L1: asc2.ConstExpr, k_L1: asc2.ConstExpr, base_m: asc2.ConstExpr,

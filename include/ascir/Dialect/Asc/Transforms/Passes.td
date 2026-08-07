@@ -39,6 +39,24 @@ def ComputeMemoryConsumption : Pass<"ascendc-compute-memory-consumption", "Modul
   }];
 }
 
+def ComputeReuseGroup : Pass<"ascendc-compute-reuse-group", "func::FuncOp"> {
+  let summary = "Compute reuse group indices for unrolled loop iterations to guide tensor allocation reuse";
+  let constructor = "mlir::ascendc::createComputeReuseGroupPass()";
+  let description = [{
+    Computes `ascendc.reuse_group` indices for operations in unrolled loops to guide downstream tensor
+    allocation reuse. The pass analyzes `scf.execute_region` operations with `asctile.unroll_factor` and
+    `asctile.unroll_iter` attributes, and remaps iteration indices into reuse groups.
+
+    The reuse group is computed as `(unroll_iter + startIndex) % unrollFactor`, where `startIndex` accounts
+    for nesting level and epilogue iterations. An epilogue iteration is detected when `unroll_iter` equals
+    `unroll_factor` (i.e., the remainder-handling tail of an unrolled loop). Epilogue iterations shift the
+    start index for subsequent loops at the same nesting level, ensuring correct reuse group alignment.
+
+    After processing, `asctile.unroll_iter` attributes are replaced with `ascendc.reuse_group` on all
+    operations within unrolled loops.
+  }];
+}
+
 def DeclarePyStruct : Pass<"ascendc-declare-py-struct", "ModuleOp"> {
   let summary = "Insert emitasc.declare_py_struct operations for all Python struct types used in the module";
   let constructor = "mlir::ascendc::createDeclarePyStructPass()";
@@ -489,6 +507,23 @@ def PromoteCVBlock : Pass<"ascendc-promote-cv-block", "ModuleOp"> {
     vector kernels, unwraps the conditional blocks by moving their body operations into the parent block and
     erasing the conditional wrapper. Mixed kernels retain their conditional structure since operations target
     different compute units.
+  }];
+}
+
+def RefineCubePosition : Pass<"ascendc-refine-cube-position", "func::FuncOp"> {
+  let summary = "Refine A1 cube tensor positions to B1 or C1 based on L0 consumer destinations";
+  let constructor = "mlir::ascendc::createRefineCubePositionPass()";
+  let description = [{
+    Refines the memory position of `LocalTensorAutoOp` tensors initially placed in A1 (L1) by analyzing how
+    they are consumed by L0 load and copy operations (`LoadDataL0V2Op`, `DataCopyL0Op`).
+
+    The pass inspects the destination tensor position of each consumer and remaps the source tensor position:
+    - Destination in A2 (L0A) -> source stays in A1
+    - Destination in B2 (L0B) -> source refined to B1
+    - Destination in C2 (bias) -> source refined to C1
+
+    Only tensors with position A1 are processed. This refinement ensures cube tensors are placed in the
+    correct hardware buffer (L1, B1, or C1) matching the actual data flow to L0A, L0B, or bias memory.
   }];
 }
 
