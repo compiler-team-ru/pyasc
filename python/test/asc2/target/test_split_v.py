@@ -33,11 +33,11 @@ def split_v(input_ptr: asc2.GlobalAddress, output0_ptr: asc2.GlobalAddress, outp
             remaining = tile_length - j * ub_chunk_size
             chunk_size = ub_chunk_size if remaining >= ub_chunk_size else remaining
             if current_offset + chunk_size <= split_boundary:
-                tile = asc2.copy_in(in_gm, [current_offset], [ub_chunk_size], real_shape=[chunk_size])
-                asc2.copy_out(tile, out0_gm, [current_offset], real_shape=[chunk_size])
+                tile = asc2.copy_in(in_gm, [current_offset], [ub_chunk_size])
+                asc2.copy_out(tile, out0_gm, [current_offset])
             elif current_offset >= split_boundary:
-                tile = asc2.copy_in(in_gm, [current_offset], [ub_chunk_size], real_shape=[chunk_size])
-                asc2.copy_out(tile, out1_gm, [current_offset - split_boundary], real_shape=[chunk_size])
+                tile = asc2.copy_in(in_gm, [current_offset], [ub_chunk_size])
+                asc2.copy_out(tile, out1_gm, [current_offset - split_boundary])
             else:
                 part1 = split_boundary - current_offset
                 tile1 = asc2.copy_in(in_gm, [current_offset], [ub_chunk_size], real_shape=[part1])
@@ -90,7 +90,7 @@ def test_split_2d(profiler, runs, kernel_type, test_name, block_num, input_shape
     split_sizes = runtime_params[2]
     unroll_factor = runtime_params[0]
 
-    UB_CHUNK_SIZE = 248 * 1024 // 4 // dtype.itemsize  # 248KB / 4 buffers / size_of(in_out_dtype)
+    UB_CHUNK_SIZE = 248 * 1024 // 2 // dtype.itemsize  # 248KB / 2 buffers / size_of(in_out_dtype)
     ub_chunk_size = tile_length if tile_length <= UB_CHUNK_SIZE else UB_CHUNK_SIZE
     dim0, dim1 = input_shape
     input_length = dim0 * dim1
