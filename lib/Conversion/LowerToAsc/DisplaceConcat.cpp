@@ -89,7 +89,8 @@ struct ConvertConcat : public ConvertOp<tensor::ConcatOp> {
             auto tensorType = typeConverter->convertType(opnd.getType());
             auto tensor = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, tensorType, dst, consts.i64(offset));
             Value src = rewriter.getRemappedValue(opnd);
-            rewriter.create<ascendc::DataCopyL2Op>(loc, tensor, src, consts.i64(calCount(src)));
+            auto copyOp = rewriter.create<ascendc::DataCopyL2Op>(loc, tensor, src, consts.i64(calCount(src)));
+            copyOp.setDirection(ascendc::TPosition::VECCALC, ascendc::TPosition::VECCALC);
             offset += tensor.getType().getNumElements();
         }
         rewriter.replaceOp(op, dst);

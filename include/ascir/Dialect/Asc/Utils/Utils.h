@@ -73,7 +73,7 @@ std::optional<int64_t> getVecLen(Operation* op);
 
 bool isTargetArchC310(Operation* op);
 
-bool isWriteToAllocation(Operation* op, ascendc::LocalTensorAutoOp root);
+Pipe getOpPipe(Operation* op, Pipe defaultPipe = Pipe::PIPE_S);
 
 } // namespace ascendc
 } // namespace mlir

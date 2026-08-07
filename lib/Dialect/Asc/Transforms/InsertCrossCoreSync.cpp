@@ -10,6 +10,8 @@
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
+#include "ascir/Dialect/Asc/Utils/Utils.h"
+#include "ascir/Dialect/AscVF/IR/AscVF.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -31,26 +33,9 @@ ascendc::Pipe getLastOpPipe(Operation* groupOp)
 {
     Block& block = groupOp->getRegion(0).front();
     if (llvm::hasSingleElement(block))
-        return ascendc::Pipe::PIPE_V;
-    auto& lastOp = *std::prev(block.end(), 2);
-    if (isa<ascendc::MmadOp, ascendc::MmadWithBiasOp>(lastOp))
-        return ascendc::Pipe::PIPE_M;
-    if (isa<ascendc::FixpipeOp>(lastOp))
-        return ascendc::Pipe::PIPE_FIX;
-    if (isa<ascendc::CopyToL0Op>(lastOp))
-        return ascendc::Pipe::PIPE_MTE1;
-    if (isa<ascendc::FillOp>(lastOp))
-        return ascendc::Pipe::PIPE_MTE2;
-    if (auto copyOp = dyn_cast<ascendc::DataCopyOp>(lastOp)) {
-        auto direction = copyOp.getDirection();
-        if (direction == ascendc::CopyDirection::GlobalToLocal)
-            return ascendc::Pipe::PIPE_MTE2;
-        if (direction == ascendc::CopyDirection::LocalToGlobal)
-            return ascendc::Pipe::PIPE_MTE3;
-    }
-    if (isa<ascendc::LocalTensorGetValueOp, ascendc::LocalTensorSetValueOp>(lastOp))
         return ascendc::Pipe::PIPE_S;
-    return ascendc::Pipe::PIPE_V;
+    auto& lastOp = *std::prev(block.end(), 2);
+    return ascendc::getOpPipe(&lastOp);
 }
 
 struct InsertCrossCoreSyncPass : public ascendc::impl::InsertCrossCoreSyncBase<InsertCrossCoreSyncPass> {
