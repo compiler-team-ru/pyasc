@@ -20,9 +20,9 @@
 // 1. Input/output tensor restriction: if both tensors are I/O and both have unroll_iter
 //    attributes with different values, they cannot be reused (each iteration loads/stores
 //    different data). If either tensor doesn't have unroll_iter, no restriction applies.
-// 2. Lifetime overlap: top's lastRead must precede bottom's firstWrite in program order.
+// 2. Lifetime overlap: top's endLife must precede bottom's beginLife in program order.
 //    Uses opPrecedes with DominanceInfo to correctly handle operations in different blocks.
-// 3. Same-op reuse: when top's lastRead and bottom's firstWrite are the same compute op,
+// 3. Same-op reuse: when top's endLife and bottom's beginLife are the same compute op,
 //    hardware reads all inputs before writing the output — safe to share one allocation.
 //
 // User collection traverses CastOpInterface and LocalTensorSubIndexOp chains to find
@@ -36,15 +36,20 @@
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
+#include "ascir/Dialect/Asc/Utils/Attributes.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/AscTile/Utils/Attributes.h"
+#include "ascir/Dialect/Utils/ConstantOpBuilder.h"
+#include "ascir/Dialect/Utils/Utils.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/Debug.h"
+
+#include <unordered_map>
+#include <unordered_set>
 
 #define DEBUG_TYPE "ascendc-reuse-tensor-allocation"
 
@@ -62,30 +67,14 @@ namespace {
 constexpr const char* const eraseMeAttr = "asc.erase_me";
 
 using TensorOp = ascendc::LocalTensorAutoOp;
+using Color = int64_t;
+using ColorMap = std::unordered_map<TensorOp, Color, PointerLikeTypeHash<TensorOp>>;
+using ColorSet = std::unordered_set<Color>;
 
-//===----------------------------------------------------------------------===//
-// Helper Functions
-//===----------------------------------------------------------------------===//
-
-void appendImplicitUsers(Operation* op, SmallVectorImpl<Operation*>& allUsers)
-{
-    for (auto* user : op->getUsers()) {
-        if (isa<CastOpInterface>(user) || isa<ascendc::LocalTensorSubIndexOp>(user)) {
-            auto users = user->getUsers();
-            if (!users.empty()) {
-                allUsers.append(users.begin(), users.end());
-                appendImplicitUsers(user, allUsers);
-            }
-        }
-    }
-}
-
-SmallVector<Operation*> collectAllUsers(TensorOp tensorOp)
-{
-    SmallVector<Operation*> users(tensorOp->getUsers());
-    appendImplicitUsers(tensorOp, users);
-    return users;
-}
+struct LifetimeInfo {
+    Operation* endLife = nullptr;
+    Operation* beginLife = nullptr;
+};
 
 // Returns the actual allocation size matching AllocateTensor's sizing rules:
 // cube-block-aligned for A1/A2/B2, raw byte size for VECCALC/CO1.
@@ -102,75 +91,101 @@ bool isTensorGreaterOrEqual(TensorOp lhs, TensorOp rhs) { return getAllocationSi
 
 bool isReusablePosition(ascendc::TPosition pos)
 {
-    return pos == ascendc::TPosition::VECCALC || pos == ascendc::TPosition::A1 || pos == ascendc::TPosition::A2 ||
-           pos == ascendc::TPosition::B2 || pos == ascendc::TPosition::CO1;
+    // VECIN, VECOUT also reusable but for the same unroll factor
+    return pos == ascendc::TPosition::VECCALC || pos == ascendc::TPosition::A1 || pos == ascendc::TPosition::B1 ||
+           pos == ascendc::TPosition::C1 || pos == ascendc::TPosition::A2 || pos == ascendc::TPosition::B2 ||
+           pos == ascendc::TPosition::CO1;
 }
 
 bool isReusable(TensorOp op) { return isReusablePosition(op.getPosition()) && op.getType().hasStaticShape(); }
 
-void transferInOutFlags(TensorOp erasedTensor, TensorOp survivingTensor)
+std::optional<int64_t> getReuseGroup(Operation* op)
 {
-    if (erasedTensor.getInput())
-        survivingTensor.setInput(true);
-    if (erasedTensor.getOutput())
-        survivingTensor.setOutput(true);
-}
-
-void markForErase(TensorOp op, Operation* newTensor)
-{
-    op->replaceAllUsesWith(newTensor);
-    op->setAttr(eraseMeAttr, UnitAttr::get(op.getContext()));
-}
-
-std::optional<int64_t> getUnrollIter(Operation* op)
-{
-    while (op) {
-        if (auto iter = op->getAttrOfType<IntegerAttr>(asctile::attr::unrollIter))
-            return iter.getValue().getSExtValue();
-        op = op->getParentOp();
-    }
+    if (auto iter = op->getAttrOfType<IntegerAttr>(ascendc::attr::reuseGroup))
+        return iter.getValue().getSExtValue();
     return std::nullopt;
 }
 
-bool isLoopCarriedYield(Operation* user)
+void markForErase(TensorOp op) { op->setAttr(eraseMeAttr, UnitAttr::get(op.getContext())); }
+
+// Examples:
+// simple lifetime:
+// {
+//  write(a) <- first use       ┐
+// ...                          | lifetime
+//  read(a) <- last use         ┘
+// }
+// nested recursive lifetime:
+// write(a) <- first use      ┐
+// for(...) {                 |
+//   read(a) <- last use      | lifetime (because recursive effect memory)
+//   ...                      |
+//   yield                    ┘
+// }
+void adjustLifetime(Operation*& firstOp, Operation*& lastOp, DominanceInfo& di)
 {
-    if (isa<scf::YieldOp>(user)) {
-        Operation* parent = user->getParentOp();
-        return isa<scf::ForOp>(parent) || isa<scf::WhileOp>(parent);
+    auto* commonBlock = di.findNearestCommonDominator(firstOp->getBlock(), lastOp->getBlock());
+    Block* stopBlock = commonBlock;
+    Operation* op = lastOp;
+
+    auto process = [&](Operation* op) {
+        if (auto forOp = dyn_cast<scf::ForOp>(op))
+            lastOp = forOp.getBody()->getTerminator();
+        if (auto whileOp = dyn_cast<scf::WhileOp>(op))
+            lastOp = whileOp.getBody()->getTerminator();
+    };
+
+    process(op);
+    while (op->getBlock() != stopBlock) {
+        op = op->getParentOp();
+        process(op);
     }
-    if (isa<scf::ConditionOp>(user))
-        return isa<scf::WhileOp>(user->getParentOp());
-    return false;
 }
 
-bool isRebornInLoop(Operation* firstWrite, Operation* loopOp)
+LifetimeInfo computeLifetimeInfo(TensorOp tensorOp, DominanceInfo& di)
 {
-    if (!firstWrite)
-        return false;
-    // Conservative: uses firstWrite only. A tensor written both outside and inside
-    // a loop is effectively re-born, but firstWrite (earliest write) may be outside.
-    return loopOp->isAncestor(firstWrite);
+    LifetimeInfo info;
+    SmallVector<Operation*> users = collectAllUsers(tensorOp);
+    TensorOp root = ascendc::getAllocationRoot(tensorOp.getResult());
+    llvm::stable_sort(users, [&](Operation* lhs, Operation* rhs) { return ascendc::opPrecedes(lhs, rhs, di); });
+    info.beginLife = users.front();
+    info.endLife = users.back();
+    adjustLifetime(info.beginLife, info.endLife, di);
+    return info;
 }
 
-TensorOp getAllocationRoot(Value v)
+bool intersectLifetime(const LifetimeInfo& lhs, const LifetimeInfo& rhs, DominanceInfo& di)
 {
-    auto* defOp = v.getDefiningOp();
-    if (!defOp)
-        return {};
-    if (auto op = dyn_cast<TensorOp>(defOp))
-        return op;
-    if (auto op = dyn_cast<ascendc::LocalTensorReinterpretCastOp>(defOp))
-        return getAllocationRoot(op.getIn());
-    if (auto op = dyn_cast<ascendc::LocalTensorSubIndexOp>(defOp))
-        return getAllocationRoot(op.getTensor());
-    return {};
+    bool f0 = ascendc::opPrecedes(rhs.beginLife, lhs.endLife, di);
+    bool f1 = ascendc::opPrecedes(lhs.beginLife, rhs.endLife, di);
+    return f0 && f1;
+}
+
+bool hasShareLoopAncestor(Operation* lhs, Operation* rhs)
+{
+    constexpr int nestedLevel = 2;
+    std::unordered_set<Operation*> lhsLoops, rhsLoops;
+    std::vector<Operation*> results;
+    scf::ForOp forOp = lhs->getParentOfType<scf::ForOp>();
+    for (int i = nestedLevel; i > 0 && forOp; --i) {
+        lhsLoops.insert(forOp);
+        forOp = forOp->getParentOfType<scf::ForOp>();
+    }
+    forOp = rhs->getParentOfType<scf::ForOp>();
+    for (int i = nestedLevel; i > 0 && forOp; --i) {
+        rhsLoops.insert(forOp);
+        forOp = forOp->getParentOfType<scf::ForOp>();
+    }
+    std::set_intersection(
+        lhsLoops.begin(), lhsLoops.end(), rhsLoops.begin(), rhsLoops.end(), std::back_inserter(results));
+    return !results.empty();
 }
 
 bool isWriteToAllocation(Operation* op, TensorOp root)
 {
     if (auto dstOp = dyn_cast<ascendc::OpWithDst>(op)) {
         for (Value dst : dstOp.getDstTensors()) {
-            TensorOp dstRoot = getAllocationRoot(dst);
+            auto dstRoot = ascendc::getAllocationRoot(dst);
             if (dstRoot && dstRoot == root)
                 return true;
         }
@@ -178,279 +193,143 @@ bool isWriteToAllocation(Operation* op, TensorOp root)
     return false;
 }
 
-//===----------------------------------------------------------------------===//
-// Lifetime Analysis
-//===----------------------------------------------------------------------===//
-
-struct LifetimeInfo {
-    bool hasUnrollIter = false;
-    DenseSet<Operation*> iterativeAncestors;
-    Operation* lastRead = nullptr;
-    Operation* firstWrite = nullptr;
-};
-
-// Computes all lifetime info for a tensor in one collectAllUsers traversal.
-// Used for sorting (pre-computed) and for canReuse (on-the-fly to avoid stale data).
-LifetimeInfo computeLifetimeInfo(TensorOp tensorOp, DominanceInfo& di)
+bool isReadToAllocation(Operation* op, TensorOp root)
 {
-    LifetimeInfo info;
-    SmallVector<Operation*> users = collectAllUsers(tensorOp);
-    TensorOp root = getAllocationRoot(tensorOp.getResult());
-
-    SmallVector<Operation*> readUsers;
-    SmallVector<Operation*> writeUsers;
-
-    for (Operation* user : users) {
-        auto iter = getUnrollIter(user);
-        if (iter)
-            info.hasUnrollIter = true;
-        if (auto forOp = user->getParentOfType<scf::ForOp>())
-            info.iterativeAncestors.insert(forOp);
-        if (auto whileOp = user->getParentOfType<scf::WhileOp>())
-            info.iterativeAncestors.insert(whileOp);
-        if (isa<scf::YieldOp>(user) || isa<CastOpInterface>(user) || isa<ascendc::LocalTensorSubIndexOp>(user))
-            continue;
-        if (isWriteToAllocation(user, root)) {
-            writeUsers.push_back(user);
-            // Same-op reuse: an op writing the allocation via $dst (cast chain) may also
-            // read it via source operands. Track as read for accurate lastRead.
-            if (auto dstOp = dyn_cast<ascendc::OpWithDst>(user)) {
-                auto dstTensors = dstOp.getDstTensors();
-                for (Value operand : user->getOperands())
-                    if (!llvm::is_contained(dstTensors, operand) && getAllocationRoot(operand) == root) {
-                        readUsers.push_back(user);
-                        break;
-                    }
-            }
-        } else {
-            readUsers.push_back(user);
+    if (auto srcOp = dyn_cast<ascendc::OpWithSrc>(op)) {
+        for (Value src : srcOp.getSrcTensors()) {
+            auto srcRoot = ascendc::getAllocationRoot(src);
+            if (srcRoot && srcRoot == root)
+                return true;
         }
     }
-
-    if (!readUsers.empty()) {
-        if (readUsers.size() == 1)
-            info.lastRead = readUsers.front();
-        else {
-            llvm::stable_sort(
-                readUsers, [&](Operation* lhs, Operation* rhs) { return ascendc::opPrecedes(lhs, rhs, di); });
-            info.lastRead = readUsers.back();
-        }
-    }
-
-    if (!writeUsers.empty()) {
-        if (writeUsers.size() == 1)
-            info.firstWrite = writeUsers.front();
-        else {
-            llvm::stable_sort(
-                writeUsers, [&](Operation* lhs, Operation* rhs) { return ascendc::opPrecedes(lhs, rhs, di); });
-            info.firstWrite = writeUsers.front();
-        }
-    }
-
-    return info;
+    return false;
 }
 
-//===----------------------------------------------------------------------===//
-// Pass Implementation
-//===----------------------------------------------------------------------===//
-
-bool canReuse(TensorOp bottom, TensorOp top, DominanceInfo& di)
+bool canReuse(TensorOp top, TensorOp bottom, DominanceInfo& di)
 {
     // On-the-fly computation avoids stale data from prior reuses.
     LifetimeInfo topInfo = computeLifetimeInfo(top, di);
     LifetimeInfo bottomInfo = computeLifetimeInfo(bottom, di);
-
-    // Same-write-op restriction:
-    // If both tensors are written by the same operation as destinations, they cannot be reused.
-    // Operations like softmax write to multiple operands (dst, sumTensor, maxTensor,
-    // sharedTmpBuffer) simultaneously via getDstTensors(), so these must have separate buffers.
-    if (topInfo.firstWrite && bottomInfo.firstWrite && topInfo.firstWrite == bottomInfo.firstWrite) {
-        LLVM_DEBUG(llvm::dbgs() << "  checking same-write-op: " << topInfo.firstWrite << "\n");
-        if (auto dstOp = dyn_cast<ascendc::OpWithDst>(topInfo.firstWrite)) {
-            auto dstTensors = dstOp.getDstTensors();
-            TensorOp topRoot = getAllocationRoot(top.getResult());
-            TensorOp bottomRoot = getAllocationRoot(bottom.getResult());
-
-            LLVM_DEBUG(llvm::dbgs() << "    topRoot: " << topRoot << ", bottomRoot: " << bottomRoot << "\n");
-            LLVM_DEBUG(llvm::dbgs() << "    dstTensors count: " << dstTensors.size() << "\n");
-
-            bool topIsDst = false;
-            bool bottomIsDst = false;
-            for (Value dst : dstTensors) {
-                TensorOp dstRoot = getAllocationRoot(dst);
-                LLVM_DEBUG(llvm::dbgs() << "      dst: " << dst << ", dstRoot: " << dstRoot << "\n");
-                if (dstRoot == topRoot)
-                    topIsDst = true;
-                if (dstRoot == bottomRoot)
-                    bottomIsDst = true;
-            }
-
-            if (topIsDst && bottomIsDst) {
-                LLVM_DEBUG(llvm::dbgs() << "  reject: both tensors are dst operands of same operation\n");
-                return false;
-            }
-        }
+    if (ascendc::opPrecedes(bottomInfo.beginLife, topInfo.beginLife, di) ||
+        (topInfo.beginLife == bottomInfo.beginLife) && ascendc::opPrecedes(bottomInfo.endLife, topInfo.endLife, di)) {
+        std::swap(top, bottom);
+        std::swap(topInfo, bottomInfo);
     }
-
-    // Cross-iteration write restriction:
-    // If tensors have different unroll_iter values (including one having it and the other not)
-    // and both are written by operations that write to multiple operands (like softmax),
-    // prevent merging to avoid changing tensor identity across iterations.
-    // This prevents issues where merging across iterations can lead to incorrect
-    // buffer sharing in subsequent merges.
-    // However, if the tensors are in different loops (or one is outside any loop),
-    // they execute sequentially and can safely be merged.
-    auto topIter = getUnrollIter(top);
-    auto bottomIter = getUnrollIter(bottom);
-    bool differentUnrollIter =
-        (topIter && bottomIter && *topIter != *bottomIter) || (topIter && !bottomIter) || (!topIter && bottomIter);
-    if (differentUnrollIter) {
-        // Only restrict if both tensors share a common loop ancestor
-        // (i.e., they're in the same unrolled loop)
-        bool shareLoopAncestor = false;
-        for (Operation* anc : topInfo.iterativeAncestors) {
-            if (bottomInfo.iterativeAncestors.contains(anc)) {
-                shareLoopAncestor = true;
-                break;
-            }
-        }
-
-        if (shareLoopAncestor) {
-            // Only restrict if both tensors are written by operations with multiple dst operands
-            if (topInfo.firstWrite && bottomInfo.firstWrite) {
-                bool topHasMultipleDst = false;
-                bool bottomHasMultipleDst = false;
-
-                if (auto topDstOp = dyn_cast<ascendc::OpWithDst>(topInfo.firstWrite)) {
-                    if (topDstOp.getDstTensors().size() > 1)
-                        topHasMultipleDst = true;
-                }
-                if (auto bottomDstOp = dyn_cast<ascendc::OpWithDst>(bottomInfo.firstWrite)) {
-                    if (bottomDstOp.getDstTensors().size() > 1)
-                        bottomHasMultipleDst = true;
-                }
-
-                if (topHasMultipleDst || bottomHasMultipleDst) {
-                    LLVM_DEBUG(
-                        llvm::dbgs() << "  reject: different unroll_iters with multi-dst write ops in same loop\n");
-                    return false;
-                }
-            }
-        }
-    }
-
-    // Loop safety check: if both tensors share a loop ancestor and at least one
-    // doesn't have unroll_iter, both must be "reborn" (written) inside the loop.
-    // A tensor written outside the loop carries data across iterations.
-    bool bothHaveUnrollIter = topInfo.hasUnrollIter && bottomInfo.hasUnrollIter;
-    if (!bothHaveUnrollIter) {
-        for (Operation* anc : topInfo.iterativeAncestors) {
-            if (bottomInfo.iterativeAncestors.contains(anc)) {
-                // Check if both tensors are reborn in the shared loop
-                bool topReborn = isRebornInLoop(topInfo.firstWrite, anc);
-                bool bottomReborn = isRebornInLoop(bottomInfo.firstWrite, anc);
-
-                // If top is not reborn in the shared loop, check if it's reborn in a
-                // different loop that completes before the shared loop starts
-                if (!topReborn && topInfo.firstWrite) {
-                    Operation* topWriteLoop = topInfo.firstWrite->getParentOfType<scf::ForOp>();
-                    if (topWriteLoop && topWriteLoop != anc) {
-                        // Check if topWriteLoop completes before anc starts
-                        if (ascendc::opPrecedes(topWriteLoop, anc, di)) {
-                            topReborn = true;
-                        }
-                    }
-                }
-
-                // If bottom is not reborn in the shared loop, check if it's reborn in a
-                // different loop that completes before the shared loop starts
-                if (!bottomReborn && bottomInfo.firstWrite) {
-                    Operation* bottomWriteLoop = bottomInfo.firstWrite->getParentOfType<scf::ForOp>();
-                    if (bottomWriteLoop && bottomWriteLoop != anc) {
-                        // Check if bottomWriteLoop completes before anc starts
-                        if (ascendc::opPrecedes(bottomWriteLoop, anc, di)) {
-                            bottomReborn = true;
-                        }
-                    }
-                }
-
-                if (!topReborn || !bottomReborn) {
-                    LLVM_DEBUG(llvm::dbgs() << "  reject: not reborn in shared loop\n");
-                    return false;
-                }
-            }
-        }
-    }
-
-    // Check lifetime overlap: top's lastRead must precede bottom's firstWrite.
-    if (!topInfo.lastRead || !bottomInfo.firstWrite) {
-        LLVM_DEBUG(llvm::dbgs() << "  reject: missing lastRead or firstWrite\n");
+    bool isTopInOut = top.getInput() || top.getOutput();
+    auto iter1 = getReuseGroup(top);
+    bool isBottomInOut = bottom.getInput() || bottom.getOutput();
+    auto iter2 = getReuseGroup(bottom);
+    if (hasShareLoopAncestor(topInfo.beginLife, bottomInfo.beginLife) &&
+        (iter1 && iter2 && iter1 != iter2 && (isTopInOut || isBottomInOut))) {
+        LLVM_DEBUG(llvm::dbgs() << "reject: in or out" << "\n");
         return false;
     }
-
-    // Same-op reuse (accumulator pattern): hardware reads all inputs before writing output.
-    // Only allow for operations with OpWithReusableSrcInterface (whitelist approach).
-    if (topInfo.lastRead == bottomInfo.firstWrite) {
+    // Strict intersection without intersect borders
+    bool flag = intersectLifetime(topInfo, bottomInfo, di);
+    if (flag) {
+        LLVM_DEBUG(llvm::dbgs() << "  reject: strict lifetime overlap\n");
+        return false;
+    }
+    if (topInfo.endLife == bottomInfo.beginLife) {
         if (top.getType().getElementType() != bottom.getType().getElementType()) {
             LLVM_DEBUG(llvm::dbgs() << "  reject: same-op element type mismatch\n");
+            return false;
+        }
+        if (!(isReadToAllocation(topInfo.endLife, top) && isWriteToAllocation(topInfo.endLife, bottom))) {
+            LLVM_DEBUG(llvm::dbgs() << "  reject: invalid read-write dependency\n");
             return false;
         }
         // Only allow same-op reuse for operations marked with OpWithReusableSrc.
         // Operations like BroadcastOp that read sources multiple times are not marked
         // and will be rejected here.
-        if (!isa<ascendc::OpWithReusableSrc>(topInfo.lastRead)) {
+        if (!isa<ascendc::OpWithReusableSrc>(topInfo.endLife)) {
             LLVM_DEBUG(llvm::dbgs() << "  reject: operation not marked with OpWithReusableSrcInterface\n");
             return false;
         }
-        return true;
     }
-
-    if (!ascendc::opPrecedes(topInfo.lastRead, bottomInfo.firstWrite, di))
-        LLVM_DEBUG(llvm::dbgs() << "  reject: lifetime overlap\n");
-    return ascendc::opPrecedes(topInfo.lastRead, bottomInfo.firstWrite, di);
+    return true;
 }
 
-void processTensorList(SmallVectorImpl<TensorOp>& tensorList, DominanceInfo& di)
+auto getConflictedTensors(ArrayRef<TensorOp> allTensors, TensorOp op, DominanceInfo& di)
 {
+    SmallVector<TensorOp> conflicted;
+    for (auto tensor : allTensors) {
+        if (tensor == op)
+            continue;
+        if (!canReuse(op, tensor, di))
+            conflicted.emplace_back(tensor);
+    }
+    return conflicted;
+};
+
+auto getColorsSet(const ColorMap& colors, ArrayRef<TensorOp> allTensors)
+{
+    ColorSet neighbors;
+    for (TensorOp tensor : allTensors) {
+        if (auto it = colors.find(tensor); it != colors.end())
+            neighbors.insert(it->second);
+    }
+    return neighbors;
+}
+
+Color getFirstFree(const ColorSet& colors)
+{
+    int freeColor = 0;
+    while (colors.count(freeColor)) {
+        ++freeColor;
+    }
+    return freeColor;
+}
+
+void processTensorList(ArrayRef<TensorOp> allTensors, SmallVectorImpl<TensorOp>& tensorList, DominanceInfo& di)
+{
+    ColorMap colors;
     LLVM_DEBUG(llvm::dbgs() << "Processing tensor list with " << tensorList.size() << " tensors\n");
-    // Greedy algorithm: pop earliest-freed tensor (top), try to merge with
-    // latest-freed remaining tensor (bottom) whose lifetime starts after top's ends.
-    // List is sorted latest-freed-first; reverse iteration starts from latest-freed,
-    // maximizing reuse by merging short-lived allocations into long-lived ones.
-    while (tensorList.size() > 1) {
+    while (!tensorList.empty()) {
         TensorOp topTensor = tensorList.pop_back_val();
-        LLVM_DEBUG(llvm::dbgs() << "Trying to reuse: " << topTensor << "\n");
-        for (auto& bottomTensor : llvm::reverse(tensorList)) {
-            LLVM_DEBUG(llvm::dbgs() << "  Checking against: " << bottomTensor << "\n");
-            if (!isReusable(bottomTensor) || !isReusable(topTensor) ||
-                topTensor.getPosition() != bottomTensor.getPosition() || !canReuse(bottomTensor, topTensor, di))
-                continue;
+        LLVM_DEBUG(llvm::dbgs() << "Trying coloring: " << topTensor << "\n");
+        Color freeColor = getFirstFree(getColorsSet(colors, getConflictedTensors(allTensors, topTensor, di)));
+        LLVM_DEBUG(llvm::dbgs() << "Set Color: " << freeColor << "\n");
+        colors.insert({topTensor, freeColor});
+    }
 
-            LLVM_DEBUG(
-                llvm::dbgs() << "Reuse: merging " << topTensor << " with " << bottomTensor
-                             << " (position=" << topTensor.getPosition() << ")\n");
+    SmallVector<std::pair<TensorOp, Color>> colorVec;
+    int64_t colorSize = -1;
+    for (auto pa : colors) {
+        colorVec.push_back(pa);
+        colorSize = std::max(colorSize, pa.second + 1);
+    }
 
-            if (isTensorGreaterOrEqual(topTensor, bottomTensor)) {
-                Block* block = topTensor->getBlock();
-                topTensor->moveBefore(block, block->begin());
-                OpBuilder builder(topTensor);
-                builder.setInsertionPointAfter(topTensor);
-                auto castOp = builder.create<ascendc::LocalTensorReinterpretCastOp>(
-                    bottomTensor->getLoc(), bottomTensor.getType(), topTensor);
-                markForErase(bottomTensor, castOp);
-                transferInOutFlags(bottomTensor, topTensor);
-                bottomTensor = topTensor;
-            } else {
-                Block* block = bottomTensor->getBlock();
-                bottomTensor->moveBefore(block, block->begin());
-                OpBuilder builder(bottomTensor);
-                builder.setInsertionPointAfter(bottomTensor);
-                auto castOp = builder.create<ascendc::LocalTensorReinterpretCastOp>(
-                    topTensor->getLoc(), topTensor.getType(), bottomTensor);
-                markForErase(topTensor, castOp);
-                transferInOutFlags(topTensor, bottomTensor);
+    llvm::sort(colorVec, [&](const std::pair<TensorOp, Color>& x, const std::pair<TensorOp, Color>& y) {
+        return ascendc::opPrecedes(x.first, y.first, di);
+    });
+
+    SmallVector<SmallVector<TensorOp>> tensorGroups; // for stability
+    tensorGroups.resize(colorSize);
+    for (auto& [tensor, color] : colorVec) {
+        tensorGroups[color].push_back(tensor);
+    }
+
+    for (int color = 0; color < colorSize; ++color) {
+        auto& tensors = tensorGroups[color];
+        TensorOp bigger = tensors[0];
+        Block* block = bigger->getBlock();
+        for (auto tensor : tensors) {
+            block = di.findNearestCommonDominator(block, tensor->getBlock());
+            if (isTensorGreaterOrEqual(tensor, bigger)) {
+                bigger = tensor;
             }
-            break;
+        }
+        bigger->moveBefore(block, block->begin());
+        for (auto reused : tensors) {
+            if (reused == bigger)
+                continue;
+            OpBuilder builder(reused);
+            builder.setInsertionPointAfter(reused);
+            auto castOp =
+                builder.create<ascendc::LocalTensorReinterpretCastOp>(reused->getLoc(), reused.getType(), bigger);
+            reused->replaceAllUsesWith(castOp);
+            markForErase(reused);
         }
     }
 }
@@ -459,40 +338,48 @@ struct ReuseTensorAllocationPass : public ascendc::impl::ReuseTensorAllocationBa
     void runOnOperation() override
     {
         func::FuncOp funcOp = getOperation();
-        DominanceInfo di(funcOp);
 
+        DominanceInfo di(funcOp);
         SmallVector<TensorOp> allTensors;
-        DenseMap<TensorOp, LifetimeInfo> lifetimeInfoMap;
+        std::map<TensorOp, LifetimeInfo> lifetimeInfoMap;
         funcOp.walk<WalkOrder::PreOrder>([&](TensorOp tensor) {
             if (tensor->getUsers().empty() || !isReusable(tensor))
                 return;
-            if (llvm::none_of(tensor->getUsers(), isLoopCarriedYield)) {
-                lifetimeInfoMap[tensor] = computeLifetimeInfo(tensor, di);
-                allTensors.push_back(tensor);
-            }
+            lifetimeInfoMap[tensor] = computeLifetimeInfo(tensor, di);
+            allTensors.push_back(tensor);
         });
 
-        // Sort by program order: latest-freed first, earliest-freed last.
-        // processTensorList pops from the back (earliest-freed) and searches
-        // reverse (latest-freed first), maximizing reuse by merging short-lived
-        // allocations into long-lived ones.
         llvm::stable_sort(allTensors, [&](TensorOp lhs, TensorOp rhs) {
-            Operation* lhsFreed = lifetimeInfoMap[lhs].lastRead;
-            if (!lhsFreed)
-                lhsFreed = lifetimeInfoMap[lhs].firstWrite;
-            Operation* rhsFreed = lifetimeInfoMap[rhs].lastRead;
-            if (!rhsFreed)
-                rhsFreed = lifetimeInfoMap[rhs].firstWrite;
-            if (lhsFreed && rhsFreed)
-                return ascendc::opPrecedes(rhsFreed, lhsFreed, di);
-            return ascendc::opPrecedes(rhs, lhs, di);
+            auto lhsSize = getAllocationSize(lhs);
+            auto rhsSize = getAllocationSize(rhs);
+            if (lhsSize != rhsSize)
+                return lhsSize > rhsSize;
+            Operation* lhsFreed = lifetimeInfoMap[lhs].endLife;
+            Operation* rhsFreed = lifetimeInfoMap[rhs].endLife;
+            return ascendc::opPrecedes(rhsFreed, lhsFreed, di);
         });
 
-        processTensorList(allTensors, di);
+        std::map<ascendc::TPosition, SmallVector<TensorOp>> filtered;
+        LLVM_DEBUG(llvm::dbgs() << "Lifetimes:\n");
+        for (auto tensor : allTensors) {
+            LLVM_DEBUG(llvm::dbgs() << "tensor: ");
+            LLVM_DEBUG(tensor->dump());
+            LLVM_DEBUG(llvm::dbgs() << "beginLife: ");
+            LLVM_DEBUG(lifetimeInfoMap[tensor].beginLife->dump());
+            LLVM_DEBUG(llvm::dbgs() << "endLife: ");
+            LLVM_DEBUG(lifetimeInfoMap[tensor].endLife->dump());
+            filtered[tensor.getPosition()].push_back(tensor);
+        }
+        for (auto& [position, tensors] : filtered) {
+            std::reverse(tensors.begin(), tensors.end());
+            auto order = tensors;
+            processTensorList(tensors, order, di);
+        }
         funcOp.walk([](TensorOp op) {
             if (op->hasAttr(eraseMeAttr))
                 op.erase();
         });
+        funcOp.walk([](Operation* op) { op->removeAttr(ascendc::attr::reuseGroup); });
     }
 };
 

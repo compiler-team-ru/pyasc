@@ -171,12 +171,6 @@ class Compiler:
     def run_translation(mod: ir.ModuleOp) -> str:
         return translation.ir_to_ascendc(mod)
 
-    @staticmethod
-    def add_unroll_loop(pm: passes.PassManager) -> None:
-        passes.asctile.add_unroll_loop(pm, annotate=True)
-        passes.common.add_canonicalizer(pm)
-        passes.common.add_cse(pm)
-
     def _schedule_lowering(self, pm: passes.PassManager) -> None:
         arch_c310 = self.arch == CompilationArch.C310
         passes.ascendc.add_privatize_func(pm)
@@ -223,11 +217,15 @@ class Compiler:
         passes.ascendc.add_input_output_tensor(pm)
         if self.options.reuse_alloc == 1:
             passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=True)
-        self.add_unroll_loop(pm)
+        passes.asctile.add_unroll_loop(pm, annotate=True)
+        passes.ascendc.add_compute_reuse_group(pm)
+        passes.common.add_canonicalizer(pm)
+        passes.common.add_cse(pm)
         passes.ascendc.add_hoist_tensor_allocation(pm, exclude_in_out=not arch_c310)
         if self.options.reuse_alloc == 1:
             passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=False)
         elif self.options.reuse_alloc == 2:
+            passes.ascendc.add_refine_cube_position(pm)
             passes.ascendc.add_reuse_tensor_allocation(pm)
         passes.common.add_canonicalizer(pm)
         if self.options.vf_fusion:

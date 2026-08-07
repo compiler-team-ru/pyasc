@@ -98,6 +98,7 @@ void defineAscendCPasses(py::module& mod)
     auto m = mod.def_submodule("ascendc");
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_allocate_tensor", createAllocateTensorPass);
     DEFINE_ADD_PASS("add_compute_memory_consumption", createComputeMemoryConsumptionPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_compute_reuse_group", createComputeReuseGroupPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_noop_pass", createNoopPass);
     DEFINE_ADD_PASS("add_detect_kernel_type", createDetectKernelTypePass);
     DEFINE_ADD_PASS("add_declare_py_struct", createDeclarePyStructPass);
@@ -119,6 +120,7 @@ void defineAscendCPasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_to_l0", createLowerToL0Pass);
     DEFINE_ADD_PASS("add_privatize_func", createPrivatizeFuncPass);
     DEFINE_ADD_PASS("add_promote_cv_block", createPromoteCVBlockPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_refine_cube_position", createRefineCubePositionPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_reuse_tensor_allocation", createReuseTensorAllocationPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_unify_bias_tensor", createUnifyBiasTensorPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_unify_pipe", createUnifyPipePass);

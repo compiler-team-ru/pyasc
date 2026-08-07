@@ -9,6 +9,7 @@
 add_mlir_dialect_library(MLIRAscTransforms
   AllocateTensor.cpp
   ComputeMemoryConsumption.cpp
+  ComputeReuseGroup.cpp
   DeclarePyStructPass.cpp
   DefineCubeOnlyPass.cpp
   DetectKernelTypePass.cpp
@@ -32,6 +33,7 @@ add_mlir_dialect_library(MLIRAscTransforms
   Noop.cpp
   PrivatizeFunc.cpp
   PromoteCVBlock.cpp
+  RefineCubePosition.cpp
   ReuseTensorAllocation.cpp
   ReuseUBAllocation.cpp
   UnifyBiasTensor.cpp

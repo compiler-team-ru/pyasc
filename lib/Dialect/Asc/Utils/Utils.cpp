@@ -28,6 +28,48 @@ using AllowInline = ascir::AllowlistInlinerInterface<T...>;
 
 namespace ascendc {
 
+namespace {
+
+void appendImplicitUsers(Value value, SmallVectorImpl<Operation*>& allUsers)
+{
+    llvm::copy(value.getUsers(), std::back_inserter(allUsers));
+    for (auto* user : value.getUsers()) {
+        if (isa<CastOpInterface>(user) || isa<LocalTensorSubIndexOp>(user)) {
+            auto users = user->getUsers();
+            if (!users.empty()) {
+                allUsers.append(users.begin(), users.end());
+                appendImplicitUsers(user->getResult(0), allUsers);
+            }
+        }
+        // if value use as init value then this memory use for first iteration and life interval must include
+        // lifeInterval iterArg
+        if (auto forOp = dyn_cast<scf::ForOp>(user)) {
+            auto inits = forOp.getInits();
+            auto iterArgs = forOp.getRegionIterArgs();
+            for (int i = 0; i < inits.size(); ++i) {
+                if (inits[i] == value) {
+                    appendImplicitUsers(iterArgs[i], allUsers);
+                }
+            }
+        }
+        // if value return in yield op then it is accumulator and he used as return value in forOp
+        if (auto yieldOp = dyn_cast<scf::YieldOp>(user)) {
+            auto forOp = cast<scf::ForOp>(yieldOp->getParentOp());
+            allUsers.push_back(forOp);
+            auto opnds = yieldOp.getOperands();
+            auto iterArgs = forOp.getRegionIterArgs();
+            for (int i = 0; i < opnds.size(); ++i) {
+                if (opnds[i] == value) {
+                    appendImplicitUsers(iterArgs[i], allUsers);
+                    appendImplicitUsers(forOp->getResult(i), allUsers);
+                }
+            }
+        }
+    }
+}
+
+} // namespace
+
 int64_t getTypeSize(Type type)
 {
     if (auto shaped = dyn_cast<ShapedType>(type))
@@ -68,7 +110,17 @@ bool opPrecedes(Operation* lhs, Operation* rhs, DominanceInfo& di)
     Block* dtr = di.findNearestCommonDominator(lhsBlk, rhsBlk);
     Operation* lhsAnc = dtr->findAncestorOpInBlock(*lhs);
     Operation* rhsAnc = dtr->findAncestorOpInBlock(*rhs);
-    return (lhsAnc == rhsAnc && lhs->isAncestor(rhs)) || lhsAnc->isBeforeInBlock(rhsAnc);
+    if (lhsAnc != rhsAnc)
+        return lhsAnc->isBeforeInBlock(rhsAnc);
+    if (lhs->isAncestor(rhs))
+        return true;
+    if (rhs->isAncestor(lhs))
+        return false;
+    if (auto ifOp = dyn_cast<scf::IfOp>(lhsAnc))
+        return ifOp.thenBlock()->findAncestorOpInBlock(*lhs);
+    if (auto whileOp = dyn_cast<scf::WhileOp>(lhsAnc))
+        return whileOp.getBeforeBody()->findAncestorOpInBlock(*lhs);
+    return di.properlyDominates(lhs, rhs);
 }
 
 void registerInlinerInterfaces(DialectRegistry& registry)
@@ -112,6 +164,27 @@ std::optional<int64_t> getVecLen(Operation* op)
 }
 
 bool isTargetArchC310(Operation* op) { return getCompilationArch(op) == "c310"; }
+
+SmallVector<Operation*> collectAllUsers(LocalTensorAutoOp tensorOp)
+{
+    SmallVector<Operation*> users;
+    appendImplicitUsers(tensorOp, users);
+    return users;
+}
+
+LocalTensorAutoOp getAllocationRoot(Value v)
+{
+    auto* defOp = v.getDefiningOp();
+    if (!defOp)
+        return {};
+    if (auto op = dyn_cast<LocalTensorAutoOp>(defOp))
+        return op;
+    if (auto op = dyn_cast<LocalTensorReinterpretCastOp>(defOp))
+        return getAllocationRoot(op.getIn());
+    if (auto op = dyn_cast<LocalTensorSubIndexOp>(defOp))
+        return getAllocationRoot(op.getTensor());
+    return {};
+}
 
 Pipe getOpPipe(Operation* op, Pipe defaultPipe)
 {

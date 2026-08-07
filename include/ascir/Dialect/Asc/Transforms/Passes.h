@@ -21,6 +21,7 @@ namespace ascendc {
 
 std::unique_ptr<Pass> createAllocateTensorPass();
 std::unique_ptr<Pass> createComputeMemoryConsumptionPass();
+std::unique_ptr<Pass> createComputeReuseGroupPass();
 std::unique_ptr<Pass> createDeclarePyStructPass();
 std::unique_ptr<Pass> createDefineCubeOnlyPass();
 std::unique_ptr<Pass> createDetectKernelTypePass();
@@ -44,6 +45,7 @@ std::unique_ptr<Pass> createMaterializeTensorPass(bool alwaysBuf = false);
 std::unique_ptr<Pass> createNoopPass();
 std::unique_ptr<Pass> createPrivatizeFuncPass();
 std::unique_ptr<Pass> createPromoteCVBlockPass();
+std::unique_ptr<Pass> createRefineCubePositionPass();
 std::unique_ptr<Pass> createReuseTensorAllocationPass();
 std::unique_ptr<Pass> createReuseUBAllocationPass(bool reuseInOut = false);
 std::unique_ptr<Pass> createUnifyBiasTensorPass();
