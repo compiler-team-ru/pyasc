@@ -85,9 +85,9 @@ int64_t getTypeSizeCubeBlockAlign(ShapedType type, TPosition position)
     int64_t size = 1;
     for (size_t i = 0; i < shape.size(); ++i) {
         int64_t align = cubeBlockSize;
-        if (position == TPosition::A2 && i == 1 || position == TPosition::B2 && i == 0) {
+        if (((position == TPosition::A1 || position == TPosition::A2) && i == 1) ||
+            ((position == TPosition::B1 || position == TPosition::B2) && i == 0))
             align = elemAlign;
-        }
         size *= static_cast<int64_t>(llvm::alignTo(shape[i], align));
     }
     return size * elemSize;
