@@ -10,6 +10,7 @@
 
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
+#include "ascir/Dialect/AscVF/IR/AscVF.h"
 #include "ascir/Dialect/Utils/Inlining.h"
 
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
@@ -91,26 +92,53 @@ ModuleOp getModule(Operation* op)
 
 StringRef getCompilationArch(Operation* op)
 {
-    if (auto attr = getModule(op)->getAttrOfType<StringAttr>(ascendc::attr::compilationArch))
+    if (auto attr = getModule(op)->getAttrOfType<StringAttr>(attr::compilationArch))
         return attr.getValue();
     return {};
 }
 
 StringRef getSocVersion(Operation* op)
 {
-    if (auto attr = getModule(op)->getAttrOfType<StringAttr>(ascendc::attr::socVersion))
+    if (auto attr = getModule(op)->getAttrOfType<StringAttr>(attr::socVersion))
         return attr.getValue();
     return {};
 }
 
 std::optional<int64_t> getVecLen(Operation* op)
 {
-    if (auto attr = getModule(op)->getAttrOfType<IntegerAttr>(ascendc::attr::vfVecLen))
+    if (auto attr = getModule(op)->getAttrOfType<IntegerAttr>(attr::vfVecLen))
         return attr.getValue().getSExtValue();
     return std::nullopt;
 }
 
 bool isTargetArchC310(Operation* op) { return getCompilationArch(op) == "c310"; }
+
+Pipe getOpPipe(Operation* op, Pipe defaultPipe)
+{
+    return llvm::TypeSwitch<Operation*, Pipe>(op)
+        .Case<VectorOp, ascvf::VFGroupOp>([](auto) { return Pipe::PIPE_V; })
+        .Case<MmadOp, MmadWithBiasOp>([](auto) { return Pipe::PIPE_M; })
+        .Case([](FixpipeOp) { return Pipe::PIPE_FIX; })
+        .Case([](CopyToL0Op) { return Pipe::PIPE_MTE1; })
+        .Case([](FillOp) { return Pipe::PIPE_MTE2; })
+        .Case([defaultPipe](DataCopyOp copyOp) {
+            if (auto direction = copyOp.getDirection()) {
+                auto [src, dst] = *direction;
+                if (src == TPosition::A1 && dst == TPosition::VECCALC ||
+                    src == TPosition::A1 && (dst == TPosition::A2 || dst == TPosition::B2 || dst == TPosition::CO1))
+                    return Pipe::PIPE_MTE1;
+                if (src == TPosition::GM)
+                    return Pipe::PIPE_MTE2;
+                if (dst == TPosition::GM || src == TPosition::VECCALC && dst == TPosition::A1)
+                    return Pipe::PIPE_MTE3;
+                if (src == TPosition::VECCALC && dst == TPosition::VECCALC)
+                    return Pipe::PIPE_V;
+            }
+            return defaultPipe;
+        })
+        .Case<LocalTensorGetValueOp, LocalTensorSetValueOp>([](auto) { return Pipe::PIPE_S; })
+        .Default(defaultPipe);
+}
 
 } // namespace ascendc
 } // namespace mlir

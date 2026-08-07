@@ -40,9 +40,9 @@ func.func @fully_displace_concat() -> tensor<8x16xf32, #asctile.local<UB>> {
 // CHECK-NEXT:  %2 = ascendc.local_tensor_auto veccalc() : <16xf32>
 // CHECK-NEXT:  %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<16xf32> to tensor<16xf32, #asctile.local<UB>>
 // CHECK-NEXT:  %4 = ascendc.local_tensor.subindex %2[%c0_i64] : !ascendc.local_tensor<16xf32>, i64, !ascendc.local_tensor<10xf32>
-// CHECK-NEXT:  ascendc.data_copy_l2 %4, %1, %c10_i64 : !ascendc.local_tensor<10xf32>, !ascendc.local_tensor<10xf32>, i64
+// CHECK-NEXT:  ascendc.data_copy_l2 %4, %1, %c10_i64 {direction = #ascendc.copy_direction<veccalc, veccalc>} : !ascendc.local_tensor<10xf32>, !ascendc.local_tensor<10xf32>, i64
 // CHECK-NEXT:  %5 = ascendc.local_tensor.subindex %2[%c10_i64] : !ascendc.local_tensor<16xf32>, i64, !ascendc.local_tensor<6xf32>
-// CHECK-NEXT:  ascendc.data_copy_l2 %5, %0, %c6_i64 : !ascendc.local_tensor<6xf32>, !ascendc.local_tensor<6xf32>, i64
+// CHECK-NEXT:  ascendc.data_copy_l2 %5, %0, %c6_i64 {direction = #ascendc.copy_direction<veccalc, veccalc>} : !ascendc.local_tensor<6xf32>, !ascendc.local_tensor<6xf32>, i64
 // CHECK-NEXT:  return %3 : tensor<16xf32, #asctile.local<UB>>
 func.func @convert_concat_fallback(%arg0: tensor<10xf32, #asctile.local<UB>>, %arg1: tensor<6xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>> {
   %0 = tensor.concat dim(0) %arg0, %arg1 : (tensor<10xf32, #asctile.local<UB>>, tensor<6xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>>

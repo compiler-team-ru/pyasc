@@ -133,17 +133,6 @@ def AscendC_CacheLineAttr : I32EnumAttr<"CacheLine", "", [
   let underlyingType = "uint8_t";
 }
 
-def AscendC_CopyDirectionAttr : I32EnumAttr<"CopyDirection", "", [
-  I32EnumAttrCase<"Unknown", 0>,
-  I32EnumAttrCase<"GlobalToLocal", 1>,
-  I32EnumAttrCase<"LocalToGlobal", 2>,
-  I32EnumAttrCase<"LocalToLocal", 3>,
-  I32EnumAttrCase<"GlobalToGlobal", 4>,
-]> {
-  let cppNamespace = "::mlir::ascendc";
-  let description = "Copy direction";
-}
-
 def AscendC_CubeFormatAttr : I32EnumAttr<"CubeFormat", "matmul tensor format", [
   I32EnumAttrCase<"ND", 0, "nd">,
   I32EnumAttrCase<"NZ", 1, "nz">,
@@ -603,6 +592,11 @@ def AscendC_DataCopyMVTypeAttr: I32EnumAttr<"DataCopyMVType", "", [
   let cppNamespace = "::mlir::ascendc";
   let description = "Used in SetLoopModePara/ResetLoopModePara";
   let underlyingType = "uint8_t";
+}
+
+def AscendC_CopyDirectionAttr : AscendC_Attr<"CopyDirection", "copy_direction"> {
+  let parameters = (ins "TPosition":$src, "TPosition":$dst);
+  let assemblyFormat = "`<` $src `,` $dst `>`";
 }
 
 #endif // ASC_CORE_ATTRIBUTES_TD

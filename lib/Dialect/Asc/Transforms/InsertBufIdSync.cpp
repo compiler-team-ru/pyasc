@@ -11,6 +11,7 @@
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
+#include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/AscTile/Utils/Attributes.h"
 #include "ascir/Dialect/AscVF/IR/AscVF.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
@@ -43,39 +44,10 @@ class InsertBufIdSync {
         bufId = (bufId + 1) % bufIdMax;
     }
 
-    ascendc::Pipe getPipe(Operation* op)
-    {
-        if (isa<ascendc::CopyToL0Op>(op)) {
-            return ascendc::Pipe::PIPE_MTE1;
-        }
-        if (isa<ascendc::FillOp>(op)) {
-            return ascendc::Pipe::PIPE_MTE2;
-        }
-        if (isa<ascendc::FixpipeOp>(op)) {
-            return ascendc::Pipe::PIPE_FIX;
-        }
-        if (auto copyOp = dyn_cast<ascendc::DataCopyOp>(op)) {
-            auto direction = copyOp.getDirection();
-            if (direction == ascendc::CopyDirection::GlobalToLocal) {
-                return ascendc::Pipe::PIPE_MTE2;
-            }
-            if (direction == ascendc::CopyDirection::LocalToGlobal) {
-                return ascendc::Pipe::PIPE_MTE3;
-            }
-        }
-        if (isa<ascendc::LocalTensorGetValueOp, ascendc::LocalTensorSetValueOp>(op)) {
-            return ascendc::Pipe::PIPE_S;
-        }
-        if (isa<ascendc::MmadOp, ascendc::MmadWithBiasOp>(op)) {
-            return ascendc::Pipe::PIPE_M;
-        }
-        return ascendc::Pipe::PIPE_V;
-    }
-
     void insertGetRlsBuf(Operation* op, int32_t bufId)
     {
         OpBuilder builder(op);
-        ascendc::Pipe pipe = getPipe(op);
+        auto pipe = ascendc::getOpPipe(op);
         builder.create<ascendc::GetBufOp>(op->getLoc(), pipe, bufId, false);
         builder.setInsertionPointAfter(op);
         builder.create<ascendc::RlsBufOp>(op->getLoc(), pipe, bufId, false);
@@ -200,7 +172,7 @@ public:
     void process(Operation* op)
     {
         auto copyOp = dyn_cast<ascendc::DataCopyOp>(op);
-        if (copyOp && copyOp.getDirection() == ascendc::CopyDirection::LocalToGlobal) {
+        if (copyOp && copyOp.isLocalToGlobal()) {
             insertSync(op, copyOp.getSrc());
             return;
         }

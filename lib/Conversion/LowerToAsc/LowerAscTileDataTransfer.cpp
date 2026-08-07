@@ -143,6 +143,19 @@ Value calculateCopyCount(
         loc, realShape.empty() ? consts.i32(ubShape[dim]) : realShape[dim], tailElementsCount);
 }
 
+void setCopyDirection(ascendc::DataCopyOp op, Value src, Value dst)
+{
+    auto srcPos = ascendc::TPosition::GM;
+    auto dstPos = ascendc::TPosition::GM;
+    if (auto tensor = src.getDefiningOp<ascendc::LocalTensorAutoOp>())
+        srcPos = tensor.getPosition();
+    if (auto tensor = dst.getDefiningOp<ascendc::LocalTensorAutoOp>())
+        dstPos = tensor.getPosition();
+    op.setDirection(srcPos, dstPos);
+}
+
+void setCopyDirection(ascendc::DataCopyOp op) { setCopyDirection(op, op.getSrc(), op.getDst()); }
+
 struct ConvertLoadToUB : ConvertOp<asctile::LoadOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
@@ -233,16 +246,17 @@ struct ConvertLoadToUB : ConvertOp<asctile::LoadOp> {
         auto dstStrideBytes = rewriter.create<arith::SubIOp>(loc, rowSizeBytes, alignedBlockSize);
         auto dstStrideDataBlocks = rewriter.create<arith::DivSIOp>(loc, dstStrideBytes, ubBlockSizeValue);
         auto ui32Type = rewriter.getIntegerType(32, false);
-        auto dataCopyExtParams = rewriter.create<ascendc::ConstructOp>(
+        auto extParams = rewriter.create<ascendc::ConstructOp>(
             loc, rewriter.getType<ascendc::DataCopyExtParamsType>(),
             ValueRange{blockCount, blockLen, srcStride, dstStrideDataBlocks, const0},
             rewriter.getTypeArrayAttr({rewriter.getIntegerType(16, false), ui32Type, ui32Type, ui32Type, ui32Type}));
-        auto dataCopyPadExtParams = rewriter.create<ascendc::ConstructOp>(
+        auto padExtParams = rewriter.create<ascendc::ConstructOp>(
             loc, rewriter.getType<ascendc::DataCopyPadExtParamsType>(getElementTypeOrSelf(dstType)),
             ValueRange{const1, const0, rightPadElements, padValue},
             rewriter.getTypeArrayAttr(
                 {rewriter.getI32Type(), rewriter.getI32Type(), rewriter.getIntegerType(8, false), padValue.getType()}));
-        rewriter.create<ascendc::DataCopyPadExtL0Op>(loc, dst, srcInfo.tensor, dataCopyExtParams, dataCopyPadExtParams);
+        auto copyOp = rewriter.create<ascendc::DataCopyPadExtL0Op>(loc, dst, srcInfo.tensor, extParams, padExtParams);
+        setCopyDirection(copyOp);
         rewriter.replaceOp(op, dst);
         return success();
     }
@@ -375,7 +389,8 @@ struct ConvertLoadToUBWithTranspose : ConvertOp<asctile::LoadOp> {
         auto params = rewriter.create<ascendc::NdDmaParamsOp>(
             loc, paramsType, dimCount, padValue, copyCount, srcStrides, rewriter.getI32ArrayAttr(dstStrides),
             rewriter.getI32ArrayAttr(padLeft), rewriter.getI32ArrayAttr(padRight));
-        rewriter.create<ascendc::DataCopyNdDmaOp>(loc, dst, srcInfo.tensor, params.getResult(), dimCount);
+        auto copyOp = rewriter.create<ascendc::DataCopyNdDmaOp>(loc, dst, srcInfo.tensor, params.getResult(), dimCount);
+        setCopyDirection(copyOp);
         rewriter.replaceOp(op, dst);
         return success();
     }
@@ -402,7 +417,8 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
             if (dstShape.size() != 1)
                 return op.emitError() << "L1 load must be 1D for bias";
             auto calCount = consts.i32(dstShape[0]);
-            rewriter.create<ascendc::DataCopyL2Op>(loc, dst, srcInfo.tensor, calCount);
+            auto copyOp = rewriter.create<ascendc::DataCopyL2Op>(loc, dst, srcInfo.tensor, calCount);
+            setCopyDirection(copyOp);
             rewriter.replaceOp(op, dst);
             return success();
         }
@@ -435,7 +451,8 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
             auto dn2NzParams = rewriter.create<ascendc::ConstructOp>(
                 loc, rewriter.getType<ascendc::Dn2NzParamsType>(),
                 ValueRange{const1, dValue, nValue, const0, srcInfo.shape[1], dstNzC0Stride, const1, const0}, argTypes);
-            rewriter.create<ascendc::DataCopyL2Op>(loc, dst, srcInfo.tensor, dn2NzParams);
+            auto copyOp = rewriter.create<ascendc::DataCopyL2Op>(loc, dst, srcInfo.tensor, dn2NzParams);
+            setCopyDirection(copyOp);
         } else {
             constexpr int64_t maxSrcDValue = 65535;
             auto dstRowStride = consts.i32(isTransposeBL1 ? dstShape[1] : dstShape[0]);
@@ -463,7 +480,9 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
                 auto nd2NzParams = rewriter.create<ascendc::ConstructOp>(
                     loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
                     ValueRange{const1, const1, dValue, const0, dValue, dstRowStride, const1, const0}, argTypes);
-                rewriter.create<ascendc::DataCopyL2Op>(loc, dstTensorWithOffset, srcTensorWithOffset, nd2NzParams);
+                auto copyOp =
+                    rewriter.create<ascendc::DataCopyL2Op>(loc, dstTensorWithOffset, srcTensorWithOffset, nd2NzParams);
+                setCopyDirection(copyOp, srcInfo.tensor, dst);
                 rewriter.setInsertionPointAfter(forOp);
             }
             {
@@ -478,7 +497,8 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
                     loc, rewriter.getType<ascendc::Nd2NzParamsType>(),
                     ValueRange{const1, nValue, dValue, const0, srcInfo.shape[1], dstNzC0Stride, const1, const0},
                     argTypes);
-                rewriter.create<ascendc::DataCopyL2Op>(loc, dst, srcInfo.tensor, nd2NzParams);
+                auto copyOp = rewriter.create<ascendc::DataCopyL2Op>(loc, dst, srcInfo.tensor, nd2NzParams);
+                setCopyDirection(copyOp);
             }
         }
         auto elemType = dst.getType().getElementType();
@@ -583,11 +603,12 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
         Value srcStride = rewriter.create<arith::DivSIOp>(loc, srcStrideBytes, dataBlockSize);
         Value dstStride = rewriter.create<arith::MulIOp>(loc, dstStrideElements, typeSize);
         auto ui32Type = rewriter.getIntegerType(32, false);
-        auto dataCopyExtParams = rewriter.create<ascendc::ConstructOp>(
+        auto params = rewriter.create<ascendc::ConstructOp>(
             loc, rewriter.getType<ascendc::DataCopyExtParamsType>(),
             ValueRange{blockCount, blockLen, srcStride, dstStride, const0},
             rewriter.getTypeArrayAttr({rewriter.getIntegerType(16, false), ui32Type, ui32Type, ui32Type, ui32Type}));
-        rewriter.replaceOpWithNewOp<ascendc::DataCopyPadExtL2Op>(op, dstInfo.tensor, src, dataCopyExtParams);
+        auto copyOp = rewriter.replaceOpWithNewOp<ascendc::DataCopyPadExtL2Op>(op, dstInfo.tensor, src, params);
+        copyOp.setDirection(ascendc::TPosition::VECCALC, ascendc::TPosition::GM);
         return success();
     }
 };
@@ -627,7 +648,7 @@ struct ConvertStoreHighDims : ConvertOp<asctile::StoreOp> {
         Value srcStride = rewriter.create<arith::DivSIOp>(loc, srcStrideBytes, dataBlockSize);
         Value dstStride = rewriter.create<arith::MulIOp>(loc, dstStrideElements, typeSize);
         auto ui32Type = rewriter.getIntegerType(32, false);
-        auto dataCopyExtParams = rewriter.create<ascendc::ConstructOp>(
+        auto extParams = rewriter.create<ascendc::ConstructOp>(
             loc, rewriter.getType<ascendc::DataCopyExtParamsType>(),
             ValueRange{blockCount, blockLen, srcStride, dstStride, const0},
             rewriter.getTypeArrayAttr({rewriter.getIntegerType(16, false), ui32Type, ui32Type, ui32Type, ui32Type}));
@@ -650,8 +671,8 @@ struct ConvertStoreHighDims : ConvertOp<asctile::StoreOp> {
         Value dim2DstStride =
             rewriter.create<arith::MulIOp>(loc, dim1DstStride, dstInfo.shape[dstInfo.shape.size() - 3]);
 
-        auto dataCopyOp =
-            rewriter.replaceOpWithNewOp<ascendc::DataCopyPadExtL2Op>(op, dstInfo.tensor, src, dataCopyExtParams);
+        auto copyOp = rewriter.replaceOpWithNewOp<ascendc::DataCopyPadExtL2Op>(op, dstInfo.tensor, src, extParams);
+        copyOp.setDirection(ascendc::TPosition::VECCALC, ascendc::TPosition::GM);
         auto ui64Type = rewriter.getIntegerType(64, false);
         auto params = rewriter.create<ascendc::ConstructOp>(
             loc, rewriter.getType<ascendc::LoopModeParamsType>(),
@@ -659,7 +680,7 @@ struct ConvertStoreHighDims : ConvertOp<asctile::StoreOp> {
             rewriter.getTypeArrayAttr({ui32Type, ui32Type, ui64Type, ui64Type, ui64Type, ui64Type}));
         auto setParamsOp = rewriter.create<ascendc::SetLoopModeParaOp>(loc, params, ascendc::DataCopyMVType::UB_TO_OUT);
         rewriter.create<ascendc::ResetLoopModeParaOp>(loc, ascendc::DataCopyMVType::UB_TO_OUT);
-        rewriter.moveOpBefore(setParamsOp, dataCopyOp);
+        rewriter.moveOpBefore(setParamsOp, copyOp);
         rewriter.moveOpBefore(params, setParamsOp);
         return success();
     }
@@ -724,7 +745,8 @@ struct ConvertStoreFixpipe : ConvertOp<asctile::StoreFixpipeOp> {
             ValueRange{consts.i32(static_cast<int32_t>(ascendc::CO2Layout::ROW_MAJOR))}, ArrayAttr{}, true, true);
         auto fixPipeConfig = rewriter.create<ascendc::ConstructOp>(
             loc, rewriter.getType<ascendc::FixpipeConfigType>(), ValueRange{layout}, ArrayAttr{}, true, true);
-        rewriter.replaceOpWithNewOp<ascendc::FixpipeOp>(op, dstInfo.tensor, src, params, fixPipeConfig);
+        auto copyOp = rewriter.replaceOpWithNewOp<ascendc::FixpipeOp>(op, dstInfo.tensor, src, params, fixPipeConfig);
+        copyOp.setDirection(ascendc::TPosition::CO2, ascendc::TPosition::GM);
         return success();
     }
 };
@@ -790,7 +812,8 @@ struct ConvertCopyFixpipe : ConvertOp<asctile::CopyFixpipeOp> {
         Value fixPipeConfig = rewriter.create<ascendc::ConstructOp>(
             loc, rewriter.getType<ascendc::FixpipeConfigType>(), ValueRange{layout, consts.i1(isToUB)}, ArrayAttr{},
             true, true);
-        rewriter.create<ascendc::FixpipeOp>(loc, dst, src, params, fixPipeConfig);
+        auto copyOp = rewriter.create<ascendc::FixpipeOp>(loc, dst, src, params, fixPipeConfig);
+        copyOp.setDirection(ascendc::TPosition::CO2, locationToPosition(dstLoc));
         rewriter.replaceOp(op, dst);
         return success();
     }
@@ -871,7 +894,8 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
             auto dataCopyParams = rewriter.create<ascendc::ConstructOp>(
                 loc, rewriter.getType<ascendc::DataCopyParamsType>(),
                 ValueRange{consts.i32(1), consts.i32(blockLen), consts.i32(0), consts.i32(0)});
-            rewriter.create<ascendc::DataCopyL0Op>(loc, dst, src, dataCopyParams);
+            auto copyOp = rewriter.create<ascendc::DataCopyL0Op>(loc, dst, src, dataCopyParams);
+            setCopyDirection(copyOp);
             rewriter.replaceOp(op, dst);
             return success();
         }
@@ -898,7 +922,8 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
         Value params = buildLoadData2DV2Params(
             rewriter, loc, consts, isTensorA, isTransposeAL0, isTransposeBL0, isTransposeBL1, cubeKBlockSize, srcShape,
             dstShape);
-        rewriter.create<ascendc::LoadDataL0V2Op>(loc, dst, src, params);
+        auto copyOp = rewriter.create<ascendc::LoadDataL0V2Op>(loc, dst, src, params);
+        setCopyDirection(copyOp);
         rewriter.replaceOp(op, dst);
         return success();
     }
@@ -970,8 +995,15 @@ struct LowerAscTileDataTransferPass
             ConvertCopy, ConvertGetValue, ConvertSetValue, ConvertCopyFixpipe, ConvertStoreHighDims
             //
             >(converter, context);
-        if (applyPartialConversion(getOperation(), target, std::move(patterns)).failed())
+        auto op = getOperation();
+        if (applyPartialConversion(op, target, std::move(patterns)).failed())
             signalPassFailure();
+        op.walk([this](ascendc::DataCopyOp op) {
+            if (!op.getDirection()) {
+                op.emitOpError("doesn't have a direction set");
+                signalPassFailure();
+            }
+        });
     }
 };
 
