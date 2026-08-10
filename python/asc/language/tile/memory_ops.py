@@ -55,7 +55,7 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
             Must contain static values (e.g., ``ConstExpr`` or compile-time constants).
         location: The memory location for the destination tensor. Default is ``src.location``.
             Supported location transfers: ``L1`` to ``L0A``, ``L1`` to ``L0B``, ``L1`` to ``BT``, ``L0C`` to ``L1``,
-            ``L0C`` to ``UB``.
+            ``L0C`` to ``UB``, ``UB`` to ``L1``.
 
     Returns:
         LocalTensor: A new tensor that is a copy of the source tensor
@@ -91,6 +91,11 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
 
             result = asc2.matmul(a_l0a, b_l0b)
             result_ub = asc2.copy(result, location=asc2.TensorLocation.UB)
+
+        Alternatively, the ``to`` method can be used to transform the tensor location: ::
+
+            ub_tensor = asc2.copy_in(x_gm, [0], [128], asc2.TensorLocation.UB)
+            l1_tensor = ub_tensor.to(asc2.TensorLocation.L1)
     """
     check_type("src", src, LocalTensor)
     location = src.location if location is None else location
@@ -98,8 +103,10 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
         location = verify_location(location, allow=(TensorLocation.L0A, TensorLocation.L0B, TensorLocation.BT))
     elif src.location == TensorLocation.L0C:
         location = verify_location(location, allow=(TensorLocation.L1, TensorLocation.UB))
+    elif src.location == TensorLocation.UB:
+        location = verify_location(location, allow=TensorLocation.L1)
     else:
-        raise RuntimeError(f"'src' tensor location must be L1 or L0C, got {src.location.name}")
+        raise RuntimeError(f"'src' tensor location must be L1, L0C, or UB, got {src.location.name}")
     if shape is None:
         shape = src.shape
     else:

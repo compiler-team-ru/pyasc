@@ -233,3 +233,36 @@ def test_matmul_add(m, k, n):
     c_ref = a.to(torch.float32) @ b.to(torch.float32)
     res_ref = c_ref + c_ref
     torch.testing.assert_close(c, res_ref, atol=1e-3, rtol=1e-3)
+
+
+@asc2.jit(always_compile=True)
+def matmul_ub_l1_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_ptr: asc2.GlobalAddress,
+                        a_shape: asc2.ConstExpr, b_shape: asc2.ConstExpr, c_shape: asc2.ConstExpr):
+    a_gm = asc2.global_tensor(a_ptr, a_shape)
+    b_gm = asc2.global_tensor(b_ptr, b_shape)
+    c_gm = asc2.global_tensor(c_ptr, c_shape)
+    a_ub = asc2.copy_in(a_gm, [0, 0], a_shape, asc2.TensorLocation.UB)
+    b_ub = asc2.copy_in(b_gm, [0, 0], b_shape, asc2.TensorLocation.UB)
+    a_l1 = a_ub.to(asc2.TensorLocation.L1)
+    b_l1 = b_ub.to(asc2.TensorLocation.L1)
+    a_l0a = a_l1.to(asc2.TensorLocation.L0A)
+    b_l0b = b_l1.to(asc2.TensorLocation.L0B)
+    c = a_l0a @ b_l0b
+    asc2.copy_out(c, c_gm, [0, 0])
+
+
+@pytest.mark.parametrize("m, k, n, dtype", [
+    (16, 16, 16, torch.float16),
+    (16, 32, 16, torch.float16),
+    (16, 64, 16, torch.float16),
+    (256, 32, 256, torch.float16),
+    (16, 16, 16, torch.float32),
+    (16, 32, 16, torch.float32),
+])
+def test_matmul_ub_l1(m, k, n, dtype):
+    a = torch.randn((m, k), dtype=dtype)
+    b = torch.randn((k, n), dtype=dtype)
+    c = torch.zeros((m, n), dtype=torch.float32)
+    matmul_ub_l1_kernel[1](a, b, c, a.shape, b.shape, c.shape)
+    c_ref = a.to(torch.float32) @ b.to(torch.float32)
+    torch.testing.assert_close(c, c_ref, atol=1e-2, rtol=1e-2)

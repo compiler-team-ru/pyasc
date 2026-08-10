@@ -865,10 +865,8 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
         auto opType = op.getType();
         auto dstPos = opType.getLoc();
         if (dstPos != asctile::TensorLocation::L0A && dstPos != asctile::TensorLocation::L0B &&
-            dstPos != asctile::TensorLocation::BT) {
-            op.emitError() << "invalid destination location of the local tensor";
-            return failure();
-        }
+            dstPos != asctile::TensorLocation::BT && dstPos != asctile::TensorLocation::L1)
+            return op.emitOpError("has invalid location of the result tensor");
         auto loc = op.getLoc();
         auto base = op.getBase();
         Value src = rewriter.getRemappedValue(base);
@@ -876,6 +874,46 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
         auto srcShape = base.getType().getShape();
         auto offsets = op.getOffsets();
         ascir::ConstantOpBuilder consts(rewriter);
+        if (dstPos == asctile::TensorLocation::L1) {
+            if (srcShape.size() != 2)
+                return op.emitOpError("only supports 2D tensor");
+            auto srcLoc = base.getType().getLoc();
+            if (srcLoc != asctile::TensorLocation::UB)
+                return op.emitError("L1 destination requires UB source");
+            auto dst = createTensorOp(rewriter, loc, opType, locationToPosition(dstPos)).getResult();
+            auto srcTensorType = cast<ascendc::BaseTensorType>(srcType);
+            auto elemType = srcTensorType.getElementType();
+            int64_t elementSize = ascendc::getElementTypeSize(srcTensorType);
+            int64_t height = srcShape[0];
+            int64_t width = srcShape[1];
+            int64_t cubeKBlockSize = static_cast<int64_t>(cubeKBlockBytes) / elementSize;
+            int64_t colBlocks = width / cubeKBlockSize;
+            int64_t totalElements = height * width;
+            auto const0 = consts.i32(0);
+            auto const1 = consts.i32(1);
+            auto tempUB = createTensorOp(rewriter, loc, {totalElements}, elemType).getResult();
+            auto dataCopyParams = rewriter.create<ascendc::ConstructOp>(
+                loc, rewriter.getType<ascendc::DataCopyParamsType>(),
+                ValueRange{consts.i32(height), const1, consts.i32(colBlocks - 1), const0});
+            auto tempType = cast<ascendc::BaseTensorType>(tempUB.getType());
+            auto forOp = rewriter.create<scf::ForOp>(loc, const0, consts.i32(colBlocks), const1);
+            {
+                ConvertRewriter::InsertionGuard guard(rewriter);
+                rewriter.setInsertionPointToStart(forOp.getBody());
+                auto colIdx = forOp.getInductionVar();
+                auto srcOffset = rewriter.create<arith::MulIOp>(loc, colIdx, consts.i32(cubeKBlockSize));
+                auto srcView = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcTensorType, src, srcOffset);
+                auto dstOffset = rewriter.create<arith::MulIOp>(loc, colIdx, consts.i32(height * cubeKBlockSize));
+                auto dstView = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, tempType, tempUB, dstOffset);
+                auto innerCopyOp = rewriter.create<ascendc::DataCopyL2Op>(loc, dstView, srcView, dataCopyParams);
+                innerCopyOp.setDirection(ascendc::TPosition::VECCALC, ascendc::TPosition::VECCALC);
+            }
+            rewriter.setInsertionPointAfter(forOp);
+            auto outerCopyOp = rewriter.create<ascendc::DataCopyL2Op>(loc, dst, tempUB, consts.i32(totalElements));
+            setCopyDirection(outerCopyOp);
+            rewriter.replaceOp(op, dst);
+            return success();
+        }
         if (dstPos == asctile::TensorLocation::BT) {
             auto srcLoc = base.getType().getLoc();
             if (srcLoc != asctile::TensorLocation::L1) {
