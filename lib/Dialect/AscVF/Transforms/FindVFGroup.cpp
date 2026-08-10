@@ -56,8 +56,8 @@ bool isFusible(Operation* op)
         ascendc::AbsL2Op, ascendc::ExpL2Op, ascendc::LnL2Op, ascendc::NegL2Op, ascendc::NotL2Op, ascendc::ReluL2Op,
         ascendc::SqrtL2Op,
         // Vector scalar operations (L2)
-        ascendc::AddsL2Op, ascendc::MulsL2Op, ascendc::MaxsL2Op, ascendc::MinsL2Op, ascendc::LeakyReluL2Op,
-        ascendc::ShiftLeftL2Op, ascendc::ShiftRightL2Op>(op);
+        ascendc::AddsL2Op, ascendc::MulsL2Op, ascendc::SubsL2Op, ascendc::DivsL2Op, ascendc::MaxsL2Op,
+        ascendc::MinsL2Op, ascendc::LeakyReluL2Op, ascendc::ShiftLeftL2Op, ascendc::ShiftRightL2Op>(op);
 }
 
 Value getCalCount(Operation* op)
@@ -206,42 +206,12 @@ ascvf::VFGroupOp wrapInVFGroupOp(OpGroup& group)
     return fusedOp;
 }
 
-bool belong(Block* block, Block* parentBlock, DominanceInfo& di)
-{
-    assert(block && parentBlock);
-    auto* commonBlock = di.findNearestCommonDominator(block, parentBlock);
-    return commonBlock == parentBlock;
-}
-
-void eraseUnusedOutputs(ascvf::VFGroupOp groupOp, MutableOperandRange outputs)
-{
-    SmallVector<unsigned> deleted;
-    DominanceInfo di;
-    for (auto& opnd : outputs) {
-        auto users = opnd.get().getUsers();
-        Block* body = groupOp.getBody();
-        bool usesInsideBlock = llvm::all_of(users, [&](Operation* use) {
-            return belong(use->getBlock(), body, di) || use == groupOp || ascendc::opPrecedes(use, groupOp, di);
-        });
-        if (usesInsideBlock) {
-            // insert indices in ascending order
-            deleted.emplace_back(opnd.getOperandNumber());
-        }
-    }
-    while (!deleted.empty()) {
-        // delete indices in descending order
-        outputs.erase(deleted.back());
-        deleted.pop_back();
-    }
-}
-
 struct FindVFGroupPass : public ascvf::impl::FindVFGroupBase<FindVFGroupPass> {
     void runOnOperation() override
     {
         func::FuncOp funcOp = getOperation();
         for (auto& group : findOperationGroups(funcOp.getRegion())) {
-            auto fusedOp = wrapInVFGroupOp(group);
-            eraseUnusedOutputs(fusedOp, fusedOp.getDstListMutable());
+            wrapInVFGroupOp(group);
         }
     }
 };

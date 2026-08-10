@@ -19,10 +19,12 @@ namespace ascvf {
 #define GEN_PASS_DECL
 #include "ascir/Dialect/AscVF/Transforms/Passes.h.inc"
 
+std::unique_ptr<Pass> createDispatchHoistPass();
 std::unique_ptr<Pass> createEliminateCommonMaskPass();
 std::unique_ptr<Pass> createEliminateDataTransferPass();
 std::unique_ptr<Pass> createFindVFGroupPass();
 std::unique_ptr<Pass> createFuseVFForPass();
+std::unique_ptr<Pass> createHoistLoopInvariantPass();
 std::unique_ptr<Pass> createInsertLocalMemBarPass();
 std::unique_ptr<Pass> createLowerToRegPass();
 std::unique_ptr<Pass> createMaterializeLoadStorePass();

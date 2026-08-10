@@ -179,7 +179,9 @@ void defineAscVFPasses(py::module& mod)
     using namespace ascvf;
     using namespace pybind11::literals;
     auto m = mod.def_submodule("ascvf");
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_dispatch_hoist", createDispatchHoistPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_eliminate_common_mask", createEliminateCommonMaskPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_hoist_loop_invariant", createHoistLoopInvariantPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_eliminate_data_transfer", createEliminateDataTransferPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_find_vf_group", createFindVFGroupPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_fuse_vf_for", createFuseVFForPass);

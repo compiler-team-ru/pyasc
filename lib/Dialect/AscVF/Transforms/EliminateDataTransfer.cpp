@@ -10,10 +10,12 @@
 
 #include "ascir/Dialect/AscVF/IR/AscVF.h"
 #include "ascir/Dialect/AscVF/Transforms/Passes.h"
+#include "ascir/Dialect/AscVF/Utils/Utils.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/Utils/Utils.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/IR/Dominance.h"
 
 namespace mlir {
 namespace ascvf {
@@ -43,6 +45,16 @@ SmallVector<SmallVector<Operation*>> collectLoadStoreOpsByBlock(ascvf::VFGroupOp
     return loadStoreGroups;
 }
 
+// Optimization work in the same block
+// Before:                           | After:
+// Reg r0                            | Reg r0
+// Reg r1                            | Reg r1
+// for(...) {                        | for(...) {
+//   op1(r0)                         |   op1(r0)
+//   store local_tensor0[offset], r0 |   store local_tensor0[offset], r0
+//   load r1, local_tensor0[offset]  |   op2(r0)
+//   op2(r1)                         | }
+// }                                 |
 void eliminateRedundantLoadsAfterStores(ascvf::VFGroupOp groupOp)
 {
     auto loadStoreGroups = collectLoadStoreOpsByBlock(groupOp);
@@ -65,6 +77,61 @@ void eliminateRedundantLoadsAfterStores(ascvf::VFGroupOp groupOp)
                         loadOp.getDstReg().replaceAllUsesWith(lastStoredReg);
                         loadOp->erase();
                     }
+                }
+            }
+        }
+    }
+}
+
+SmallVector<ascvf::VFForOp> getLoops(ascvf::VFGroupOp groupOp)
+{
+    SmallVector<ascvf::VFForOp> loops;
+    groupOp.walk([&](ascvf::VFForOp forOp) { loops.emplace_back(forOp); });
+    return loops;
+}
+
+ValueMap<Operation*> getDstMap(ascvf::VFGroupOp groupOp)
+{
+    ValueMap<Operation*> dstMap;
+    groupOp.walk([&](Operation* op) {
+        for (auto dst : ascvf::getDst(op))
+            dstMap[dst] = op;
+    });
+    return dstMap;
+}
+
+// Before: (Ex. duplicate)                 | After:
+// Reg r0                                  | Reg r0
+// for(i < ub1) {                          | for(i < ub1) {
+//   store local_tensor0[offset], r0       |   store local_tensor0[offset], r0
+// }                                       | }
+// for(i < ub2) {                          | for(i < ub2) {
+//   Reg r1 = load local_tensor0[offset]   |   compute(r0)
+//   compute(r1)                           | }
+// }                                       |
+// TODO: We can apply optimize if sure that local_tensor contains repeated value (ub2 >= ub1 && store with linear access
+// with full mask)
+void replaceIdenticalLoads(ascvf::VFGroupOp groupOp)
+{
+    auto dstMap = getDstMap(groupOp);
+    ValueMap<Value> storesOfScalarValue;
+    DominanceInfo di;
+    for (auto forOp : getLoops(groupOp)) {
+        for (auto& op : llvm::make_early_inc_range(forOp)) {
+            if (auto storeOp = dyn_cast<ascvf::StoreOp>(op)) {
+                auto srcReg = storeOp.getSrcReg();
+                if (dstMap.count(srcReg) && ascvf::belong(storeOp->getBlock(), dstMap[srcReg]->getBlock(), di) &&
+                    storeOp->getBlock() != dstMap[srcReg]->getBlock()) {
+                    storesOfScalarValue[storeOp.getDstTensor()] = srcReg;
+                    storeOp.erase();
+                } else {
+                    storesOfScalarValue.erase(storeOp.getDstTensor());
+                }
+            } else if (auto loadOp = dyn_cast<ascvf::LoadOp>(op)) {
+                auto dstReg = loadOp.getDstReg();
+                if (storesOfScalarValue.count(loadOp.getSrcTensor())) {
+                    dstReg.replaceAllUsesWith(storesOfScalarValue[loadOp.getSrcTensor()]);
+                    loadOp.erase();
                 }
             }
         }
@@ -144,6 +211,7 @@ struct EliminateDataTransferPass : public ascvf::impl::EliminateDataTransferBase
             eliminateRedundantLoadsAfterStores(vfGroupOp);
             eliminateOverwrittenStores(vfGroupOp);
             mergeDuplicateLoadsFromSameAddress(vfGroupOp);
+            replaceIdenticalLoads(vfGroupOp);
         });
     }
 };

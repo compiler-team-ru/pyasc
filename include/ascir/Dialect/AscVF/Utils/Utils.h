@@ -12,11 +12,16 @@
 #define ASCIR_DIALECT_ASCVF_UTILS_UTILS_H
 
 #include "ascir/Dialect/Utils/Utils.h"
+#include "mlir/IR/Dominance.h"
 
 namespace mlir {
 namespace ascvf {
 
 ValueVector deduplicate(ArrayRef<Value> values);
+
+ValueVector getDst(Operation* op);
+
+bool belong(Block* block, Block* parentBlock, DominanceInfo& di);
 
 } // namespace ascvf
 } // namespace mlir
