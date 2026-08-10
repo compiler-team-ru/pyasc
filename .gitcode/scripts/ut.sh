@@ -37,9 +37,12 @@ main(){
     #########
     # install #
     #########
+    export ASCEND_HOME_PATH=/home/jenkins/Ascend/cann
     source /home/jenkins/Ascend/cann/bin/setenv.bash
     export LLVM_INSTALL_PREFIX=/home/jenkins/opensource/llvm
+
     export LD_LIBRARY_PATH="${ASCEND_HOME_PATH}/tools/simulator/Ascend910B1/lib:${LD_LIBRARY_PATH:-}"
+    ln -sf /opt/buildtools/python-3.10.2/bin/coverage /usr/local/bin/coverage || { echo "Failed to ln coverage"; exit 1; }
 
     set +e
     local obs_base="https://ascend-ci.obs.cn-north-4.myhuaweicloud.com/${obs_path}/cann-pyasc_linux-x86_64_ubuntu24.whl"
@@ -64,7 +67,9 @@ main(){
             exit 0
         fi
     elif [[ "${ut_type}" == "cpp" ]]; then
+        export PATH="/opt/buildtools/python-3.10.2/bin:${PATH}"
         export LIT_INSTALL_PATH="$(dirname "$(dirname "$(which lit)")")"
+        echo $LIT_INSTALL_PATH
         LOG_DO bash build_llt.sh --cov --check-ascir --llvm_install_path "${LLVM_INSTALL_PREFIX}" --lit_install_path "${LIT_INSTALL_PATH}" -f "${WORKSPACE}/pr_filelist.txt"
         ret=$?
         if [[ ${ret} -eq 200 ]]; then
