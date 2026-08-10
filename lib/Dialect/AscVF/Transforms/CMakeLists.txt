@@ -7,7 +7,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 add_mlir_dialect_library(MLIRAscVFTransforms
-  DispatchHoist.cpp  
+  DispatchHoist.cpp
   EliminateCommonMask.cpp
   HoistLoopInvariant.cpp
   EliminateDataTransfer.cpp
