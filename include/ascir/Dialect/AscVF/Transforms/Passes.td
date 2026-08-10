@@ -13,6 +13,16 @@
 
 include "mlir/Pass/PassBase.td"
 
+def DispatchHoist : Pass<"ascvf-dispatch-hoist", "func::FuncOp"> {
+  let summary = "Run eliminate-data-transfer and hoist-loop-invariant passes twice in sequence";
+  let description = [{
+    Orchestrates a two-pass optimization pipeline that eliminates redundant data
+    transfers and hoists loop-invariant operations. The pipeline runs twice to
+    maximize optimization opportunities.
+  }];
+  let constructor = "mlir::ascvf::createDispatchHoistPass()";
+}
+
 def EliminateCommonMask : Pass<"ascvf-eliminate-common-mask", "func::FuncOp"> {
   let summary = "Eliminates duplicate mask operations within VFGroupOp";
   let description = [{
@@ -21,7 +31,6 @@ def EliminateCommonMask : Pass<"ascvf-eliminate-common-mask", "func::FuncOp"> {
     deleting the duplicates.
   }];
   let constructor = "mlir::ascvf::createEliminateCommonMaskPass()";
-  let dependentDialects = ["ascendc::AscendCDialect", "ascvf::AscVFDialect"];
 }
 
 def EliminateDataTransfer : Pass<"ascvf-eliminate-data-transfer", "func::FuncOp"> {
@@ -32,7 +41,6 @@ def EliminateDataTransfer : Pass<"ascvf-eliminate-data-transfer", "func::FuncOp"
     overwritten, and merges repeated loads from the same memory location.
   }];
   let constructor = "mlir::ascvf::createEliminateDataTransferPass()";
-  let dependentDialects = ["emitasc::EmitAscDialect", "ascvf::AscVFDialect"];
 }
 
 def FindVFGroup : Pass<"ascvf-find-vf-group", "func::FuncOp"> {
@@ -43,7 +51,7 @@ def FindVFGroup : Pass<"ascvf-find-vf-group", "func::FuncOp"> {
     operations for subsequent vector fusion optimization.
   }];
   let constructor = "mlir::ascvf::createFindVFGroupPass()";
-  let dependentDialects = ["ascendc::AscendCDialect", "ascvf::AscVFDialect"];
+  let dependentDialects = ["ascvf::AscVFDialect"];
 }
 
 def FuseVFFor : Pass<"ascvf-fuse-vf-for", "func::FuncOp"> {
@@ -53,7 +61,16 @@ def FuseVFFor : Pass<"ascvf-fuse-vf-for", "func::FuncOp"> {
     subsequent loops into the first loop, reducing loop overhead.
   }];
   let constructor = "mlir::ascvf::createFuseVFForPass()";
-  let dependentDialects = ["ascvf::AscVFDialect"];
+}
+
+def HoistLoopInvariant : Pass<"ascvf-hoist-loop-invariant-pass", "func::FuncOp"> {
+  let summary = "Hoist loop-invariant operations out of VFForOp loop bodies";
+  let description = [{
+    Moves operations that don't depend on the loop induction variable and have no
+    memory side effects out of VFForOp loop bodies. This reduces redundant
+    computation by executing invariant operations once before the loop.
+  }];
+  let constructor = "mlir::ascvf::createHoistLoopInvariantPass()";
 }
 
 def InsertLocalMemBar : Pass<"ascvf-insert-local-mem-bar", "func::FuncOp"> {
@@ -64,7 +81,7 @@ def InsertLocalMemBar : Pass<"ascvf-insert-local-mem-bar", "func::FuncOp"> {
     proper memory ordering for vector fusion execution.
   }];
   let constructor = "mlir::ascvf::createInsertLocalMemBarPass()";
-  let dependentDialects = ["ascvf::AscVFDialect"];
+  let dependentDialects = ["ascendc::AscendCDialect"];
 }
 
 def LowerToReg : Pass<"ascvf-lower-to-reg", "func::FuncOp"> {
@@ -75,7 +92,10 @@ def LowerToReg : Pass<"ascvf-lower-to-reg", "func::FuncOp"> {
     register tensors, and inserting load/store micro operations.
   }];
   let constructor = "mlir::ascvf::createLowerToRegPass()";
-  let dependentDialects = ["ascendc::AscendCDialect", "emitasc::EmitAscDialect", "ascvf::AscVFDialect"];
+  let dependentDialects = [
+    "arith::ArithDialect", "ascendc::AscendCDialect", "ascvf::AscVFDialect", "emitasc::EmitAscDialect",
+    "scf::SCFDialect"
+  ];
 }
 
 def MaterializeLoadStore : Pass<"ascvf-materialize-load-store", "func::FuncOp"> {
@@ -86,7 +106,7 @@ def MaterializeLoadStore : Pass<"ascvf-materialize-load-store", "func::FuncOp"> 
     DataCopyLoadOp/DataCopyStoreOp operations.
   }];
   let constructor = "mlir::ascvf::createMaterializeLoadStorePass()";
-  let dependentDialects = ["ascendc::AscendCDialect", "emitasc::EmitAscDialect", "ascvf::AscVFDialect"];
+  let dependentDialects = ["ascendc::AscendCDialect", "emitasc::EmitAscDialect"];
 }
 
 def ReorderOpsInVecScope : Pass<"ascvf-reorder-ops-in-vec-scope", "func::FuncOp"> {
@@ -97,7 +117,6 @@ def ReorderOpsInVecScope : Pass<"ascvf-reorder-ops-in-vec-scope", "func::FuncOp"
     beginning in a specific order for better code generation.
   }];
   let constructor = "mlir::ascvf::createReorderOpsInVecScopePass()";
-  let dependentDialects = ["ascendc::AscendCDialect", "arith::ArithDialect", "emitasc::EmitAscDialect", "ascvf::AscVFDialect"];
 }
 
 #endif // ASCVF_PASSES_TD

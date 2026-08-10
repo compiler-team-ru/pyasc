@@ -8,8 +8,12 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#include "ascir/Dialect/Asc/IR/Asc.h"
+#include "ascir/Dialect/AscVF/IR/AscVF.h"
 #include "ascir/Dialect/AscVF/Utils/Utils.h"
 
+#include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "llvm/ADT/TypeSwitch.h"
 namespace mlir {
 namespace ascvf {
 ValueVector deduplicate(ArrayRef<Value> values)
@@ -25,5 +29,23 @@ ValueVector deduplicate(ArrayRef<Value> values)
     }
     return result;
 }
+
+ValueVector getDst(Operation* op)
+{
+    return llvm::TypeSwitch<Operation*, ValueVector>(op)
+        .Case<
+            ascvf::LoadOp, ascendc::BinaryRegOp, ascendc::UnaryRegOp, ascendc::VecScalarRegOp, ascendc::ReduceMaxRegOp,
+            ascendc::ReduceMinRegOp, ascendc::ReduceSumRegOp, ascendc::DuplicateRegOp>(
+            [](auto op) { return ValueVector{op.getDstReg()}; })
+        .Default([](Operation* op) { return ValueVector{op->getResults()}; });
+}
+
+bool belong(Block* block, Block* parentBlock, DominanceInfo& di)
+{
+    assert(block && parentBlock);
+    auto* commonBlock = di.findNearestCommonDominator(block, parentBlock);
+    return commonBlock == parentBlock;
+}
+
 } // namespace ascvf
 } // namespace mlir

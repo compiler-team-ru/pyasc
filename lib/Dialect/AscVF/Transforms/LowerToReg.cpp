@@ -121,13 +121,14 @@ public:
             auto calCountVar = builder.create<emitasc::VariableOp>(
                 builder.getUnknownLoc(), MemRefType::get(1, builder.getIntegerType(32U, false)), calCount);
             auto repeatTimes = createRepeatTimes(builder);
+            auto maskAll = createMask(builder, elemType, ascendc::MaskPattern::ALL);
             auto loop = createLoop(builder, repeatTimes);
             builder.setInsertionPointToStart(loop.getBody());
             auto updateMask = createUpdateMask(builder, calCountVar.getResult(), elemType);
             auto mulOp = builder.create<arith::MulIOp>(builder.getUnknownLoc(), loop.getInductionVar(), oneRepeatSize);
             createLoad(builder, src0Reg, binaryOp.getSrc0(), mulOp);
             createLoad(builder, src1Reg, binaryOp.getSrc1(), mulOp);
-            builder.create<T>(builder.getUnknownLoc(), dstReg, src0Reg, src1Reg, updateMask.getResult());
+            builder.create<T>(builder.getUnknownLoc(), dstReg, src0Reg, src1Reg, maskAll);
             createStore(builder, binaryOp.getDst(), dstReg, mulOp, updateMask.getResult());
 
             binaryOp.erase();
@@ -146,12 +147,13 @@ public:
             auto calCountVar = builder.create<emitasc::VariableOp>(
                 builder.getUnknownLoc(), MemRefType::get(1, builder.getIntegerType(32U, false)), calCount);
             auto repeatTimes = createRepeatTimes(builder);
+            auto maskAll = createMask(builder, elemType, ascendc::MaskPattern::ALL);
             auto loop = createLoop(builder, repeatTimes);
             builder.setInsertionPointToStart(loop.getBody());
             auto updateMask = createUpdateMask(builder, calCountVar.getResult(), elemType);
             auto mulOp = builder.create<arith::MulIOp>(builder.getUnknownLoc(), loop.getInductionVar(), oneRepeatSize);
             createLoad(builder, srcReg, unaryOp.getSrc(), mulOp);
-            builder.create<T>(builder.getUnknownLoc(), dstReg, srcReg, updateMask.getResult());
+            builder.create<T>(builder.getUnknownLoc(), dstReg, srcReg, maskAll);
             createStore(builder, unaryOp.getDst(), dstReg, mulOp, updateMask.getResult());
 
             unaryOp.erase();
@@ -182,6 +184,33 @@ public:
         };
     }
 
+    template <typename T>
+    auto vecScalarWithDuplicate()
+    {
+        return [&](ascendc::VecScalarL2Op vecScalarOp) {
+            OpBuilder builder(vecScalarOp);
+            ascir::ConstantOpBuilder consts(builder);
+            auto srcReg = createRegTensor(builder, elemType);
+            auto dupReg = createRegTensor(builder, elemType);
+            auto dstReg = createRegTensor(builder, elemType);
+
+            auto calCountVar = builder.create<emitasc::VariableOp>(
+                builder.getUnknownLoc(), MemRefType::get(1, builder.getIntegerType(32U, false)), calCount);
+            auto repeatTimes = createRepeatTimes(builder);
+            auto maskAll = createMask(builder, elemType, ascendc::MaskPattern::ALL);
+            auto loop = createLoop(builder, repeatTimes);
+            builder.setInsertionPointToStart(loop.getBody());
+            auto updateMask = createUpdateMask(builder, calCountVar.getResult(), elemType);
+            auto mulOp = builder.create<arith::MulIOp>(builder.getUnknownLoc(), loop.getInductionVar(), oneRepeatSize);
+            createLoad(builder, srcReg, vecScalarOp.getSrc(), mulOp);
+            builder.create<ascendc::DuplicateRegOp>(builder.getUnknownLoc(), dupReg, vecScalarOp.getScalar(), maskAll);
+            builder.create<T>(builder.getUnknownLoc(), dstReg, srcReg, dupReg, maskAll);
+            createStore(builder, vecScalarOp.getDst(), dstReg, mulOp, updateMask.getResult());
+
+            vecScalarOp.erase();
+        };
+    }
+
     template <typename ReduceL2Op, typename AccumulateRegOp, typename ReduceRegOp>
     auto reduce()
     {
@@ -202,7 +231,7 @@ public:
             auto loop = createLoop(builder, repeatTimes);
             builder.setInsertionPoint(loop);
             builder.setInsertionPointToStart(loop.getBody());
-            auto updateMask = createUpdateMask(builder, calCountVar.getResult(), elemType);
+            createUpdateMask(builder, calCountVar.getResult(), elemType);
             auto mulOp = builder.create<arith::MulIOp>(builder.getUnknownLoc(), loop.getInductionVar(), oneRepeatSize);
             createLoad(builder, srcReg, reduceOp.getSrc(), mulOp);
             builder.create<AccumulateRegOp>(builder.getUnknownLoc(), accReg, accReg, srcReg, maskAll);
@@ -319,13 +348,16 @@ void lowerToMicro(ascvf::VecScopeOp vecScopeOp, Value calCount, Type groupType)
             .Case<ascendc::ReluL2Op>(factory.unary<ascendc::ReluRegOp>())
             .Case<ascendc::SqrtL2Op>(factory.unary<ascendc::SqrtRegOp>())
             // VecScalarOp
-            .Case<ascendc::AddsL2Op>(factory.vecScalar<ascendc::AddsRegOp>())
             .Case<ascendc::LeakyReluL2Op>(factory.vecScalar<ascendc::LeakyReluRegOp>())
-            .Case<ascendc::MaxsL2Op>(factory.vecScalar<ascendc::MaxsRegOp>())
-            .Case<ascendc::MinsL2Op>(factory.vecScalar<ascendc::MinsRegOp>())
-            .Case<ascendc::MulsL2Op>(factory.vecScalar<ascendc::MulsRegOp>())
             .Case<ascendc::ShiftLeftL2Op>(factory.vecScalar<ascendc::ShiftLeftsRegOp>())
-            .Case<ascendc::ShiftRightL2Op>(factory.vecScalar<ascendc::ShiftRightsRegOp>());
+            .Case<ascendc::ShiftRightL2Op>(factory.vecScalar<ascendc::ShiftRightsRegOp>())
+            // VecScalarWithDuplicate
+            .Case<ascendc::AddsL2Op>(factory.vecScalarWithDuplicate<ascendc::AddRegOp>())
+            .Case<ascendc::DivsL2Op>(factory.vecScalarWithDuplicate<ascendc::DivRegOp>())
+            .Case<ascendc::MaxsL2Op>(factory.vecScalarWithDuplicate<ascendc::MaxRegOp>())
+            .Case<ascendc::MinsL2Op>(factory.vecScalarWithDuplicate<ascendc::MinRegOp>())
+            .Case<ascendc::MulsL2Op>(factory.vecScalarWithDuplicate<ascendc::MulRegOp>())
+            .Case<ascendc::SubsL2Op>(factory.vecScalarWithDuplicate<ascendc::SubRegOp>());
     });
 }
 

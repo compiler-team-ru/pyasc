@@ -83,7 +83,7 @@ def ReduceMinRegOp : RegOp<"reduce_min_reg", "ReduceMin"> {
 }
 
 def DuplicateRegOp : RegOp<"duplicate_reg", "Duplicate"> {
-  let arguments = (ins AscendC_RegTensor:$dstReg, AscendC_RegTensor:$srcReg, AscendC_MaskReg:$maskReg);
+  let arguments = (ins AscendC_RegTensor:$dstReg, AnyType:$srcReg, AscendC_MaskReg:$maskReg);
 }
 
 def DuplicateScalarRegOp : AscendC_Op<"duplicate", []> {
@@ -116,7 +116,7 @@ def DataCopyStoreOp : RegOp<"data_copy_vst_reg", "DataCopy"> {
 def UpdateMaskOp : RegOp<"update_mask", "UpdateMask"> {
   let summary = "Update reg mask";
   let comment = "The mask is updated on every iteration to match the total count";
-  let arguments = (ins AnyRankedOrUnrankedMemRef:$count, TypeAttr:$type);
+  let arguments = (ins Arg<AnyRankedOrUnrankedMemRef, "counter", [MemWrite, MemRead]>:$count, TypeAttr:$type);
   let results = (outs AscendC_MaskReg:$maskReg);
   let assemblyFormat = [{
     $type `,` $count attr-dict `:` type($count)
@@ -129,6 +129,7 @@ def RegTensorOp : RegOp<"reg_tensor", "RegTensor"> {
   let assemblyFormat = [{
     attr-dict `:` type($result)
   }];
+  let hasCanonicalizeMethod = 1;
 }
 
 def LocalMemBarOp : RegOp<"local_mem_bar", "LocalMemBar"> {
