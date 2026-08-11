@@ -21,28 +21,31 @@ include "mlir/Interfaces/ViewLikeInterface.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 
-class AscVF_Op<string mnemonic, list<Trait> traits = []>
-    : Op<AscVF_Dialect, mnemonic, traits> {
+class AscVF_Op<string mnemonic, list<Trait> traits = []> : Op<AscVF_Dialect, mnemonic, traits> {
   let cppNamespace = "::mlir::ascvf";
 }
 
 def LoadOp : AscVF_Op<"load"> {
   let description = "Load RegTensor from LocalTensor";
   let arguments = (ins AnyType:$dstReg, AnyType:$srcTensor, AnyType:$offset);
-  let assemblyFormat = "$dstReg `,` $srcTensor `[` $offset `]` attr-dict `:` type($dstReg) `,` type($srcTensor) `,` type($offset)";
+  let assemblyFormat = [{
+    $dstReg `,` $srcTensor `[` $offset `]` attr-dict `:` type($dstReg) `,` type($srcTensor) `,` type($offset)
+  }];
   let hasVerifier = 1;
 }
 
 def StoreOp : AscVF_Op<"store"> {
   let description = "Store RegTensor to LocalTensor";
   let arguments = (ins AnyType:$dstTensor, AnyType:$offset, AnyType:$srcReg, AnyType:$mask);
-  let assemblyFormat = "$dstTensor `[` $offset `]` `,` $srcReg `,` $mask attr-dict `:` type($dstTensor) `,` type($offset) `,` type($srcReg) `,` type($mask)";
+  let assemblyFormat = [{
+    $dstTensor `[` $offset `]` `,` $srcReg `,` $mask attr-dict `:` type($dstTensor) `,` type($offset) `,` type($srcReg)
+    `,` type($mask)
+  }];
   let hasVerifier = 1;
 }
 
-def VFGroupOp
-    : AscVF_Op<"vf_group",
-                 [SingleBlockImplicitTerminator<"::mlir::ascvf::YieldOp">, AttrSizedOperandSegments]> {
+def VFGroupOp : AscVF_Op<"vf_group",
+                         [SingleBlockImplicitTerminator<"::mlir::ascvf::YieldOp">, AttrSizedOperandSegments]> {
   let summary = "block with fused operations";
   let arguments = (ins Variadic<AnyType>:$dstList, Variadic<AnyType>:$srcList, AnyType:$calCount);
   let regions = (region SizedRegion<1> : $region);
@@ -52,10 +55,8 @@ def VFGroupOp
   }];
 }
 
-def VFForOp : AscVF_Op<"vf_for", [
-  AutomaticAllocationScope, SingleBlockImplicitTerminator<"::mlir::ascvf::YieldOp">,
-  RecursivelySpeculatable, RecursiveMemoryEffects
-]> {
+def VFForOp : AscVF_Op<"vf_for", [AutomaticAllocationScope, SingleBlockImplicitTerminator<"::mlir::ascvf::YieldOp">,
+                                  RecursivelySpeculatable, RecursiveMemoryEffects]> {
   let arguments = (ins AnySignlessIntegerOrIndex:$upperBound);
   let regions = (region SizedRegion<1>:$region);
 
@@ -75,9 +76,7 @@ def VFForOp : AscVF_Op<"vf_for", [
   let hasVerifier = 1;
 }
 
-def VecScopeOp
-    : AscVF_Op<"vec_scope",
-                 [SingleBlockImplicitTerminator<"::mlir::ascvf::YieldOp">]> {
+def VecScopeOp : AscVF_Op<"vec_scope", [SingleBlockImplicitTerminator<"::mlir::ascvf::YieldOp">]> {
   let regions = (region SizedRegion<1> : $region);
   let assemblyFormat = "$region attr-dict";
 }

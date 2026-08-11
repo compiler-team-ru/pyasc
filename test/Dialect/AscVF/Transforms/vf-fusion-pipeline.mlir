@@ -17,22 +17,22 @@
 // CHECK:       %13 = ascendc.get_vec_len : index
 // CHECK:       %14 = arith.divsi %13, %c4 : index
 // CHECK:       %15 = arith.index_cast %c256_i32 : i32 to index
-// CHECK:       %16 = emitasc.variable %15 : index, memref<1xui32>
-// CHECK:       %17 = arith.ceildivsi %15, %14 : index
+// CHECK:       %16 = arith.ceildivsi %15, %14 : index
+// CHECK:       %17 = emitasc.variable %15 : index, memref<1xui32>
 // CHECK:       %18 = emitasc.variable %15 : index, memref<1xui32>
-// CHECK:       ascvf.vf_for %17 : index {
+// CHECK:       ascvf.vf_for %16 : index {
 // CHECK:       ^bb0(%arg1: index):
 // CHECK:         %19 = arith.muli %arg1, %14 : index
-// CHECK:         %20 = ascendc.update_mask f32, %16 : memref<1xui32>
+// CHECK:         %20 = ascendc.update_mask f32, %17 : memref<1xui32>
 // CHECK:         %21 = emitasc.ptr_offset %3[%19] : memref<f32, 26>, memref<f32, 26>
-// CHECK:         ascendc.data_copy_vld_reg %6, %21 : !ascendc.reg_tensor<f32>, memref<f32, 26>
+// CHECK:         ascendc.data_copy_vld_reg %[[INP:.+]], %21 : !ascendc.reg_tensor<f32>, memref<f32, 26>
 // CHECK:         %22 = emitasc.ptr_offset %4[%19] : memref<f32, 26>, memref<f32, 26>
 // CHECK:         ascendc.data_copy_vld_reg %7, %22 : !ascendc.reg_tensor<f32>, memref<f32, 26>
-// CHECK:         ascendc.add_reg %8, %6, %7, %12 : !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK:         ascendc.add_reg %[[ADD:.+]], %[[INP]], %7, %12 : !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
 // CHECK:         %23 = arith.muli %arg1, %14 : index
-// CHECK:         ascendc.mul_reg %11, %8, %7, %12 : !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK:         ascendc.mul_reg %[[MUL:.+]], %[[ADD]], %7, %12 : !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
 // CHECK:         %24 = emitasc.ptr_offset %5[%23] : memref<f32, 26>, memref<f32, 26>
-// CHECK:         ascendc.data_copy_vst_reg %24, %11, %20 : memref<f32, 26>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK:         ascendc.data_copy_vst_reg %24, %[[MUL]], %20 : memref<f32, 26>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
 // CHECK:       }
 // CHECK:     }
 // CHECK:   } {operandSegmentSizes = array<i32: 1, 2, 1>}
