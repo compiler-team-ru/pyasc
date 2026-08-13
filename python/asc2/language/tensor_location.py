@@ -9,7 +9,7 @@
 from typing import Literal, Union
 from typing_extensions import TypeAlias
 
-from ..._C import ir
+from asc._C import ir
 
 TensorLocation: TypeAlias = ir.asctile_TensorLocation
 TensorLocation.__name__ = "TensorLocation"

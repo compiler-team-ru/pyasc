@@ -9,11 +9,12 @@
 from numbers import Real
 from typing import Optional, Tuple, Union, overload
 
-from ..._C import ir
-from ..core.dtype import DataType, KnownTypes as KT
-from ..core.ir_value import PlainValue, RuntimeInt, RuntimeNumeric
-from ..core.tensor import TensorShape
-from ..core.utils import global_builder
+from asc._C import ir
+from asc.language.core.dtype import DataType, KnownTypes as KT
+from asc.language.core.ir_value import PlainValue, RuntimeInt, RuntimeNumeric
+from asc.language.core.tensor import TensorShape
+from asc.language.core.utils import allow_jit, global_builder
+
 from .local_tensor import BinaryOperandTypeError, LocalTensor
 from .tensor_location import TensorLocation
 from .validation import check_dtype, check_type, verify_location
@@ -29,6 +30,7 @@ def ceildiv(x: RuntimeInt, y: RuntimeInt) -> PlainValue:
     ...
 
 
+@allow_jit
 def ceildiv(x: RuntimeInt, y: RuntimeInt) -> RuntimeInt:
     """
     Compute ceiling division of two integers.

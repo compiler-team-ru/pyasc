@@ -50,18 +50,18 @@ __all__ += [
     "set_platform",
 ]
 
-from asc.language.tile.global_tensor import GlobalTensor, global_tensor
-from asc.language.tile.local_tensor import LocalTensor, RoundMode, TensorLocation
-from asc.language.tile.range import range, static_range
-from asc.language.tile.utils import ceildiv
+from .language.global_tensor import GlobalTensor, global_tensor
+from .language.local_tensor import LocalTensor, RoundMode, TensorLocation
+from .language.range import range, static_range
+from .language.utils import ceildiv
 
 # Tile operations
-from asc.language.tile.atomic_ops import (
+from .language.atomic_ops import (
     atomic_add,
     atomic_max,
     atomic_min,
 )
-from asc.language.tile.binary_ops import (
+from .language.binary_ops import (
     add,
     bitwise_and,
     bitwise_or,
@@ -82,7 +82,7 @@ from asc.language.tile.binary_ops import (
     right_shift,
     sub,
 )
-from asc.language.tile.creation_ops import (
+from .language.creation_ops import (
     cast,
     concat,
     full,
@@ -91,20 +91,20 @@ from asc.language.tile.creation_ops import (
     zeros_acc,
     zeros_like,
 )
-from asc.language.tile.debug_ops import (
+from .language.debug_ops import (
     inline,
     inline_vf,
 )
-from asc.language.tile.memory_ops import (
+from .language.memory_ops import (
     copy,
     copy_in,
     copy_out,
 )
-from asc.language.tile.prog_model_ops import (
+from .language.prog_model_ops import (
     block_idx,
     block_num,
 )
-from asc.language.tile.shape_ops import (
+from .language.shape_ops import (
     broadcast_shapes,
     broadcast_tensors,
     broadcast_to,
@@ -114,7 +114,7 @@ from asc.language.tile.shape_ops import (
     squeeze,
     transpose,
 )
-from asc.language.tile.unary_ops import (
+from .language.unary_ops import (
     abs,
     bitwise_not,
     ceil,
@@ -138,37 +138,37 @@ from asc.language.tile.unary_ops import (
     tan,
     tanh,
 )
-from asc.language.tile.indexing_ops import (
+from .language.indexing_ops import (
     mask,
     where,
 )
-from asc.language.tile.reduction_ops import (
+from .language.reduction_ops import (
     reduce_max,
     reduce_min,
     reduce_sum,
     reduce_prod,
 )
 
-from .jit import jit
+from .runtime.jit import jit
 
 __all__ += [
-    # global_tensor
+    # .language.global_tensor
     "GlobalTensor",
     "global_tensor",
-    # local_tensor
+    # .language.local_tensor
     "LocalTensor",
     "RoundMode",
     "TensorLocation",
-    # range
+    # .language.range
     "range",
     "static_range",
-    # utils
+    # .language.utils
     "ceildiv",
-    # atomic_ops
+    # .language.atomic_ops
     "atomic_add",
     "atomic_max",
     "atomic_min",
-    # binary_ops
+    # .language.binary_ops
     "add",
     "bitwise_and",
     "bitwise_or",
@@ -188,7 +188,7 @@ __all__ += [
     "not_equal",
     "right_shift",
     "sub",
-    # creation_ops
+    # .language.creation_ops
     "cast",
     "concat",
     "full",
@@ -196,17 +196,17 @@ __all__ += [
     "zeros",
     "zeros_acc",
     "zeros_like",
-    # debug_ops
+    # .language.debug_ops
     "inline",
     "inline_vf",
-    # memory_ops
+    # .language.memory_ops
     "copy",
     "copy_in",
     "copy_out",
-    # prog_model_ops
+    # .language.prog_model_ops
     "block_idx",
     "block_num",
-    # shape_ops
+    # .language.shape_ops
     "broadcast_shapes",
     "broadcast_tensors",
     "broadcast_to",
@@ -215,7 +215,7 @@ __all__ += [
     "reshape",
     "squeeze",
     "transpose",
-    # unary_ops
+    # .language.unary_ops
     "abs",
     "bitwise_not",
     "ceil",
@@ -238,14 +238,14 @@ __all__ += [
     "sqrt",
     "tan",
     "tanh",
-    # indexing_ops
+    # .language.indexing_ops
     "mask",
     "where",
-    # reduction_ops
+    # .language.reduction_ops
     "reduce_sum",
     "reduce_max",
     "reduce_min",
     "reduce_prod",
-    # .jit
+    # .runtime.jit
     "jit",
 ]

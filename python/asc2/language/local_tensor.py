@@ -14,10 +14,11 @@ import math
 from typing import Callable, Final, Optional, Tuple, TypeVar, Union, overload
 from typing_extensions import Self, TypeAlias
 
-from ..._C import ir
-from ..core.dtype import DataType
-from ..core.ir_value import IRHandle, IRValue, PlainValue, RuntimeInt, RuntimeNumeric
-from ..core.utils import DefaultValued, OverloadDispatcher
+from asc._C import ir
+from asc.language.core.dtype import DataType
+from asc.language.core.ir_value import IRHandle, IRValue, PlainValue, RuntimeInt, RuntimeNumeric
+from asc.language.core.utils import DefaultValued, OverloadDispatcher, allow_jit, jit_allowed
+
 from .tensor_location import TensorLocation, TensorLocLike
 from .validation import check_type
 
@@ -334,8 +335,10 @@ class Binder:
                 return fn(*args, **kwargs)
 
         wrapper.__signature__ = new_sig
-        wrapper.__doc__ = wrapper.__doc__ = f"Forwards to :py:func:`{fn_name}` function."
+        wrapper.__doc__ = f"Forwards to :py:func:`{fn_name}` function."
         setattr(LocalTensor, name, wrapper)
+        if jit_allowed(fn):
+            allow_jit(wrapper)
         return fn
 
 

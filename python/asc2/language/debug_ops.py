@@ -8,10 +8,11 @@
 
 from typing import Optional, Iterable, Tuple
 
-from ..._C import ir
-from ..core.dtype import DataType
-from ..core.ops import inline as asc_inline
-from ..core.utils import global_builder, require_jit
+from asc._C import ir
+from asc.language.core.dtype import DataType
+from asc.language.core.ops import inline as asc_inline
+from asc.language.core.utils import global_builder, require_jit
+
 from .local_tensor import LocalTensor
 from .tensor_location import TensorLocation
 from .validation import check_type, verify_location, verify_shape

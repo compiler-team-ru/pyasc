@@ -8,9 +8,10 @@
 
 from typing import overload
 
-from ..._C import ir
-from ..core.range import BaseRange, static_range as asc_static_range
-from ..core.utils import global_builder
+from asc._C import ir
+from asc.language.core.range import BaseRange, static_range as asc_static_range
+from asc.language.core.utils import global_builder
+
 from .validation import check_type
 
 
