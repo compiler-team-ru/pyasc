@@ -33,4 +33,3 @@ def quant(dst: LocalTensor, src: LocalTensor, scale: RuntimeFloat, offset: Runti
     global_builder.get_ir_builder().create_asc_QuantOp(isReuseSource=reuse_source, dst=dst.to_ir(),
                                                        srcTensor=src.to_ir(), scale=scale, offset=offset,
                                                        calCount=count, sharedTmpBuffer=temp_buffer, config=config)
-

@@ -6,7 +6,6 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-
 from .block_sync import (
     data_sync_barrier,
     pipe_barrier,
@@ -43,11 +42,11 @@ from .common import (
 from .data_copy import copy, data_copy, data_copy_pad, load_image_to_local, set_pad_value
 from .determine_compute_sync import notify_next_block, wait_pre_block
 from .dump_tensor import (
-    dump_acc_chk_point, 
-    dump_tensor, 
-    printf, 
-    print_time_stamp, 
-    metrics_prof_start, 
+    dump_acc_chk_point,
+    dump_tensor,
+    printf,
+    print_time_stamp,
+    metrics_prof_start,
     metrics_prof_stop,
 )
 from .fixpipe import (
@@ -65,11 +64,11 @@ from .mm import (
     set_load_data_boundary,
     set_load_data_padding_value,
     set_load_data_repeat,
-)  
+)
 from .mm import load_data, load_data_with_transpose, mmad
 from .scalar import (
     count_bits_cnt_same_as_sign_bit,
-    scalar_cast, 
+    scalar_cast,
     scalar_count_leading_zero,
     scalar_get_count_of_value,
     scalar_get_sff_value,
@@ -124,7 +123,7 @@ from .vec_brcb import brcb
 from .vec_cmpsel import compare, compare_scalar, get_cmp_mask, select, set_cmp_mask
 from .vec_duplicate import duplicate
 from .vec_gather import (
-    gather, 
+    gather,
     gatherb,
 )
 from .vec_gather_mask import gather_mask, get_gather_mask_remain_count
@@ -249,7 +248,7 @@ __all__ = [
     "get_sort_offset",
     # .scalar
     "count_bits_cnt_same_as_sign_bit",
-    "scalar_cast", 
+    "scalar_cast",
     "scalar_count_leading_zero",
     "scalar_get_count_of_value",
     "scalar_get_sff_value",

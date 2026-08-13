@@ -221,11 +221,11 @@ class ReduceOrder(IntEnum):
 
 class RoundMode(IntEnum):
     CAST_NONE = 0
-    CAST_RINT = 1      
-    CAST_FLOOR = 2    
-    CAST_CEIL = 3      
-    CAST_ROUND = 4    
-    CAST_TRUNC = 5   
+    CAST_RINT = 1
+    CAST_FLOOR = 2
+    CAST_CEIL = 3
+    CAST_ROUND = 4
+    CAST_TRUNC = 5
     CAST_ODD = 6
 
 
@@ -295,7 +295,7 @@ class CO2Layout(IntEnum):
 
 
 class SelMode(IntEnum):
-    VSEL_CMPMASK_SPR = 0, 
+    VSEL_CMPMASK_SPR = 0,
     VSEL_TENSOR_SCALAR_MODE = 1,
     VSEL_TENSOR_TENSOR_MODE = 2,
 

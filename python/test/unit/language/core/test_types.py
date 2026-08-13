@@ -22,7 +22,6 @@ def test_binary_repeat_params(mock_launcher_run):
     def kernel_binary_repeat_params() -> None:
         asc.BinaryRepeatParams()
         asc.BinaryRepeatParams(1, 1, 1, 8, 8, 8)
-        
 
     kernel_binary_repeat_params[1]()
     assert mock_launcher_run.call_count == 1
@@ -55,8 +54,8 @@ def test_data_copy_enhanced_params(mock_launcher_run):
     @asc.jit
     def kernel_data_copy_enhanced_params() -> None:
         asc.DataCopyEnhancedParams()
-        asc.DataCopyEnhancedParams(asc.BlockMode.BLOCK_MODE_NORMAL, asc.DeqScale.DEQ_NONE,
-                                    0, 0, False, asc.pad_t.PAD_NONE, 0)
+        asc.DataCopyEnhancedParams(asc.BlockMode.BLOCK_MODE_NORMAL, asc.DeqScale.DEQ_NONE, 0, 0, False,
+                                   asc.pad_t.PAD_NONE, 0)
 
     kernel_data_copy_enhanced_params[1]()
     assert mock_launcher_run.call_count == 1
@@ -152,7 +151,7 @@ def test_nd_2_nz_params_full(mock_launcher_run):
     kernel_nd_2_nz_params_full[1]()
     assert mock_launcher_run.call_count == 1
 
-    
+
 def test_data_copy_co12_dst_params(mock_launcher_run):
 
     @asc.jit

@@ -20,7 +20,6 @@ import asc.runtime.config as config
 import asc.lib.runtime as rt
 from rmsnorm import rmsnorm_kernel, compute_rmsnorm_launch_params
 
-
 ASCENDC_DEMO = Path(__file__).resolve().parent / "ascendc" / "build" / "demo"
 
 
@@ -37,19 +36,19 @@ def run_pyasc(shape, warmup, iters):
     eps = 1e-6
     max_rows = 8 if hidden <= 512 else (4 if hidden <= 1024 else 2)
     for _ in range(warmup + iters):
-        rmsnorm_kernel[cores, rt.current_stream()](
-            x_pad, y_pad, rms_pad, gamma, block_len, hidden, eps, rows_per_core, max_rows)
+        rmsnorm_kernel[cores, rt.current_stream()](x_pad, y_pad, rms_pad, gamma, block_len, hidden, eps, rows_per_core,
+                                                   max_rows)
     torch.npu.synchronize()
 
 
 def run_ascendc(shape, warmup, iters):
     cmd = [
-        str(ASCENDC_DEMO),
-        "--batch", str(shape[0]),
-        "--seq", str(shape[1]),
-        "--hidden", str(shape[2]),
-        "--warmup", str(warmup),
-        "--iters", str(iters),
+        str(ASCENDC_DEMO), "--batch",
+        str(shape[0]), "--seq",
+        str(shape[1]), "--hidden",
+        str(shape[2]), "--warmup",
+        str(warmup), "--iters",
+        str(iters)
     ]
     subprocess.run(cmd, check=True)
 

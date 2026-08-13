@@ -61,7 +61,7 @@ def compute(z_gm: asc.GlobalTensor, in_queue_x: asc.TQue, in_queue_y: asc.TQue, 
     z_local = out_queue_z.alloc_tensor(z_gm.dtype)
     uint64_max = 2**64 - 1
     mask = [uint64_max, uint64_max]
-    asc.add(z_local, x_local, y_local, mask=mask, repeat_times=1, 
+    asc.add(z_local, x_local, y_local, mask=mask, repeat_times=1,
             repeat_params=asc.BinaryRepeatParams(1, 1, 1, 8, 8, 8))
     out_queue_z.enque(z_local)
     in_queue_x.free_tensor(x_local)
@@ -90,15 +90,14 @@ def vadd_launch(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 
 
 param_list = [
-    [torch.float32, (1000,)],
-    [torch.float32, (1,)],
-    [torch.float32, (9999,)],
-    [torch.float16, (2048,)],
-    [torch.int32, (8192,)],
-    [torch.int16, (8192,)],
+    [torch.float32, (1000, )],
+    [torch.float32, (1, )],
+    [torch.float32, (9999, )],
+    [torch.float16, (2048, )],
+    [torch.int32, (8192, )],
+    [torch.int16, (8192, )],
     [torch.int32, (153, 834)],
 ]
-
 
 BACKENDS = [
     # config.Backend.Model,

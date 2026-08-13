@@ -71,7 +71,7 @@ def test_deque(mock_launcher_run):
         que0 = asc.TQue(asc.TPosition.VECIN, 0)
         y_local = asc.LocalTensor(asc.float16)
         que0.deque(y_local)
-        
+
     kernel_deque[1]()
     assert mock_launcher_run.call_count == 1
 

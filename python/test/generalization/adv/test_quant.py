@@ -79,11 +79,11 @@ def quant_launch(src: torch.Tensor, use_config: bool) -> torch.Tensor:
 def quant_torch(src: torch.Tensor) -> torch.Tensor:
     return torch.round((src * 2.0) + 0.9).to(torch.int8)
 
-param_list = [
-    [torch.float32, (32,)],
-    [torch.float16, (32,)],
-]
 
+param_list = [
+    [torch.float32, (32, )],
+    [torch.float16, (32, )],
+]
 
 BACKENDS = [
     # config.Backend.Model,

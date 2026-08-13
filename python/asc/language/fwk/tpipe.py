@@ -21,7 +21,6 @@ from .utils import set_tpipe_docstring
 
 
 class TQueBind(IRValue):
-
     """
     TQueBind绑定源逻辑位置和目的逻辑位置，根据源位置和目的位置，来确定内存分配的位置 、插入对应的同步事件，帮助开发者解决内存分配和管理、同步等问题。
     TQue是TQueBind的简化模式。通常情况下开发者使用TQue进行编程，TQueBind对外提供一些特殊数据通路的内存管理和同步控制，涉及这些通路时可以直接使用TQueBind。
@@ -63,16 +62,16 @@ class TQueBind(IRValue):
     @overload
     def alloc_tensor(self, dtype: DataType) -> LocalTensor:
         ...
-    
+
     @overload
     def alloc_tensor(self, tensor: LocalTensor) -> None:
         ...
-    
+
     @require_jit
     @set_tpipe_docstring(pipe_name="TQueBind", api_name="alloc_tensor")
     def alloc_tensor(self, *args, **kwargs) -> Optional[LocalTensor]:
         dispatcher = OverloadDispatcher(__name__)
-        
+
         @dispatcher.register(dtype=DataType)
         def _(dtype: DataType):
             tensor_type = ir.get_local_tensor_type(dtype.to_ir())
@@ -88,11 +87,11 @@ class TQueBind(IRValue):
     @overload
     def deque(self, dtype: DataType) -> LocalTensor:
         ...
-    
+
     @overload
     def deque(self, tensor: LocalTensor) -> None:
         ...
-    
+
     @overload
     def deque(self, dtype: DataType, src_user_pos: TPosition, dst_user_pos: TPosition) -> LocalTensor:
         ...
@@ -119,6 +118,7 @@ class TQueBind(IRValue):
             handle = builder.create_asc_TQueBindDequeTensorPosOp(tensor_type, self.to_ir(), \
                         ir.TPosition.symbolize(src_user_pos), ir.TPosition.symbolize(dst_user_pos))
             return LocalTensor(handle=handle, dtype=dtype, shape=None)
+
         return dispatcher(*args, **kwargs)
 
     @require_jit
@@ -135,7 +135,7 @@ class TQueBind(IRValue):
         def _(tensor: LocalTensor, src_user_pos: TPosition, dst_user_pos: TPosition):
             builder.create_asc_TQueBindEnqueTensorPosOp(self.to_ir(), tensor.to_ir(), \
                     ir.TPosition.symbolize(src_user_pos), ir.TPosition.symbolize(dst_user_pos))
-        
+
         return dispatcher(*args, **kwargs)
 
     @require_jit
@@ -175,16 +175,16 @@ class TQueBind(IRValue):
                         len: RuntimeInt) -> None:
         builder = global_builder.get_ir_builder()
         builder.create_asc_TQueBindInitBufHandleOp(self.to_ir(), buf_pool.to_ir(),
-                                           _mat(index, KnownTypes.uint32).to_ir(), buf_handle.to_ir(),
-                                           cur_pool_addr.to_ir(),
-                                           _mat(len, KnownTypes.uint32).to_ir())
+                                                   _mat(index, KnownTypes.uint32).to_ir(), buf_handle.to_ir(),
+                                                   cur_pool_addr.to_ir(),
+                                                   _mat(len, KnownTypes.uint32).to_ir())
 
     @require_jit
     def init_start_buf_handle(self, start_buf_handle: TBufHandle, num: RuntimeInt, len: RuntimeInt) -> None:
         builder = global_builder.get_ir_builder()
         builder.create_asc_TQueBindInitStartBufHandleOp(self.to_ir(), start_buf_handle.to_ir(),
-                                                _mat(num, KnownTypes.uint8).to_ir(),
-                                                _mat(len, KnownTypes.uint32).to_ir())
+                                                        _mat(num, KnownTypes.uint8).to_ir(),
+                                                        _mat(len, KnownTypes.uint32).to_ir())
 
     @require_jit
     @set_tpipe_docstring(pipe_name="TQueBind", api_name="vacant_in_que")
@@ -195,7 +195,6 @@ class TQueBind(IRValue):
 
 
 class TBuf(TQueBind):
-
     """
     使用Ascend C编程的过程中，可能会用到一些临时变量。
     这些临时变量占用的内存可以使用TBuf数据结构来管理，存储位置通过模板参数来设置，可以设置为不同的TPosition逻辑位置。
@@ -284,7 +283,6 @@ class TBufHandle(IRValue):
 
 
 class TBufPool(IRValue):
-
     """
     TPipe可以管理全局内存资源，而TBufPool可以手动管理或复用Unified Buffer/L1 Buffer物理内存，主要用于多个stage计算中Unified Buffer/L1 Buffer物理内存不足的场景。
     """
@@ -309,7 +307,7 @@ class TBufPool(IRValue):
         builder = global_builder.get_ir_builder()
         ir_type = builder.get_tbuf_pool_type(pos, buf_id_size)
         self.handle = builder.create_asc_TBufPoolOp(ir_type)
-    
+
     @classmethod
     def from_ir(cls, handle: IRHandle) -> TBufPool:
         return cls(handle=handle)
@@ -327,10 +325,10 @@ class TBufPool(IRValue):
         builder = global_builder.get_ir_builder()
         if share_buf:
             builder.create_asc_TBufPoolInitBufPoolOp(builder.get_i1_type(), self.to_ir(), buf_pool.to_ir(),
-                                                       _mat(len, KnownTypes.uint32).to_ir(), share_buf.to_ir())
+                                                     _mat(len, KnownTypes.uint32).to_ir(), share_buf.to_ir())
         else:
-            builder.create_asc_TBufPoolInitBufPoolOp(builder.get_i1_type(), self.to_ir(), buf_pool.to_ir(), 
-                                                       _mat(len, KnownTypes.uint32).to_ir())
+            builder.create_asc_TBufPoolInitBufPoolOp(builder.get_i1_type(), self.to_ir(), buf_pool.to_ir(),
+                                                     _mat(len, KnownTypes.uint32).to_ir())
 
     @overload
     def init_buffer(self, que: TQue, num: int = 0, len: int = 0) -> None:
@@ -348,13 +346,13 @@ class TBufPool(IRValue):
         @dispatcher.register(que=TQue, num=RuntimeInt, len=RuntimeInt)
         def _(que: TQue, num: RuntimeInt = 0, len: RuntimeInt = 0):
             global_builder.get_ir_builder().create_asc_TBufPoolInitQueueOp(self.to_ir(), que.to_ir(),
-                                                                          _mat(num, KnownTypes.int_).to_ir(),
-                                                                          _mat(len, KnownTypes.int_).to_ir())
+                                                                           _mat(num, KnownTypes.int_).to_ir(),
+                                                                           _mat(len, KnownTypes.int_).to_ir())
 
         @dispatcher.register(buf=TBuf, len=RuntimeInt)
         def _(buf: TBuf, len: RuntimeInt = 0):
             global_builder.get_ir_builder().create_asc_TBufPoolInitBufferOp(self.to_ir(), buf.to_ir(),
-                                                                           _mat(len, KnownTypes.int_).to_ir())
+                                                                            _mat(len, KnownTypes.int_).to_ir())
 
         dispatcher(*args, **kwargs)
 
@@ -365,7 +363,6 @@ class TBufPool(IRValue):
 
 
 class TPipe(IRValue):
-
     """
     TPipe用于统一管理Device端内存等资源，一个Kernel函数必须且只能初始化一个TPipe对象。其主要功能包括：  
     
@@ -450,10 +447,10 @@ class TPipe(IRValue):
         builder = global_builder.get_ir_builder()
         if share_buf:
             builder.create_asc_TPipeInitBufPoolOp(builder.get_i1_type(), self.to_ir(), buf_pool.to_ir(),
-                                                _mat(len, KnownTypes.uint32).to_ir(), share_buf.to_ir())
+                                                  _mat(len, KnownTypes.uint32).to_ir(), share_buf.to_ir())
         else:
             builder.create_asc_TPipeInitBufPoolOp(builder.get_i1_type(), self.to_ir(), buf_pool.to_ir(),
-                                                _mat(len, KnownTypes.uint32).to_ir())
+                                                  _mat(len, KnownTypes.uint32).to_ir())
 
     @overload
     def init_buffer(self, que: TQue, num: int = 0, len: int = 0) -> None:
@@ -471,13 +468,13 @@ class TPipe(IRValue):
         @dispatcher.register(que=TQue, num=RuntimeInt, len=RuntimeInt)
         def _(que: TQue, num: RuntimeInt = 0, len: RuntimeInt = 0):
             global_builder.get_ir_builder().create_asc_TPipeInitQueueOp(self.to_ir(), que.to_ir(),
-                                                                   _mat(num, KnownTypes.int_).to_ir(),
-                                                                   _mat(len, KnownTypes.int_).to_ir())
+                                                                        _mat(num, KnownTypes.int_).to_ir(),
+                                                                        _mat(len, KnownTypes.int_).to_ir())
 
         @dispatcher.register(buf=TBuf, len=RuntimeInt)
         def _(buf: TBuf, len: RuntimeInt = 0):
             global_builder.get_ir_builder().create_asc_TPipeInitBufferOp(self.to_ir(), buf.to_ir(),
-                                                                    _mat(len, KnownTypes.int_).to_ir())
+                                                                         _mat(len, KnownTypes.int_).to_ir())
 
         dispatcher(*args, **kwargs)
 
@@ -541,7 +538,6 @@ def get_tpipe_ptr() -> TPipe:
 
 
 class TQue(TQueBind):
-
     """
     流水任务之间通过队列（Queue）完成任务间通信和同步。TQue是用来执行队列相关操作、管理相关资源的数据结构。TQue继承自TQueBind父类。
     """

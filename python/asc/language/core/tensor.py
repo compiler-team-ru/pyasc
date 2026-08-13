@@ -40,7 +40,6 @@ class BaseTensor(IRValue):
 
 
 class GlobalTensor(BaseTensor):
-
     """
     GlobalTensor用来存放Global Memory（外部存储）的全局数据。
     GlobalTensor public成员函数如下。类型T支持基础数据类型以及TensorTrait类型，但需要遵循使用此GlobalTensor的指令的数据类型支持情况。
@@ -78,11 +77,8 @@ class GlobalTensor(BaseTensor):
     def __call__(self, index: Any) -> GlobalTensor:
         builder = global_builder.get_ir_builder()
         if isinstance(index, RuntimeInt):
-            handle = builder.create_asc_GlobalTensorBracketOp(
-                self.to_ir().get_type(),
-                self.to_ir(),
-                _mat(index).to_ir()
-            )
+            handle = builder.create_asc_GlobalTensorBracketOp(self.to_ir().get_type(), self.to_ir(),
+                                                              _mat(index).to_ir())
             return GlobalTensor(handle=handle)
         raise RuntimeError(f"Tensor call operator is not supported with {index}")
 
@@ -201,7 +197,6 @@ class GlobalTensor(BaseTensor):
 
 
 class LocalTensor(BaseTensor):
-
     """
     LocalTensor用于存放AI Core中Local Memory（内部存储）的数据，支持逻辑位置TPosition为VECIN、VECOUT、VECCALC、A1、A2、B1、B2、CO1、CO2。
     """
@@ -222,7 +217,7 @@ class LocalTensor(BaseTensor):
     def __init__(self, dtype: DataType, pos: Optional[TPosition] = TPosition.VECIN, \
         addr: int = 0, tile_size: int = 0):
         ...
-    
+
     @overload
     def __init__(self, handle: IRHandle, dtype: DataType, shape: TensorShape) -> None:
         ...
@@ -247,7 +242,7 @@ class LocalTensor(BaseTensor):
             self.handle = builder.create_asc_LocalTensorV2Op(ir.get_local_tensor_type(dtype.to_ir()), \
                     ir.TPosition.symbolize(pos), _mat(addr, KnownTypes.uint32).to_ir(),               \
                      _mat(tile_size, KnownTypes.uint32).to_ir())
-        
+
         @dispatcher.register(dtype=DataType)
         def _(dtype: DataType):
             super(LocalTensor, self).__init__(dtype)
@@ -276,11 +271,7 @@ class LocalTensor(BaseTensor):
     def __call__(self, index: Any) -> LocalTensor:
         builder = global_builder.get_ir_builder()
         if isinstance(index, RuntimeInt):
-            handle = builder.create_asc_LocalTensorBracketOp(
-                self.to_ir().get_type(),
-                self.to_ir(),
-                _mat(index).to_ir()
-            )
+            handle = builder.create_asc_LocalTensorBracketOp(self.to_ir().get_type(), self.to_ir(), _mat(index).to_ir())
             return LocalTensor(handle, self.dtype, self.shape)
         raise RuntimeError(f"Tensor call operator is not supported with {index}")
 
@@ -360,7 +351,6 @@ class LocalTensor(BaseTensor):
         builder = global_builder.get_ir_builder()
         handle = builder.create_asc_LocalTensorGetUserTagOp(builder.get_i32_type(), self.to_ir())
         return PlainValue(handle)
-
 
     @overload
     def get_value(self, index: int) -> int:
@@ -495,24 +485,23 @@ class LocalTensorAuto(LocalTensor):
 
 
 class MrgSortSrcList(IRValue):
-    
+
     @overload
-    def __init__(self, dtype: DataType, src1: LocalTensor, src2: LocalTensor,
-                 src3: LocalTensor = None, src4: LocalTensor = None) -> None:
+    def __init__(self, dtype: DataType, src1: LocalTensor, src2: LocalTensor, src3: LocalTensor = None,
+                 src4: LocalTensor = None) -> None:
         ...
-    
+
     @overload
     def __init__(self, handle: IRHandle) -> None:
         ...
-    
+
     @require_jit
-    def __init__(self, dtype: DataType, src1: LocalTensor, src2: LocalTensor,
-                 src3: LocalTensor = None, src4: LocalTensor = None,
-                 handle: Optional[IRHandle] = None) -> None:
+    def __init__(self, dtype: DataType, src1: LocalTensor, src2: LocalTensor, src3: LocalTensor = None,
+                 src4: LocalTensor = None, handle: Optional[IRHandle] = None) -> None:
         if handle is not None:
             self.handle = handle
             return
-            
+
         builder = global_builder.get_ir_builder()
 
         srcs = [src1.to_ir(), src2.to_ir()]
@@ -520,16 +509,13 @@ class MrgSortSrcList(IRValue):
             srcs.append(src3.to_ir())
         if src4 is not None:
             srcs.append(src4.to_ir())
-            
-        self.handle = builder.create_asc_ConstructOp(
-            builder.get_asc_MrgSortSrcListType(dtype.to_ir()),
-            srcs,
-            builder.get_type_array_attr([src1.to_ir().get_type()] * len(srcs))
-        )
-    
+
+        self.handle = builder.create_asc_ConstructOp(builder.get_asc_MrgSortSrcListType(dtype.to_ir()), srcs,
+                                                     builder.get_type_array_attr([src1.to_ir().get_type()] * len(srcs)))
+
     @classmethod
     def from_ir(cls, handle: IRHandle) -> MrgSortSrcList:
         return cls(None, None, None, None, handle)
-    
+
     def to_ir(self) -> IRHandle:
         return self.handle

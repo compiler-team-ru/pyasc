@@ -16,7 +16,6 @@ import subprocess
 import time
 from pathlib import Path
 
-
 SHAPES = [
     (2, 64, 256),
     (2, 64, 512),
@@ -81,23 +80,33 @@ def profile_one(example_dir, out_root, bench_script, ascendc_demo, op_types, bac
     shutil.rmtree(out, ignore_errors=True)
     if backend == "pyasc":
         cmd = [
-            "msprof", "op", f"--output={out}", "python3", str(bench_script),
-            "--backend", "pyasc", "--batch", str(b), "--seq", str(s),
-            "--hidden", str(h), "--warmup", str(WARMUP), "--iters", str(ITERS),
-            "-r", "NPU", "-v", "Ascend910B4",
+            "msprof", "op", f"--output={out}", "python3",
+            str(bench_script), "--backend", "pyasc", "--batch",
+            str(b), "--seq",
+            str(s), "--hidden",
+            str(h), "--warmup",
+            str(WARMUP), "--iters",
+            str(ITERS), "-r", "NPU", "-v", "Ascend910B4"
         ]
     elif backend == "ascendc":
         cmd = [
-            "msprof", "op", f"--output={out}", str(ascendc_demo),
-            "--batch", str(b), "--seq", str(s), "--hidden", str(h),
-            "--warmup", str(WARMUP), "--iters", str(ITERS),
+            "msprof", "op", f"--output={out}",
+            str(ascendc_demo), "--batch",
+            str(b), "--seq",
+            str(s), "--hidden",
+            str(h), "--warmup",
+            str(WARMUP), "--iters",
+            str(ITERS)
         ]
     else:
         cmd = [
-            "msprof", "op", f"--output={out}", "python3", str(bench_script),
-            "--backend", "torch_npu",
-            "--batch", str(b), "--seq", str(s),
-            "--hidden", str(h), "--warmup", str(WARMUP), "--iters", str(ITERS),
+            "msprof", "op", f"--output={out}", "python3",
+            str(bench_script), "--backend", "torch_npu", "--batch",
+            str(b), "--seq",
+            str(s), "--hidden",
+            str(h), "--warmup",
+            str(WARMUP), "--iters",
+            str(ITERS)
         ]
     run(cmd, example_dir)
     all_rows, basic_path = read_basic(out, op_types[backend])
@@ -134,21 +143,24 @@ def write_summary(path, rows):
     with path.open("w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow([
-            "shape", "elements", "pyasc_us", "ascendc_us", "torch_npu_us",
-            "pyasc_over_ascendc", "pyasc_over_torch_npu", "pyasc_source", "ascendc_source", "torch_npu_source",
+            "shape", "elements", "pyasc_us", "ascendc_us", "torch_npu_us", "pyasc_over_ascendc", "pyasc_over_torch_npu",
+            "pyasc_source", "ascendc_source", "torch_npu_source"
         ])
         for shape in SHAPES:
             p = by_key.get(("pyasc", shape))
             a = by_key.get(("ascendc", shape))
             t = by_key.get(("torch_npu", shape))
             writer.writerow([
-                f"({shape[0]},{shape[1]},{shape[2]})", p["elements"] if p else 0,
+                f"({shape[0]},{shape[1]},{shape[2]})",
+                p["elements"] if p else 0,
                 f"{(p['task_avg_us'] if p else 0):.6f}",
                 f"{(a['task_avg_us'] if a else 0):.6f}",
                 f"{(t['task_avg_us'] if t else 0):.6f}",
                 f"{((p['task_avg_us'] / a['task_avg_us']) if p and a else 0):.6f}",
                 f"{((p['task_avg_us'] / t['task_avg_us']) if p and t else 0):.6f}",
-                p["source_csv"] if p else "N/A", a["source_csv"] if a else "N/A", t["source_csv"] if t else "N/A",
+                p["source_csv"] if p else "N/A",
+                a["source_csv"] if a else "N/A",
+                t["source_csv"] if t else "N/A",
             ])
 
 
@@ -164,10 +176,9 @@ def format_detail_row(row):
 
 def write_detail(path, rows):
     fields = [
-        "backend", "shape", "elements", "task_avg_us", "task_min_us",
-        "task_max_us", "task_std_us", "block_dim", "vec_avg_us",
-        "scalar_avg_us", "mte2_avg_us", "mte3_avg_us", "used_rows",
-        "matched_rows", "source_csv", "pipe_source_csv",
+        "backend", "shape", "elements", "task_avg_us", "task_min_us", "task_max_us", "task_std_us", "block_dim",
+        "vec_avg_us", "scalar_avg_us", "mte2_avg_us", "mte3_avg_us", "used_rows", "matched_rows", "source_csv",
+        "pipe_source_csv"
     ]
     with path.open("w", newline="") as f:
         writer = csv.DictWriter(f, fields)

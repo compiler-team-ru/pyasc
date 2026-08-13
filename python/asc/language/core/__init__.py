@@ -65,7 +65,7 @@ from .enums import (
     ScheduleType,
     SelMode,
     TPosition,
-    TransposeType,  
+    TransposeType,
     MatmulConfigMode,
     AtomicDtype,
     AtomicOp,

@@ -19,30 +19,18 @@ except ModuleNotFoundError:
 
 
 @asc.jit
-def copy_in(
-    x_gm: asc.GlobalTensor,
-    in_queue_x: asc.TQue,
-    tile_length: asc.ConstExpr[int]
-):
+def copy_in(x_gm: asc.GlobalTensor, in_queue_x: asc.TQue, tile_length: asc.ConstExpr[int]):
     x_local = in_queue_x.alloc_tensor(x_gm.dtype)
 
     swap_settings = asc.AippSwapParams(is_swap_rb=True)
-    aipp_config = asc.AippParams(
-        dtype=asc.int8,
-        swap_params=swap_settings
-    )
+    aipp_config = asc.AippParams(dtype=asc.int8, swap_params=swap_settings)
     asc.set_aipp_functions(x_gm, asc.AippInputFormat.RGB888_U8, aipp_config)
     asc.data_copy(x_local, x_gm, count=tile_length)
     in_queue_x.enque(x_local)
 
 
 @asc.jit
-def compute(
-    in_queue_x: asc.TQue,
-    out_queue_z: asc.TQue,
-    z_gm: asc.GlobalTensor,
-    tile_length: asc.ConstExpr[int]
-):
+def compute(in_queue_x: asc.TQue, out_queue_z: asc.TQue, z_gm: asc.GlobalTensor, tile_length: asc.ConstExpr[int]):
     x_local = in_queue_x.deque(z_gm.dtype)
     z_local = out_queue_z.alloc_tensor(z_gm.dtype)
 
@@ -53,23 +41,15 @@ def compute(
 
 
 @asc.jit
-def copy_out(
-    z_gm: asc.GlobalTensor,
-    out_queue_z: asc.TQue,
-    tile_length: asc.ConstExpr[int]
-):
+def copy_out(z_gm: asc.GlobalTensor, out_queue_z: asc.TQue, tile_length: asc.ConstExpr[int]):
     z_local = out_queue_z.deque(z_gm.dtype)
     asc.data_copy(z_gm, z_local, count=tile_length)
     out_queue_z.free_tensor(z_local)
 
 
 @asc.jit
-def aipp_config_kernel(
-    x: asc.GlobalAddress,
-    z: asc.GlobalAddress,
-    block_length: asc.ConstExpr[int],
-    buffer_num: asc.ConstExpr[int]
-):
+def aipp_config_kernel(x: asc.GlobalAddress, z: asc.GlobalAddress, block_length: asc.ConstExpr[int],
+                       buffer_num: asc.ConstExpr[int]):
     tile_length = block_length
     x_gm = asc.GlobalTensor()
     x_gm.set_global_buffer(x)
@@ -100,7 +80,6 @@ param_list = [
     [torch.int8, (16, 16, 3)],
     [torch.float16, (16, 16, 3)],
 ]
-
 
 BACKENDS = [
     # config.Backend.Model,

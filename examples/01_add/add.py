@@ -22,7 +22,6 @@ USE_CORE_NUM = 8
 BUFFER_NUM = 2  # BUFFER_NUM should be 1 or 2
 TILE_NUM = 8
 
-
 logging.basicConfig(level=logging.INFO)
 
 

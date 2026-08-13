@@ -82,13 +82,11 @@ class LocalMemAllocator:
         if isinstance(tile_size, ConstExpr):
             tile_size_value = ConstExpr.unwrap(tile_size)
             tile_size_ir = builder.create_i32(tile_size_value)
-            handle = builder.create_asc_LocalMemAllocatorAllocOp(
-                result_type, self.handle, pos_attr, data_type.to_ir(), tile_size_ir
-            )
+            handle = builder.create_asc_LocalMemAllocatorAllocOp(result_type, self.handle, pos_attr, data_type.to_ir(),
+                                                                 tile_size_ir)
         else:
             tile_size_ir = materialize_ir_value(tile_size, KnownTypes.int32).to_ir()
-            handle = builder.create_asc_LocalMemAllocatorAllocDynamicOp(
-                result_type, self.handle, pos_attr, data_type.to_ir(), tile_size_ir
-            )
+            handle = builder.create_asc_LocalMemAllocatorAllocDynamicOp(result_type, self.handle, pos_attr,
+                                                                        data_type.to_ir(), tile_size_ir)
 
         return LocalTensor.from_ir(handle)

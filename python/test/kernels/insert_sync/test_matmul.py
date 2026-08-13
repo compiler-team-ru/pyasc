@@ -30,13 +30,11 @@ def matmul_kernel(a: asc.GlobalAddress, b: asc.GlobalAddress, c: asc.GlobalAddre
     c_global.set_global_buffer(c + offset_c)
     bias_global.set_global_buffer(bias + offset_bias)
     pipe = asc.TPipe()
-    matmul = asc.adv.Matmul(
-        a=asc.adv.MatmulType(asc.TPosition.GM, asc.CubeFormat.ND, a_global.dtype),
-        b=asc.adv.MatmulType(asc.TPosition.GM, asc.CubeFormat.ND, b_global.dtype),
-        c=asc.adv.MatmulType(asc.TPosition.VECCALC, asc.CubeFormat.ND, c_global.dtype),
-        bias=asc.adv.MatmulType(asc.TPosition.GM, asc.CubeFormat.ND, bias_global.dtype),
-        matmul_config=asc.adv.MatmulConfig()
-    )
+    matmul = asc.adv.Matmul(a=asc.adv.MatmulType(asc.TPosition.GM, asc.CubeFormat.ND, a_global.dtype),
+                            b=asc.adv.MatmulType(asc.TPosition.GM, asc.CubeFormat.ND, b_global.dtype),
+                            c=asc.adv.MatmulType(asc.TPosition.VECCALC, asc.CubeFormat.ND, c_global.dtype),
+                            bias=asc.adv.MatmulType(asc.TPosition.GM, asc.CubeFormat.ND,
+                                                    bias_global.dtype), matmul_config=asc.adv.MatmulConfig())
     asc.adv.register_matmul(pipe, workspace, matmul)
     matmul.init(tiling)
     matmul.set_tensor_a(a_global)

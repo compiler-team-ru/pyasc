@@ -41,8 +41,8 @@ def adds(dst: LocalTensor, src: LocalTensor, scalar: RuntimeNumeric, *args, **kw
 
 
 @overload
-def leaky_relu(dst: LocalTensor, src: LocalTensor, scalar: Union[int, float],
-                count: int, is_set_mask: bool = True) -> None:
+def leaky_relu(dst: LocalTensor, src: LocalTensor, scalar: Union[int, float], count: int,
+               is_set_mask: bool = True) -> None:
     ...
 
 
@@ -142,8 +142,8 @@ def muls(dst: LocalTensor, src: LocalTensor, scalar: RuntimeNumeric, *args, **kw
 
 
 @overload
-def shift_left(dst: LocalTensor, src: LocalTensor, scalar: Union[int, float], 
-                count: int, is_set_mask: bool = True) -> None:
+def shift_left(dst: LocalTensor, src: LocalTensor, scalar: Union[int, float], count: int,
+               is_set_mask: bool = True) -> None:
     ...
 
 
@@ -168,8 +168,8 @@ def shift_left(dst: LocalTensor, src: LocalTensor, scalar: RuntimeNumeric, *args
 
 
 @overload
-def shift_right(dst: LocalTensor, src: LocalTensor, scalar: Union[int, float], 
-                count: int, is_set_mask: bool = True) -> None:
+def shift_right(dst: LocalTensor, src: LocalTensor, scalar: Union[int, float], count: int,
+                is_set_mask: bool = True) -> None:
     ...
 
 

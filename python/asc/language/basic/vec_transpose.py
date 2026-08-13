@@ -21,8 +21,7 @@ def transpose(dst: LocalTensor, src: LocalTensor) -> None:
 
 
 @overload
-def transpose(dst: LocalTensor, src: LocalTensor, shared_tmp_buffer: LocalTensor,
-              params: TransposeParamsExt) -> None:
+def transpose(dst: LocalTensor, src: LocalTensor, shared_tmp_buffer: LocalTensor, params: TransposeParamsExt) -> None:
     ...
 
 
@@ -40,8 +39,7 @@ def transpose(dst: LocalTensor, src: LocalTensor, *args, **kwargs) -> None:
 
     @dispatcher.register_auto
     def _(shared_tmp_buffer: LocalTensor, params: TransposeParamsExt):
-        builder.create_asc_TransposeExtOp(dst.to_ir(), src.to_ir(),
-                                          shared_tmp_buffer.to_ir(), params.to_ir())
+        builder.create_asc_TransposeExtOp(dst.to_ir(), src.to_ir(), shared_tmp_buffer.to_ir(), params.to_ir())
 
     dispatcher(*args, **kwargs)
 

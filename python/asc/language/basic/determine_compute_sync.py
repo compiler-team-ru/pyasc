@@ -15,17 +15,11 @@ from ..core.tensor import GlobalTensor, LocalTensor
 @set_common_docstring(api_name="notify_next_block")
 def notify_next_block(gm_workspace: GlobalTensor, ub_workspace: LocalTensor) -> None:
     builder = global_builder.get_ir_builder()
-    builder.create_asc_NotifyNextBlockOp(
-        gm_workspace.to_ir(),
-        ub_workspace.to_ir()
-    )
+    builder.create_asc_NotifyNextBlockOp(gm_workspace.to_ir(), ub_workspace.to_ir())
 
 
 @require_jit
 @set_common_docstring(api_name="wait_pre_block")
 def wait_pre_block(gm_workspace: GlobalTensor, ub_workspace: LocalTensor) -> None:
     builder = global_builder.get_ir_builder()
-    builder.create_asc_WaitPreBlockOp(
-        gm_workspace.to_ir(),
-        ub_workspace.to_ir()
-    )
+    builder.create_asc_WaitPreBlockOp(gm_workspace.to_ir(), ub_workspace.to_ir())

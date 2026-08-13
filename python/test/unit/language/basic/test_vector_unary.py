@@ -202,12 +202,10 @@ def test_cast_kernel(mock_launcher_run):
         z_local = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.VECOUT, addr=0, tile_size=512)
         asc.cast(z_local, x_local, asc.RoundMode.CAST_NONE, count=512)
         params = asc.UnaryRepeatParams(1, 1, 8, 8)
-        asc.cast(z_local, x_local, asc.RoundMode.CAST_ROUND, mask=512,
-                repeat_times=1, repeat_params=params)
+        asc.cast(z_local, x_local, asc.RoundMode.CAST_ROUND, mask=512, repeat_times=1, repeat_params=params)
         uint64_max = 2**64 - 1
         mask = [uint64_max, uint64_max]
-        asc.cast(z_local, x_local, asc.RoundMode.CAST_FLOOR, mask=mask,
-                repeat_times=1, repeat_params=params)
+        asc.cast(z_local, x_local, asc.RoundMode.CAST_FLOOR, mask=mask, repeat_times=1, repeat_params=params)
 
     cast_kernel[1]()
     assert mock_launcher_run.call_count == 1

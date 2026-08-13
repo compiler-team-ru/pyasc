@@ -15,10 +15,11 @@ def setup_function():
 
 
 def test_set_pad_value(mock_launcher_run):
-    
+
     @asc.jit
     def kernel_set_pad_value() -> None:
         asc.set_pad_value(37)
         asc.set_pad_value(37, asc.TPosition.VECIN)
+
     kernel_set_pad_value[1]()
     assert mock_launcher_run.call_count == 1

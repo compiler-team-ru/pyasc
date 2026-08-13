@@ -16,6 +16,7 @@ def setup_function():
 
 
 def test_set_atomic_add_kernel(mock_launcher_run):
+
     @asc.jit(always_compile=True)
     def set_atomic_add_kernel() -> None:
         asc.set_atomic_add(asc.half)
@@ -25,6 +26,7 @@ def test_set_atomic_add_kernel(mock_launcher_run):
 
 
 def test_set_atomic_max_kernel(mock_launcher_run):
+
     @asc.jit(always_compile=True)
     def set_atomic_max_kernel() -> None:
         asc.set_atomic_max(asc.half)
@@ -34,6 +36,7 @@ def test_set_atomic_max_kernel(mock_launcher_run):
 
 
 def test_set_atomic_min_kernel(mock_launcher_run):
+
     @asc.jit(always_compile=True)
     def set_atomic_min_kernel() -> None:
         asc.set_atomic_min(asc.half)
@@ -43,6 +46,7 @@ def test_set_atomic_min_kernel(mock_launcher_run):
 
 
 def test_set_atomic_none_kernel(mock_launcher_run):
+
     @asc.jit(always_compile=True)
     def set_atomic_none_kernel() -> None:
         asc.set_atomic_none()
@@ -52,6 +56,7 @@ def test_set_atomic_none_kernel(mock_launcher_run):
 
 
 def test_set_atomic_add_kernel(mock_launcher_run):
+
     @asc.jit(always_compile=True)
     def set_atomic_add_kernel() -> None:
         asc.set_atomic_add(asc.half)
@@ -61,6 +66,7 @@ def test_set_atomic_add_kernel(mock_launcher_run):
 
 
 def test_set_atomic_max_kernel(mock_launcher_run):
+
     @asc.jit(always_compile=True)
     def set_atomic_max_kernel() -> None:
         asc.set_atomic_max(asc.half)
@@ -70,6 +76,7 @@ def test_set_atomic_max_kernel(mock_launcher_run):
 
 
 def test_set_atomic_min_kernel(mock_launcher_run):
+
     @asc.jit(always_compile=True)
     def set_atomic_min_kernel() -> None:
         asc.set_atomic_min(asc.half)
@@ -79,6 +86,7 @@ def test_set_atomic_min_kernel(mock_launcher_run):
 
 
 def test_set_atomic_none_kernel(mock_launcher_run):
+
     @asc.jit(always_compile=True)
     def set_atomic_none_kernel() -> None:
         asc.set_atomic_none()
@@ -88,9 +96,10 @@ def test_set_atomic_none_kernel(mock_launcher_run):
 
 
 def test_set_atomic_type_kernel(mock_launcher_run):
+
     @asc.jit(always_compile=True)
     def set_atomic_type_kernel() -> None:
         asc.set_atomic_type(asc.half)
-    
+
     set_atomic_type_kernel[1]()
     assert mock_launcher_run.call_count == 1

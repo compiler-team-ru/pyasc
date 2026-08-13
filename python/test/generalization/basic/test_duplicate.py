@@ -19,8 +19,8 @@ except ModuleNotFoundError:
 
 
 @asc.jit
-def duplicate_kernel(scalar, z: asc.GlobalAddress, block_length: asc.ConstExpr[int],
-                buffer_num: asc.ConstExpr[int], tile_length: asc.ConstExpr[int], tile_num: asc.ConstExpr[int]):
+def duplicate_kernel(scalar, z: asc.GlobalAddress, block_length: asc.ConstExpr[int], buffer_num: asc.ConstExpr[int],
+                     tile_length: asc.ConstExpr[int], tile_num: asc.ConstExpr[int]):
     offset = asc.get_block_idx() * block_length
     z_gm = asc.GlobalTensor()
     z_gm.set_global_buffer(z + offset)
@@ -59,13 +59,12 @@ def duplicate_launch(scalar, size) -> torch.Tensor:
 
 
 param_list = [
-    [torch.float32, (1000,)],
-    [torch.float32, (1,)],
-    [torch.float16, (2048,)],
-    [torch.int32, (8192,)],
-    [torch.int16, (8192,)],
+    [torch.float32, (1000, )],
+    [torch.float32, (1, )],
+    [torch.float16, (2048, )],
+    [torch.int32, (8192, )],
+    [torch.int16, (8192, )],
 ]
-
 
 BACKENDS = [
     # config.Backend.Model,

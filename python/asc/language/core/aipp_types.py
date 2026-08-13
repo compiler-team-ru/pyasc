@@ -35,14 +35,13 @@ class AippPaddingParams:
         builder = global_builder.get_ir_builder()
         ir_dtype = _get_mlir_type_from_dtype(dtype, builder)
         return builder.create_asc_ConstructOp(
-            builder.get_asc_AippPaddingParamsType(),
-            [
-                _mat(self.padding_mode).to_ir(), _mat(self.padding_value_ch0, dtype).to_ir(),
-                _mat(self.padding_value_ch1, dtype).to_ir(), _mat(self.padding_value_ch2, dtype).to_ir(),
+            builder.get_asc_AippPaddingParamsType(), [
+                _mat(self.padding_mode).to_ir(),
+                _mat(self.padding_value_ch0, dtype).to_ir(),
+                _mat(self.padding_value_ch1, dtype).to_ir(),
+                _mat(self.padding_value_ch2, dtype).to_ir(),
                 _mat(self.padding_value_ch3, dtype).to_ir()
-            ],
-            builder.get_type_array_attr([builder.get_ui32_type(), ir_dtype, ir_dtype, ir_dtype, ir_dtype])
-        )
+            ], builder.get_type_array_attr([builder.get_ui32_type(), ir_dtype, ir_dtype, ir_dtype, ir_dtype]))
 
 
 @dataclass
@@ -55,9 +54,12 @@ class AippSwapParams:
         builder = global_builder.get_ir_builder()
         return builder.create_asc_ConstructOp(
             builder.get_asc_AippSwapParamsType(),
-            [_mat(self.is_swap_rb).to_ir(), _mat(self.is_swap_uv).to_ir(), _mat(self.is_swap_ax).to_ir()],
-            builder.get_type_array_attr([builder.get_i8_type(), builder.get_i8_type(), builder.get_i8_type()])
-        )
+            [_mat(self.is_swap_rb).to_ir(),
+             _mat(self.is_swap_uv).to_ir(),
+             _mat(self.is_swap_ax).to_ir()],
+            builder.get_type_array_attr([builder.get_i8_type(),
+                                         builder.get_i8_type(),
+                                         builder.get_i8_type()]))
 
 
 @dataclass
@@ -66,11 +68,9 @@ class AippSingleLineParams:
 
     def _to_ir(self) -> IRHandle:
         builder = global_builder.get_ir_builder()
-        return builder.create_asc_ConstructOp(
-            builder.get_asc_AippSingleLineParamsType(),
-            [_mat(self.is_single_line_copy).to_ir()],
-            builder.get_type_array_attr([builder.get_i8_type()])
-        )
+        return builder.create_asc_ConstructOp(builder.get_asc_AippSingleLineParamsType(),
+                                              [_mat(self.is_single_line_copy).to_ir()],
+                                              builder.get_type_array_attr([builder.get_i8_type()]))
 
 
 @dataclass
@@ -89,23 +89,30 @@ class AippDataTypeConvParams:
     def _to_ir(self) -> IRHandle:
         builder = global_builder.get_ir_builder()
         return builder.create_asc_ConstructOp(
-            builder.get_asc_AippDataTypeConvParamsType(),
-            [
-                _mat(self.dtc_mean_ch0, KT.uint8).to_ir(), _mat(self.dtc_mean_ch1, KT.uint8).to_ir(),
+            builder.get_asc_AippDataTypeConvParamsType(), [
+                _mat(self.dtc_mean_ch0, KT.uint8).to_ir(),
+                _mat(self.dtc_mean_ch1, KT.uint8).to_ir(),
                 _mat(self.dtc_mean_ch2, KT.uint8).to_ir(),
-                _mat(self.dtc_min_ch0, KT.float16).to_ir(), _mat(self.dtc_min_ch1, KT.float16).to_ir(),
+                _mat(self.dtc_min_ch0, KT.float16).to_ir(),
+                _mat(self.dtc_min_ch1, KT.float16).to_ir(),
                 _mat(self.dtc_min_ch2, KT.float16).to_ir(),
-                _mat(self.dtc_var_ch0, KT.float16).to_ir(), _mat(self.dtc_var_ch1, KT.float16).to_ir(),
+                _mat(self.dtc_var_ch0, KT.float16).to_ir(),
+                _mat(self.dtc_var_ch1, KT.float16).to_ir(),
                 _mat(self.dtc_var_ch2, KT.float16).to_ir(),
                 _mat(self.dtc_round_mode, KT.uint32).to_ir()
             ],
             builder.get_type_array_attr([
-                builder.get_ui8_type(), builder.get_ui8_type(), builder.get_ui8_type(),
-                builder.get_f16_type(), builder.get_f16_type(), builder.get_f16_type(),
-                builder.get_f16_type(), builder.get_f16_type(), builder.get_f16_type(),
+                builder.get_ui8_type(),
+                builder.get_ui8_type(),
+                builder.get_ui8_type(),
+                builder.get_f16_type(),
+                builder.get_f16_type(),
+                builder.get_f16_type(),
+                builder.get_f16_type(),
+                builder.get_f16_type(),
+                builder.get_f16_type(),
                 builder.get_ui32_type()
-            ])
-        )
+            ]))
 
 
 @dataclass
@@ -118,9 +125,9 @@ class AippChannelPaddingParams:
         ir_dtype = _get_mlir_type_from_dtype(dtype, builder)
         return builder.create_asc_ConstructOp(
             builder.get_asc_AippChannelPaddingParamsType(),
-            [_mat(self.c_padding_mode).to_ir(), _mat(self.c_padding_value, dtype).to_ir()],
-            builder.get_type_array_attr([builder.get_ui32_type(), ir_dtype])
-        )
+            [_mat(self.c_padding_mode).to_ir(),
+             _mat(self.c_padding_value, dtype).to_ir()],
+            builder.get_type_array_attr([builder.get_ui32_type(), ir_dtype]))
 
 
 @dataclass
@@ -163,26 +170,35 @@ class AippColorSpaceConvParams:
             _mat(self.csc_bias_out_2, KT.uint8).to_ir()
         ]
         types_attr = [
-            builder.get_i8_type(), builder.get_i16_type(), builder.get_i16_type(), builder.get_i16_type(),
-            builder.get_i16_type(), builder.get_i16_type(), builder.get_i16_type(), builder.get_i16_type(),
-            builder.get_i16_type(), builder.get_i16_type(), builder.get_ui8_type(), builder.get_ui8_type(),
-            builder.get_ui8_type(), builder.get_ui8_type(), builder.get_ui8_type(), builder.get_ui8_type()
+            builder.get_i8_type(),
+            builder.get_i16_type(),
+            builder.get_i16_type(),
+            builder.get_i16_type(),
+            builder.get_i16_type(),
+            builder.get_i16_type(),
+            builder.get_i16_type(),
+            builder.get_i16_type(),
+            builder.get_i16_type(),
+            builder.get_i16_type(),
+            builder.get_ui8_type(),
+            builder.get_ui8_type(),
+            builder.get_ui8_type(),
+            builder.get_ui8_type(),
+            builder.get_ui8_type(),
+            builder.get_ui8_type()
         ]
-        return builder.create_asc_ConstructOp(
-            builder.get_asc_AippColorSpaceConvParamsType(), params_ir, builder.get_type_array_attr(types_attr)
-        )
+        return builder.create_asc_ConstructOp(builder.get_asc_AippColorSpaceConvParamsType(), params_ir,
+                                              builder.get_type_array_attr(types_attr))
 
 
 class AippParams(IRValue):
-    def __init__(self,
-                 dtype: DataType,
-                 padding_params: Optional[AippPaddingParams] = None,
+
+    def __init__(self, dtype: DataType, padding_params: Optional[AippPaddingParams] = None,
                  swap_params: Optional[AippSwapParams] = None,
                  single_line_params: Optional[AippSingleLineParams] = None,
                  dtc_params: Optional[AippDataTypeConvParams] = None,
                  c_padding_params: Optional[AippChannelPaddingParams] = None,
-                 csc_params: Optional[AippColorSpaceConvParams] = None,
-                 handle: Optional[IRHandle] = None) -> None:
+                 csc_params: Optional[AippColorSpaceConvParams] = None, handle: Optional[IRHandle] = None) -> None:
         if handle:
             self.handle = handle
             return
@@ -213,17 +229,18 @@ class AippParams(IRValue):
         csc_params_ir = csc_params._to_ir()
 
         self.handle = builder.create_asc_ConstructOp(
-            builder.get_asc_AippParamsType(),
-            [
-                padding_params_ir, swap_params_ir, single_line_params_ir,
-                dtc_params_ir, c_padding_params_ir, csc_params_ir
+            builder.get_asc_AippParamsType(), [
+                padding_params_ir, swap_params_ir, single_line_params_ir, dtc_params_ir, c_padding_params_ir,
+                csc_params_ir
             ],
             builder.get_type_array_attr([
-                builder.get_asc_AippPaddingParamsType(), builder.get_asc_AippSwapParamsType(),
-                builder.get_asc_AippSingleLineParamsType(), builder.get_asc_AippDataTypeConvParamsType(),
-                builder.get_asc_AippChannelPaddingParamsType(), builder.get_asc_AippColorSpaceConvParamsType()
-            ])
-        )
+                builder.get_asc_AippPaddingParamsType(),
+                builder.get_asc_AippSwapParamsType(),
+                builder.get_asc_AippSingleLineParamsType(),
+                builder.get_asc_AippDataTypeConvParamsType(),
+                builder.get_asc_AippChannelPaddingParamsType(),
+                builder.get_asc_AippColorSpaceConvParamsType()
+            ]))
 
     @classmethod
     def from_ir(cls, handle: IRHandle) -> AippParams:

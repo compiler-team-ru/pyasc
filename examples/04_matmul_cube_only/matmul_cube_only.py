@@ -25,7 +25,6 @@ IS_TRANS_A = False
 IS_TRANS_B = False
 ENABLE_BIAS = False
 
-
 logging.basicConfig(level=logging.INFO)
 
 
@@ -85,8 +84,8 @@ def calc_offsets(tiling: asc.adv.TCubeTiling, is_trans_a: bool = False,
     return offset_a, offset_b, offset_c, offset_bias, tail_m, tail_n
 
 
-def matmul_launch(a: torch.Tensor, b: torch.Tensor, bias: torch.Tensor, 
-                    tiling: asc.adv.TCubeTiling, device) -> torch.Tensor:
+def matmul_launch(a: torch.Tensor, b: torch.Tensor, bias: torch.Tensor, tiling: asc.adv.TCubeTiling,
+                  device) -> torch.Tensor:
     size_m, size_k = a.shape
     _, size_n = b.shape
     c = torch.zeros((size_m, size_n), dtype=torch.float32, device=device)

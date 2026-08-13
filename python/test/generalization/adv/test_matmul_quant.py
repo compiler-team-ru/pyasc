@@ -66,8 +66,8 @@ def calc_offsets(tiling: asc.adv.TCubeTiling) -> Tuple[int, int, int]:
     return offset_a, offset_b, offset_c, offset_quant
 
 
-def matmul_launch(a: torch.Tensor, b: torch.Tensor, c: torch.Tensor, workspace: torch.Tensor, 
-                    tiling: asc.adv.TCubeTiling, quant_vector: torch.Tensor) -> torch.Tensor:
+def matmul_launch(a: torch.Tensor, b: torch.Tensor, c: torch.Tensor, workspace: torch.Tensor,
+                  tiling: asc.adv.TCubeTiling, quant_vector: torch.Tensor) -> torch.Tensor:
     assert a.shape[1] == b.shape[0], "Matrices must be compatible for a multiplication"
     matmul_kernel[tiling.used_core_num, rt.current_stream()](a, b, c, tiling, workspace, quant_vector)
     return c
@@ -112,7 +112,6 @@ param_list = [
     [torch.int8, (64, 128, 256)],
 ]
 
-
 BACKENDS = [
     # config.Backend.Model,
     config.Backend.NPU,
@@ -128,7 +127,7 @@ def test_matmul_quant(dtype, size, backend: config.Backend):
     m, k, n = size
     a = torch.randint(-5, 5, (m, k), dtype=dtype, device=device)
     b = torch.randint(-5, 5, (k, n), dtype=dtype, device=device)
-    c = torch.zeros((m, n), dtype=torch.float16, device=device) # int8 in float16 out
+    c = torch.zeros((m, n), dtype=torch.float16, device=device)  # int8 in float16 out
     workspace = torch.zeros(16 * 1024 * 1024, dtype=torch.uint8, device=device)
     quant_vector = (torch.rand((1, n), dtype=torch.float32, device=device) - .5) * 10
     torch_output = a.to(torch.int32) @ b.to(torch.int32)

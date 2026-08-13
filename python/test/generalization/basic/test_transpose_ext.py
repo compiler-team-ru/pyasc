@@ -19,9 +19,8 @@ except ModuleNotFoundError:
 
 
 @asc.jit
-def transpose_ext_kernel(x: asc.GlobalAddress, z: asc.GlobalAddress,
-                         block_length: asc.ConstExpr[int], buffer_num: asc.ConstExpr[int],
-                         tile_length: asc.ConstExpr[int], tile_num: asc.ConstExpr[int],
+def transpose_ext_kernel(x: asc.GlobalAddress, z: asc.GlobalAddress, block_length: asc.ConstExpr[int],
+                         buffer_num: asc.ConstExpr[int], tile_length: asc.ConstExpr[int], tile_num: asc.ConstExpr[int],
                          tmp_buffer_len: asc.ConstExpr[int]):
     offset = asc.get_block_idx() * block_length
     x_gm = asc.GlobalTensor()
@@ -32,7 +31,7 @@ def transpose_ext_kernel(x: asc.GlobalAddress, z: asc.GlobalAddress,
     pipe = asc.TPipe()
     in_queue_x = asc.TQue(asc.TPosition.VECIN, buffer_num)
     out_queue_z = asc.TQue(asc.TPosition.VECOUT, buffer_num)
-    in_queue_tmp = asc.TQue(asc.TPosition.VECCALC, buffer_num) 
+    in_queue_tmp = asc.TQue(asc.TPosition.VECCALC, buffer_num)
 
     pipe.init_buffer(que=in_queue_x, num=buffer_num, len=tile_length * x.dtype.sizeof())
     pipe.init_buffer(que=out_queue_z, num=buffer_num, len=tile_length * z.dtype.sizeof())
@@ -45,10 +44,9 @@ def transpose_ext_kernel(x: asc.GlobalAddress, z: asc.GlobalAddress,
 
 
 @asc.jit
-def copy_in(i: int, x_gm: asc.GlobalAddress, in_queue_x: asc.TQue,
-                tile_length: asc.ConstExpr[int]):
-    x_local = in_queue_x.alloc_tensor(x_gm.dtype)  
-    asc.data_copy(x_local, x_gm[i * tile_length:], count=tile_length)  
+def copy_in(i: int, x_gm: asc.GlobalAddress, in_queue_x: asc.TQue, tile_length: asc.ConstExpr[int]):
+    x_local = in_queue_x.alloc_tensor(x_gm.dtype)
+    asc.data_copy(x_local, x_gm[i * tile_length:], count=tile_length)
     in_queue_x.enque(x_local)
 
 
@@ -57,17 +55,12 @@ def compute(z_gm: asc.GlobalTensor, in_queue_x: asc.TQue, out_queue_z: asc.TQue,
     x_local = in_queue_x.deque(z_gm.dtype)
     z_local = out_queue_z.alloc_tensor(z_gm.dtype)
     tmp_buffer = in_queue_tmp.alloc_tensor(asc.uint8)
-    
-    params = asc.TransposeParamsExt(
-        n_size=1, 
-        c_size=16, 
-        h_size=4, 
-        w_size=4,
-        transpose_type=asc.TransposeType.TRANSPOSE_NCHW2NHWC
-    )
-    
+
+    params = asc.TransposeParamsExt(n_size=1, c_size=16, h_size=4, w_size=4,
+                                    transpose_type=asc.TransposeType.TRANSPOSE_NCHW2NHWC)
+
     asc.transpose(z_local, x_local, tmp_buffer, params)
-    
+
     out_queue_z.enque(z_local)
     in_queue_x.free_tensor(x_local)
     in_queue_tmp.free_tensor(tmp_buffer)
@@ -89,10 +82,10 @@ def transpose_ext_launch(x: torch.Tensor) -> torch.Tensor:
     tile_num = 1
     tile_length = block_length
     buffer_num = 1
-    tmp_buffer_len = (16 + c) * 16 * 8 * 4 
-    
-    transpose_ext_kernel[use_core_num, rt.current_stream()](x, z, block_length, buffer_num, 
-                                                            tile_length, tile_num, tmp_buffer_len)
+    tmp_buffer_len = (16 + c) * 16 * 8 * 4
+
+    transpose_ext_kernel[use_core_num, rt.current_stream()](x, z, block_length, buffer_num, tile_length, tile_num,
+                                                            tmp_buffer_len)
     return z.reshape(n, h, w, c)
 
 
@@ -101,7 +94,6 @@ param_list = [
     # torch.uint16,
     torch.int16,
 ]
-
 
 BACKENDS = [
     # config.Backend.Model,

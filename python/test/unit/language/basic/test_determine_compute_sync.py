@@ -16,6 +16,7 @@ def setup_function():
 
 
 def test_notify_next_block(mock_launcher_run):
+
     @asc.jit
     def kernel_notify_next_block(gm_workspace_addr: asc.GlobalAddress) -> None:
         gm_workspace = asc.GlobalTensor()
@@ -29,6 +30,7 @@ def test_notify_next_block(mock_launcher_run):
 
 
 def test_wait_pre_block(mock_launcher_run):
+
     @asc.jit
     def kernel_wait_pre_block(gm_workspace_addr: asc.GlobalAddress) -> None:
         gm_workspace = asc.GlobalTensor()

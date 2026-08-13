@@ -30,8 +30,8 @@ def math_op_impl(tensors: Tuple[LocalTensor], count: Optional[RuntimeInt], temp_
 
 
 @overload
-def acos(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-         temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def acos(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+         is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -43,8 +43,8 @@ def acos(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None,
 
 
 @overload
-def acosh(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-          temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def acosh(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+          is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -56,8 +56,8 @@ def acosh(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None
 
 
 @overload
-def asin(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-         temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def asin(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+         is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -69,8 +69,8 @@ def asin(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None,
 
 
 @overload
-def asinh(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-          temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def asinh(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+          is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -82,8 +82,8 @@ def asinh(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None
 
 
 @overload
-def atan(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-         temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def atan(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+         is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -95,8 +95,8 @@ def atan(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None,
 
 
 @overload
-def atanh(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-          temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def atanh(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+          is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -108,8 +108,8 @@ def atanh(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None
 
 
 @overload
-def ceil(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-         temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def ceil(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+         is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -121,8 +121,8 @@ def ceil(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None,
 
 
 @overload
-def cos(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-        temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def cos(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+        is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -134,8 +134,8 @@ def cos(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None,
 
 
 @overload
-def cosh(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-         temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def cosh(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+         is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -147,8 +147,8 @@ def cosh(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None,
 
 
 @overload
-def digamma(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-            temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def digamma(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+            is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -160,8 +160,8 @@ def digamma(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = No
 
 
 @overload
-def erf(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-        temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def erf(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+        is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -173,8 +173,8 @@ def erf(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None,
 
 
 @overload
-def erfc(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-         temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def erfc(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+         is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -186,7 +186,7 @@ def erfc(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None,
 
 
 @overload
-def exp(dst: LocalTensor, src: LocalTensor, count: int, taylor_expand_level: int, 
+def exp(dst: LocalTensor, src: LocalTensor, count: int, taylor_expand_level: int,
         temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
     ...
 
@@ -247,8 +247,8 @@ def exp(dst: LocalTensor, src: LocalTensor, count: RuntimeInt, taylor_expand_lev
 
 
 @overload
-def floor(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-          temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def floor(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+          is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -260,8 +260,8 @@ def floor(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None
 
 
 @overload
-def frac(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-         temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def frac(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+         is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -273,8 +273,8 @@ def frac(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None,
 
 
 @overload
-def lgamma(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-           temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def lgamma(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+           is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -286,8 +286,8 @@ def lgamma(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = Non
 
 
 @overload
-def log(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-        temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def log(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+        is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -299,8 +299,8 @@ def log(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None,
 
 
 @overload
-def round(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-          temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def round(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+          is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -312,8 +312,8 @@ def round(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None
 
 
 @overload
-def sign(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-         temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def sign(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+         is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -325,8 +325,8 @@ def sign(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None,
 
 
 @overload
-def sin(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-        temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def sin(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+        is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -338,8 +338,8 @@ def sin(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None,
 
 
 @overload
-def sinh(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-         temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def sinh(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+         is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -351,8 +351,8 @@ def sinh(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None,
 
 
 @overload
-def tan(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-        temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def tan(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+        is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -364,8 +364,8 @@ def tan(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None,
 
 
 @overload
-def tanh(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-         temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def tanh(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+         is_reuse_source: bool = False) -> None:
     ...
 
 
@@ -377,8 +377,8 @@ def tanh(dst: LocalTensor, src: LocalTensor, count: Optional[RuntimeInt] = None,
 
 
 @overload
-def trunc(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None,
-          temp_buffer: Optional[LocalTensor] = None, is_reuse_source: bool = False) -> None:
+def trunc(dst: LocalTensor, src: LocalTensor, count: Optional[int] = None, temp_buffer: Optional[LocalTensor] = None,
+          is_reuse_source: bool = False) -> None:
     ...
 
 

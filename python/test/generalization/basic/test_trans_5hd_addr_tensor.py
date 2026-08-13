@@ -19,28 +19,27 @@ except ModuleNotFoundError:
 
 
 @asc.jit
-def transdata_to_5hd_kernel(src: asc.GlobalAddress, dst: asc.GlobalAddress,
-                           n: asc.ConstExpr[int], c: asc.ConstExpr[int],
-                           h: asc.ConstExpr[int], w: asc.ConstExpr[int],
-                           c0: asc.ConstExpr[int]):
+def transdata_to_5hd_kernel(src: asc.GlobalAddress, dst: asc.GlobalAddress, n: asc.ConstExpr[int],
+                            c: asc.ConstExpr[int], h: asc.ConstExpr[int], w: asc.ConstExpr[int],
+                            c0: asc.ConstExpr[int]):
     data_size = n * c * h * w
-    
+
     src_gm = asc.GlobalTensor()
     dst_gm = asc.GlobalTensor()
     src_gm.set_global_buffer(src)
     dst_gm.set_global_buffer(dst)
-    
+
     pipe = asc.TPipe()
     in_queue_src = asc.TQue(asc.TPosition.VECIN, 1)
     out_queue_dst = asc.TQue(asc.TPosition.VECOUT, 1)
     work_queue_src1 = asc.TQue(asc.TPosition.VECCALC, 1)
     work_queue_src2 = asc.TQue(asc.TPosition.VECCALC, 1)
-    
+
     pipe.init_buffer(que=in_queue_src, num=1, len=data_size * src.dtype.sizeof())
     pipe.init_buffer(que=out_queue_dst, num=1, len=data_size * dst.dtype.sizeof())
     pipe.init_buffer(que=work_queue_src1, num=1, len=16 * asc.uint64.sizeof())
     pipe.init_buffer(que=work_queue_src2, num=1, len=16 * asc.uint64.sizeof())
-    
+
     copy_in(src_gm, in_queue_src, data_size)
     compute(dst_gm, in_queue_src, out_queue_dst, work_queue_src1, work_queue_src2, n, c, h, w, c0)
     copy_out(dst_gm, out_queue_dst, data_size)
@@ -54,39 +53,33 @@ def copy_in(src_gm: asc.GlobalTensor, in_queue_src: asc.TQue, src_data_size: int
 
 
 @asc.jit
-def compute(dst_gm: asc.GlobalTensor, in_queue_src: asc.TQue, out_queue_dst: asc.TQue, 
-            work_queue_src1: asc.TQue, work_queue_src2: asc.TQue,
-            n: int, c: int, h: int, w: int, c0: int):
+def compute(dst_gm: asc.GlobalTensor, in_queue_src: asc.TQue, out_queue_dst: asc.TQue, work_queue_src1: asc.TQue,
+            work_queue_src2: asc.TQue, n: int, c: int, h: int, w: int, c0: int):
     src_local = in_queue_src.deque(dst_gm.dtype)
     dst_local = out_queue_dst.alloc_tensor(dst_gm.dtype)
-    
-    params = asc.TransDataTo5HDParams(
-        dst_high_half=False,
-        src_high_half=False,
-        repeat_times=16,
-        dst_rep_stride=16,
-        src_rep_stride=1
-    )
-    
+
+    params = asc.TransDataTo5HDParams(dst_high_half=False, src_high_half=False, repeat_times=16, dst_rep_stride=16,
+                                      src_rep_stride=1)
+
     for j in range(4):
         dst_addr_local = work_queue_src1.alloc_tensor(asc.uint64)
         src_addr_local = work_queue_src2.alloc_tensor(asc.uint64)
-        
+
         for i in range(16):
             dst_offset = j * c0 * h * w + w * i
             dst_addr = dst_local[dst_offset].get_phy_addr()
             dst_addr_local.set_value(i, dst_addr)
-        
+
         for i in range(16):
             src_offset = j * c0 * h * w + h * w * i
             src_addr = src_local[src_offset].get_phy_addr()
             src_addr_local.set_value(i, src_addr)
-        
+
         asc.trans_data_to_5hd(dst_addr_local, src_addr_local, params)
-        
+
         work_queue_src1.free_tensor(dst_addr_local)
         work_queue_src2.free_tensor(src_addr_local)
-    
+
     out_queue_dst.enque(dst_local)
     in_queue_src.free_tensor(src_local)
 
@@ -102,14 +95,12 @@ def transdata_to_5hd_launch(x: torch.Tensor, c0: int = 16) -> torch.Tensor:
     n, c, h, w = x.shape
     if c % c0 != 0:
         raise ValueError(f"Channel dimension {c} must be divisible by c0={c0}")
-    
+
     z = torch.zeros_like(x)
-    
+
     use_core_num = 1
-    
-    transdata_to_5hd_kernel[use_core_num, rt.current_stream()](
-        x, z, n, c, h, w, c0
-    )
+
+    transdata_to_5hd_kernel[use_core_num, rt.current_stream()](x, z, n, c, h, w, c0)
     return z
 
 
@@ -118,7 +109,6 @@ param_list = [
     # torch.uint16,
     torch.int16,
 ]
-
 
 BACKENDS = [
     # config.Backend.Model,

@@ -111,7 +111,7 @@ def load_data(dst: BaseTensor, src: BaseTensor, *args, **kwargs) -> None:
                 params.to_ir(),
             )
             return
-    
+
     @dispatcher.register_auto
     def _(params: LoadData3DParamsV1):
 
@@ -158,9 +158,8 @@ def load_data_with_sparse(dst: LocalTensor, src: LocalTensor, idx: LocalTensor,
 @set_common_docstring(api_name="load_data_with_sparse")
 def load_data_with_sparse(dst: LocalTensor, src: LocalTensor, idx: LocalTensor,
                           load_data_params: LoadData2DParams) -> None:
-    global_builder.get_ir_builder().create_asc_LoadDataWithSparseOp(
-        dst.to_ir(), src.to_ir(), idx.to_ir(), load_data_params.to_ir()
-    )
+    global_builder.get_ir_builder().create_asc_LoadDataWithSparseOp(dst.to_ir(), src.to_ir(), idx.to_ir(),
+                                                                    load_data_params.to_ir())
 
 
 @overload
@@ -251,9 +250,8 @@ def mmad_with_sparse(dst: LocalTensor, fm: LocalTensor, filter: LocalTensor, mma
 @require_jit
 @set_common_docstring(api_name="mmad_with_sparse")
 def mmad_with_sparse(dst: LocalTensor, fm: LocalTensor, filter: LocalTensor, mmad_params: MmadParams) -> None:
-    global_builder.get_ir_builder().create_asc_MmadWithSparseOp(
-        dst.to_ir(), fm.to_ir(), filter.to_ir(), mmad_params.to_ir()
-    )
+    global_builder.get_ir_builder().create_asc_MmadWithSparseOp(dst.to_ir(), fm.to_ir(), filter.to_ir(),
+                                                                mmad_params.to_ir())
 
 
 @overload

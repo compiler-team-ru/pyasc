@@ -15,12 +15,7 @@ def test_init_const_value(mock_launcher_run):
     @asc.jit
     def kernel_init_const_value() -> None:
         dst = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.A1, addr=0, tile_size=128)
-        params = asc.InitConstValueParams(
-            repeat_times=1,
-            block_num=2,
-            dst_gap=0,
-            init_value=np.float16(2.2)
-        )
+        params = asc.InitConstValueParams(repeat_times=1, block_num=2, dst_gap=0, init_value=np.float16(2.2))
         asc.init_const_value(dst, params)
 
     kernel_init_const_value[1]()
@@ -40,8 +35,8 @@ def test_load_data(mock_launcher_run):
         params_2d_v2 = asc.LoadData2DParamsV2(0, 0, 16, 16, 0, 0, False, 0)
         params_3d_v1 = asc.LoadData3DParamsV1((0, 0, 0, 0), 16, 16, 0, 0, 0, 0, 0, 1, 1, 3, 3, 1, 1, 1, 0, 1, 0, 0)
         params_3d_v1_ir = asc.LoadData3DParamsV1.from_ir(params_3d_v1.to_ir())
-        params_3d_v2 = asc.LoadData3DParamsV2((0, 0, 0, 0), 16, 16, 16, 16, 16, 0, 0, 1, 1, 3, 3, 1, 1, 
-                                              False, 0, False, False, False)
+        params_3d_v2 = asc.LoadData3DParamsV2((0, 0, 0, 0), 16, 16, 16, 16, 16, 0, 0, 1, 1, 3, 3, 1, 1, False, 0, False,
+                                              False, False)
         params_3d_v2_ir = asc.LoadData3DParamsV2.from_ir(params_3d_v2.to_ir())
         params_3d_v2_pro = asc.LoadData3DParamsV2Pro(16, False, False, False, False, False, 0, 0x10101010101)
 
@@ -116,27 +111,19 @@ def test_mmad(mock_launcher_run):
         asc.mmad(dst, fm, filter, params)
         asc.mmad(dst, fm, filter, bias, params)
 
-
     kernel_mmad[1]()
     assert mock_launcher_run.call_count == 1
 
 
 def test_mmad_with_sparse(mock_launcher_run):
+
     @asc.jit
     def kernel_mmad_with_sparse() -> None:
         dst = asc.LocalTensor(dtype=asc.int32, pos=asc.TPosition.CO1, addr=0, tile_size=400)
         fm = asc.LocalTensor(dtype=asc.int8, pos=asc.TPosition.A2, addr=0, tile_size=400)
         filter = asc.LocalTensor(dtype=asc.int8, pos=asc.TPosition.B2, addr=0, tile_size=400)
-        params = asc.MmadParams(
-            m=20,
-            n=20,
-            k=20,
-            is_bias=False,
-            fm_offset=0,
-            en_ssparse=False,
-            en_winograd_a=False,
-            en_winograd_b=False
-        )
+        params = asc.MmadParams(m=20, n=20, k=20, is_bias=False, fm_offset=0, en_ssparse=False, en_winograd_a=False,
+                                en_winograd_b=False)
         asc.mmad_with_sparse(dst, fm, filter, params)
 
     kernel_mmad_with_sparse[1]()
@@ -144,9 +131,10 @@ def test_mmad_with_sparse(mock_launcher_run):
 
 
 def test_set_load_data_boundary(mock_launcher_run):
+
     @asc.jit
     def set_load_data_boundary_kernel():
-        asc.set_load_data_boundary(1024)   
+        asc.set_load_data_boundary(1024)
 
     set_load_data_boundary_kernel[1]()
     assert mock_launcher_run.call_count == 1
@@ -155,23 +143,24 @@ def test_set_load_data_boundary(mock_launcher_run):
 def test_set_load_data_padding_value(mock_launcher_run):
 
     @asc.jit
-    def kernel_set_load_data_padding_value() -> None: 
-        asc.set_load_data_padding_value(10)    
-        asc.set_load_data_padding_value(2.0)  
+    def kernel_set_load_data_padding_value() -> None:
+        asc.set_load_data_padding_value(10)
+        asc.set_load_data_padding_value(2.0)
 
     kernel_set_load_data_padding_value[1]()
     assert mock_launcher_run.call_count == 1
 
 
 def test_set_load_data_repeat(mock_launcher_run):
+
     @asc.jit
     def set_load_data_repeat_kernel():
         static_param = asc.LoadDataRepeatParam(
-            repeat_time=4, 
-            repeat_stride=8, 
+            repeat_time=4,
+            repeat_stride=8,
             repeat_mode=0,
         )
         asc.set_load_data_repeat(static_param)
-        
+
     set_load_data_repeat_kernel[1]()
     assert mock_launcher_run.call_count == 1

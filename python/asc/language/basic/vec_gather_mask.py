@@ -34,19 +34,19 @@ def check_type_gather_mask(dst: LocalTensor, src0: LocalTensor, src1_pattern: Un
         When dst is float/uint32_t/int32_t: src1_pattern should be uint32_t
     """
     valid_dst_src0_types = [
-        KT.half,       
-        KT.uint16,     
-        KT.int16,      
-        KT.float_,     
-        KT.uint32,     
-        KT.int32,      
-    ]    
+        KT.half,
+        KT.uint16,
+        KT.int16,
+        KT.float_,
+        KT.uint32,
+        KT.int32,
+    ]
     if dst.dtype not in valid_dst_src0_types:
         raise TypeError(f"Invalid dst data type for GatherMask: {dst.dtype}. "
-                       f"Supported types: half, uint16, int16, float, uint32, int32")    
+                        f"Supported types: half, uint16, int16, float, uint32, int32")
     if src0.dtype not in valid_dst_src0_types:
         raise TypeError(f"Invalid src0 data type for GatherMask: {src0.dtype}. "
-                       f"Supported types: half, uint16, int16, float, uint32, int32")
+                        f"Supported types: half, uint16, int16, float, uint32, int32")
     if dst.dtype != src0.dtype:
         raise TypeError(f"dst and src0 must have same data type. Got dst={dst.dtype}, src0={src0.dtype}")
     if isinstance(src1_pattern, LocalTensor):
@@ -57,7 +57,7 @@ def check_type_gather_mask(dst: LocalTensor, src0: LocalTensor, src1_pattern: Un
             if src1_pattern.dtype != KT.uint32:
                 raise TypeError(f"For dst data type {dst.dtype}, src1_pattern must be uint32. Got {src1_pattern.dtype}")
         else:
-            raise TypeError(f"Unsupported dst data type for src1_pattern validation: {dst.dtype}")    
+            raise TypeError(f"Unsupported dst data type for src1_pattern validation: {dst.dtype}")
     elif isinstance(src1_pattern, int):
         if not (1 <= src1_pattern <= 7):
             raise ValueError(f"Built-in src1_pattern must be between 1 and 7. Got {src1_pattern}")
@@ -66,16 +66,14 @@ def check_type_gather_mask(dst: LocalTensor, src0: LocalTensor, src1_pattern: Un
 
 
 @overload
-def gather_mask(dst: LocalTensor, src0: LocalTensor, src1_pattern: LocalTensor,
-               reduce_mode: bool, mask: int, params: GatherMaskParams,
-               gather_mask_mode=GatherMaskMode.DEFAULT) -> int:
+def gather_mask(dst: LocalTensor, src0: LocalTensor, src1_pattern: LocalTensor, reduce_mode: bool, mask: int,
+                params: GatherMaskParams, gather_mask_mode=GatherMaskMode.DEFAULT) -> int:
     ...
 
 
 @overload
-def gather_mask(dst: LocalTensor, src0: LocalTensor, src1_pattern: int,
-               reduce_mode: bool, mask: int, params: GatherMaskParams,
-               gather_mask_mode=GatherMaskMode.DEFAULT) -> int:
+def gather_mask(dst: LocalTensor, src0: LocalTensor, src1_pattern: int, reduce_mode: bool, mask: int,
+                params: GatherMaskParams, gather_mask_mode=GatherMaskMode.DEFAULT) -> int:
     ...
 
 
@@ -83,32 +81,32 @@ def gather_mask(dst: LocalTensor, src0: LocalTensor, src1_pattern: int,
 @set_common_docstring("gather_mask")
 def gather_mask(dst: LocalTensor, src0: LocalTensor, *args, **kwargs) -> RuntimeInt:
     builder = global_builder.get_ir_builder()
-    
+
     dispatcher = OverloadDispatcher("gather_mask")
-    
+
     @dispatcher.register(src1_pattern=LocalTensor, reduce_mode=RuntimeBool, mask=RuntimeInt, params=GatherMaskParams,
-               gather_mask_mode=DefaultValued(GatherMaskMode, GatherMaskMode.DEFAULT))
-    def _(src1_pattern: LocalTensor, reduce_mode: RuntimeBool, mask: RuntimeInt,
-          params: GatherMaskParams, gather_mask_mode: GatherMaskMode):
+                         gather_mask_mode=DefaultValued(GatherMaskMode, GatherMaskMode.DEFAULT))
+    def _(src1_pattern: LocalTensor, reduce_mode: RuntimeBool, mask: RuntimeInt, params: GatherMaskParams,
+          gather_mask_mode: GatherMaskMode):
         check_type_gather_mask(dst, src0, src1_pattern)
-        rsvd_cnt = builder.create_asc_GatherMaskAndResult(KT.uint64.to_ir(),
-            dst.to_ir(), src0.to_ir(), src1_pattern.to_ir(),
-            _mat(reduce_mode, KT.bool_).to_ir(), _mat(mask, KT.uint32).to_ir(),
-            params.to_ir(), gather_mask_mode
-        )
+        rsvd_cnt = builder.create_asc_GatherMaskAndResult(KT.uint64.to_ir(), dst.to_ir(), src0.to_ir(),
+                                                          src1_pattern.to_ir(),
+                                                          _mat(reduce_mode, KT.bool_).to_ir(),
+                                                          _mat(mask, KT.uint32).to_ir(), params.to_ir(),
+                                                          gather_mask_mode)
         return PlainValue(rsvd_cnt)
 
     @dispatcher.register(src1_pattern=RuntimeInt, reduce_mode=RuntimeBool, mask=RuntimeInt, params=GatherMaskParams,
-               gather_mask_mode=DefaultValued(GatherMaskMode, GatherMaskMode.DEFAULT))
-    def _(src1_pattern: RuntimeInt, reduce_mode: RuntimeBool, mask: RuntimeInt,
-          params: GatherMaskParams, gather_mask_mode: GatherMaskMode):
+                         gather_mask_mode=DefaultValued(GatherMaskMode, GatherMaskMode.DEFAULT))
+    def _(src1_pattern: RuntimeInt, reduce_mode: RuntimeBool, mask: RuntimeInt, params: GatherMaskParams,
+          gather_mask_mode: GatherMaskMode):
         check_type_gather_mask(dst, src0, src1_pattern)
-        
-        rsvd_cnt = builder.create_asc_GatherMaskAndResult(KT.uint64.to_ir(),
-            dst.to_ir(), src0.to_ir(), _mat(src1_pattern, KT.uint8).to_ir(),
-            _mat(reduce_mode, KT.bool_).to_ir(), _mat(mask, KT.uint32).to_ir(),
-            params.to_ir(), gather_mask_mode
-        )
+
+        rsvd_cnt = builder.create_asc_GatherMaskAndResult(KT.uint64.to_ir(), dst.to_ir(), src0.to_ir(),
+                                                          _mat(src1_pattern, KT.uint8).to_ir(),
+                                                          _mat(reduce_mode, KT.bool_).to_ir(),
+                                                          _mat(mask, KT.uint32).to_ir(), params.to_ir(),
+                                                          gather_mask_mode)
         return PlainValue(rsvd_cnt)
 
     return dispatcher(*args, **kwargs)

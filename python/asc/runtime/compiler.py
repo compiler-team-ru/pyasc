@@ -320,11 +320,7 @@ class Compiler:
         else:
             cmds = self._get_compiler_cmd(target.common_arch, src, dst, common_options)
             self._run_cmd(cmds, "compile")
-            link_cmd = [
-                self.linker, "-m", "aicorelinux", "-Ttext=0",
-                "%s" % str(dst), "-static", "-o",
-                "%s" % str(dst)
-            ]
+            link_cmd = [self.linker, "-m", "aicorelinux", "-Ttext=0", "%s" % str(dst), "-static", "-o", "%s" % str(dst)]
             self._run_cmd(link_cmd, "link")
 
     def _get_compiler_cmd(self, arch: str, src_path: Path, dst_path: Path, common_options: List[str]) -> List[str]:

@@ -60,8 +60,8 @@ def calc_offsets(tiling: asc.adv.TCubeTiling) -> Tuple[int, int, int]:
     return offset_a, offset_b, offset_c
 
 
-def matmul_launch(a: torch.Tensor, b: torch.Tensor, c: torch.Tensor,
-                workspace: torch.Tensor, tiling: asc.adv.TCubeTiling) -> torch.Tensor:
+def matmul_launch(a: torch.Tensor, b: torch.Tensor, c: torch.Tensor, workspace: torch.Tensor,
+                  tiling: asc.adv.TCubeTiling) -> torch.Tensor:
     assert a.shape[1] == b.shape[0], "Matrices must be compatible for a multiplication"
     matmul_kernel[tiling.used_core_num, rt.current_stream()](a, b, c, tiling, workspace)
     return c
@@ -89,7 +89,6 @@ def generate_tiling(m, n, k, dtype):
 param_list = [
     [torch.float16, (256, 64, 128)],
 ]
-
 
 BACKENDS = [
     # config.Backend.Model,

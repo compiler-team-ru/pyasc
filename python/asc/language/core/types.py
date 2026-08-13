@@ -76,7 +76,7 @@ class BrcbRepeatParams(IRValue):
         ...
 
     @require_jit
-    def __init__(self, dst_blk_stride: RuntimeInt = 1, dst_rep_stride: RuntimeInt = 8, 
+    def __init__(self, dst_blk_stride: RuntimeInt = 1, dst_rep_stride: RuntimeInt = 8,
                  handle: Optional[IRHandle] = None) -> None:
         if handle is not None:
             self.handle = handle
@@ -102,14 +102,13 @@ class BrcbRepeatParams(IRValue):
 class CopyRepeatParams(IRValue):
 
     @overload
-    def __init__(self, dst_stride: int = 0, src_stride: int = 0,
-                 dst_repeat_size: int = 0, src_repeat_size: int = 0) -> None:
+    def __init__(self, dst_stride: int = 0, src_stride: int = 0, dst_repeat_size: int = 0,
+                 src_repeat_size: int = 0) -> None:
         ...
 
     @require_jit
-    def __init__(self, dst_stride: RuntimeInt = 0, src_stride: RuntimeInt = 0,
-                 dst_repeat_size: RuntimeInt = 0, src_repeat_size: RuntimeInt = 0,
-                 handle: Optional[IRHandle] = None) -> None:
+    def __init__(self, dst_stride: RuntimeInt = 0, src_stride: RuntimeInt = 0, dst_repeat_size: RuntimeInt = 0,
+                 src_repeat_size: RuntimeInt = 0, handle: Optional[IRHandle] = None) -> None:
         if handle is not None:
             self.handle = handle
             return
@@ -124,7 +123,7 @@ class CopyRepeatParams(IRValue):
             ],
             builder.get_type_array_attr([builder.get_ui16_type()] * 4),
         )
-    
+
     @classmethod
     def from_ir(cls, handle: IRHandle) -> CopyRepeatParams:
         return cls(handle=handle)
@@ -268,7 +267,7 @@ class InitConstValueParams(IRValue):
 
         else:
             pv = _mat(init_value)
-        
+
         init_ir = pv.to_ir()
         init_type = pv.dtype.to_ir()
 
@@ -277,15 +276,12 @@ class InitConstValueParams(IRValue):
             [
                 _mat(repeat_times, KnownTypes.uint16).to_ir(),
                 _mat(block_num, KnownTypes.uint16).to_ir(),
-                _mat(dst_gap, KnownTypes.uint16).to_ir(),
-                init_ir
+                _mat(dst_gap, KnownTypes.uint16).to_ir(), init_ir
             ],
-            builder.get_type_array_attr([
-                builder.get_ui16_type(),
-                builder.get_ui16_type(),
-                builder.get_ui16_type(),
-                init_type
-            ]),
+            builder.get_type_array_attr(
+                [builder.get_ui16_type(),
+                 builder.get_ui16_type(),
+                 builder.get_ui16_type(), init_type]),
         )
 
     @classmethod
@@ -297,7 +293,6 @@ class InitConstValueParams(IRValue):
 
 
 class ShapeInfo(IRValue):
-    
     """
     ShapeInfo用来存放LocalTensor或GlobalTensor的shape信息。
     """
@@ -573,18 +568,17 @@ class UnaryRepeatParams(IRValue):
 class TransDataTo5HDParams(IRValue):
 
     @overload
-    def __init__(self, dst_high_half: bool = False, src_high_half: bool = False,
-                 repeat_times: int = 1, dst_rep_stride: int = 0,
-                 src_rep_stride: int = 0) -> None:
+    def __init__(self, dst_high_half: bool = False, src_high_half: bool = False, repeat_times: int = 1,
+                 dst_rep_stride: int = 0, src_rep_stride: int = 0) -> None:
         ...
 
-    def __init__(self, dst_high_half: bool = False, src_high_half: bool = False,
-                 repeat_times: RuntimeInt = 1, dst_rep_stride: RuntimeInt = 0,
-                 src_rep_stride: RuntimeInt = 0, handle: Optional[IRHandle] = None) -> None:
+    def __init__(self, dst_high_half: bool = False, src_high_half: bool = False, repeat_times: RuntimeInt = 1,
+                 dst_rep_stride: RuntimeInt = 0, src_rep_stride: RuntimeInt = 0,
+                 handle: Optional[IRHandle] = None) -> None:
         if handle is not None:
             self.handle = handle
             return
-        
+
         builder = global_builder.get_ir_builder()
         self.handle = builder.create_asc_ConstructOp(
             builder.get_asc_TransDataTo5HDParamsType(),
@@ -596,8 +590,11 @@ class TransDataTo5HDParams(IRValue):
                 _mat(src_rep_stride).to_ir(),
             ],
             builder.get_type_array_attr([
-                builder.get_i1_type(), builder.get_i1_type(),
-                builder.get_ui8_type(), builder.get_ui16_type(), builder.get_ui16_type()
+                builder.get_i1_type(),
+                builder.get_i1_type(),
+                builder.get_ui8_type(),
+                builder.get_ui16_type(),
+                builder.get_ui16_type()
             ]),
         )
 
@@ -612,19 +609,17 @@ class TransDataTo5HDParams(IRValue):
 class TransposeParamsExt(IRValue):
 
     @overload
-    def __init__(self, n_size: int = 0, c_size: int = 0, h_size: int = 0,
-                 w_size: int = 0,
+    def __init__(self, n_size: int = 0, c_size: int = 0, h_size: int = 0, w_size: int = 0,
                  transpose_type: TransposeType = TransposeType.TRANSPOSE_ND2ND_B16) -> None:
         ...
 
-    def __init__(self, n_size: RuntimeInt = 0, c_size: RuntimeInt = 0, h_size: RuntimeInt = 0,
-                 w_size: RuntimeInt = 0,
+    def __init__(self, n_size: RuntimeInt = 0, c_size: RuntimeInt = 0, h_size: RuntimeInt = 0, w_size: RuntimeInt = 0,
                  transpose_type: TransposeType = TransposeType.TRANSPOSE_ND2ND_B16,
                  handle: Optional[IRHandle] = None) -> None:
         if handle is not None:
             self.handle = handle
             return
-        
+
         builder = global_builder.get_ir_builder()
         self.handle = builder.create_asc_ConstructOp(
             builder.get_asc_TransposeParamsExtType(),
@@ -636,8 +631,10 @@ class TransposeParamsExt(IRValue):
                 _mat(transpose_type).to_ir(),
             ],
             builder.get_type_array_attr([
-                builder.get_ui16_type(), builder.get_ui16_type(),
-                builder.get_ui16_type(), builder.get_ui16_type(),
+                builder.get_ui16_type(),
+                builder.get_ui16_type(),
+                builder.get_ui16_type(),
+                builder.get_ui16_type(),
                 builder.get_asc_TransposeTypeType()
             ]),
         )
@@ -662,8 +659,8 @@ class DataCopyPadExtParams(IRValue):
         """This contructor should not be called by user"""
         ...
 
-    def __init__(self, dtype: DataType, is_pad: RuntimeBool = False, left_padding: RuntimeInt = 0, 
-                 right_padding: RuntimeInt = 0, padding_value: RuntimeNumeric = 0, 
+    def __init__(self, dtype: DataType, is_pad: RuntimeBool = False, left_padding: RuntimeInt = 0,
+                 right_padding: RuntimeInt = 0, padding_value: RuntimeNumeric = 0,
                  handle: Optional[IRHandle] = None) -> None:
         if handle is not None:
             self.handle = handle
@@ -677,12 +674,11 @@ class DataCopyPadExtParams(IRValue):
                 _mat(right_padding).to_ir(),
                 _mat(padding_value, dtype).to_ir(),
             ],
-            builder.get_type_array_attr([
-                builder.get_i1_type(),
-                builder.get_ui16_type(),
-                builder.get_ui16_type(),
-                dtype.to_ir()
-            ]),
+            builder.get_type_array_attr(
+                [builder.get_i1_type(),
+                 builder.get_ui16_type(),
+                 builder.get_ui16_type(),
+                 dtype.to_ir()]),
         )
 
     @classmethod
@@ -712,20 +708,17 @@ class DataCopyPadParams(IRValue):
             return
         builder = global_builder.get_ir_builder()
         self.handle = builder.create_asc_ConstructOp(
-        builder.get_asc_DataCopyPadParamsType(),
-            [
+            builder.get_asc_DataCopyPadParamsType(), [
                 _mat(is_pad).to_ir(),
                 _mat(left_padding).to_ir(),
                 _mat(right_padding).to_ir(),
                 _mat(padding_value).to_ir(),
             ],
-            builder.get_type_array_attr([
-                builder.get_i1_type(),
-                builder.get_ui16_type(),
-                builder.get_ui16_type(),
-                builder.get_ui64_type()
-            ])
-        )
+            builder.get_type_array_attr(
+                [builder.get_i1_type(),
+                 builder.get_ui16_type(),
+                 builder.get_ui16_type(),
+                 builder.get_ui64_type()]))
 
     @classmethod
     def from_ir(cls, handle: IRHandle) -> DataCopyPadParams:
@@ -738,8 +731,8 @@ class DataCopyPadParams(IRValue):
 class DataCopyExtParams(IRValue):
 
     @overload
-    def __init__(self, block_count: int = 1, block_len: int = 0,
-                 src_stride: int = 0, dst_stride: int = 0, rsv: int = 0) -> None:
+    def __init__(self, block_count: int = 1, block_len: int = 0, src_stride: int = 0, dst_stride: int = 0,
+                 rsv: int = 0) -> None:
         ...
 
     @overload
@@ -763,11 +756,11 @@ class DataCopyExtParams(IRValue):
                 _mat(rsv).to_ir(),
             ],
             builder.get_type_array_attr([
-                builder.get_ui16_type(),  
-                builder.get_ui32_type(),  
-                builder.get_ui32_type(),  
-                builder.get_ui32_type(),  
-                builder.get_ui32_type()   
+                builder.get_ui16_type(),
+                builder.get_ui32_type(),
+                builder.get_ui32_type(),
+                builder.get_ui32_type(),
+                builder.get_ui32_type()
             ]),
         )
 
@@ -782,8 +775,8 @@ class DataCopyExtParams(IRValue):
 class GatherMaskParams(IRValue):
 
     @overload
-    def __init__(self, src0_block_stride: int = 1, repeat_times: int = 1, 
-                 src0_repeat_stride: int = 0, src1_repeat_stride: int = 0) -> None:
+    def __init__(self, src0_block_stride: int = 1, repeat_times: int = 1, src0_repeat_stride: int = 0,
+                 src1_repeat_stride: int = 0) -> None:
         ...
 
     @overload
@@ -793,7 +786,6 @@ class GatherMaskParams(IRValue):
     @require_jit
     def __init__(self, src0_block_stride: RuntimeInt = 1, repeat_times: RuntimeInt = 1,
                  src0_repeat_stride: RuntimeInt = 0, src1_repeat_stride: RuntimeInt = 0,
-
                  handle: Optional[IRHandle] = None) -> None:
         if handle is not None:
             self.handle = handle
@@ -809,7 +801,7 @@ class GatherMaskParams(IRValue):
             ],
             builder.get_type_array_attr([
                 builder.get_ui8_type(),
-                builder.get_ui16_type(), 
+                builder.get_ui16_type(),
                 builder.get_ui16_type(),
                 builder.get_ui8_type(),
             ]),
@@ -826,21 +818,16 @@ class GatherMaskParams(IRValue):
 class MmadParams(IRValue):
 
     @overload
-    def __init__(self) -> None: ...
-
-    @overload
-    def __init__(self,
-                 m: int = 0, n: int = 0, k: int = 0,
-                 is_bias: bool = False, fm_offset: int = 0,
-                 en_ssparse: bool = False, en_winograd_a: bool = False,
-                 en_winograd_b: bool = False) -> None:
+    def __init__(self) -> None:
         ...
 
     @overload
-    def __init__(self,
-                 m: int = 0, n: int = 0, k: int = 0,
-                 unit_flag: int = 0,
-                 cmatrix_source: bool = False,
+    def __init__(self, m: int = 0, n: int = 0, k: int = 0, is_bias: bool = False, fm_offset: int = 0,
+                 en_ssparse: bool = False, en_winograd_a: bool = False, en_winograd_b: bool = False) -> None:
+        ...
+
+    @overload
+    def __init__(self, m: int = 0, n: int = 0, k: int = 0, unit_flag: int = 0, cmatrix_source: bool = False,
                  cmatrix_init_val: bool = True) -> None:
         ...
 
@@ -849,17 +836,10 @@ class MmadParams(IRValue):
         ...
 
     @require_jit
-    def __init__(self,
-                 m: RuntimeInt = 0, n: RuntimeInt = 0, k: RuntimeInt = 0,
-                 is_bias: RuntimeBool = None,
-                 fm_offset: RuntimeInt = None,
-                 en_ssparse: RuntimeBool = None,
-                 en_winograd_a: RuntimeBool = None,
-                 en_winograd_b: RuntimeBool = None,
-                 unit_flag: RuntimeInt = None,
-                 cmatrix_source: RuntimeBool = None,
-                 cmatrix_init_val: RuntimeBool = None,
-                 handle: IRHandle = None) -> None:
+    def __init__(self, m: RuntimeInt = 0, n: RuntimeInt = 0, k: RuntimeInt = 0, is_bias: RuntimeBool = None,
+                 fm_offset: RuntimeInt = None, en_ssparse: RuntimeBool = None, en_winograd_a: RuntimeBool = None,
+                 en_winograd_b: RuntimeBool = None, unit_flag: RuntimeInt = None, cmatrix_source: RuntimeBool = None,
+                 cmatrix_init_val: RuntimeBool = None, handle: IRHandle = None) -> None:
 
         if handle is not None:
             self.handle = handle
@@ -867,38 +847,51 @@ class MmadParams(IRValue):
 
         builder = global_builder.get_ir_builder()
 
-        if (is_bias is not None and fm_offset is not None and
-            en_ssparse is not None and en_winograd_a is not None and
-            en_winograd_b is not None and
-            unit_flag is None and cmatrix_source is None and cmatrix_init_val is None):
+        if (is_bias is not None and fm_offset is not None and en_ssparse is not None and en_winograd_a is not None
+                and en_winograd_b is not None and unit_flag is None and cmatrix_source is None
+                and cmatrix_init_val is None):
 
             args = [
-                _mat(m, KT.uint16).to_ir(), _mat(n, KT.uint16).to_ir(), _mat(k, KT.uint16).to_ir(),
-                _mat(is_bias, KT.int1).to_ir(), _mat(fm_offset, KT.int32).to_ir(),
-                _mat(en_ssparse, KT.int1).to_ir(), _mat(en_winograd_a, KT.int1).to_ir(),
+                _mat(m, KT.uint16).to_ir(),
+                _mat(n, KT.uint16).to_ir(),
+                _mat(k, KT.uint16).to_ir(),
+                _mat(is_bias, KT.int1).to_ir(),
+                _mat(fm_offset, KT.int32).to_ir(),
+                _mat(en_ssparse, KT.int1).to_ir(),
+                _mat(en_winograd_a, KT.int1).to_ir(),
                 _mat(en_winograd_b, KT.int1).to_ir(),
             ]
 
             types = builder.get_type_array_attr([
-                builder.get_ui16_type(), builder.get_ui16_type(), builder.get_ui16_type(),
-                builder.get_i1_type(), builder.get_i32_type(),
-                builder.get_i1_type(), builder.get_i1_type(), builder.get_i1_type(),
+                builder.get_ui16_type(),
+                builder.get_ui16_type(),
+                builder.get_ui16_type(),
+                builder.get_i1_type(),
+                builder.get_i32_type(),
+                builder.get_i1_type(),
+                builder.get_i1_type(),
+                builder.get_i1_type(),
             ])
 
-        elif (unit_flag is not None and
-              cmatrix_source is not None and
-              cmatrix_init_val is not None and
-              is_bias is None):
+        elif (unit_flag is not None and cmatrix_source is not None and cmatrix_init_val is not None
+              and is_bias is None):
 
             args = [
-                _mat(m, KT.uint16).to_ir(), _mat(n, KT.uint16).to_ir(), _mat(k, KT.uint16).to_ir(),
-                _mat(unit_flag, KT.int1).to_ir(), _mat(cmatrix_source, KT.int1).to_ir(),
+                _mat(m, KT.uint16).to_ir(),
+                _mat(n, KT.uint16).to_ir(),
+                _mat(k, KT.uint16).to_ir(),
+                _mat(unit_flag, KT.int1).to_ir(),
+                _mat(cmatrix_source, KT.int1).to_ir(),
                 _mat(cmatrix_init_val, KT.int1).to_ir(),
             ]
 
             types = builder.get_type_array_attr([
-                builder.get_ui16_type(), builder.get_ui16_type(), builder.get_ui16_type(),
-                builder.get_i1_type(), builder.get_i1_type(), builder.get_i1_type(),
+                builder.get_ui16_type(),
+                builder.get_ui16_type(),
+                builder.get_ui16_type(),
+                builder.get_i1_type(),
+                builder.get_i1_type(),
+                builder.get_i1_type(),
             ])
 
         else:
@@ -917,15 +910,14 @@ class MmadParams(IRValue):
 
     def to_ir(self) -> IRHandle:
         return self.handle
-    
+
 
 class LoadImageToLocalParams(IRValue):
 
     @overload
-    def __init__(self, horiz_size: int = 2, vert_size: int = 2, horiz_start_pos: int = 0, 
-                 vert_start_pos: int = 0, src_horiz_size: int = 2, top_pad_size: int = 0, 
-                 bot_pad_size: int = 0, left_pad_size: int = 0, right_pad_size: int = 0, 
-                 sid: int = 0) -> None:
+    def __init__(self, horiz_size: int = 2, vert_size: int = 2, horiz_start_pos: int = 0, vert_start_pos: int = 0,
+                 src_horiz_size: int = 2, top_pad_size: int = 0, bot_pad_size: int = 0, left_pad_size: int = 0,
+                 right_pad_size: int = 0, sid: int = 0) -> None:
         ...
 
     @overload
@@ -933,11 +925,9 @@ class LoadImageToLocalParams(IRValue):
         ...
 
     @require_jit
-    def __init__(self, horiz_size: RuntimeInt = 2, vert_size: RuntimeInt = 2, 
-                 horiz_start_pos: RuntimeInt = 0, vert_start_pos: RuntimeInt = 0, 
-                 src_horiz_size: RuntimeInt = 2, top_pad_size: RuntimeInt = 0, 
-                 bot_pad_size: RuntimeInt = 0, left_pad_size: RuntimeInt = 0, 
-                 right_pad_size: RuntimeInt = 0,
+    def __init__(self, horiz_size: RuntimeInt = 2, vert_size: RuntimeInt = 2, horiz_start_pos: RuntimeInt = 0,
+                 vert_start_pos: RuntimeInt = 0, src_horiz_size: RuntimeInt = 2, top_pad_size: RuntimeInt = 0,
+                 bot_pad_size: RuntimeInt = 0, left_pad_size: RuntimeInt = 0, right_pad_size: RuntimeInt = 0,
                  handle: Optional[IRHandle] = None) -> None:
         if handle is not None:
             self.handle = handle
@@ -955,7 +945,6 @@ class LoadImageToLocalParams(IRValue):
                 _mat(bot_pad_size).to_ir(),
                 _mat(left_pad_size).to_ir(),
                 _mat(right_pad_size).to_ir(),
-                
             ],
             builder.get_type_array_attr([builder.get_ui16_type()] * 9),
         )
@@ -971,7 +960,7 @@ class LoadImageToLocalParams(IRValue):
 class Nd2NzParams(IRValue):
 
     @overload
-    def __init__(self, nd_num: int, n_value: int, d_value: int, src_nd_matrix_stride: int, src_d_value: int, 
+    def __init__(self, nd_num: int, n_value: int, d_value: int, src_nd_matrix_stride: int, src_d_value: int,
                  dst_nz_c0_stride: int, dst_nz_n_stride: int, dst_nz_matrix_stride: int) -> None:
         ...
 
@@ -981,8 +970,8 @@ class Nd2NzParams(IRValue):
         ...
 
     @require_jit
-    def __init__(self, nd_num: RuntimeInt, n_value: RuntimeInt, d_value: RuntimeInt, src_nd_matrix_stride: RuntimeInt, 
-                 src_d_value: RuntimeInt, dst_nz_c0_stride: RuntimeInt, dst_nz_n_stride: RuntimeInt, 
+    def __init__(self, nd_num: RuntimeInt, n_value: RuntimeInt, d_value: RuntimeInt, src_nd_matrix_stride: RuntimeInt,
+                 src_d_value: RuntimeInt, dst_nz_c0_stride: RuntimeInt, dst_nz_n_stride: RuntimeInt,
                  dst_nz_matrix_stride: RuntimeInt, handle: Optional[IRHandle] = None) -> None:
         if handle is not None:
             self.handle = handle
@@ -1009,12 +998,12 @@ class Nd2NzParams(IRValue):
 
     def to_ir(self) -> IRHandle:
         return self.handle
-    
+
 
 class Nz2NdParamsFull(IRValue):
 
     @overload
-    def __init__(self, nd_num: int, n_value: int, d_value: int, src_nd_matrix_stride: int, src_n_stride: int, 
+    def __init__(self, nd_num: int, n_value: int, d_value: int, src_nd_matrix_stride: int, src_n_stride: int,
                  dst_d_stride: int, dst_nd_matrix_stride: int) -> None:
         ...
 
@@ -1024,8 +1013,8 @@ class Nz2NdParamsFull(IRValue):
         ...
 
     @require_jit
-    def __init__(self, nd_num: RuntimeInt, n_value: RuntimeInt, d_value: RuntimeInt, src_nd_matrix_stride: RuntimeInt, 
-                 src_n_stride: RuntimeInt, dst_d_stride: RuntimeInt, dst_nd_matrix_stride: RuntimeInt, 
+    def __init__(self, nd_num: RuntimeInt, n_value: RuntimeInt, d_value: RuntimeInt, src_nd_matrix_stride: RuntimeInt,
+                 src_n_stride: RuntimeInt, dst_d_stride: RuntimeInt, dst_nd_matrix_stride: RuntimeInt,
                  handle: Optional[IRHandle] = None) -> None:
         if handle is not None:
             self.handle = handle
@@ -1056,8 +1045,8 @@ class Nz2NdParamsFull(IRValue):
 class DataCopyCO12DstParams(IRValue):
 
     @overload
-    def __init__(self, n_size: int, m_size: int, dst_stride: int, src_stride: int, 
-                 quant_pre: QuantModes = QuantModes.NoQuant, relu_pre: int = 0, channel_split: bool = False, 
+    def __init__(self, n_size: int, m_size: int, dst_stride: int, src_stride: int,
+                 quant_pre: QuantModes = QuantModes.NoQuant, relu_pre: int = 0, channel_split: bool = False,
                  nz2nd_en: bool = False) -> None:
         ...
 
@@ -1067,9 +1056,9 @@ class DataCopyCO12DstParams(IRValue):
         ...
 
     @require_jit
-    def __init__(self, n_size: RuntimeInt, m_size: RuntimeInt, dst_stride: RuntimeInt, src_stride: RuntimeInt, 
-                 quant_pre: QuantModes = QuantModes.NoQuant, relu_pre: RuntimeInt = 0, 
-                 channel_split: RuntimeBool = False, nz2nd_en: RuntimeBool = False, 
+    def __init__(self, n_size: RuntimeInt, m_size: RuntimeInt, dst_stride: RuntimeInt, src_stride: RuntimeInt,
+                 quant_pre: QuantModes = QuantModes.NoQuant, relu_pre: RuntimeInt = 0,
+                 channel_split: RuntimeBool = False, nz2nd_en: RuntimeBool = False,
                  handle: Optional[IRHandle] = None) -> None:
         if handle is not None:
             self.handle = handle
@@ -1118,7 +1107,7 @@ class GatherRepeatParams(IRValue):
         ...
 
     @require_jit
-    def __init__(self, dst_blk_stride: RuntimeInt = 1, dst_rep_stride: RuntimeInt = 8, 
+    def __init__(self, dst_blk_stride: RuntimeInt = 1, dst_rep_stride: RuntimeInt = 8,
                  handle: Optional[IRHandle] = None) -> None:
         if handle is not None:
             self.handle = handle
@@ -1648,7 +1637,7 @@ class LoadData2dTransposeParams(IRValue):
 
     def to_ir(self) -> IRHandle:
         return self.handle
-    
+
 
 class LoadDataRepeatParam(IRValue):
 
@@ -1661,10 +1650,7 @@ class LoadDataRepeatParam(IRValue):
         ...
 
     @require_jit
-    def __init__(self,
-                 repeat_time: RuntimeInt = 1,
-                 repeat_stride: RuntimeInt = 0,
-                 repeat_mode: RuntimeInt = 0,
+    def __init__(self, repeat_time: RuntimeInt = 1, repeat_stride: RuntimeInt = 0, repeat_mode: RuntimeInt = 0,
                  handle: Optional[IRHandle] = None) -> None:
         if handle is not None:
             self.handle = handle
@@ -1679,11 +1665,9 @@ class LoadDataRepeatParam(IRValue):
                 _mat(repeat_stride).to_ir(),
                 _mat(repeat_mode).to_ir(),
             ],
-            builder.get_type_array_attr([
-                builder.get_ui8_type(),
-                builder.get_ui16_type(),
-                builder.get_ui8_type()
-            ]),
+            builder.get_type_array_attr([builder.get_ui8_type(),
+                                         builder.get_ui16_type(),
+                                         builder.get_ui8_type()]),
         )
 
     @classmethod
@@ -1761,35 +1745,34 @@ class LoadData2dTransposeParamsV2(IRValue):
 
 
 class MrgSort4Info(IRValue):
-    
+
     @overload
-    def __init__(self, element_lengths: List[int], if_exhausted_suspension: bool = False,
-                 valid_bit: int = 15, repeat_times: int = 1) -> None:
+    def __init__(self, element_lengths: List[int], if_exhausted_suspension: bool = False, valid_bit: int = 15,
+                 repeat_times: int = 1) -> None:
         ...
-    
+
     @overload
     def __init__(self, handle: IRHandle) -> None:
         """This constructor should not be called by user"""
         ...
-    
+
     @require_jit
-    def __init__(self, element_lengths: List[int], if_exhausted_suspension: bool = False,
-                 valid_bit: int = 15, repeat_times: int = 1,
-                 handle: Optional[IRHandle] = None) -> None:
+    def __init__(self, element_lengths: List[int], if_exhausted_suspension: bool = False, valid_bit: int = 15,
+                 repeat_times: int = 1, handle: Optional[IRHandle] = None) -> None:
         if handle is not None:
             self.handle = handle
             return
-            
+
         builder = global_builder.get_ir_builder()
 
         if_exhausted_suspension_ir = _mat(if_exhausted_suspension, KnownTypes.bool_).to_ir()
         valid_bit_ir = _mat(valid_bit, KnownTypes.uint16).to_ir()
         repeat_times_ir = _mat(repeat_times, KnownTypes.uint16).to_ir()
-        
+
         from .array import array
-        
+
         element_lengths_array = array(KnownTypes.uint16, element_lengths)
-        
+
         self.handle = builder.create_asc_ConstructOp(
             builder.get_asc_MrgSort4InfoType(),
             [element_lengths_array.to_ir(), if_exhausted_suspension_ir, valid_bit_ir, repeat_times_ir],
@@ -1798,13 +1781,12 @@ class MrgSort4Info(IRValue):
                 builder.get_i1_type(),
                 builder.get_ui16_type(),
                 builder.get_ui16_type()
-            ])
-        )
-    
+            ]))
+
     @classmethod
     def from_ir(cls, handle: IRHandle) -> MrgSort4Info:
         return cls([], False, 15, 1, handle)
-    
+
     def to_ir(self) -> IRHandle:
         return self.handle
 
@@ -1826,12 +1808,9 @@ class FixpipeConfig(IRValue):
             self.handle = handle
             return
         builder = global_builder.get_ir_builder()
-        self.handle = builder.create_asc_ConstructOp(
-            builder.get_asc_FixpipeConfigType(),
-            [_mat(layout).to_ir()],
-            builder.get_type_array_attr([builder.get_asc_CO2LayoutType()])
-        )
-    
+        self.handle = builder.create_asc_ConstructOp(builder.get_asc_FixpipeConfigType(), [_mat(layout).to_ir()],
+                                                     builder.get_type_array_attr([builder.get_asc_CO2LayoutType()]))
+
     @classmethod
     @require_jit
     def cfg_nz(cls) -> FixpipeConfig:
@@ -1850,15 +1829,15 @@ class FixpipeConfig(IRValue):
 
     def to_ir(self) -> IRHandle:
         return self.handle
-    
+
 
 class FixpipeParamsV220(IRValue):
 
     @overload
     def __init__(self, n_size: int, m_size: int, src_stride: int, dst_stride: int,
-                 quant_pre: QuantModes = QuantModes.NoQuant, deq_scalar: int = 0,
-                 nd_num: int = 1, src_nd_stride: int = 0, dst_nd_stride: int = 0,
-                 relu_en: bool = False, unit_flag: int = 0, is_channel_split: bool = False) -> None:
+                 quant_pre: QuantModes = QuantModes.NoQuant, deq_scalar: int = 0, nd_num: int = 1,
+                 src_nd_stride: int = 0, dst_nd_stride: int = 0, relu_en: bool = False, unit_flag: int = 0,
+                 is_channel_split: bool = False) -> None:
         ...
 
     @overload
@@ -1868,17 +1847,16 @@ class FixpipeParamsV220(IRValue):
 
     @require_jit
     def __init__(self, n_size: RuntimeInt, m_size: RuntimeInt, src_stride: RuntimeInt, dst_stride: RuntimeInt,
-                 quant_pre: QuantModes = QuantModes.NoQuant, deq_scalar: RuntimeInt = 0,
-                 nd_num: RuntimeInt = 1, src_nd_stride: RuntimeInt = 0, dst_nd_stride: RuntimeInt = 0,
-                 relu_en: RuntimeBool = False, unit_flag: RuntimeInt = 0, is_channel_split: RuntimeBool = False,
+                 quant_pre: QuantModes = QuantModes.NoQuant, deq_scalar: RuntimeInt = 0, nd_num: RuntimeInt = 1,
+                 src_nd_stride: RuntimeInt = 0, dst_nd_stride: RuntimeInt = 0, relu_en: RuntimeBool = False,
+                 unit_flag: RuntimeInt = 0, is_channel_split: RuntimeBool = False,
                  handle: Optional[IRHandle] = None) -> None:
         if handle is not None:
             self.handle = handle
             return
         builder = global_builder.get_ir_builder()
         self.handle = builder.create_asc_ConstructOp(
-            builder.get_asc_FixpipeParamsV220Type(),
-            [
+            builder.get_asc_FixpipeParamsV220Type(), [
                 _mat(n_size, KT.uint16).to_ir(),
                 _mat(m_size, KT.uint16).to_ir(),
                 _mat(src_stride, KT.uint16).to_ir(),
@@ -1897,16 +1875,15 @@ class FixpipeParamsV220(IRValue):
                 builder.get_ui16_type(),  # mSize
                 builder.get_ui16_type(),  # srcStride
                 builder.get_ui32_type(),  # dstStride
-                builder.get_i1_type(),    # reluEn
+                builder.get_i1_type(),  # reluEn
                 builder.get_asc_QuantModesType(),  # quantPre
                 builder.get_ui64_type(),  # deqScalar
                 builder.get_ui16_type(),  # ndNum
                 builder.get_ui16_type(),  # srcNdStride
                 builder.get_ui16_type(),  # dstNdStride
-                builder.get_ui8_type(),   # unitFlag
-                builder.get_i1_type(),    # isChannelSplit
-            ])
-        )
+                builder.get_ui8_type(),  # unitFlag
+                builder.get_i1_type(),  # isChannelSplit
+            ]))
 
     @classmethod
     def from_ir(cls, handle: IRHandle) -> FixpipeParamsV220:
@@ -1952,7 +1929,7 @@ class VdeqInfo(IRValue):
         builder = global_builder.get_ir_builder()
 
         from .array import array
-        
+
         scale_array = array(KnownTypes.float32, scale)
         offset_array = array(KnownTypes.int16, offset)
         sign_mode_array = array(KnownTypes.bit, [1 if x else 0 for x in sign_mode])
@@ -1982,45 +1959,29 @@ class VdeqInfo(IRValue):
 class CheckLocalMemoryIAParam(IRValue):
 
     @overload
-    def __init__(self, 
-                 enable_bit: int = 0,
-                 start_addr: int = 0,
-                 end_addr: int = 0,
-                 is_scalar_read: bool = False,
-                 is_scalar_write: bool = False,
-                 is_vector_read: bool = False,
-                 is_vector_write: bool = False,
-                 is_mte_read: bool = False,
-                 is_mte_write: bool = False,
-                 is_enable: bool = False) -> None:
+    def __init__(self, enable_bit: int = 0, start_addr: int = 0, end_addr: int = 0, is_scalar_read: bool = False,
+                 is_scalar_write: bool = False, is_vector_read: bool = False, is_vector_write: bool = False,
+                 is_mte_read: bool = False, is_mte_write: bool = False, is_enable: bool = False) -> None:
         ...
 
     @overload
     def __init__(self, handle: IRHandle) -> None:
-
         """This constructor should not be called by user"""
         ...
 
     @require_jit
-    def __init__(self,
-                 enable_bit: RuntimeInt = 0,
-                 start_addr: RuntimeInt = 0,
-                 end_addr: RuntimeInt = 0,
-                 is_scalar_read: RuntimeBool = False,
-                 is_scalar_write: RuntimeBool = False,
-                 is_vector_read: RuntimeBool = False,
-                 is_vector_write: RuntimeBool = False,
-                 is_mte_read: RuntimeBool = False,
-                 is_mte_write: RuntimeBool = False,
-                 is_enable: RuntimeBool = False,
+    def __init__(self, enable_bit: RuntimeInt = 0, start_addr: RuntimeInt = 0, end_addr: RuntimeInt = 0,
+                 is_scalar_read: RuntimeBool = False, is_scalar_write: RuntimeBool = False,
+                 is_vector_read: RuntimeBool = False, is_vector_write: RuntimeBool = False,
+                 is_mte_read: RuntimeBool = False, is_mte_write: RuntimeBool = False, is_enable: RuntimeBool = False,
                  handle: Optional[IRHandle] = None) -> None:
-        
+
         if handle is not None:
             self.handle = handle
             return
-                
+
         builder = global_builder.get_ir_builder()
-        
+
         enable_bit_ir = _mat(enable_bit, KT.uint8).to_ir()
         start_addr_ir = _mat(start_addr, KT.uint32).to_ir()
         end_addr_ir = _mat(end_addr, KT.uint32).to_ir()
@@ -2031,14 +1992,12 @@ class CheckLocalMemoryIAParam(IRValue):
         is_mte_read_ir = _mat(is_mte_read, KT.int1).to_ir()
         is_mte_write_ir = _mat(is_mte_write, KT.int1).to_ir()
         is_enable_ir = _mat(is_enable, KT.int1).to_ir()
-        
+
         self.handle = builder.create_asc_ConstructOp(
-            builder.get_asc_CheckLocalMemoryIAParamType(),
-            [enable_bit_ir, start_addr_ir, end_addr_ir,
-             is_scalar_read_ir, is_scalar_write_ir,
-             is_vector_read_ir, is_vector_write_ir,
-             is_mte_read_ir, is_mte_write_ir,
-             is_enable_ir],
+            builder.get_asc_CheckLocalMemoryIAParamType(), [
+                enable_bit_ir, start_addr_ir, end_addr_ir, is_scalar_read_ir, is_scalar_write_ir, is_vector_read_ir,
+                is_vector_write_ir, is_mte_read_ir, is_mte_write_ir, is_enable_ir
+            ],
             builder.get_type_array_attr([
                 builder.get_ui8_type(),
                 builder.get_ui32_type(),
@@ -2050,12 +2009,11 @@ class CheckLocalMemoryIAParam(IRValue):
                 builder.get_i1_type(),
                 builder.get_i1_type(),
                 builder.get_i1_type(),
-            ])
-        )
-    
+            ]))
+
     @classmethod
     def from_ir(cls, handle: IRHandle) -> "CheckLocalMemoryIAParam":
         return cls(handle=handle)
-    
+
     def to_ir(self) -> IRHandle:
         return self.handle

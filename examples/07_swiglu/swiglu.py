@@ -39,8 +39,7 @@ def _gen_core_candidates(max_core_num: int):
 
 
 def get_max_core_num() -> int:
-    return max(1, int(rt.device_info(DeviceModuleType.RT_MODULE_TYPE_VECTOR_CORE,
-                                      DeviceInfoType.INFO_TYPE_CORE_NUM)))
+    return max(1, int(rt.device_info(DeviceModuleType.RT_MODULE_TYPE_VECTOR_CORE, DeviceInfoType.INFO_TYPE_CORE_NUM)))
 
 
 def ceil_div(a: int, b: int) -> int:
@@ -85,10 +84,8 @@ def empty_padded_like(x: torch.Tensor, padded_len: int) -> torch.Tensor:
 
 
 @asc.jit(kernel_type=config.KernelType.AIV_ONLY)
-def swiglu_kernel(fused: asc.GlobalAddress, y: asc.GlobalAddress,
-                  block_length: asc.ConstExpr[int],
-                  tile_length: asc.ConstExpr[int],
-                  half_len: asc.ConstExpr[int]):
+def swiglu_kernel(fused: asc.GlobalAddress, y: asc.GlobalAddress, block_length: asc.ConstExpr[int],
+                  tile_length: asc.ConstExpr[int], half_len: asc.ConstExpr[int]):
 
     offset = asc.get_block_idx() * block_length
     fused_gm = asc.GlobalTensor()
@@ -129,11 +126,9 @@ def swiglu_kernel(fused: asc.GlobalAddress, y: asc.GlobalAddress,
         out_queue.free_tensor(y_local)
 
 
-
 def swiglu_launch(gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
     total_length = gate.numel()
-    effective_cores, block_length, tile_length = compute_launch_params(
-        total_length, gate.element_size())
+    effective_cores, block_length, tile_length = compute_launch_params(total_length, gate.element_size())
     padded_len = effective_cores * block_length
     half_len = padded_len
     gate_pad = pad_flat_tensor(gate, padded_len)

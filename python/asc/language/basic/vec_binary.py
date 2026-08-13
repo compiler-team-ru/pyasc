@@ -176,8 +176,7 @@ def div(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, *args, **kwargs)
 
 
 @overload
-def fused_mul_add(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, 
-                    count: int, is_set_mask: bool = True) -> None:
+def fused_mul_add(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, count: int, is_set_mask: bool = True) -> None:
     ...
 
 
@@ -202,8 +201,8 @@ def fused_mul_add(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, *args,
 
 
 @overload
-def fused_mul_add_relu(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor,
-                        count: int, is_set_mask: bool = True) -> None:
+def fused_mul_add_relu(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, count: int,
+                       is_set_mask: bool = True) -> None:
     ...
 
 
@@ -220,8 +219,8 @@ def fused_mul_add_relu(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, m
 
 
 @require_jit
-@set_binary_docstring(cpp_name="FusedMulAddRelu", 
-                    append_text="按元素将src0和dst相乘并加上src1，再进行Relu计算（结果和0对比取较大值），最终结果存放进dst中。")
+@set_binary_docstring(cpp_name="FusedMulAddRelu",
+                      append_text="按元素将src0和dst相乘并加上src1，再进行Relu计算（结果和0对比取较大值），最终结果存放进dst中。")
 def fused_mul_add_relu(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, *args, **kwargs) -> None:
     builder = global_builder.get_ir_builder()
     op_impl("fused_mul_add_relu", dst, src0, src1, args, kwargs, builder.create_asc_FusedMulAddReluL0Op,
@@ -356,13 +355,14 @@ def mul_cast(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, *args, **kw
     @dispatcher.register(mask=RuntimeInt, repeat_times=RuntimeInt, repeat_params=BinaryRepeatParams)
     def _(mask: RuntimeInt, repeat_times: RuntimeInt, repeat_params: BinaryRepeatParams):
         builder.create_asc_MulCastL0Op(dst.to_ir(), src0.to_ir(), src1.to_ir(),
-                 _mat(mask, KT.uint64).to_ir(), _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir())
+                                       _mat(mask, KT.uint64).to_ir(),
+                                       _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir())
 
     @dispatcher.register(mask=list, repeat_times=RuntimeInt, repeat_params=BinaryRepeatParams)
     def _(mask: list, repeat_times: RuntimeInt, repeat_params: BinaryRepeatParams):
         mask = [_mat(v, KT.uint64).to_ir() for v in mask]
-        builder.create_asc_MulCastL1Op(dst.to_ir(), src0.to_ir(), src1.to_ir(), mask, 
-                _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir())
+        builder.create_asc_MulCastL1Op(dst.to_ir(), src0.to_ir(), src1.to_ir(), mask,
+                                       _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir())
 
     @dispatcher.register_auto
     def _(count: RuntimeInt):
@@ -505,7 +505,6 @@ def bilinear_interpolation(dst: LocalTensor, src0: LocalTensor, src0_offset: Loc
             
     """
 
-
     builder = global_builder.get_ir_builder()
 
     check_type("bilinear_interpolation", dst, src0, src1)
@@ -526,4 +525,3 @@ def bilinear_interpolation(dst: LocalTensor, src0: LocalTensor, src0_offset: Loc
                                                      _mat(dst_blk_stride, KT.uint16).to_ir(),
                                                      _mat(v_r_offset, KT.uint16).to_ir(),
                                                      _mat(v_repeat, KT.uint8).to_ir(), shared_tmp_buffer.to_ir())
-        

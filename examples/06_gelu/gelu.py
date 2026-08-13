@@ -56,8 +56,7 @@ def compute_launch_params(total_length: int, dtype_size: int):
 
 
 @asc.jit(kernel_type=config.KernelType.AIV_ONLY)
-def gelu_kernel(x: asc.GlobalAddress, y: asc.GlobalAddress,
-                block_length: asc.ConstExpr[int],
+def gelu_kernel(x: asc.GlobalAddress, y: asc.GlobalAddress, block_length: asc.ConstExpr[int],
                 tile_length: asc.ConstExpr[int]):
 
     offset = asc.get_block_idx() * block_length
@@ -90,8 +89,8 @@ def gelu_copy_in(i: int, x_gm: asc.GlobalAddress, in_queue: asc.TQue, tile_lengt
 
 
 @asc.jit
-def gelu_compute(y_gm: asc.GlobalTensor, in_queue: asc.TQue, out_queue: asc.TQue,
-            tmp_buf: asc.TBuf, tile_length: asc.ConstExpr[int]):
+def gelu_compute(y_gm: asc.GlobalTensor, in_queue: asc.TQue, out_queue: asc.TQue, tmp_buf: asc.TBuf,
+                 tile_length: asc.ConstExpr[int]):
     x_local = in_queue.deque(y_gm.dtype)
     y_local = out_queue.alloc_tensor(y_gm.dtype)
     tmp = tmp_buf.get(y_gm.dtype)
@@ -127,8 +126,7 @@ def gelu_copy_out(i: int, y_gm: asc.GlobalTensor, out_queue: asc.TQue, tile_leng
 
 def gelu_launch(x: torch.Tensor) -> torch.Tensor:
     total_length = x.numel()
-    effective_cores, block_length, tile_length = compute_launch_params(
-        total_length, x.element_size())
+    effective_cores, block_length, tile_length = compute_launch_params(total_length, x.element_size())
 
     # Pad input and launch
     padded_len = effective_cores * block_length

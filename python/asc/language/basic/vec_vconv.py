@@ -51,13 +51,13 @@ def cast(dst: LocalTensor, src: LocalTensor, round_mode: RoundMode, count: int) 
 
 @overload
 def cast(dst: LocalTensor, src: LocalTensor, round_mode: RoundMode, mask: int, repeat_times: int,
-        repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+         repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
     ...
 
 
 @overload
 def cast(dst: LocalTensor, src: LocalTensor, round_mode: RoundMode, mask: List[int], repeat_times: int,
-        repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+         repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
     ...
 
 
@@ -68,24 +68,23 @@ def cast(dst: LocalTensor, src: LocalTensor, round_mode: RoundMode, *args, **kwa
     dispatcher = OverloadDispatcher("cast")
 
     @dispatcher.register(mask=RuntimeInt, repeat_times=RuntimeInt, repeat_params=UnaryRepeatParams,
-                        is_set_mask=DefaultValued(bool, True))
+                         is_set_mask=DefaultValued(bool, True))
     def _(mask: RuntimeInt, repeat_times: RuntimeInt, repeat_params: UnaryRepeatParams, is_set_mask: bool = True):
         builder.create_asc_CastL0Op(dst.to_ir(), src.to_ir(), ir.RoundMode.symbolize(round_mode),
-                _mat(mask, KT.uint64).to_ir(),
-                _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
+                                    _mat(mask, KT.uint64).to_ir(),
+                                    _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
 
     @dispatcher.register(mask=list, repeat_times=RuntimeInt, repeat_params=UnaryRepeatParams,
-                        is_set_mask=DefaultValued(bool, True))
+                         is_set_mask=DefaultValued(bool, True))
     def _(mask: list, repeat_times: RuntimeInt, repeat_params: UnaryRepeatParams, is_set_mask: bool = True):
         mask = [_mat(v, KT.uint64).to_ir() for v in mask]
-        builder.create_asc_CastL1Op(dst.to_ir(), src.to_ir(), ir.RoundMode.symbolize(round_mode),
-                                    mask, _mat(repeat_times, KT.int8).to_ir(),
-                                    repeat_params.to_ir(), is_set_mask)
+        builder.create_asc_CastL1Op(dst.to_ir(), src.to_ir(), ir.RoundMode.symbolize(round_mode), mask,
+                                    _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
 
     @dispatcher.register_auto
     def _(count: RuntimeInt):
         builder.create_asc_CastL2Op(dst.to_ir(), src.to_ir(), ir.RoundMode.symbolize(round_mode),
-                                     _mat(count, KT.int32).to_ir())
+                                    _mat(count, KT.int32).to_ir())
 
     dispatcher(*args, **kwargs)
 
@@ -97,13 +96,13 @@ def cast_deq(dst: LocalTensor, src: LocalTensor, count: int, is_vec_deq: bool = 
 
 @overload
 def cast_deq(dst: LocalTensor, src: LocalTensor, mask: int, repeat_times: int, repeat_params: UnaryRepeatParams,
-            is_set_mask: bool = True, is_vec_deq: bool = True, half_block: bool = True) -> None:
+             is_set_mask: bool = True, is_vec_deq: bool = True, half_block: bool = True) -> None:
     ...
 
 
 @overload
 def cast_deq(dst: LocalTensor, src: LocalTensor, mask: List[int], repeat_times: int, repeat_params: UnaryRepeatParams,
-            is_set_mask: bool = True, is_vec_deq: bool = True, half_block: bool = True) -> None:
+             is_set_mask: bool = True, is_vec_deq: bool = True, half_block: bool = True) -> None:
     ...
 
 
@@ -111,8 +110,8 @@ def cast_deq(dst: LocalTensor, src: LocalTensor, mask: List[int], repeat_times: 
 @set_common_docstring(api_name="cast_deq")
 def cast_deq(dst: LocalTensor, src: LocalTensor, *args, **kwargs) -> None:
     builder = global_builder.get_ir_builder()
-    unary_op_impl("cast_deq", dst, src, args, kwargs, builder.create_asc_CastDeqL0Op, 
-                  builder.create_asc_CastDeqL1Op, builder.create_asc_CastDeqL2Op)
+    unary_op_impl("cast_deq", dst, src, args, kwargs, builder.create_asc_CastDeqL0Op, builder.create_asc_CastDeqL1Op,
+                  builder.create_asc_CastDeqL2Op)
 
 
 @overload
@@ -135,19 +134,23 @@ def set_deq_scale(vdeq: LocalTensor, vdeq_info: VdeqInfo) -> None:
 def set_deq_scale(*args, **kwargs) -> None:
     builder = global_builder.get_ir_builder()
     dispatcher = OverloadDispatcher("set_deq_scale")
+
     @dispatcher.register(vdeq=LocalTensor, vdeq_info=VdeqInfo)
     def _(vdeq: LocalTensor, vdeq_info: VdeqInfo):
         builder.create_asc_SetDeqScaleL4Op(vdeq.to_ir(), vdeq_info.to_ir())
+
     @dispatcher.register(scale=RuntimeFloat)
     def _(scale: RuntimeFloat):
         builder.create_asc_SetDeqScaleOp(_mat(scale, KnownTypes.half).to_ir())
+
     @dispatcher.register(scale=RuntimeFloat, offset=RuntimeInt, sign_mode=RuntimeBool)
     def _(scale: RuntimeFloat, offset: RuntimeInt, sign_mode: RuntimeBool):
-        builder.create_asc_SetDeqScaleOp(_mat(scale, KnownTypes.float32).to_ir(), 
-                                         _mat(offset, KnownTypes.int16).to_ir(), 
-                                         _mat(sign_mode, KnownTypes.bit).to_ir())
-    dispatcher(*args, **kwargs)
+        builder.create_asc_SetDeqScaleOp(
+            _mat(scale, KnownTypes.float32).to_ir(),
+            _mat(offset, KnownTypes.int16).to_ir(),
+            _mat(sign_mode, KnownTypes.bit).to_ir())
 
+    dispatcher(*args, **kwargs)
 
 
 @overload

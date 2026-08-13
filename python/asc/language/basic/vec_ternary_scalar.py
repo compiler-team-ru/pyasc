@@ -17,14 +17,14 @@ from .utils import set_common_docstring
 
 
 @overload
-def axpy(dst: LocalTensor, src: LocalTensor, scalar: Union[int, float], mask: int, 
-         repeat_times: int, repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+def axpy(dst: LocalTensor, src: LocalTensor, scalar: Union[int, float], mask: int, repeat_times: int,
+         repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
     ...
 
 
 @overload
-def axpy(dst: LocalTensor, src: LocalTensor, scalar: Union[int, float], mask: List[int], 
-         repeat_times: int, repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+def axpy(dst: LocalTensor, src: LocalTensor, scalar: Union[int, float], mask: List[int], repeat_times: int,
+         repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
     ...
 
 
@@ -37,5 +37,5 @@ def axpy(dst: LocalTensor, src: LocalTensor, scalar: Union[int, float], count: i
 @set_common_docstring("axpy")
 def axpy(dst: LocalTensor, src: LocalTensor, scalar: RuntimeNumeric, *args, **kwargs) -> None:
     builder = global_builder.get_ir_builder()
-    op_impl("axpy", dst, src, scalar, args, kwargs, builder.create_asc_AxpyL0Op, 
-            builder.create_asc_AxpyL1Op, builder.create_asc_AxpyL2Op)
+    op_impl("axpy", dst, src, scalar, args, kwargs, builder.create_asc_AxpyL0Op, builder.create_asc_AxpyL1Op,
+            builder.create_asc_AxpyL2Op)

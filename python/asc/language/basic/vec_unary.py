@@ -24,19 +24,19 @@ def op_impl(callee: str, dst: LocalTensor, src: LocalTensor, args: Tuple[Any], k
         raise TypeError("Input builder must be ir.Builder")
     dispatcher = OverloadDispatcher(callee)
 
-    @dispatcher.register(mask=RuntimeInt, repeat_times=RuntimeInt, repeat_params=UnaryRepeatParams, 
-                        is_set_mask=DefaultValued(bool, True))
+    @dispatcher.register(mask=RuntimeInt, repeat_times=RuntimeInt, repeat_params=UnaryRepeatParams,
+                         is_set_mask=DefaultValued(bool, True))
     def _(mask: RuntimeInt, repeat_times: RuntimeInt, repeat_params: UnaryRepeatParams, is_set_mask: bool = True):
         build_l0(dst.to_ir(), src.to_ir(),
                  _mat(mask, KT.uint64).to_ir(),
                  _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
 
-    @dispatcher.register(mask=list, repeat_times=RuntimeInt, repeat_params=UnaryRepeatParams, 
-                        is_set_mask=DefaultValued(bool, True))
+    @dispatcher.register(mask=list, repeat_times=RuntimeInt, repeat_params=UnaryRepeatParams,
+                         is_set_mask=DefaultValued(bool, True))
     def _(mask: list, repeat_times: RuntimeInt, repeat_params: UnaryRepeatParams, is_set_mask: bool = True):
         mask = [_mat(v, KT.uint64).to_ir() for v in mask]
-        build_l1(dst.to_ir(), src.to_ir(), mask, _mat(repeat_times, KT.int8).to_ir(), 
-                 repeat_params.to_ir(), is_set_mask)
+        build_l1(dst.to_ir(), src.to_ir(), mask,
+                 _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
 
     @dispatcher.register_auto
     def _(count: RuntimeInt):
@@ -51,14 +51,14 @@ def abs(dst: LocalTensor, src: LocalTensor, count: int) -> None:
 
 
 @overload
-def abs(dst: LocalTensor, src: LocalTensor, mask: int, repeat_times: int, 
-        repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+def abs(dst: LocalTensor, src: LocalTensor, mask: int, repeat_times: int, repeat_params: UnaryRepeatParams,
+        is_set_mask: bool = True) -> None:
     ...
 
 
 @overload
-def abs(dst: LocalTensor, src: LocalTensor, mask: List[int], repeat_times: int, 
-        repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+def abs(dst: LocalTensor, src: LocalTensor, mask: List[int], repeat_times: int, repeat_params: UnaryRepeatParams,
+        is_set_mask: bool = True) -> None:
     ...
 
 
@@ -76,14 +76,14 @@ def exp(dst: LocalTensor, src: LocalTensor, count: int) -> None:
 
 
 @overload
-def exp(dst: LocalTensor, src: LocalTensor, mask: int, repeat_times: int, 
-        repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+def exp(dst: LocalTensor, src: LocalTensor, mask: int, repeat_times: int, repeat_params: UnaryRepeatParams,
+        is_set_mask: bool = True) -> None:
     ...
 
 
 @overload
-def exp(dst: LocalTensor, src: LocalTensor, mask: List[int], repeat_times: int, 
-        repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+def exp(dst: LocalTensor, src: LocalTensor, mask: List[int], repeat_times: int, repeat_params: UnaryRepeatParams,
+        is_set_mask: bool = True) -> None:
     ...
 
 
@@ -101,14 +101,14 @@ def ln(dst: LocalTensor, src: LocalTensor, count: int) -> None:
 
 
 @overload
-def ln(dst: LocalTensor, src: LocalTensor, mask: int, repeat_times: int, 
-        repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+def ln(dst: LocalTensor, src: LocalTensor, mask: int, repeat_times: int, repeat_params: UnaryRepeatParams,
+       is_set_mask: bool = True) -> None:
     ...
 
 
 @overload
-def ln(dst: LocalTensor, src: LocalTensor, mask: List[int], repeat_times: int,
-        repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+def ln(dst: LocalTensor, src: LocalTensor, mask: List[int], repeat_times: int, repeat_params: UnaryRepeatParams,
+       is_set_mask: bool = True) -> None:
     ...
 
 
@@ -126,8 +126,8 @@ def bitwise_not(dst: LocalTensor, src: LocalTensor, count: int) -> None:
 
 
 @overload
-def bitwise_not(dst: LocalTensor, src: LocalTensor, mask: int, repeat_times: int, 
-                repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+def bitwise_not(dst: LocalTensor, src: LocalTensor, mask: int, repeat_times: int, repeat_params: UnaryRepeatParams,
+                is_set_mask: bool = True) -> None:
     ...
 
 
@@ -151,14 +151,14 @@ def reciprocal(dst: LocalTensor, src: LocalTensor, count: int) -> None:
 
 
 @overload
-def reciprocal(dst: LocalTensor, src: LocalTensor, mask: int, repeat_times: int, 
-               repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+def reciprocal(dst: LocalTensor, src: LocalTensor, mask: int, repeat_times: int, repeat_params: UnaryRepeatParams,
+               is_set_mask: bool = True) -> None:
     ...
 
 
 @overload
-def reciprocal(dst: LocalTensor, src: LocalTensor, mask: List[int], repeat_times: int,
-               repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+def reciprocal(dst: LocalTensor, src: LocalTensor, mask: List[int], repeat_times: int, repeat_params: UnaryRepeatParams,
+               is_set_mask: bool = True) -> None:
     ...
 
 
@@ -176,14 +176,14 @@ def relu(dst: LocalTensor, src: LocalTensor, count: int) -> None:
 
 
 @overload
-def relu(dst: LocalTensor, src: LocalTensor, mask: int, repeat_times: int, 
-        repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+def relu(dst: LocalTensor, src: LocalTensor, mask: int, repeat_times: int, repeat_params: UnaryRepeatParams,
+         is_set_mask: bool = True) -> None:
     ...
 
 
 @overload
-def relu(dst: LocalTensor, src: LocalTensor, mask: List[int], repeat_times: int, 
-        repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+def relu(dst: LocalTensor, src: LocalTensor, mask: List[int], repeat_times: int, repeat_params: UnaryRepeatParams,
+         is_set_mask: bool = True) -> None:
     ...
 
 
@@ -201,14 +201,14 @@ def rsqrt(dst: LocalTensor, src: LocalTensor, count: int) -> None:
 
 
 @overload
-def rsqrt(dst: LocalTensor, src: LocalTensor, mask: int, repeat_times: int, 
-        repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+def rsqrt(dst: LocalTensor, src: LocalTensor, mask: int, repeat_times: int, repeat_params: UnaryRepeatParams,
+          is_set_mask: bool = True) -> None:
     ...
 
 
 @overload
-def rsqrt(dst: LocalTensor, src: LocalTensor, mask: List[int], repeat_times: int, 
-        repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+def rsqrt(dst: LocalTensor, src: LocalTensor, mask: List[int], repeat_times: int, repeat_params: UnaryRepeatParams,
+          is_set_mask: bool = True) -> None:
     ...
 
 
@@ -226,14 +226,14 @@ def sqrt(dst: LocalTensor, src: LocalTensor, count: int) -> None:
 
 
 @overload
-def sqrt(dst: LocalTensor, src: LocalTensor, mask: int, repeat_times: int, 
-        repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+def sqrt(dst: LocalTensor, src: LocalTensor, mask: int, repeat_times: int, repeat_params: UnaryRepeatParams,
+         is_set_mask: bool = True) -> None:
     ...
 
 
 @overload
-def sqrt(dst: LocalTensor, src: LocalTensor, mask: List[int], repeat_times: int, 
-        repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+def sqrt(dst: LocalTensor, src: LocalTensor, mask: List[int], repeat_times: int, repeat_params: UnaryRepeatParams,
+         is_set_mask: bool = True) -> None:
     ...
 
 

@@ -22,8 +22,8 @@ def concat(dst: LocalTensor, src: LocalTensor, tmp: LocalTensor, repeat_time: in
 @require_jit
 @set_sort_docstring(api_name="concat")
 def concat(dst: LocalTensor, src: LocalTensor, tmp: LocalTensor, repeat_time: RuntimeInt) -> None:
-    global_builder.get_ir_builder().create_asc_ConcatOp(dst.to_ir(), src.to_ir(),
-                                                        tmp.to_ir(), _mat(repeat_time).to_ir())
+    global_builder.get_ir_builder().create_asc_ConcatOp(dst.to_ir(), src.to_ir(), tmp.to_ir(),
+                                                        _mat(repeat_time).to_ir())
 
 
 @overload
@@ -34,5 +34,5 @@ def extract(dst_value: LocalTensor, dst_index: LocalTensor, src: LocalTensor, re
 @require_jit
 @set_sort_docstring(api_name="extract")
 def extract(dst_value: LocalTensor, dst_index: LocalTensor, src: LocalTensor, repeat_time: RuntimeInt) -> None:
-    global_builder.get_ir_builder().create_asc_ExtractOp(dst_value.to_ir(), dst_index.to_ir(),
-                                                         src.to_ir(), _mat(repeat_time).to_ir())
+    global_builder.get_ir_builder().create_asc_ExtractOp(dst_value.to_ir(), dst_index.to_ir(), src.to_ir(),
+                                                         _mat(repeat_time).to_ir())

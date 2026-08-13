@@ -20,7 +20,7 @@ except ModuleNotFoundError:
 
 @asc.jit
 def vsqrt_kernel(x: asc.GlobalAddress, z: asc.GlobalAddress, block_length: asc.ConstExpr[int],
-                buffer_num: asc.ConstExpr[int], tile_length: asc.ConstExpr[int], tile_num: asc.ConstExpr[int]):
+                 buffer_num: asc.ConstExpr[int], tile_length: asc.ConstExpr[int], tile_num: asc.ConstExpr[int]):
     offset = asc.get_block_idx() * block_length
     x_gm = asc.GlobalTensor()
     z_gm = asc.GlobalTensor()
@@ -45,8 +45,7 @@ def copy_in(i: int, x_gm: asc.GlobalAddress, in_queue_x: asc.TQue, tile_length: 
 
 
 @asc.jit
-def compute(z_gm: asc.GlobalTensor, in_queue_x: asc.TQue, out_queue_z: asc.TQue,
-                tile_length: asc.ConstExpr[int]):
+def compute(z_gm: asc.GlobalTensor, in_queue_x: asc.TQue, out_queue_z: asc.TQue, tile_length: asc.ConstExpr[int]):
     x_local = in_queue_x.deque(z_gm.dtype)
     z_local = out_queue_z.alloc_tensor(z_gm.dtype)
     asc.sqrt(z_local, x_local, count=tile_length)
@@ -74,12 +73,11 @@ def vsqrt_launch(x: torch.Tensor) -> torch.Tensor:
 
 
 param_list = [
-    [torch.float16, (2048,)],
-    [torch.float32, (5000,)],
-    [torch.float32, (9999,)],
-    [torch.float32, (8192,)],
+    [torch.float16, (2048, )],
+    [torch.float32, (5000, )],
+    [torch.float32, (9999, )],
+    [torch.float32, (8192, )],
 ]
-
 
 BACKENDS = [
     # config.Backend.Model,

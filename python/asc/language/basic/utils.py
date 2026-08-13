@@ -88,7 +88,7 @@ def check_type_5hd(callee: str, dst_or_list, src_or_list) -> None:
     elif isinstance(dst_or_list, list):
         if not dst_or_list or not src_or_list:
             return
-        
+
         if len(dst_or_list) != len(src_or_list):
             raise ValueError("For {callee}, dst_list and src_list must have the same length.")
 
@@ -114,19 +114,19 @@ def op_impl(callee: str, dst: LocalTensor, src0: LocalTensor, src1: LocalTensor,
 
     check_type(callee, dst, src0, src1)
 
-    @dispatcher.register(mask=RuntimeInt, repeat_times=RuntimeInt, repeat_params=BinaryRepeatParams, 
-                        is_set_mask=DefaultValued(bool, True))
+    @dispatcher.register(mask=RuntimeInt, repeat_times=RuntimeInt, repeat_params=BinaryRepeatParams,
+                         is_set_mask=DefaultValued(bool, True))
     def _(mask: RuntimeInt, repeat_times: RuntimeInt, repeat_params: BinaryRepeatParams, is_set_mask: bool = True):
         build_l0(dst.to_ir(), src0.to_ir(), src1.to_ir(),
-                 _mat(mask, KT.int64).to_ir(), _mat(repeat_times, KT.int8).to_ir(), 
-                repeat_params.to_ir(), is_set_mask)
+                 _mat(mask, KT.int64).to_ir(),
+                 _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
 
-    @dispatcher.register(mask=list, repeat_times=RuntimeInt, repeat_params=BinaryRepeatParams, 
-                        is_set_mask=DefaultValued(bool, True))
+    @dispatcher.register(mask=list, repeat_times=RuntimeInt, repeat_params=BinaryRepeatParams,
+                         is_set_mask=DefaultValued(bool, True))
     def _(mask: list, repeat_times: RuntimeInt, repeat_params: BinaryRepeatParams, is_set_mask: bool = True):
         mask = [_mat(v, KT.uint64).to_ir() for v in mask]
-        build_l1(dst.to_ir(), src0.to_ir(), src1.to_ir(), mask, _mat(repeat_times, KT.int8).to_ir(), 
-                repeat_params.to_ir(), is_set_mask)
+        build_l1(dst.to_ir(), src0.to_ir(), src1.to_ir(), mask,
+                 _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
 
     @dispatcher.register(count=RuntimeInt, is_set_mask=DefaultValued(bool, True))
     def _(count: RuntimeInt, is_set_mask: bool = True):
@@ -135,58 +135,58 @@ def op_impl(callee: str, dst: LocalTensor, src0: LocalTensor, src1: LocalTensor,
     dispatcher(*args, **kwargs)
 
 
-def vec_binary_scalar_op_impl(callee: str, dst: LocalTensor, src: LocalTensor, scalar: RuntimeNumeric, 
-                              args: Tuple[Any], kwargs: Dict[str, Any], build_l0: Callable, 
-                              build_l1: Callable, build_l2: Callable) -> None:
+def vec_binary_scalar_op_impl(callee: str, dst: LocalTensor, src: LocalTensor, scalar: RuntimeNumeric, args: Tuple[Any],
+                              kwargs: Dict[str,
+                                           Any], build_l0: Callable, build_l1: Callable, build_l2: Callable) -> None:
     builder = build_l0.__self__
     if not isinstance(builder, ir.Builder):
         raise TypeError("Input builder must be ir.Builder")
     scalar = _mat(scalar, src.dtype).to_ir()
     dispatcher = OverloadDispatcher(callee)
 
-    @dispatcher.register(mask=RuntimeInt, repeat_times=RuntimeInt, repeat_params=UnaryRepeatParams, 
-                        is_set_mask=DefaultValued(bool, True))
+    @dispatcher.register(mask=RuntimeInt, repeat_times=RuntimeInt, repeat_params=UnaryRepeatParams,
+                         is_set_mask=DefaultValued(bool, True))
     def _(mask: RuntimeInt, repeat_times: RuntimeInt, repeat_params: UnaryRepeatParams, is_set_mask: bool = True):
         build_l0(dst.to_ir(), src.to_ir(), scalar,
                  _mat(mask, KT.int64).to_ir(),
                  _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
-    
-    @dispatcher.register(mask=list, repeat_times=RuntimeInt, repeat_params=UnaryRepeatParams, 
-                        is_set_mask=DefaultValued(bool, True))
+
+    @dispatcher.register(mask=list, repeat_times=RuntimeInt, repeat_params=UnaryRepeatParams,
+                         is_set_mask=DefaultValued(bool, True))
     def _(mask: list, repeat_times: RuntimeInt, repeat_params: UnaryRepeatParams, is_set_mask: bool = True):
         mask = [_mat(v, KT.uint64).to_ir() for v in mask]
-        build_l1(dst.to_ir(), src.to_ir(), scalar, mask, _mat(repeat_times, KT.int8).to_ir(), 
-                repeat_params.to_ir(), is_set_mask)
+        build_l1(dst.to_ir(), src.to_ir(), scalar, mask,
+                 _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
 
     @dispatcher.register(count=RuntimeInt, is_set_mask=DefaultValued(bool, True))
     def _(count: RuntimeInt, is_set_mask: bool = True):
         build_l2(dst.to_ir(), src.to_ir(), scalar, _mat(count, KT.int32).to_ir(), is_set_mask)
 
     dispatcher(*args, **kwargs)
-    
 
-def vec_ternary_scalar_op_impl(callee: str, dst: LocalTensor, src: LocalTensor, scalar: RuntimeNumeric, 
-                               args: Tuple[Any], kwargs: Dict[str, Any], build_l0: Callable, 
-                               build_l1: Callable, build_l2: Callable) -> None:
+
+def vec_ternary_scalar_op_impl(callee: str, dst: LocalTensor, src: LocalTensor, scalar: RuntimeNumeric,
+                               args: Tuple[Any], kwargs: Dict[str, Any], build_l0: Callable, build_l1: Callable,
+                               build_l2: Callable) -> None:
     builder = build_l0.__self__
     if not isinstance(builder, ir.Builder):
         raise TypeError("Input builder must be ir.Builder")
     scalar = _mat(scalar, src.dtype).to_ir()
     dispatcher = OverloadDispatcher(callee)
 
-    @dispatcher.register(mask=RuntimeInt, repeat_times=RuntimeInt, repeat_params=UnaryRepeatParams, 
-                        is_set_mask=DefaultValued(bool, True))
+    @dispatcher.register(mask=RuntimeInt, repeat_times=RuntimeInt, repeat_params=UnaryRepeatParams,
+                         is_set_mask=DefaultValued(bool, True))
     def _(mask: RuntimeInt, repeat_times: RuntimeInt, repeat_params: UnaryRepeatParams, is_set_mask: bool = True):
         build_l0(dst.to_ir(), src.to_ir(), scalar,
                  _mat(mask, KT.int64).to_ir(),
                  _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
-    
-    @dispatcher.register(mask=list, repeat_times=RuntimeInt, repeat_params=UnaryRepeatParams, 
-                        is_set_mask=DefaultValued(bool, True))
+
+    @dispatcher.register(mask=list, repeat_times=RuntimeInt, repeat_params=UnaryRepeatParams,
+                         is_set_mask=DefaultValued(bool, True))
     def _(mask: list, repeat_times: RuntimeInt, repeat_params: UnaryRepeatParams, is_set_mask: bool = True):
         mask = [_mat(v, KT.uint64).to_ir() for v in mask]
-        build_l1(dst.to_ir(), src.to_ir(), scalar, mask, _mat(repeat_times, KT.int8).to_ir(), 
-                repeat_params.to_ir(), is_set_mask)
+        build_l1(dst.to_ir(), src.to_ir(), scalar, mask,
+                 _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
 
     @dispatcher.register(count=RuntimeInt)
     def _(count: RuntimeInt):
@@ -300,17 +300,17 @@ def copy_docstring():
        .. code-block:: c++
 
         template <typename T, bool isSetMask = true>
-        __aicore__ inline void Copy(const LocalTensor<T>& dst, const LocalTensor<T>& src, 
-                                    const uint64_t mask[], const uint8_t repeatTime, 
+        __aicore__ inline void Copy(const LocalTensor<T>& dst, const LocalTensor<T>& src,
+                                    const uint64_t mask[], const uint8_t repeatTime,
                                     const CopyRepeatParams& repeatParams)
-    
+
     2. **mask 为连续模式**
 
        .. code-block:: c++
-        
+
         template <typename T, bool isSetMask = true>
-        __aicore__ inline void Copy(const LocalTensor<T>& dst, const LocalTensor<T>& src, 
-                                    const uint64_t mask, const uint8_t repeatTime, 
+        __aicore__ inline void Copy(const LocalTensor<T>& dst, const LocalTensor<T>& src,
+                                    const uint64_t mask, const uint8_t repeatTime,
                                     const CopyRepeatParams& repeatParams)
     """
 
@@ -371,7 +371,7 @@ def copy_docstring():
         # 1. 定义源和目标 LocalTensor
         src_tensor = asc.LocalTensor(asc.fp16, asc.Position.VECIN, size=TILE_LENGTH)
         dst_tensor = asc.LocalTensor(asc.fp16, asc.Position.VECOUT, size=TILE_LENGTH)
-            
+
         ...
 
         # 2. 定义地址步长参数
@@ -382,7 +382,7 @@ def copy_docstring():
             dstRepeatSize=8,   # 迭代间，目标地址步长为 8 个元素
             srcRepeatSize=16   # 迭代间，源地址步长为 16 个元素
         )
-            
+
         # 3. 使用连续模式调用 Copy
         # 每次迭代处理 128 个元素（一个 256 字节的 block），重复 4 次
         asc.copy(dst_tensor, src_tensor, mask=128, repeat_time=4, repeat_params=params)
@@ -418,7 +418,7 @@ def set_wait_flag_docstring():
     - set_flag/wait_flag必须成对出现。
     - 禁止用户在使用set_flag和wait_flag时，自行指定event_id，容易与框架同步事件冲突，导致卡死问题。event_id需要通过alloc_event_id或者fetch_event_id来获取。
     """
-    
+
     py_example = """
     **调用示例**
 
@@ -434,7 +434,7 @@ def set_wait_flag_docstring():
         asc.set_flag(event=asc.HardEvent.S_MTE3, event_id=event_id)
         asc.wait_flag(event=asc.HardEvent.S_MTE3, event_id=event_id)
         asc.data_copy(dst, src, data_size)
-                
+
     """
 
     return [func_introduction, cpp_signature, param_list, "", constraint_list, py_example]
@@ -459,7 +459,7 @@ def data_sync_barrier_docstring():
     **参数说明**
 
     - arg0: 模板参数，表示需要等待的内存位置，类型为MemDsbT，可取值为：
-    
+
       - ALL，等待所有内存访问指令。
       - DDR，等待GM访问指令。
       - UB，等待UB访问指令。
@@ -521,7 +521,7 @@ def pipe_barrier_docstring():
         asc.add(dst0, src0, src1, 512)
         asc.pipe_barrier(asc.PipeID.PIPE_V)
         asc.mul(dst1, dst0, src2, 512)
-                
+
     """
 
     return [func_introduction, cpp_signature, param_list, "", constraint_list, py_example]
@@ -896,12 +896,12 @@ def data_cache_preload_docstring():
     **调用示例**
 
         .. code-block:: python
-                
+
             weight_gm = asc.GlobalTensor()
             weight_gm.set_global_buffer(weight_gm_addr)
 
             asc.data_cache_preload(src=weight_gm, cache_offset=0)
-                
+
     """
 
     return [func_introduction, cpp_signature, param_list, return_value, constraint_list, py_example]
@@ -919,79 +919,79 @@ def data_copy_docstring():
     .. code-block:: c++
 
         template <typename T>
-        __aicore__ inline void DataCopy(const LocalTensor<T>& dst, const GlobalTensor<T>& src, 
+        __aicore__ inline void DataCopy(const LocalTensor<T>& dst, const GlobalTensor<T>& src,
                                         const uint32_t count)
 
     .. code-block:: c++
 
         template <typename T>
-        __aicore__ inline void DataCopy(const LocalTensor<T>& dst, const GlobalTensor<T>& src, 
+        __aicore__ inline void DataCopy(const LocalTensor<T>& dst, const GlobalTensor<T>& src,
                                             const DataCopyParams& repeatParams)
-        
+
     .. code-block:: c++
 
         template <typename T>
-        __aicore__ inline void DataCopy(const LocalTensor<T>& dst, const LocalTensor<T>& src, 
+        __aicore__ inline void DataCopy(const LocalTensor<T>& dst, const LocalTensor<T>& src,
                                         const uint32_t count)
 
     .. code-block:: c++
 
         template <typename T>
-        __aicore__ inline void DataCopy(const LocalTensor<T>& dst, const LocalTensor<T>& src, 
+        __aicore__ inline void DataCopy(const LocalTensor<T>& dst, const LocalTensor<T>& src,
                                         const DataCopyParams& repeatParams)
 
     .. code-block:: c++
 
         template <typename T>
-        __aicore__ inline void DataCopy(const GlobalTensor<T>& dst, const LocalTensor<T>& src, 
+        __aicore__ inline void DataCopy(const GlobalTensor<T>& dst, const LocalTensor<T>& src,
                                         const uint32_t count)
 
     .. code-block:: c++
 
         template <typename T>
-        __aicore__ inline void DataCopy(const GlobalTensor<T>& dst, const LocalTensor<T>& src, 
+        __aicore__ inline void DataCopy(const GlobalTensor<T>& dst, const LocalTensor<T>& src,
                                         const DataCopyParams& repeatParams)
 
     .. code-block:: c++
 
         template <typename T>
-        __aicore__ inline void DataCopy(const LocalTensor<T>& dst, const GlobalTensor<T>& src, 
-                                        const DataCopyParams& intriParams, 
+        __aicore__ inline void DataCopy(const LocalTensor<T>& dst, const GlobalTensor<T>& src,
+                                        const DataCopyParams& intriParams,
                                         const DataCopyEnhancedParams& enhancedParams)
 
     .. code-block:: c++
 
         template <typename T>
-        __aicore__ inline void DataCopy(const LocalTensor<T>& dst, const LocalTensor<T>& src, 
-                                        const DataCopyParams& intriParams, 
+        __aicore__ inline void DataCopy(const LocalTensor<T>& dst, const LocalTensor<T>& src,
+                                        const DataCopyParams& intriParams,
                                         const DataCopyEnhancedParams& enhancedParams)
 
     .. code-block:: c++
 
         template <typename T>
-        __aicore__ inline void DataCopy(const GlobalTensor<T>& dst, const LocalTensor<T>& src, 
-                                        const DataCopyParams& intriParams, 
+        __aicore__ inline void DataCopy(const GlobalTensor<T>& dst, const LocalTensor<T>& src,
+                                        const DataCopyParams& intriParams,
                                         const DataCopyEnhancedParams& enhancedParams)
 
     .. code-block:: c++
 
         template <typename T, typename U>
-        __aicore__ inline void DataCopy(const LocalTensor<T>& dst, const LocalTensor<U>& src, 
-                                        const DataCopyParams& intriParams, 
+        __aicore__ inline void DataCopy(const LocalTensor<T>& dst, const LocalTensor<U>& src,
+                                        const DataCopyParams& intriParams,
                                         const DataCopyEnhancedParams& enhancedParams)
 
     .. code-block:: c++
 
         template <typename T>
-        __aicore__ inline void DataCopy(const LocalTensor<T>& dst, const GlobalTensor<T>& src, 
-                                        const SliceInfo dstSliceInfo[], const SliceInfo srcSliceInfo[], 
+        __aicore__ inline void DataCopy(const LocalTensor<T>& dst, const GlobalTensor<T>& src,
+                                        const SliceInfo dstSliceInfo[], const SliceInfo srcSliceInfo[],
                                         const uint32_t dimValue = 1)
-        
+
     .. code-block:: c++
 
         template <typename T>
-        __aicore__ inline void DataCopy(const GlobalTensor<T> &dst, const LocalTensor<T> &src, 
-                                        const SliceInfo dstSliceInfo[], const SliceInfo srcSliceInfo[], 
+        __aicore__ inline void DataCopy(const GlobalTensor<T> &dst, const LocalTensor<T> &src,
+                                        const SliceInfo dstSliceInfo[], const SliceInfo srcSliceInfo[],
                                         const uint32_t dimValue = 1)
 
     """
@@ -1040,7 +1040,7 @@ def data_copy_docstring():
           asc.data_copy(src_local, src_global, params=intri_params)
           asc.data_copy(dst_local, src_local, params=intri_params)
           asc.data_copy(dst_global, dst_local, params=intri_params)
-    
+
     - 增强数据搬运
 
       .. code-block:: python
@@ -1257,10 +1257,10 @@ def dump_tensor_docstring():
     .. code-block:: c++
 
         template <typename T>
-        __aicore__ inline void DumpTensor(const LocalTensor<T>& tensor, uint32_t desc, 
+        __aicore__ inline void DumpTensor(const LocalTensor<T>& tensor, uint32_t desc,
         uint32_t dumpSize, const ShapeInfo& shapeInfo)
         template <typename T>
-        __aicore__ inline void DumpTensor(const GlobalTensor<T>& tensor, uint32_t desc, 
+        __aicore__ inline void DumpTensor(const GlobalTensor<T>& tensor, uint32_t desc,
         uint32_t dumpSize, const ShapeInfo& shapeInfo)
 
     """
@@ -1319,7 +1319,7 @@ def metrics_prof_start_docstring():
     .. code-block:: c++
 
         __aicore__ inline void MetricsProfStart()
-    
+
     """
 
     param_list = """
@@ -1358,7 +1358,7 @@ def metrics_prof_stop_docstring():
     .. code-block:: c++
 
         __aicore__ inline void MetricsProfStop()
-    
+
     """
 
     param_list = """
@@ -1523,7 +1523,7 @@ def get_block_idx_docstring():
         __aicore__ inline int64_t GetBlockIdx()
 
     """
-    
+
     param_list = """
     **参数说明**
 
@@ -1568,7 +1568,7 @@ def get_data_block_size_in_bytes_docstring():
 
         __aicore__ inline constexpr int16_t GetDataBlockSizeInBytes()
     """
-    
+
     param_list = """
     **参数说明**
 
@@ -1605,7 +1605,7 @@ def get_icache_preload_status_docstring():
 
         __aicore__ inline int64_t GetICachePreloadStatus();
     """
-    
+
     param_list = """
     **参数说明**
 
@@ -1637,7 +1637,7 @@ def get_mrg_sort_result_docstring():
 
     - 配合mrg_sort_4指令使用，获取mrg_sort_4指令处理过的队列里的Region Proposal个数。使用时，需要将mrg_sort_4中的mrg_sort_4_info.if_exhausted_suspension参数配置为TTrue，该配置模式下某条队列耗尽后，mrg_sort_4指令即停止。
       以上说明适用于如下型号：
-    
+
       - Atlas 推理系列产品AI Core
 
     - 配合mrg_sort指令使用，获取mrg_sort指令处理过的队列里的Region Proposal个数。使用时，需要将mrg_sort中的mrg_sort_4_info.if_exhausted_suspension参数配置为True，该配置模式下某条队列耗尽后，mrg_sort指令即停止。
@@ -1661,7 +1661,7 @@ def get_mrg_sort_result_docstring():
 
     param_list = """
     **参数说明**
-    
+
     无。
 
     """
@@ -1677,7 +1677,7 @@ def get_mrg_sort_result_docstring():
 
     constraint_list = """
     **约束说明**
-    
+
     无。
     """
 
@@ -1699,7 +1699,7 @@ def get_mrg_sort_result_docstring():
         asc.mrg_sort(dst, sort_list, mrg_sort4_info)
 
         mrg1, mrg2, mrg3, mrg4 = asc.get_mrg_sort_result()
-    
+
     """
 
     return [func_introduction, cpp_signature, param_list, return_list, constraint_list, py_example]
@@ -1718,7 +1718,7 @@ def get_program_counter_docstring():
          __aicore__ inline int64_t GetProgramCounter()
 
     """
-    
+
     param_list = """
     **参数说明**
 
@@ -1774,7 +1774,7 @@ def get_sort_len_docstring():
 
     py_example = """
     **调用示例**
-    
+
         .. code-block:: python
 
            length = asc.get_sort_len(100)
@@ -1884,7 +1884,7 @@ def get_system_cycle_docstring():
         __aicore__ inline int64_t GetSystemCycle()
 
     """
-    
+
     param_list = """
     **参数说明**
 
@@ -2009,7 +2009,7 @@ def icache_preload_docstring():
     **调用示例**
 
     .. code-block:: python
-            
+
         pre_fetch_len = 2
         asc.icache_preload(pre_fetch_len)
     """
@@ -2067,7 +2067,7 @@ def init_const_value_docstring():
     **调用示例**
 
     .. code-block:: python
-    
+
         import asc
         dst = asc.LocalTensor(dtype=asc.float32, pos=asc.TPosition.A1, addr=0, tile_size=128)
         params = asc.InitConstValueParams(repeat_times=1, block_num=2, dst_gap=0, init_value=2.2)
@@ -2125,7 +2125,7 @@ def load_data_docstring():
         __aicore__ inline void LoadData(const LocalTensor<T>& dst,
                                         const LocalTensor<T>& src,
                                         const LoadData3DParamsV2Pro& loadDataParams)
-    
+
     .. code-block:: c++
 
         template <typename T,
@@ -2144,7 +2144,7 @@ def load_data_docstring():
                 typename Std::enable_if<Std::is_same<PrimT<T>, U>::value, bool>::type = true>
         __aicore__ inline void LoadData(const LocalTensor<T>& dst,
                                         const LocalTensor<T>& src,
-                                        const LoadData3DParamsV2<U>& loadDataParams)                            
+                                        const LoadData3DParamsV2<U>& loadDataParams)
     """
 
     param_list = """
@@ -2189,7 +2189,7 @@ def load_data_docstring():
         - f_matrix_ctrl：是否启用矩阵控制，默认为false。
         - ext_config：扩展配置，取值范围：ext_config∈[0, 18446744073709551615]。默认为0。
         - filter_config：滤波器配置，取值范围：filter_config∈[0, 18446744073709551615]。默认为0x10101010101。
-    
+
       - LoadData3DParamsV1 结构体
         - pad_list：padding列表，顺序为[padding_left, padding_right, padding_top, padding_bottom]，每个元素取值范围：[0, 255]。
         - l1_h：源操作数height，取值范围：[1, 32767]。
@@ -2336,7 +2336,7 @@ def load_data_docstring():
               params_3d_v2_pro = asc.LoadData3DParamsV2Pro(16, False, False, False, False, False, 0, 0x10101010101)
 
               asc.load_data(y_local, x_local, params_3d_v2_pro)
-    
+
     - Local Memory 内部 3D 搬运（LoadData3DParamsV1）
 
       .. code-block:: python
@@ -2500,7 +2500,7 @@ def load_data_with_transpose_docstring():
     **调用示例**
 
     - 调用示例（V1版本）
-    
+
       .. code-block:: python
 
           @asc.jit
@@ -2796,10 +2796,10 @@ def proposal_extract_docstring():
     param_list = """
     **参数说明**
 
-    - dst：目的操作数。 
-    - src：源操作数，数据类型需与dst一致。  
-    - repeat_time：重复迭代次数。每次迭代处理16个Region Proposals的元素抽取并重排，下次迭代跳至相邻的下一组16个Region Proposals。取值范围：repeatTime∈[0,255]。  
-    - mode_number：抽取位置参数，取值范围：modeNumber∈[0,5]  
+    - dst：目的操作数。
+    - src：源操作数，数据类型需与dst一致。
+    - repeat_time：重复迭代次数。每次迭代处理16个Region Proposals的元素抽取并重排，下次迭代跳至相邻的下一组16个Region Proposals。取值范围：repeatTime∈[0,255]。
+    - mode_number：抽取位置参数，取值范围：modeNumber∈[0,5]
       - 0：抽取x1
       - 1：抽取y1
       - 2：抽取x2
@@ -2811,8 +2811,8 @@ def proposal_extract_docstring():
     constraint_list = """
     **约束说明**
 
-    - 用户需保证src中存储的proposal数量不小于实际所需数量，否则可能发生tensor越界。  
-    - 用户需保证dst中可容纳的元素数量不小于实际抽取数量。  
+    - 用户需保证src中存储的proposal数量不小于实际所需数量，否则可能发生tensor越界。
+    - 用户需保证dst中可容纳的元素数量不小于实际抽取数量。
     - 操作数地址需满足通用对齐约束（32字节对齐）。
     """
 
@@ -2840,7 +2840,7 @@ def trap_docstring():
         __aicore__ inline void Trap()
 
     """
-    
+
     param_list = """
     **参数说明**
 
@@ -2916,9 +2916,9 @@ def duplicate_docstring():
           mask = [uint64_max, uint64_max]
           scalar = 18.0
           asc.duplicate(dst_local, scalar, mask=mask, repeat_times=2, dst_block_stride=1, dst_repeat_stride=8)
-        
+
     - tensor前n个数据计算样例，源操作数为标量
-    
+
       .. code-block:: python
 
           scalar = 18.0
@@ -3034,7 +3034,7 @@ def pair_reduce_sum_docstring():
         template <typename T, bool isSetMask = true>
         __aicore__ inline void PairReduceSum(const LocalTensor<T>& dst, const LocalTensor<T>& src, const int32_t repeatTime, const uint64_t mask[],
                                             const int32_t dstRepStride, const int32_t srcBlkStride, const int32_t srcRepStride);
-                                                
+
     .. code-block:: c++
 
         // mask 连续模式
@@ -3199,7 +3199,7 @@ def repeat_reduce_sum_docstring():
 
 def whole_reduce_max_docstring():
     func_introduction = """
-    每个repeat内所有数据求最大值以及其索引index，返回的索引值为每个repeat内部索引。  
+    每个repeat内所有数据求最大值以及其索引index，返回的索引值为每个repeat内部索引。
     归约指令的总体介绍请参考如何使用归约指令。
     """
 
@@ -3211,9 +3211,9 @@ def whole_reduce_max_docstring():
         // mask 逐bit模式
         template <typename T, bool isSetMask = true>
          __aicore__ inline void WholeReduceMax(const LocalTensor<T>& dst, const LocalTensor<T>& src, const uint64_t mask[], const int32_t repeatTime,
-                                                const int32_t dstRepStride, const int32_t srcBlkStride, const int32_t srcRepStride, 
+                                                const int32_t dstRepStride, const int32_t srcBlkStride, const int32_t srcRepStride,
                                                 ReduceOrder order = ReduceOrder::ORDER_VALUE_INDEX);
-                                                  
+
 
     .. code-block:: c++
 
@@ -3221,7 +3221,7 @@ def whole_reduce_max_docstring():
         template <typename T, bool isSetMask = true>
         __aicore__ inline void WholeReduceMax(const LocalTensor<T>& dst, const LocalTensor<T>& src, const int32_t mask, const int32_t repeatTime,
                                                 const int32_t dstRepStride, const int32_t srcBlkStride, const int32_t srcRepStride,
-                                                ReduceOrder order = ReduceOrder::ORDER_VALUE_INDEX);                                                
+                                                ReduceOrder order = ReduceOrder::ORDER_VALUE_INDEX);
     """
 
     param_list = """
@@ -3335,7 +3335,7 @@ def whole_reduce_max_docstring():
 
 def whole_reduce_min_docstring():
     func_introduction = """
-    每个repeat内所有数据求最小值以及其索引index，返回的索引值为每个repeat内部索引。  
+    每个repeat内所有数据求最小值以及其索引index，返回的索引值为每个repeat内部索引。
     归约指令的总体介绍请参考如何使用归约指令。
     """
 
@@ -3482,14 +3482,14 @@ def whole_reduce_sum_docstring():
         // mask 逐比特模式
         template <typename T, bool isSetMask = true>
         __aicore__ inline void WholeReduceSum(const LocalTensor<T>& dst, const LocalTensor<T>& src, const int32_t repeatTime, const uint64_t mask[],
-                                              const int32_t dstRepStride, const int32_t srcBlkStride, const int32_t srcRepStride);  
+                                              const int32_t dstRepStride, const int32_t srcBlkStride, const int32_t srcRepStride);
 
     .. code-block:: c++
 
         // mask 连续模式
         template <typename T, bool isSetMask = true>
         __aicore__ inline void WholeReduceSum(const LocalTensor<T>& dst, const LocalTensor<T>& src, const int32_t repeatTime, const int32_t mask,
-                                              const int32_t dstRepStride, const int32_t srcBlkStride, const int32_t srcRepStride);                  
+                                              const int32_t dstRepStride, const int32_t srcBlkStride, const int32_t srcRepStride);
     """
 
     param_list = """
@@ -3702,7 +3702,7 @@ def scatter_docstring():
           asc.scatter(dst, src, dst_offset, dst_base=0, mask=mask_bits, repeat_times=1, src_rep_stride=8)
 
     - tensor前n个数据计算样例，源操作数为标量
-    
+
       .. code-block:: python
 
           asc.scatter(dst, src, dst_offset, dst_base=0, count=128)
@@ -3788,8 +3788,8 @@ def set_pad_value_docstring():
     **参数说明**
 
     - padding_value: 输入，asc.data_copy_pad接口填充的数值，数据与asc.data_copy_pad接口搬运的数据类型一致。
-    - pos: 
-    
+    - pos:
+
       - 输入，用于指定asc.data_copy_pad接口搬运过程中从GM搬运数据到哪一个目的地址，目的地址通过逻辑位置来表达。
       - 默认值为asc.TPosition.MAX，等效于asc.TPosition.VECIN或asc.TPosition.VECOUT。
     """
@@ -3867,25 +3867,25 @@ def set_vector_mask_docstring():
 
     - mask_high
 
-      - Normal模式：对应Normal模式下的逐比特模式，可以按位控制哪些元素参与计算。传入高位mask值。 
-      - Counter模式：需要置0，本入参不生效。  
+      - Normal模式：对应Normal模式下的逐比特模式，可以按位控制哪些元素参与计算。传入高位mask值。
+      - Counter模式：需要置0，本入参不生效。
 
     - mask_low
 
-      - Normal模式：对应Normal模式下的逐比特模式，可以按位控制哪些元素参与计算。传入低位mask值。  
-      - Counter模式：整个矢量计算过程中，参与计算的元素个数。 
+      - Normal模式：对应Normal模式下的逐比特模式，可以按位控制哪些元素参与计算。传入低位mask值。
+      - Counter模式：整个矢量计算过程中，参与计算的元素个数。
 
     - len
 
-      - Normal模式：对应Normal模式下的mask连续模式，表示单次迭代内表示前面连续的多少个元素参与计算。 
-      - Counter模式：整个矢量计算过程中，参与计算的元素个数。  
+      - Normal模式：对应Normal模式下的mask连续模式，表示单次迭代内表示前面连续的多少个元素参与计算。
+      - Counter模式：整个矢量计算过程中，参与计算的元素个数。
 
-    - dtype：矢量计算操作数的数据类型，由 Python 前端显式指定，用于推导 C++ 模板参数 T。  
+    - dtype：矢量计算操作数的数据类型，由 Python 前端显式指定，用于推导 C++ 模板参数 T。
 
     - mode：
-      mask 模式，类型为 MaskMode 枚举值  
-      - asc.MaskMode.NORMAL：Normal 模式，支持连续模式与逐比特模式。  
-      - asc.MaskMode.COUNTER：Counter 模式，mask 参数表示整个矢量计算参与的总元素个数。  
+      mask 模式，类型为 MaskMode 枚举值
+      - asc.MaskMode.NORMAL：Normal 模式，支持连续模式与逐比特模式。
+      - asc.MaskMode.COUNTER：Counter 模式，mask 参数表示整个矢量计算参与的总元素个数。
 
     """
 
@@ -3988,7 +3988,7 @@ def get_hccl_context_docstring():
 
     param_list = """
     **参数说明**
-    
+
     - index: 模板参数，用来表示要设置的通信域ID，当前只支持2个通信域，index只能为0/1。
     """
 
@@ -4031,7 +4031,7 @@ def set_hccl_context_docstring():
 
     param_list = """
     **参数说明**
-    
+
     - index: 模板参数，用来表示要设置的通信域ID，当前只支持2个通信域，index只能为0/1。
     - context: 对应通信域的context（消息区）地址。
     """
@@ -4098,11 +4098,11 @@ def transpose_docstring():
         // 普通转置，支持16 * 16的二维矩阵数据块进行转置
         template <typename T>
         __aicore__ inline void Transpose(const LocalTensor<T>& dst, const LocalTensor<T>& src)
-            
+
         // 增强转置，支持16 * 16的二维矩阵数据块转置，支持[N,C,H,W]与[N,H,W,C]互相转换
         template <typename T>
-        __aicore__ inline void Transpose(const LocalTensor<T>& dst, const LocalTensor<T> &src, 
-                                        const LocalTensor<uint8_t> &sharedTmpBuffer, 
+        __aicore__ inline void Transpose(const LocalTensor<T>& dst, const LocalTensor<T> &src,
+                                        const LocalTensor<uint8_t> &sharedTmpBuffer,
                                         const TransposeParamsExt &transposeParams)
     """
 
@@ -4150,15 +4150,15 @@ def transpose_docstring():
         x_local = in_queue_x.alloc_tensor(asc.float16)
         z_local = out_queue_z.alloc_tensor(asc.float16)
         tmp_buffer = in_queue_tmp.alloc_tensor(asc.uint8)
-        
+
         params = asc.TransposeParamsExt(
-            n_size=1, 
-            c_size=16, 
-            h_size=4, 
+            n_size=1,
+            c_size=16,
+            h_size=4,
             w_size=4,
             transpose_type=asc.TransposeType.TRANSPOSE_NCHW2NHWC
         )
-        
+
         asc.transpose(z_local, x_local, tmp_buffer, params)
     """
 
@@ -4179,20 +4179,20 @@ def trans_data_to_5hd_docstring():
 
         // 使用LocalTensor数组版本
         template <typename T>
-        __aicore__ inline void TransDataTo5HD(const LocalTensor<T> (&dstList)[NCHW_CONV_ADDR_LIST_SIZE], 
-                                            const LocalTensor<T> (&srcList)[NCHW_CONV_ADDR_LIST_SIZE], 
+        __aicore__ inline void TransDataTo5HD(const LocalTensor<T> (&dstList)[NCHW_CONV_ADDR_LIST_SIZE],
+                                            const LocalTensor<T> (&srcList)[NCHW_CONV_ADDR_LIST_SIZE],
                                             const TransDataTo5HDParams& nchwconvParams)
-            
+
         // 使用地址值数组版本（性能更优）
         template<typename T>
-        __aicore__ inline void TransDataTo5HD(uint64_t dstList[NCHW_CONV_ADDR_LIST_SIZE], 
-                                            uint64_t srcList[NCHW_CONV_ADDR_LIST_SIZE], 
+        __aicore__ inline void TransDataTo5HD(uint64_t dstList[NCHW_CONV_ADDR_LIST_SIZE],
+                                            uint64_t srcList[NCHW_CONV_ADDR_LIST_SIZE],
                                             const TransDataTo5HDParams& nchwconvParams)
-            
+
         // 使用连续存储地址值版本
         template <typename T>
-        __aicore__ inline void TransDataTo5HD(const LocalTensor<uint64_t>& dst, 
-                                            const LocalTensor<uint64_t>& src, 
+        __aicore__ inline void TransDataTo5HD(const LocalTensor<uint64_t>& dst,
+                                            const LocalTensor<uint64_t>& src,
                                             const TransDataTo5HDParams& nchwconvParams)
     """
 
@@ -4292,7 +4292,7 @@ def set_aipp_functions_docstring():
 
         template<typename T, typename U>
         void SetAippFunctions(const GlobalTensor<T>& src0, AippInputFormat format, AippParams<U> config)
-    
+
     输入图片格式为YUV420 Semi-Planar:
 
     .. code-block:: c++
@@ -4303,7 +4303,7 @@ def set_aipp_functions_docstring():
 
     param_list = """
     **参数说明**
-    
+
     - src0：源图片在Global Memory上的矩阵
     - src1：源图片格式为YUV420SP时，表示UV维度在Global Memory上的矩阵
     - input_format：源图片的图片格式
@@ -4476,7 +4476,6 @@ def set_binary_docstring(cpp_name: Optional[str] = None, append_text: str = "") 
     {py_example}
     """
 
-
     def decorator(fn: T) -> T:
         fn.__doc__ = docstr
         return fn
@@ -4495,21 +4494,21 @@ def set_binary_scalar_docstring(cpp_name: Optional[str] = None, append_text: str
     .. code-block:: c++
 
         template <typename T, bool isSetMask = true>
-        __aicore__ inline void {cpp_name}(const LocalTensor<T>& dstLocal, const LocalTensor<T>& srcLocal, 
+        __aicore__ inline void {cpp_name}(const LocalTensor<T>& dstLocal, const LocalTensor<T>& srcLocal,
                                             const T& scalarValue, const int32_t& calCount)
 
     .. code-block:: c++
 
         template <typename T, bool isSetMask = true>
-        __aicore__ inline void {cpp_name}(const LocalTensor<T>& dstLocal, const LocalTensor<T>& srcLocal, 
-                                            const T& scalarValue, uint64_t mask[], const uint8_t repeatTimes, 
+        __aicore__ inline void {cpp_name}(const LocalTensor<T>& dstLocal, const LocalTensor<T>& srcLocal,
+                                            const T& scalarValue, uint64_t mask[], const uint8_t repeatTimes,
                                             const UnaryRepeatParams& repeatParams)
 
     .. code-block:: c++
 
         template <typename T, bool isSetMask = true>
-        __aicore__ inline void {cpp_name}(const LocalTensor<T>& dstLocal, const LocalTensor<T>& srcLocal, 
-                                            const T& scalarValue, uint64_t mask, const uint8_t repeatTimes, 
+        __aicore__ inline void {cpp_name}(const LocalTensor<T>& dstLocal, const LocalTensor<T>& srcLocal,
+                                            const T& scalarValue, uint64_t mask, const uint8_t repeatTimes,
                                             const UnaryRepeatParams& repeatParams)
 
     """
@@ -4948,7 +4947,7 @@ def gather_mask_docstring():
 
     py_example = """
     **调用示例**
-    
+
     .. code-block:: python
 
         src0_local = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.VECIN, addr=0, tile_size=512)
@@ -4993,7 +4992,7 @@ def scalar_cast_docstring():
       - asc.RoundMode.CAST_CEIL：ceil，向正无穷取整。
       - asc.RoundMode.CAST_ROUND：round，四舍五入取整。
       - asc.RoundMode.CAST_ODD：Von Neumann rounding，最近邻奇数舍入。
-      
+
       - 对应支持关系
 
         - float -> half(f322f16)：asc.RoundMode.CAST_ODD
@@ -5136,7 +5135,7 @@ def scalar_count_leading_zero_docstring():
     param_list = """
     **参数说明**
 
-    - value_in：输入数据 
+    - value_in：输入数据
       - 被统计的二进制数字。
     """
 
@@ -5416,7 +5415,7 @@ def set_load_data_boundary_docstring():
     param_list = """
     **参数说明**
 
-    - boundary_value 
+    - boundary_value
         边界值。
         load_3d_v1 指令：单位是 32 字节。
         load_3d_v2 指令：单位是字节。
@@ -5445,7 +5444,7 @@ def set_load_data_boundary_docstring():
 def set_load_data_padding_value_docstring():
     func_introduction = """
     用于调用 load_3d_v2v1接口/load_3d_v2 接口时设置 Pad 填充的数值。 load_3d_v1/load_3d_v2 的模板参数 isSetPadding 设置为 true 时，用户需要通过本接口设置 Pad 填充的数值，设置为 false 时，本接口设置的填充值不生效。
-    """ 
+    """
 
     cpp_signature = """
     **对应的 Ascend C 函数原型**
@@ -5459,7 +5458,7 @@ def set_load_data_padding_value_docstring():
     param_list = """
     **参数说明**
 
-    - padValue 
+    - padValue
         输入， Pad 填充值的数值。
     """
 
@@ -5474,8 +5473,8 @@ def set_load_data_padding_value_docstring():
     .. code-block:: python
 
         import asc
-        asc.set_load_data_padding_value(10)    
-        asc.set_load_data_padding_value(2.0)  
+        asc.set_load_data_padding_value(10)
+        asc.set_load_data_padding_value(2.0)
     """
 
     return [func_introduction, cpp_signature, param_list, "", constraint_list, py_example]
@@ -5497,18 +5496,18 @@ def set_load_data_repeat_docstring():
     param_list = """
     **参数说明**
 
-    - repeatParams 
+    - repeatParams
         设置load_3d_v22接口的repeat参数，类型为LoadDataRepeatParam。
 
-    - repeatParams 
+    - repeatParams
         height/width方向上的迭代次数，取值范围：repeatTime ∈[0, 255] 。默认值为1
 
-    - repeatStride 
+    - repeatStride
         height/width方向上的前一个迭代与后一个迭代起始地址的距离，取值范围：n∈[0, 65535]，默认值为0。
         repeatMode为0，repeatStride的单位为16个元素。
         repeatMode为1，repeatStride的单位和具体型号有关。
 
-    - repeatMode 
+    - repeatMode
         控制repeat迭代的方向，取值范围：k∈[0, 1] 。默认值为0。
         0：迭代沿height方向；
         1：迭代沿width方向。
@@ -5554,26 +5553,26 @@ def compare_docstring() -> Callable[[T], T]:
 
         template <typename T, typename U, bool isSetMask = true>
         __aicore__ inline void Copmare(const LocalTensor<U>& dst, const LocalTensor<T>& src0,
-                                        const LocalTensor<T>& src1, CMPMODE cmpMode, const uint64_t mask[], 
+                                        const LocalTensor<T>& src1, CMPMODE cmpMode, const uint64_t mask[],
                                         uint8_t repeatTimes, const BinaryRepeatParams& repeatParams);
 
     .. code-block:: c++
 
         template <typename T, typename U, bool isSetMask = true>
         __aicore__ inline void Compare(const LocalTensor<U>& dst, const LocalTensor<T>& src0,
-                                        const LocalTensor<T>& src1, CMPMODE cmpMode, const uint64_t mask, 
+                                        const LocalTensor<T>& src1, CMPMODE cmpMode, const uint64_t mask,
                                         uint8_t repeatTimes, const BinaryRepeatParams& repeatParams)
 
     .. code-block:: c++
 
         template <typename T, bool isSetMask = true>
-        __aicore__ inline void Copmare(const LocalTensor<T>& src0, const LocalTensor<T>& src1, CMPMODE cmpMode, 
+        __aicore__ inline void Copmare(const LocalTensor<T>& src0, const LocalTensor<T>& src1, CMPMODE cmpMode,
                                         const uint64_t mask[], const BinaryRepeatParams& repeatParams);
 
     .. code-block:: c++
 
         template <typename T, bool isSetMask = true>
-        __aicore__ inline void Compare(const LocalTensor<T>& src0, const LocalTensor<T>& src1, CMPMODE cmpMode, 
+        __aicore__ inline void Compare(const LocalTensor<T>& src0, const LocalTensor<T>& src1, CMPMODE cmpMode,
                                         const uint64_t mask, const BinaryRepeatParams& repeatParams);
 
     """
@@ -5944,14 +5943,14 @@ def compare_scalar_docstring() -> Callable[[T], T]:
 
         template <typename T, typename U, bool isSetMask = true>
         __aicore__ inline void CopmareScalar(const LocalTensor<U>& dst, const LocalTensor<T>& src0,
-                                              const T src1Scalar, CMPMODE cmpMode, const uint64_t mask[], 
+                                              const T src1Scalar, CMPMODE cmpMode, const uint64_t mask[],
                                               uint8_t repeatTimes, const UnaryRepeatParams& repeatParams);
 
     .. code-block:: c++
 
         template <typename T, typename U, bool isSetMask = true>
         __aicore__ inline void CompareScalar(const LocalTensor<U>& dst, const LocalTensor<T>& src0,
-                                              const T src1Scalar, CMPMODE cmpMode, const uint64_t mask, 
+                                              const T src1Scalar, CMPMODE cmpMode, const uint64_t mask,
                                               uint8_t repeatTimes, const UnaryRepeatParams& repeatParams);
 
     """
@@ -5994,7 +5993,7 @@ def compare_scalar_docstring() -> Callable[[T], T]:
           mask = 128
           # repeat_times = 1，一次迭代计算128个数
           params = asc.BinaryRepeatParams(1, 1, 1, 8, 8, 8)
-          asc.compare_scalar(dst, src0, src1_scalar, cmp_mode=asc.CMPMODE.LT, mask=mask, repeat_times=1, 
+          asc.compare_scalar(dst, src0, src1_scalar, cmp_mode=asc.CMPMODE.LT, mask=mask, repeat_times=1,
                              repeat_params=params)
 
     - tensor高维切分计算样例-mask逐bit模式
@@ -6004,7 +6003,7 @@ def compare_scalar_docstring() -> Callable[[T], T]:
           mask = [uint64_max, uint64_max]
           # repeat_times = 1，一次迭代计算128个数
           params = asc.BinaryRepeatParams(1, 1, 1, 8, 8, 8)
-          asc.compare_scalar(dst, src0, src1_scalar, cmp_mode=asc.CMPMODE.LT, mask=mask, repeat_times=1, 
+          asc.compare_scalar(dst, src0, src1_scalar, cmp_mode=asc.CMPMODE.LT, mask=mask, repeat_times=1,
                              repeat_params=params)
 
     - tensor前n个数据计算样例
@@ -6096,7 +6095,7 @@ class ListTensorDescDocstring:
 
     def __init__(self) -> None:
         ...
-    
+
     @staticmethod
     def init_docstring():
         func_introduction = """
@@ -6131,7 +6130,7 @@ class ListTensorDescDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, "", "", py_example]
-    
+
     @staticmethod
     def get_desc_docstring():
         func_introduction = """
@@ -6258,54 +6257,54 @@ def select_docstring() -> Callable[[T], T]:
     .. code-block:: c++
 
         template <typename T, typename U>
-        __aicore__ inline void Select(const LocalTensor<T>& dst, const LocalTensor<U>& selMask, 
+        __aicore__ inline void Select(const LocalTensor<T>& dst, const LocalTensor<U>& selMask,
                                        const LocalTensor<T>& src0, T src1, SELMODE selMode, uint32_t count)
 
     .. code-block:: c++
 
         template <typename T, typename U>
-        __aicore__ inline void Select(const LocalTensor<T>& dst, const LocalTensor<U>& selMask, 
-                                       const LocalTensor<T>& src0, const LocalTensor<T>& src1, 
+        __aicore__ inline void Select(const LocalTensor<T>& dst, const LocalTensor<U>& selMask,
+                                       const LocalTensor<T>& src0, const LocalTensor<T>& src1,
                                        SELMODE selMode, uint32_t count)
 
     .. code-block:: c++
 
         template <typename T, typename U, bool isSetMask = true>
-        __aicore__ inline void Select(const LocalTensor<T>& dst, const LocalTensor<U>& selMask, 
-                                       const LocalTensor<T>& src0, T src1, SELMODE selMode, uint64_t mask[], 
+        __aicore__ inline void Select(const LocalTensor<T>& dst, const LocalTensor<U>& selMask,
+                                       const LocalTensor<T>& src0, T src1, SELMODE selMode, uint64_t mask[],
                                        uint8_t repeatTime, const BinaryRepeatParams& repeatParams)
 
     .. code-block:: c++
 
         template <typename T, typename U, bool isSetMask = true>
-        __aicore__ inline void Select(const LocalTensor<T>& dst, const LocalTensor<U>& selMask, 
-                                       const LocalTensor<T>& src0, T src1, SELMODE selMode, uint64_t mask, 
+        __aicore__ inline void Select(const LocalTensor<T>& dst, const LocalTensor<U>& selMask,
+                                       const LocalTensor<T>& src0, T src1, SELMODE selMode, uint64_t mask,
                                        uint8_t repeatTime, const BinaryRepeatParams& repeatParams)
 
     .. code-block:: c++
 
         template <typename T, typename U>
-        __aicore__ inline void Select(const LocalTensor<T>& dst, const LocalTensor<U>& selMask, 
+        __aicore__ inline void Select(const LocalTensor<T>& dst, const LocalTensor<U>& selMask,
                                        const LocalTensor<T>& src0, uint8_t repeatTime, const BinaryRepeatParams& repeatParams)
 
     .. code-block:: c++
 
         template <typename T, typename U, bool isSetMask = true>
-        __aicore__ inline void Select(const LocalTensor<T>& dst, const LocalTensor<U>& selMask, 
-                                       const LocalTensor<T>& src0, const LocalTensor<T>& src1, SELMODE selMode, uint64_t mask[], 
+        __aicore__ inline void Select(const LocalTensor<T>& dst, const LocalTensor<U>& selMask,
+                                       const LocalTensor<T>& src0, const LocalTensor<T>& src1, SELMODE selMode, uint64_t mask[],
                                        uint8_t repeatTime, const BinaryRepeatParams& repeatParams)
 
     .. code-block:: c++
 
         template <typename T, typename U, bool isSetMask = true>
-        __aicore__ inline void Select(const LocalTensor<T>& dst, const LocalTensor<U>& selMask, 
-                                       const LocalTensor<T>& src0, const LocalTensor<T>& src1, SELMODE selMode, uint64_t mask, 
+        __aicore__ inline void Select(const LocalTensor<T>& dst, const LocalTensor<U>& selMask,
+                                       const LocalTensor<T>& src0, const LocalTensor<T>& src1, SELMODE selMode, uint64_t mask,
                                        uint8_t repeatTime, const BinaryRepeatParams& repeatParams)
 
     .. code-block:: c++
 
         template <typename T, SELMODE selMode>
-        __aicore__ inline void Select(const LocalTensor<T>& dst, const LocalTensor<T>& src0, const LocalTensor<T>& src1, 
+        __aicore__ inline void Select(const LocalTensor<T>& dst, const LocalTensor<T>& src0, const LocalTensor<T>& src1,
                                        uint8_t repeatTime, const BinaryRepeatParams& repeatParams)
     """
 
@@ -6707,7 +6706,7 @@ def fixpipe_docstring():
             quant_pre=asc.QuantModes.VDEQF16, deq_scalar=0,
             nd_num=1, src_nd_stride=2, dst_nd_stride=512,
             relu_en=False, unit_flag=0, is_channel_split=False
-          )          
+          )
           asc.fixpipe(c_gm, c_local, cbuf_workspace, fixpipe_params)
     """
 
@@ -6751,7 +6750,7 @@ def brcb_docstring():
 
         brcb_params = asc.BrcbRepeatParams(1, 8)
         asc.brcb(x_buf, y_buf, 2, brcb_params)
-          
+
     """
 
     return [func_introduction, cpp_signature, param_list, "", constraint_list, py_example]
@@ -6772,23 +6771,23 @@ def axpy_docstring():
 
           template <typename T, typename U>
           __aicore__ inline void Axpy(const LocalTensor<T>& dst, const LocalTensor<U>& src, const U& scalarValue, const int32_t& count)
-      
+
     - tensor高维切分计算
-      
+
       - mask逐bit模式
-        
+
         .. code-block:: c++
-            
+
             template <typename T, typename U, bool isSetMask = true>
-            __aicore__ inline void Axpy(const LocalTensor<T>& dst, const LocalTensor<U>& src, const U& scalarValue, 
+            __aicore__ inline void Axpy(const LocalTensor<T>& dst, const LocalTensor<U>& src, const U& scalarValue,
                                     uint64_t mask[], const uint8_t repeatTime, const UnaryRepeatParams& repeatParams)
 
       - mask连续模式
 
-        .. code-block:: c++ 
+        .. code-block:: c++
 
             template <typename T, typename U, bool isSetMask = true>
-            __aicore__ inline void Axpy(const LocalTensor<T>& dst, const LocalTensor<U>& src, const U& scalarValue, 
+            __aicore__ inline void Axpy(const LocalTensor<T>& dst, const LocalTensor<U>& src, const U& scalarValue,
                                     uint64_t mask, const uint8_t repeatTime, const UnaryRepeatParams& repeatParams)
     """
 
@@ -6845,7 +6844,7 @@ def axpy_docstring():
 
           params = asc.UnaryRepeatParams(1, 1, 8, 8)
           asc.axpy(dst, src, 2.0, mask=128, repeat_time=4, repeat_params=params)
-    
+
     - tensor高维切分计算样例-mask逐bit模式
 
       .. code-block:: python
@@ -6854,11 +6853,11 @@ def axpy_docstring():
           mask = [uint64_max, uint64_max]
           params = asc.UnaryRepeatParams(1, 1, 8, 8)
           asc.axpy(dst, src, 2.0, mask=mask, repeat_time=4, repeat_params=params)
-    
+
     - tensor前n个数据计算样例
-      
+
       .. code-block:: python
-      
+
           asc.axpy(dst, src, 2.0, count=512)
     """
 
@@ -6871,7 +6870,7 @@ def cast_deq_docstring():
 
     - 在输入类型为int16_t的情况下，对int16_t类型的输入做量化并进行精度转换，得到int8_t/uint8_t类型的数据。
       使用该接口前需要调用set_deq_scale设置scale、offset、sign_mode等量化参数。
-      
+
       通过模板参数is_vec_deq控制是否选择向量量化模式。
 
       - 当is_vec_deq=false时，根据set_deq_scale设置的scale、offset、sign_mode，对输入做量化并进行精度转换。计算公式如下：
@@ -6892,23 +6891,23 @@ def cast_deq_docstring():
 
           template <typename T, typename U, bool isVecDeq = true, bool halfBlock = true>
           __aicore__ inline void CastDeq(const LocalTensor<T>& dst, const LocalTensor<U>& src, const uint32_t count)
-      
+
     - tensor高维切分计算
-      
+
       - mask逐bit模式
-        
+
         .. code-block:: c++
-            
+
             template <typename T, typename U, bool isSetMask = true, bool isVecDeq = true, bool halfBlock = true>
-            __aicore__ inline void CastDeq(const LocalTensor<T>& dst, const LocalTensor<U>& src, 
+            __aicore__ inline void CastDeq(const LocalTensor<T>& dst, const LocalTensor<U>& src,
                                     const uint64_t mask[], uint8_t repeatTime, const UnaryRepeatParams& repeatParams)
 
       - mask连续模式
 
-        .. code-block:: c++ 
+        .. code-block:: c++
 
             template <typename T, typename U, bool isSetMask = true, bool isVecDeq = true, bool halfBlock = true>
-            __aicore__ inline void CastDeq(const LocalTensor<T>& dst, const LocalTensor<U>& src, 
+            __aicore__ inline void CastDeq(const LocalTensor<T>& dst, const LocalTensor<U>& src,
                                     const int32_t mask, uint8_t repeatTime, const UnaryRepeatParams& repeatParams)
     """
 
@@ -6919,7 +6918,7 @@ def cast_deq_docstring():
 
       - True，表示在接口内部设置mask。
       - False，表示在接口外部设置mask，开发者需要使用set_vector_mask接口设置mask值。这种模式下，本接口入参中的mask值必须设置为占位符MASK_PLACEHOLDER。
-    
+
     - is_vec_deq：控制是否选择向量量化模式。和set_deq_scale接口配合使用，当set_deq_scale接口传入Tensor时，is_vec_deq必须为true。
     - half_block：对int16_t类型的输入做量化并进行精度转换得到int8_t/uint8_t类型的数据时，half_block参数用于指示输出元素存放在上半还是下半Block。half_block=True时，结果存放在下半Block；half_block=False时，结果存放在上半Block。
     - dst：目的操作数。类型为LocalTensor，支持的TPosition为VECIN/VECCALC/VECOUT。LocalTensor的起始地址需要32字节对齐。
@@ -6963,7 +6962,7 @@ def cast_deq_docstring():
 
           params = asc.UnaryRepeatParams(1, 1, 8, 8)
           asc.cast_deq(dst, src, mask=128, repeat_time=4, repeat_params=params)
-    
+
     - tensor高维切分计算样例-mask逐bit模式
 
       .. code-block:: python
@@ -6972,11 +6971,11 @@ def cast_deq_docstring():
           mask = [uint64_max, uint64_max]
           params = asc.UnaryRepeatParams(1, 1, 8, 8)
           asc.cast_deq(dst, src, mask=mask, repeat_time=4, repeat_params=params)
-    
+
     - tensor前n个数据计算样例
-      
+
       .. code-block:: python
-      
+
           asc.cast_deq(dst, src, count=512)
     """
 
@@ -6996,33 +6995,33 @@ def gather_docstring():
       .. code-block:: c++
 
           template <typename T>
-          __aicore__ inline void Gather(const LocalTensor<T>& dst, const LocalTensor<T>& src, 
+          __aicore__ inline void Gather(const LocalTensor<T>& dst, const LocalTensor<T>& src,
             const LocalTensor<uint32_t>& srcOffset, const uint32_t srcBaseAddr, const uint32_t count)
-      
+
     - tensor高维切分计算
-      
+
       - mask逐bit模式
-        
+
         .. code-block:: c++
-            
+
             template <typename T>
-            __aicore__ inline void Gather(const LocalTensor<T>& dst, const LocalTensor<T>& src, 
-                                const LocalTensor<uint32_t>& srcOffset, const uint32_t srcBaseAddr, 
+            __aicore__ inline void Gather(const LocalTensor<T>& dst, const LocalTensor<T>& src,
+                                const LocalTensor<uint32_t>& srcOffset, const uint32_t srcBaseAddr,
                                 const uint64_t mask[], const uint8_t repeatTime, const uint16_t dstRepStride)
 
       - mask连续模式
 
-        .. code-block:: c++ 
+        .. code-block:: c++
 
             template <typename T>
-            __aicore__ inline void Gather(const LocalTensor<T>& dst, const LocalTensor<T>& src, 
-                                const LocalTensor<uint32_t>& srcOffset, const uint32_t srcBaseAddr, 
+            __aicore__ inline void Gather(const LocalTensor<T>& dst, const LocalTensor<T>& src,
+                                const LocalTensor<uint32_t>& srcOffset, const uint32_t srcBaseAddr,
                                 const uint64_t mask, const uint8_t repeatTime, const uint16_t dstRepStride)
     """
 
     param_list = """
     **参数说明**
-    
+
     - dst：目的操作数。类型为LocalTensor，支持的TPosition为VECIN/VECCALC/VECOUT。LocalTensor的起始地址需要32字节对齐。
     - src: 源操作数。类型为LocalTensor，支持的TPosition为VECIN/VECCALC/VECOUT。LocalTensor的起始地址需要32字节对齐。
     - src_offset：每个元素在src中对应的地址偏移。类型为LocalTensor，支持的TPosition为VECIN/VECCALC/VECOUT。LocalTensor的起始地址需要32字节对齐。
@@ -7066,7 +7065,7 @@ def gather_docstring():
     .. code-block:: python
 
         z_local = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.VECOUT, addr=0, tile_size=512)
-        src_offset = asc.LocalTensor(dtype=asc.uint32, pos=asc.TPosition.VECIN, addr=0, tile_size=512) 
+        src_offset = asc.LocalTensor(dtype=asc.uint32, pos=asc.TPosition.VECIN, addr=0, tile_size=512)
         x_local = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.VECIN, addr=0, tile_size=512)
         asc.gather(z_local, x_local, src_offset, src_base=0, count=512)
         asc.gather(z_local, x_local, src_offset, src_base=0, mask=512, repeat_times=1, dst_rep_stride=8)
@@ -7089,13 +7088,13 @@ def gatherb_docstring():
     .. code-block:: c++
 
         template <typename T>
-        __aicore__ inline void Gatherb(const LocalTensor<T>& dst, const LocalTensor<T>& src0, 
+        __aicore__ inline void Gatherb(const LocalTensor<T>& dst, const LocalTensor<T>& src0,
             const LocalTensor<uint32_t>& offset, const uint8_t repeatTime, const GatherRepeatParams& repeatParams)
     """
 
     param_list = """
     **参数说明**
-    
+
     - dst：目的操作数。类型为LocalTensor，支持的TPosition为VECIN/VECCALC/VECOUT。LocalTensor的起始地址需要32字节对齐。
     - src0: 源操作数。类型为LocalTensor，支持的TPosition为VECIN/VECCALC/VECOUT。LocalTensor的起始地址需要32字节对齐。
     - offset：每个datablock在源操作数中对应的地址偏移。类型为LocalTensor，支持的TPosition为VECIN/VECCALC/VECOUT。LocalTensor的起始地址需要32字节对齐。
@@ -7138,21 +7137,21 @@ def block_reduce_sum_docstring():
       .. code-block:: c++
 
           template <typename T, bool isSetMask = true>
-          __aicore__ inline void BlockReduceSum(const LocalTensor<T>& dst, const LocalTensor<T>& src, const int32_t repeatTime, 
+          __aicore__ inline void BlockReduceSum(const LocalTensor<T>& dst, const LocalTensor<T>& src, const int32_t repeatTime,
             const uint64_t mask[], const int32_t dstRepStride, const int32_t srcBlkStride, const int32_t srcRepStride)
-    
+
     - mask连续模式
 
       .. code-block:: c++
 
           template <typename T, bool isSetMask = true>
-          __aicore__ inline void BlockReduceSum(const LocalTensor<T>& dst, const LocalTensor<T>& src,const int32_t repeatTime, 
+          __aicore__ inline void BlockReduceSum(const LocalTensor<T>& dst, const LocalTensor<T>& src,const int32_t repeatTime,
             const int32_t mask, const int32_t dstRepStride, const int32_t srcBlkStride, const int32_t srcRepStride)
     """
 
     param_list = """
     **参数说明**
-    
+
     - is_set_mask: 是否在接口内部设置mask。
       - True，表示在接口内部设置mask。
       - False，表示在接口外部设置mask，开发者需要使用set_vector_mask接口设置mask值。这种模式下，本接口入参中的mask值必须设置为占位符MASK_PLACEHOLDER。
@@ -7194,7 +7193,7 @@ def block_reduce_sum_docstring():
       .. code-block:: python
 
           asc.block_reduce_sum(z_local, x_local, repeat=1, mask=128, dst_rep_stride=8, src_blk_stride=1, src_rep_stride=8)
-    
+
     - mask逐bit模式
 
       .. code-block:: python
@@ -7222,7 +7221,7 @@ def block_reduce_max_docstring():
           template <typename T, bool isSetMask = true>
           __aicore__ inline void BlockReduceMax(const LocalTensor<T>& dst, const LocalTensor<T>& src, const int32_t repeatTime,
             const uint64_t mask[], const int32_t dstRepStride, const int32_t srcBlkStride, const int32_t srcRepStride)
-    
+
     - mask连续模式
 
       .. code-block:: c++
@@ -7234,7 +7233,7 @@ def block_reduce_max_docstring():
 
     param_list = """
     **参数说明**
-    
+
     - is_set_mask: 是否在接口内部设置mask。
       - True，表示在接口内部设置mask。
       - False，表示在接口外部设置mask，开发者需要使用set_vector_mask接口设置mask值。这种模式下，本接口入参中的mask值必须设置为占位符MASK_PLACEHOLDER。
@@ -7277,7 +7276,7 @@ def block_reduce_max_docstring():
       .. code-block:: python
 
           asc.block_reduce_max(z_local, x_local, repeat=1, mask=128, dst_rep_stride=8, src_blk_stride=1, src_rep_stride=8)
-    
+
     - mask逐bit模式
 
       .. code-block:: python
@@ -7305,7 +7304,7 @@ def block_reduce_min_docstring():
           template <typename T, bool isSetMask = true>
           __aicore__ inline void BlockReduceMin(const LocalTensor<T>& dst, const LocalTensor<T>& src, const int32_t repeatTime,
             const uint64_t mask[], const int32_t dstRepStride, const int32_t srcBlkStride, const int32_t srcRepStride)
-    
+
     - mask连续模式
 
       .. code-block:: c++
@@ -7317,7 +7316,7 @@ def block_reduce_min_docstring():
 
     param_list = """
     **参数说明**
-    
+
     - is_set_mask: 是否在接口内部设置mask。
       - True，表示在接口内部设置mask。
       - False，表示在接口外部设置mask，开发者需要使用set_vector_mask接口设置mask值。这种模式下，本接口入参中的mask值必须设置为占位符MASK_PLACEHOLDER。
@@ -7360,7 +7359,7 @@ def block_reduce_min_docstring():
       .. code-block:: python
 
           asc.block_reduce_min(z_local, x_local, repeat=1, mask=128, dst_rep_stride=8, src_blk_stride=1, src_rep_stride=8)
-    
+
     - mask逐bit模式
 
       .. code-block:: python
@@ -7399,7 +7398,7 @@ def reduce_min_docstring():
           __aicore__ inline void ReduceMin(const LocalTensor<T>& dst, const LocalTensor<T>& src,
                                             const LocalTensor<T>& sharedTmpBuffer, const uint64_t mask[],
                                             const int32_t repeatTime, const int32_t srcRepStride, bool calIndex = 0)
-    
+
       - mask连续模式
 
         .. code-block:: c++
@@ -7459,7 +7458,7 @@ def reduce_min_docstring():
       .. code-block:: python
 
           asc.reduce_min(dst, src, shared_tmp_buffer=shared_tmp, mask=128, repeat_time=128, src_rep_stride=65, cal_index=True)
-    
+
     - tensor高维切分计算样例-mask逐bit模式
 
       .. code-block:: python
@@ -7504,7 +7503,7 @@ def reduce_max_docstring():
           __aicore__ inline void ReduceMax(const LocalTensor<T>& dst, const LocalTensor<T>& src,
                                             const LocalTensor<T>& sharedTmpBuffer, const uint64_t mask[],
                                             const int32_t repeatTime, const int32_t srcRepStride, bool calIndex = 0)
-    
+
       - mask连续模式
 
         .. code-block:: c++
@@ -7564,7 +7563,7 @@ def reduce_max_docstring():
       .. code-block:: python
 
           asc.reduce_max(dst, src, shared_tmp_buffer=shared_tmp, mask=128, repeat_time=128, src_rep_stride=65, cal_index=True)
-    
+
     - tensor高维切分计算样例-mask逐bit模式
 
       .. code-block:: python
@@ -7612,7 +7611,7 @@ def reduce_sum_docstring():
           __aicore__ inline void ReduceSum(const LocalTensor<T>& dst, const LocalTensor<T>& src,
                                             const LocalTensor<T>& sharedTmpBuffer, const uint64_t mask[],
                                             const int32_t repeatTime, const int32_t srcRepStride, bool calIndex = 0)
-    
+
       - mask连续模式
 
         .. code-block:: c++
@@ -7668,7 +7667,7 @@ def reduce_sum_docstring():
       .. code-block:: python
 
           asc.reduce_sum(dst, src, shared_tmp_buffer=shared_tmp, mask=128, repeat_time=128, src_rep_stride=65, cal_index=True)
-    
+
     - tensor高维切分计算样例-mask逐bit模式
 
       .. code-block:: python
@@ -7703,13 +7702,13 @@ def init_soc_state_docstring():
 
     param_list = """
     **参数说明**
-    
+
     无。
     """
 
     constraint_list = """
     **约束说明**
-    
+
     不调用该接口，在部分场景下可能导致计算结果出现精度错误或者卡死等问题。
     """
 
@@ -7719,7 +7718,7 @@ def init_soc_state_docstring():
     .. code-block:: python
 
         asc.init_soc_state()
-    
+
     """
 
     return [func_introduction, cpp_signature, param_list, "", constraint_list, py_example]
@@ -7743,7 +7742,7 @@ def set_store_atomic_config_docstring():
 
     param_list = """
     **参数说明**
-    
+
     - type：原子操作使能位，AtomicDtype枚举类的定义如下：
 
       .. code-block:: python
@@ -7768,7 +7767,7 @@ def set_store_atomic_config_docstring():
 
     constraint_list = """
     **约束说明**
-    
+
     无。
     """
 
@@ -7778,7 +7777,7 @@ def set_store_atomic_config_docstring():
     .. code-block:: python
 
         asc.set_store_atomic_config(asc.AtomicDtype.ATOMIC_F16, asc.AtomicOp.ATOMIC_SUM)
-    
+
     """
 
     return [func_introduction, cpp_signature, param_list, "", constraint_list, py_example]
@@ -7800,7 +7799,7 @@ def get_store_atomic_config_docstring():
 
     param_list = """
     **参数说明**
-    
+
     无。
 
     """
@@ -7809,7 +7808,7 @@ def get_store_atomic_config_docstring():
     **返回值说明**
 
     - atomic_type（第一个返回值）：原子操作使能位。
-      
+
       - 0：无原子操作
       - 1：使能原子操作，进行原子操作的数据类型为float
       - 2：使能原子操作，进行原子操作的数据类型为half
@@ -7825,7 +7824,7 @@ def get_store_atomic_config_docstring():
 
     constraint_list = """
     **约束说明**
-    
+
     此接口需要与set_store_atomic_config(ISASI)配合使用，用以获取原子操作使能位与原子操作类型的值。
     """
 
@@ -7836,7 +7835,7 @@ def get_store_atomic_config_docstring():
 
         asc.set_store_atomic_config(asc.AtomicDtype.ATOMIC_F16, asc.AtomicOp.ATOMIC_SUM)
         atomic_type, atomic_op = asc.get_store_atomic_config()
-    
+
     """
 
     return [func_introduction, cpp_signature, param_list, return_list, constraint_list, py_example]
@@ -7845,7 +7844,7 @@ def get_store_atomic_config_docstring():
 def check_local_memory_ia_docstring():
     func_introduction = """
     Check设定范围内的UB读写行为，如果有设定范围的读写行为则会出现EXCEPTION报错，无设定范围的读写行为则不会报错。
-    
+
     """
 
     cpp_signature = """
@@ -7859,7 +7858,7 @@ def check_local_memory_ia_docstring():
 
     param_list = """
     **参数说明**
-    
+
     - check_params：用于配置对UB访问的检查行为，类型为CheckLocalMemoryIAParam。
       - enable_bit：配置的异常寄存器，取值范围：enable_bit∈[0,3]，默认为0。
         - 0：异常寄存器0。
@@ -7889,11 +7888,11 @@ def check_local_memory_ia_docstring():
       - is_enable： 是否使能enable_bit参数配置的异常寄存器。
         - false：不使能，默认为false。
         - true：使能。
-    
+
     """
     constraint_list = """
     **约束说明**
-    
+
     - start_addr/end_addr的单位是32B，check的范围不包含start_addr，包含end_addr，即(start_addr, end_addr]。
     - 每次调用完该接口需要进行复位（配置is_enable为False进行复位）。
 
@@ -7905,7 +7904,7 @@ def check_local_memory_ia_docstring():
 
         params = asc.CheckLocalMemoryIAParam()
         asc.check_local_memory_ia(params)
-    
+
     """
 
     return [func_introduction, cpp_signature, param_list, "", constraint_list, py_example]
@@ -7944,7 +7943,7 @@ DOC_HANDLES = {
     "get_data_block_size_in_bytes": get_data_block_size_in_bytes_docstring,
     "get_hccl_context": get_hccl_context_docstring,
     "get_icache_preload_status": get_icache_preload_status_docstring,
-    "get_mrg_sort_result": get_mrg_sort_result_docstring, 
+    "get_mrg_sort_result": get_mrg_sort_result_docstring,
     "get_program_counter": get_program_counter_docstring,
     "get_store_atomic_config": get_store_atomic_config_docstring,
     "get_sort_len": get_sort_len_docstring,
@@ -8036,7 +8035,7 @@ def set_common_docstring(api_name: Optional[str] = None) -> Callable[[T], T]:
 
     handler = DOC_HANDLES.get(api_name)
     func_introduction, cpp_signature, param_list, return_list, constraint_list, py_example = handler()
-    
+
     docstr = f"""
     {func_introduction}
     {cpp_signature}
@@ -8256,7 +8255,7 @@ TENSOR_DOC_HANDLERS = {
     "TensorDesc": {
         "set_shape_addr": TensorDescDocstring.set_shape_addr_docstring,
         "get_dim": TensorDescDocstring.get_dim_docstring,
-        "get_index": TensorDescDocstring.get_index_docstring, 
+        "get_index": TensorDescDocstring.get_index_docstring,
         "get_shape": TensorDescDocstring.get_shape_docstring,
         "get_data_ptr": TensorDescDocstring.get_data_ptr_docstring,
         "get_data_obj": TensorDescDocstring.get_data_obj_docstring,
@@ -8266,7 +8265,7 @@ TENSOR_DOC_HANDLERS = {
         "get_desc": ListTensorDescDocstring.get_desc_docstring,
         "get_data_ptr": ListTensorDescDocstring.get_data_ptr_docstring,
         "get_size": ListTensorDescDocstring.get_size_docstring,
-    }
+    },
 }
 
 

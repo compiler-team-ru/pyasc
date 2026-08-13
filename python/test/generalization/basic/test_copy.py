@@ -20,7 +20,7 @@ except ModuleNotFoundError:
 
 @asc.jit
 def copy_kernel(x: asc.GlobalAddress, z: asc.GlobalAddress, data_size: asc.ConstExpr[int]):
-    
+
     x_gm = asc.GlobalTensor()
     x_gm.set_global_buffer(x)
     z_gm = asc.GlobalTensor()
@@ -49,12 +49,7 @@ def compute(z_gm: asc.GlobalTensor, in_queue_x: asc.TQue, out_queue_z: asc.TQue,
     asc.duplicate(dst_local, 0, data_size)
     mask = 64
     repeat_time = 4
-    params = asc.CopyRepeatParams(
-        dst_stride=1, 
-        src_stride=1, 
-        dst_repeat_size=8, 
-        src_repeat_size=8
-    )
+    params = asc.CopyRepeatParams(dst_stride=1, src_stride=1, dst_repeat_size=8, src_repeat_size=8)
     asc.copy(dst_local, src_local, mask, repeat_time, params)
     out_queue_z.enque(dst_local)
     in_queue_x.free_tensor(src_local)
@@ -76,15 +71,14 @@ def copy_launch(x: torch.Tensor) -> torch.Tensor:
 
 
 param_list = [
-    [torch.float32, (1000,)],
-    [torch.float32, (1,)],
-    [torch.float32, (9999,)],
-    [torch.float16, (2048,)],
-    [torch.int32, (8192,)],
-    [torch.int16, (8192,)],
-    [torch.int32, (1000,)],
+    [torch.float32, (1000, )],
+    [torch.float32, (1, )],
+    [torch.float32, (9999, )],
+    [torch.float16, (2048, )],
+    [torch.int32, (8192, )],
+    [torch.int16, (8192, )],
+    [torch.int32, (1000, )],
 ]
-
 
 BACKENDS = [
     # config.Backend.Model,

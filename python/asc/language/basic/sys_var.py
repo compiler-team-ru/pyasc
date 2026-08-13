@@ -25,7 +25,6 @@ def get_arch_version(core_version: RuntimeInt) -> None:
     builder.create_asc_GetArchVersionOp(_mat(core_version, KnownTypes.uint32).to_ir())
 
 
-
 @overload
 def get_block_idx() -> int:
     ...

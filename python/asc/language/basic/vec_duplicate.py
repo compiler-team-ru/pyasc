@@ -20,14 +20,14 @@ def duplicate(dst: LocalTensor, scalar: Union[int, float], count: int) -> None:
 
 
 @overload
-def duplicate(dst: LocalTensor, scalar: Union[int, float], mask: int, repeat_times: int,
-             dst_block_stride: int, dst_repeat_stride: int, is_set_mask: bool = True) -> None:
+def duplicate(dst: LocalTensor, scalar: Union[int, float], mask: int, repeat_times: int, dst_block_stride: int,
+              dst_repeat_stride: int, is_set_mask: bool = True) -> None:
     ...
 
 
 @overload
-def duplicate(dst: LocalTensor, scalar: Union[int, float], mask: List[int], repeat_times: int,
-             dst_block_stride: int, dst_repeat_stride: int, is_set_mask: bool = True) -> None:
+def duplicate(dst: LocalTensor, scalar: Union[int, float], mask: List[int], repeat_times: int, dst_block_stride: int,
+              dst_repeat_stride: int, is_set_mask: bool = True) -> None:
     ...
 
 
@@ -38,29 +38,26 @@ def duplicate(dst: LocalTensor, scalar: RuntimeNumeric, *args, **kwargs) -> None
     builder = global_builder.get_ir_builder()
 
     @dispatcher.register(mask=RuntimeInt, repeat_times=RuntimeInt, dst_block_stride=RuntimeInt,
-                        dst_repeat_stride=RuntimeInt, is_set_mask=DefaultValued(bool, True))
-    def _(mask: RuntimeInt, repeat_times: RuntimeInt, dst_block_stride: RuntimeInt, 
-                dst_repeat_stride: RuntimeInt, is_set_mask: bool = True):
-        builder.create_asc_DuplicateL0Op(dst.to_ir(), 
-                                        _mat(scalar, dst.dtype).to_ir(),
-                                        _mat(mask, KT.uint64).to_ir(), 
-                                        _mat(repeat_times, KT.int8).to_ir(), 
-                                        _mat(dst_block_stride, KT.int8).to_ir(),
-                                        _mat(dst_repeat_stride, KT.int8).to_ir(),
-                                        is_set_mask)
-    
-    @dispatcher.register(mask=list, repeat_times=RuntimeInt, dst_block_stride=RuntimeInt,
-                        dst_repeat_stride=RuntimeInt, is_set_mask=DefaultValued(bool, True))
-    def _(mask: list, repeat_times: RuntimeInt, dst_block_stride: RuntimeInt, 
-                dst_repeat_stride: RuntimeInt, is_set_mask: bool = True):
+                         dst_repeat_stride=RuntimeInt, is_set_mask=DefaultValued(bool, True))
+    def _(mask: RuntimeInt, repeat_times: RuntimeInt, dst_block_stride: RuntimeInt, dst_repeat_stride: RuntimeInt,
+          is_set_mask: bool = True):
+        builder.create_asc_DuplicateL0Op(dst.to_ir(),
+                                         _mat(scalar, dst.dtype).to_ir(),
+                                         _mat(mask, KT.uint64).to_ir(),
+                                         _mat(repeat_times, KT.int8).to_ir(),
+                                         _mat(dst_block_stride, KT.int8).to_ir(),
+                                         _mat(dst_repeat_stride, KT.int8).to_ir(), is_set_mask)
+
+    @dispatcher.register(mask=list, repeat_times=RuntimeInt, dst_block_stride=RuntimeInt, dst_repeat_stride=RuntimeInt,
+                         is_set_mask=DefaultValued(bool, True))
+    def _(mask: list, repeat_times: RuntimeInt, dst_block_stride: RuntimeInt, dst_repeat_stride: RuntimeInt,
+          is_set_mask: bool = True):
         mask = [_mat(v, KT.uint64).to_ir() for v in mask]
         builder.create_asc_DuplicateL1Op(dst.to_ir(),
-                                        _mat(scalar, dst.dtype).to_ir(), 
-                                        mask, 
-                                        _mat(repeat_times, KT.int8).to_ir(), 
-                                        _mat(dst_block_stride, KT.int8).to_ir(),
-                                        _mat(dst_repeat_stride, KT.int8).to_ir(),
-                                        is_set_mask)
+                                         _mat(scalar, dst.dtype).to_ir(), mask,
+                                         _mat(repeat_times, KT.int8).to_ir(),
+                                         _mat(dst_block_stride, KT.int8).to_ir(),
+                                         _mat(dst_repeat_stride, KT.int8).to_ir(), is_set_mask)
 
     @dispatcher.register(count=RuntimeInt, is_set_mask=DefaultValued(bool, True))
     def _(count: RuntimeInt, is_set_mask: bool = True):

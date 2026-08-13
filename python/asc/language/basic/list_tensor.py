@@ -38,20 +38,13 @@ class TensorDesc(IRValue):
             return
         builder = global_builder.get_ir_builder()
         self.dtype = dtype
-        self.handle = builder.create_asc_TensorDescOp(
-            builder.get_asc_TensorDescType(),
-            dtype.to_ir()
-        )
-
+        self.handle = builder.create_asc_TensorDescOp(builder.get_asc_TensorDescType(), dtype.to_ir())
 
     @require_jit
     def __initjit__(self, dtype: DataType = KT.float32) -> None:
         builder = global_builder.get_ir_builder()
         self.dtype = dtype
-        self.handle = builder.create_asc_TensorDescOp(
-            builder.get_asc_TensorDescType(),
-            dtype.to_ir()
-        )
+        self.handle = builder.create_asc_TensorDescOp(builder.get_asc_TensorDescType(), dtype.to_ir())
 
     @classmethod
     def from_ir(cls, handle: IRHandle, dtype: DataType = KT.float32) -> TensorDesc:
@@ -59,7 +52,7 @@ class TensorDesc(IRValue):
 
     def to_ir(self) -> IRHandle:
         return self.handle
-    
+
     @overload
     def set_shape_addr(self, shape_ptr: int) -> None:
         ...
@@ -88,11 +81,8 @@ class TensorDesc(IRValue):
     @set_tensor_docstring(tensor_name="TensorDesc", api_name="get_shape")
     def get_shape(self, offset: RuntimeInt) -> RuntimeInt:
         builder = global_builder.get_ir_builder()
-        handle = builder.create_asc_TensorDescGetShapeOp(
-            builder.get_i64_type(), 
-            self.to_ir(),
-            _mat(offset, KT.int32).to_ir()
-        )
+        handle = builder.create_asc_TensorDescGetShapeOp(builder.get_i64_type(), self.to_ir(),
+                                                         _mat(offset, KT.int32).to_ir())
         return PlainValue(handle)
 
     @require_jit
@@ -101,9 +91,7 @@ class TensorDesc(IRValue):
         builder = global_builder.get_ir_builder()
         element_type = self.dtype.to_ir()
         handle = builder.create_asc_TensorDescGetDataPtrOp(
-            ir.get_unranked_memref_type(element_type, ir.AddressSpace.gm),
-            self.to_ir()
-        )
+            ir.get_unranked_memref_type(element_type, ir.AddressSpace.gm), self.to_ir())
         return GlobalAddress(handle, self.dtype)
 
     @require_jit
@@ -111,10 +99,7 @@ class TensorDesc(IRValue):
     def get_data_obj(self) -> GlobalTensor:
         builder = global_builder.get_ir_builder()
         element_type = self.dtype.to_ir()
-        handle = builder.create_asc_TensorDescGetDataObjOp(
-            ir.get_global_tensor_type(element_type),
-            self.to_ir()
-        )
+        handle = builder.create_asc_TensorDescGetDataObjOp(ir.get_global_tensor_type(element_type), self.to_ir())
         return GlobalTensor(handle)
 
 
@@ -142,8 +127,8 @@ class ListTensorDesc(IRValue):
             data = kwargs['data']
             length = kwargs['length']
             shape_size = kwargs['shape_size']
-            self.handle = builder.create_asc_ListTensorDescV2Op(builder.get_asc_ListTensorDescType(), data.to_ir(), 
-                                                                _mat(length, KT.uint32).to_ir(), 
+            self.handle = builder.create_asc_ListTensorDescV2Op(builder.get_asc_ListTensorDescType(), data.to_ir(),
+                                                                _mat(length, KT.uint32).to_ir(),
                                                                 _mat(shape_size, KT.uint32).to_ir())
             return
         self.handle = builder.create_asc_ListTensorDescOp(builder.get_asc_ListTensorDescType())
@@ -154,47 +139,47 @@ class ListTensorDesc(IRValue):
 
     def to_ir(self) -> IRHandle:
         return self.handle
-    
+
     @overload
     def init(self, data: GlobalAddress, length: int = 0xffffffff, shape_size: int = 0xffffffff) -> None:
         ...
-    
+
     @require_jit
     @set_tensor_docstring(tensor_name="ListTensorDesc", api_name="init")
     def init(self, data: GlobalAddress, length: RuntimeInt = 0xffffffff, shape_size: RuntimeInt = 0xffffffff) -> None:
         builder = global_builder.get_ir_builder()
-        self.handle = builder.create_asc_ListTensorDescInitOp(self.to_ir(), data.to_ir(), 
-                                                              _mat(length, KT.uint32).to_ir(), 
+        self.handle = builder.create_asc_ListTensorDescInitOp(self.to_ir(), data.to_ir(),
+                                                              _mat(length, KT.uint32).to_ir(),
                                                               _mat(shape_size, KT.uint32).to_ir())
-        
+
     @overload
     def get_desc(self, desc: TensorDesc, index: int) -> None:
         ...
-    
+
     @require_jit
     @set_tensor_docstring(tensor_name="ListTensorDesc", api_name="get_desc")
     def get_desc(self, desc: TensorDesc, index: RuntimeInt) -> None:
         builder = global_builder.get_ir_builder()
-        self.handle = builder.create_asc_ListTensorDescGetDescOp(self.to_ir(), desc.to_ir(), 
-                                                              _mat(index, KT.uint32).to_ir())
+        self.handle = builder.create_asc_ListTensorDescGetDescOp(self.to_ir(), desc.to_ir(),
+                                                                 _mat(index, KT.uint32).to_ir())
 
     @overload
     def get_data_ptr(self, index: int, dtype: DataType) -> GlobalAddress:
         ...
-        
+
     @require_jit
     @set_tensor_docstring(tensor_name="ListTensorDesc", api_name="get_data_ptr")
     def get_data_ptr(self, index: RuntimeInt, dtype: DataType) -> GlobalAddress:
         builder = global_builder.get_ir_builder()
         ga_type = ir.get_unranked_memref_type(dtype.to_ir(), ir.AddressSpace.gm)
-        handle = builder.create_asc_ListTensorDescGetDataPtrOp(ga_type, self.to_ir(), _mat(index, KT.uint32).to_ir(), 
-                                                               dtype.to_ir())
+        handle = builder.create_asc_ListTensorDescGetDataPtrOp(ga_type, self.to_ir(),
+                                                               _mat(index, KT.uint32).to_ir(), dtype.to_ir())
         return GlobalAddress(handle)
-    
+
     @overload
     def get_size(self) -> int:
         ...
-    
+
     @require_jit
     @set_tensor_docstring(tensor_name="ListTensorDesc", api_name="get_size")
     def get_size(self) -> RuntimeInt:

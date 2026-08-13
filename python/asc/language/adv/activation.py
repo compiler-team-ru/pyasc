@@ -15,7 +15,6 @@ from .tiling import SoftmaxTiling
 
 
 @require_jit
-
 def softmax(dst: LocalTensor, sum: LocalTensor, max: LocalTensor, src: LocalTensor, tiling: SoftmaxTiling,
             temp_buffer: Optional[LocalTensor] = None, reuse_source: bool = False, basic_block: bool = False,
             data_format_nz: bool = False) -> None:
@@ -151,10 +150,8 @@ def softmax(dst: LocalTensor, sum: LocalTensor, max: LocalTensor, src: LocalTens
 
 
 @require_jit
-def swiglu(dst_tensor: LocalTensor, src_tensor0: LocalTensor, src_tensor1: LocalTensor,
-           scalar_value: float = 1.0,
-           shared_tmp_buffer: Optional[LocalTensor] = None,
-           cal_count: Optional[int] = None) -> None:
+def swiglu(dst_tensor: LocalTensor, src_tensor0: LocalTensor, src_tensor1: LocalTensor, scalar_value: float = 1.0,
+           shared_tmp_buffer: Optional[LocalTensor] = None, cal_count: Optional[int] = None) -> None:
     """
     SwiGLU是采用Swish作为激活函数的GLU变体。具体计算公式如下：
 
@@ -239,7 +236,6 @@ def swiglu(dst_tensor: LocalTensor, src_tensor0: LocalTensor, src_tensor1: Local
     tmp_buffer_ir = shared_tmp_buffer.to_ir() if shared_tmp_buffer is not None else None
     scalar_val_ir = _mat(scalar_value, dst_tensor.dtype).to_ir()
     cal_count_ir = _mat(cal_count).to_ir() if cal_count is not None else None
-    global_builder.get_ir_builder().create_asc_SwiGLUOp(
-        dst=dst_tensor.to_ir(), srcTensor0=src_tensor0.to_ir(),
-        srcTensor1=src_tensor1.to_ir(), scalarValue=scalar_val_ir,
-        sharedTmpBuffer=tmp_buffer_ir, calCount=cal_count_ir)
+    global_builder.get_ir_builder().create_asc_SwiGLUOp(dst=dst_tensor.to_ir(), srcTensor0=src_tensor0.to_ir(),
+                                                        srcTensor1=src_tensor1.to_ir(), scalarValue=scalar_val_ir,
+                                                        sharedTmpBuffer=tmp_buffer_ir, calCount=cal_count_ir)

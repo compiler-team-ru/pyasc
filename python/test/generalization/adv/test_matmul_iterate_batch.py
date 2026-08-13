@@ -19,15 +19,14 @@ try:
 except ModuleNotFoundError:
     pytest.skip("torch is not installed", allow_module_level=True)
 
-
 BATCH_A = 2
 BATCH_B = 2
 BATCH = 2
 
 
 @asc.jit
-def matmul_kernel(a: asc.GlobalAddress, b: asc.GlobalAddress, c: asc.GlobalAddress,
-                  tiling: asc.adv.TCubeTiling, workspace: asc.GlobalAddress):
+def matmul_kernel(a: asc.GlobalAddress, b: asc.GlobalAddress, c: asc.GlobalAddress, tiling: asc.adv.TCubeTiling,
+                  workspace: asc.GlobalAddress):
     tiling.share_l1_size = asc.property(asc.TOTAL_L1_SIZE)
     tiling.share_l0c_size = asc.property(asc.TOTAL_L0C_SIZE)
     offset_a, offset_b, offset_c = calc_offsets(tiling)
@@ -64,8 +63,8 @@ def calc_offsets(tiling: asc.adv.TCubeTiling) -> Tuple[int, int, int]:
     return offset_a, offset_b, offset_c
 
 
-def matmul_launch(a: torch.Tensor, b: torch.Tensor, c: torch.Tensor,
-                workspace: torch.Tensor, tiling: asc.adv.TCubeTiling) -> torch.Tensor:
+def matmul_launch(a: torch.Tensor, b: torch.Tensor, c: torch.Tensor, workspace: torch.Tensor,
+                  tiling: asc.adv.TCubeTiling) -> torch.Tensor:
     matmul_kernel[tiling.used_core_num, rt.current_stream()](a, b, c, tiling, workspace)
     return c
 
@@ -98,7 +97,6 @@ param_list = [
     [torch.float32, (64, 64, 64)],
     [torch.float16, (32, 32, 32)],
 ]
-
 
 BACKENDS = [
     # config.Backend.Model,
@@ -137,7 +135,7 @@ def test_matmul_iterate_batch(dtype, size, backend: config.Backend):
     for idx in range(batch):
         ida = idx // ida_num
         idb = idx // idb_num
-        matmul_tmp = a[ida * m: (ida + 1) * m].to(torch.float32) @ b[idb * k: (idb + 1) * k].to(torch.float32)
+        matmul_tmp = a[ida * m:(ida + 1) * m].to(torch.float32) @ b[idb * k:(idb + 1) * k].to(torch.float32)
         if idx == 0:
             matmul = matmul_tmp
         else:

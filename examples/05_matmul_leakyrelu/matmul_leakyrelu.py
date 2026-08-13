@@ -20,13 +20,12 @@ import asc.runtime.config as config
 import asc.lib.runtime as rt
 import asc.lib.host as host
 
-
 logging.basicConfig(level=logging.INFO)
 
 
 @asc.jit(always_compile=True)
 def matmul_leakyrelu_kernel(a: asc.GlobalAddress, b: asc.GlobalAddress, c: asc.GlobalAddress, bias: asc.GlobalAddress,
-                alpha: float, tiling: asc.adv.TCubeTiling, workspace: asc.GlobalAddress):
+                            alpha: float, tiling: asc.adv.TCubeTiling, workspace: asc.GlobalAddress):
     offset_a, offset_b, offset_c, offset_bias = calc_offsets(tiling)
     a_global = asc.GlobalTensor()
     b_global = asc.GlobalTensor()
@@ -83,8 +82,8 @@ def calc_offsets(tiling: asc.adv.TCubeTiling) -> Tuple[int, int, int, int]:
     return offset_a, offset_b, offset_c, offset_bias
 
 
-def matmul_leakyrelu_launch(a: torch.Tensor, b: torch.Tensor, bias: torch.Tensor, 
-                            alpha: float, tiling: asc.adv.TCubeTiling, device) -> torch.Tensor:
+def matmul_leakyrelu_launch(a: torch.Tensor, b: torch.Tensor, bias: torch.Tensor, alpha: float,
+                            tiling: asc.adv.TCubeTiling, device) -> torch.Tensor:
     size_m, size_k = a.shape
     _, size_n = b.shape
     c = torch.zeros((size_m, size_n), dtype=torch.float32, device=device)

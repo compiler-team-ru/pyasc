@@ -64,18 +64,11 @@ def ib_set(gm_workspace: GlobalTensor, ub_workspace: LocalTensor, block_idx: Run
     builder = global_builder.get_ir_builder()
     block_idx_ir = _mat(block_idx).to_ir()
     event_id_ir = _mat(event_id).to_ir()
-    if is_aiv_only: 
-        builder.create_asc_IBSetOp(
-            gm_workspace.to_ir(),
-            ub_workspace.to_ir(),
-            block_idx_ir, event_id_ir)
-    else: 
-        builder.create_asc_IBSetOp(
-            gm_workspace.to_ir(),
-            ub_workspace.to_ir(),
-            block_idx_ir,
-            event_id_ir,
-            is_aiv_only=True)
+    if is_aiv_only:
+        builder.create_asc_IBSetOp(gm_workspace.to_ir(), ub_workspace.to_ir(), block_idx_ir, event_id_ir)
+    else:
+        builder.create_asc_IBSetOp(gm_workspace.to_ir(), ub_workspace.to_ir(), block_idx_ir, event_id_ir,
+                                   is_aiv_only=True)
 
 
 @overload
@@ -92,18 +85,10 @@ def ib_wait(gm_workspace: GlobalTensor, ub_workspace: LocalTensor, block_idx: Ru
     block_idx_ir = _mat(block_idx).to_ir()
     event_id_ir = _mat(event_id).to_ir()
     if is_aiv_only:
-        builder.create_asc_IBWaitOp(
-            gm_workspace.to_ir(),
-            ub_workspace.to_ir(),
-            block_idx_ir,
-            event_id_ir) 
+        builder.create_asc_IBWaitOp(gm_workspace.to_ir(), ub_workspace.to_ir(), block_idx_ir, event_id_ir)
     else:
-        builder.create_asc_IBWaitOp(
-            gm_workspace.to_ir(),
-            ub_workspace.to_ir(),
-            block_idx_ir,
-            event_id_ir,
-            is_aiv_only=True)
+        builder.create_asc_IBWaitOp(gm_workspace.to_ir(), ub_workspace.to_ir(), block_idx_ir, event_id_ir,
+                                    is_aiv_only=True)
 
 
 @overload
@@ -130,16 +115,10 @@ def sync_all(gm_workspace: Optional[GlobalTensor] = None, ub_workspace: Optional
     else:
         used_cores_ir = _mat(used_cores).to_ir()
         if is_aiv_only:
-            builder.create_asc_SyncAllSoftOp(
-                gm_workspace.to_ir(),
-                ub_workspace.to_ir(),
-                used_cores_ir)
+            builder.create_asc_SyncAllSoftOp(gm_workspace.to_ir(), ub_workspace.to_ir(), used_cores_ir)
         else:
-            builder.create_asc_SyncAllSoftOp(
-                gm_workspace.to_ir(),
-                ub_workspace.to_ir(),
-                used_cores_ir,
-                is_aiv_only=True)
+            builder.create_asc_SyncAllSoftOp(gm_workspace.to_ir(), ub_workspace.to_ir(), used_cores_ir,
+                                             is_aiv_only=True)
 
 
 @overload

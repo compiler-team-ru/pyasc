@@ -38,13 +38,11 @@ def matmul_kernel(a: asc.GlobalAddress, b: asc.GlobalAddress, c: asc.GlobalAddre
     pipe = asc.TPipe()
     relu_out_queue = asc.TQue(asc.TPosition.VECOUT, 1)
     pipe.init_buffer(que=relu_out_queue, num=2, len=size)
-    matmul = asc.adv.Matmul(
-        a=asc.adv.MatmulType(asc.TPosition.GM, asc.CubeFormat.ND, a_global.dtype),
-        b=asc.adv.MatmulType(asc.TPosition.GM, asc.CubeFormat.ND, b_global.dtype),
-        c=asc.adv.MatmulType(asc.TPosition.VECCALC, asc.CubeFormat.ND, c_global.dtype),
-        bias=asc.adv.MatmulType(asc.TPosition.GM, asc.CubeFormat.ND, bias_global.dtype),
-        matmul_config=asc.adv.MatmulConfig()
-    )
+    matmul = asc.adv.Matmul(a=asc.adv.MatmulType(asc.TPosition.GM, asc.CubeFormat.ND, a_global.dtype),
+                            b=asc.adv.MatmulType(asc.TPosition.GM, asc.CubeFormat.ND, b_global.dtype),
+                            c=asc.adv.MatmulType(asc.TPosition.VECCALC, asc.CubeFormat.ND, c_global.dtype),
+                            bias=asc.adv.MatmulType(asc.TPosition.GM, asc.CubeFormat.ND,
+                                                    bias_global.dtype), matmul_config=asc.adv.MatmulConfig())
     asc.adv.register_matmul(pipe, workspace, matmul, tiling)
     matmul.set_tensor_a(a_global)
     matmul.set_tensor_b(b_global)
@@ -84,8 +82,8 @@ def calc_offsets(tiling: asc.adv.TCubeTiling) -> Tuple[int, int, int]:
     return offset_a, offset_b, offset_c, offset_bias
 
 
-def matmul_launch(a: torch.Tensor, b: torch.Tensor, c: torch.Tensor, bias: torch.Tensor, 
-                workspace: torch.Tensor, alpha: float, tiling: asc.adv.TCubeTiling) -> torch.Tensor:
+def matmul_launch(a: torch.Tensor, b: torch.Tensor, c: torch.Tensor, bias: torch.Tensor, workspace: torch.Tensor,
+                  alpha: float, tiling: asc.adv.TCubeTiling) -> torch.Tensor:
     assert a.shape[1] == b.shape[0], "Matrices must be compatible for a multiplication"
     matmul_kernel[tiling.used_core_num, rt.current_stream()](a, b, c, alpha, tiling, bias, workspace)
     return c
@@ -115,7 +113,6 @@ def generate_tiling(m, n, k, dtype):
 param_list = [
     [torch.float32, (1024, 256, 512)],
 ]
-
 
 BACKENDS = [
     # config.Backend.Model,

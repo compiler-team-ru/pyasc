@@ -12,23 +12,23 @@ from asc.runtime import config
 
 def setup_function():
     config.set_platform(config.Backend.Model, check=False)
-    
+
 
 def test_get_sort_len(mock_launcher_run):
-    
+
     @asc.jit
     def kernel_get_sort_len() -> None:
         length = asc.get_sort_len(100)
-     
+
     kernel_get_sort_len[1]()
     assert mock_launcher_run.call_count == 1
 
 
 def test_get_sort_offset(mock_launcher_run):
-    
+
     @asc.jit
     def kernel_get_sort_offset() -> None:
         offset = asc.get_sort_offset(10)
-     
+
     kernel_get_sort_offset[1]()
     assert mock_launcher_run.call_count == 1

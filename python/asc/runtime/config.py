@@ -74,4 +74,3 @@ def set_platform(
                 f"simulator/{soc_version.value}/lib:$LD_LIBRARY_PATH"
 
         raise RuntimeError(error_msg)
-        

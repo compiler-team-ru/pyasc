@@ -21,12 +21,9 @@ def test_aipp_functions_single_src(mock_launcher_run):
     def kernel_aipp_single_src(x: asc.GlobalAddress) -> None:
         rgb_gm = asc.GlobalTensor()
         rgb_gm.set_global_buffer(x)
-        
+
         swap_settings = asc.AippSwapParams(is_swap_rb=True)
-        aipp_config = asc.AippParams(
-            dtype=asc.int8,
-            swap_params=swap_settings
-        )
+        aipp_config = asc.AippParams(dtype=asc.int8, swap_params=swap_settings)
 
         asc.set_aipp_functions(rgb_gm, asc.AippInputFormat.RGB888_U8, aipp_config)
 
@@ -45,11 +42,8 @@ def test_aipp_functions_dual_src(mock_launcher_run):
         uv_gm.set_global_buffer(uv)
 
         dtc_settings = asc.AippDataTypeConvParams(dtc_mean_ch0=128)
-        aipp_config = asc.AippParams(
-            dtype=asc.float16,
-            dtc_params=dtc_settings
-        )
-        
+        aipp_config = asc.AippParams(dtype=asc.float16, dtc_params=dtc_settings)
+
         asc.set_aipp_functions(y_gm, uv_gm, asc.AippInputFormat.YUV420SP_U8, aipp_config)
 
     y = MockTensor(asc.float16)
@@ -66,25 +60,11 @@ def test_copy(mock_launcher_run):
         src_local = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.VECIN, addr=0, tile_size=512)
         params = asc.CopyRepeatParams(1, 1, 8, 8)
 
-        asc.copy(
-            dst=dst_local, 
-            src=src_local, 
-            mask=64, 
-            repeat_time=4, 
-            repeat_params=params,
-            is_set_mask=True
-        )
+        asc.copy(dst=dst_local, src=src_local, mask=64, repeat_time=4, repeat_params=params, is_set_mask=True)
 
         uint64_max = 2**64 - 1
         mask_bits = [uint64_max, uint64_max]
-        asc.copy(
-            dst=dst_local, 
-            src=src_local, 
-            mask=mask_bits, 
-            repeat_time=1, 
-            repeat_params=params,
-            is_set_mask=True
-        )
+        asc.copy(dst=dst_local, src=src_local, mask=mask_bits, repeat_time=1, repeat_params=params, is_set_mask=True)
 
     kernel_copy[1]()
     assert mock_launcher_run.call_count == 1
@@ -122,7 +102,7 @@ def test_gather(mock_launcher_run):
     @asc.jit
     def kernel_gather() -> None:
         z_local = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.VECOUT, addr=0, tile_size=512)
-        src_offset = asc.LocalTensor(dtype=asc.uint32, pos=asc.TPosition.VECIN, addr=0, tile_size=512) 
+        src_offset = asc.LocalTensor(dtype=asc.uint32, pos=asc.TPosition.VECIN, addr=0, tile_size=512)
         x_local = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.VECIN, addr=0, tile_size=512)
         asc.gather(z_local, x_local, src_offset, src_base=0, count=512)
         asc.gather(z_local, x_local, src_offset, src_base=0, mask=512, repeat_times=1, dst_rep_stride=8)
@@ -222,12 +202,12 @@ def test_block_reduce_max_kernel(mock_launcher_run):
         asc.block_reduce_max(z_local, x_local, repeat=1, mask=512, dst_rep_stride=8, src_blk_stride=1, src_rep_stride=8)
         asc.block_reduce_max(z_local, x_local, repeat=1, mask=0, dst_rep_stride=8, src_blk_stride=1, src_rep_stride=8)
         int32_max = 2**31 - 1
-        asc.block_reduce_max(z_local, x_local, repeat=1, mask=int32_max, dst_rep_stride=8,
-                             src_blk_stride=1, src_rep_stride=8)
+        asc.block_reduce_max(z_local, x_local, repeat=1, mask=int32_max, dst_rep_stride=8, src_blk_stride=1,
+                             src_rep_stride=8)
         uint64_max = 2**64 - 1
         mask = [uint64_max, uint64_max]
-        asc.block_reduce_max(z_local, x_local, repeat=1, mask=mask, dst_rep_stride=8,
-                             src_blk_stride=1, src_rep_stride=8)
+        asc.block_reduce_max(z_local, x_local, repeat=1, mask=mask, dst_rep_stride=8, src_blk_stride=1,
+                             src_rep_stride=8)
 
     block_reduce_max_kernel[1]()
     assert mock_launcher_run.call_count == 1
@@ -242,12 +222,12 @@ def test_block_reduce_min_kernel(mock_launcher_run):
         asc.block_reduce_min(z_local, x_local, repeat=1, mask=512, dst_rep_stride=8, src_blk_stride=1, src_rep_stride=8)
         asc.block_reduce_min(z_local, x_local, repeat=1, mask=0, dst_rep_stride=8, src_blk_stride=1, src_rep_stride=8)
         int32_max = 2**31 - 1
-        asc.block_reduce_min(z_local, x_local, repeat=1, mask=int32_max, dst_rep_stride=8,
-                             src_blk_stride=1, src_rep_stride=8)
+        asc.block_reduce_min(z_local, x_local, repeat=1, mask=int32_max, dst_rep_stride=8, src_blk_stride=1,
+                             src_rep_stride=8)
         uint64_max = 2**64 - 1
         mask = [uint64_max, uint64_max]
-        asc.block_reduce_min(z_local, x_local, repeat=1, mask=mask, dst_rep_stride=8,
-                             src_blk_stride=1, src_rep_stride=8)
+        asc.block_reduce_min(z_local, x_local, repeat=1, mask=mask, dst_rep_stride=8, src_blk_stride=1,
+                             src_rep_stride=8)
 
     block_reduce_min_kernel[1]()
     assert mock_launcher_run.call_count == 1
@@ -262,19 +242,19 @@ def test_block_reduce_sum_kernel(mock_launcher_run):
         asc.block_reduce_sum(z_local, x_local, repeat=1, mask=512, dst_rep_stride=8, src_blk_stride=1, src_rep_stride=8)
         asc.block_reduce_sum(z_local, x_local, repeat=1, mask=0, dst_rep_stride=8, src_blk_stride=1, src_rep_stride=8)
         int32_max = 2**31 - 1
-        asc.block_reduce_sum(z_local, x_local, repeat=1, mask=int32_max, dst_rep_stride=8,
-                             src_blk_stride=1, src_rep_stride=8)
+        asc.block_reduce_sum(z_local, x_local, repeat=1, mask=int32_max, dst_rep_stride=8, src_blk_stride=1,
+                             src_rep_stride=8)
         uint64_max = 2**64 - 1
         mask = [uint64_max, uint64_max]
-        asc.block_reduce_sum(z_local, x_local, repeat=1, mask=mask, dst_rep_stride=8,
-                             src_blk_stride=1, src_rep_stride=8)
+        asc.block_reduce_sum(z_local, x_local, repeat=1, mask=mask, dst_rep_stride=8, src_blk_stride=1,
+                             src_rep_stride=8)
 
     block_reduce_sum_kernel[1]()
     assert mock_launcher_run.call_count == 1
 
 
 def test_data_copy_pad(mock_launcher_run):
-    
+
     @asc.jit
     def kernel_data_copy_pad(x: asc.GlobalAddress) -> None:
         x_local = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.VECIN, addr=0, tile_size=512)
@@ -285,8 +265,8 @@ def test_data_copy_pad(mock_launcher_run):
         pad_params = asc.DataCopyPadParams(True, 2, 4, 0)
         nd2nz_params = asc.Nd2NzParams(1, 2, 3, 4, 5, 6, 7, 8)
         ext_params = asc.DataCopyExtParams(1, 64, 0, 0, 8)
-        pad_ext_params = asc.DataCopyPadExtParams(dtype=asc.float16, is_pad=True, left_padding=2, 
-                                                  right_padding=4, padding_value=0)
+        pad_ext_params = asc.DataCopyPadExtParams(dtype=asc.float16, is_pad=True, left_padding=2, right_padding=4,
+                                                  padding_value=0)
         asc.data_copy_pad(x_local, x_gm, params, pad_params)
         asc.data_copy_pad(x_gm, x_local, params)
         asc.data_copy_pad(x_local, x_local, params, nd2nz_params)
@@ -300,12 +280,13 @@ def test_data_copy_pad(mock_launcher_run):
 
 
 def test_load_image_to_local(mock_launcher_run):
-    
+
     @asc.jit
     def kernel_load_image_to_local() -> None:
         dst = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.A1, addr=0, tile_size=128)
         load_data_params = asc.LoadImageToLocalParams(2, 2, 0, 0, 2, 0, 0, 0, 0)
         asc.load_image_to_local(dst, load_data_params)
+
     kernel_load_image_to_local[1]()
     assert mock_launcher_run.call_count == 1
 
@@ -355,7 +336,7 @@ def test_get_sub_block_num(mock_launcher_run):
     @asc.jit
     def kernel_get_sub_block_num() -> None:
         num = asc.get_sub_block_num()
-    
+
     kernel_get_sub_block_num[1]()
     assert mock_launcher_run.call_count == 1
 
@@ -565,10 +546,10 @@ def test_print_time_stamp(mock_launcher_run):
     @asc.jit
     def kernel_print_time_stamp(desc_id: int):
         asc.print_time_stamp(desc_id)
-    
+
     kernel_print_time_stamp[1](1)
     assert mock_launcher_run.call_count == 1
-    
+
 
 def test_set_deq_scale(mock_launcher_run):
 
@@ -577,11 +558,12 @@ def test_set_deq_scale(mock_launcher_run):
         asc.set_deq_scale(1.0)
         asc.set_deq_scale(1.0, 5, False)
         vdeq_local = asc.LocalTensor(dtype=asc.uint64, pos=asc.TPosition.VECIN, addr=0, tile_size=16)
-        vdeq_scale = [1.0] * 16  
-        vdeq_offset = [5] * 16    
-        vdeq_sign_mode = [False] * 16  
+        vdeq_scale = [1.0] * 16
+        vdeq_offset = [5] * 16
+        vdeq_sign_mode = [False] * 16
         vdeq_info = asc.VdeqInfo(vdeq_scale, vdeq_offset, vdeq_sign_mode)
         asc.set_deq_scale(vdeq_local, vdeq_info)
+
     kernel_set_deq_scale[1]()
     assert mock_launcher_run.call_count == 1
 
@@ -652,6 +634,7 @@ def test_data_cache_clean_and_invalid(mock_launcher_run):
 
 
 def test_data_cache_preload(mock_launcher_run):
+
     @asc.jit
     def kernel_data_cache_preload(src_addr: asc.GlobalAddress) -> None:
         src_gm = asc.GlobalTensor()
@@ -685,6 +668,7 @@ def test_icache_preload(mock_launcher_run):
 
 
 def test_set_hf32_mode(mock_launcher_run):
+
     @asc.jit
     def kernel_set_hf32_mode() -> None:
         asc.set_hf32_mode(True)
@@ -695,6 +679,7 @@ def test_set_hf32_mode(mock_launcher_run):
 
 
 def test_set_hf32_trans_mode(mock_launcher_run):
+
     @asc.jit
     def kernel_set_hf32_trans_mode() -> None:
         asc.set_hf32_trans_mode(True)
@@ -705,6 +690,7 @@ def test_set_hf32_trans_mode(mock_launcher_run):
 
 
 def test_set_mm_layout_transform(mock_launcher_run):
+
     @asc.jit
     def kernel_set_mm_layout_transform() -> None:
         asc.set_mm_layout_transform(True)
@@ -715,6 +701,7 @@ def test_set_mm_layout_transform(mock_launcher_run):
 
 
 def test_set_mask_count(mock_launcher_run):
+
     @asc.jit
     def kernel_set_mask_count() -> None:
         asc.set_mask_count()
@@ -724,6 +711,7 @@ def test_set_mask_count(mock_launcher_run):
 
 
 def test_set_mask_norm(mock_launcher_run):
+
     @asc.jit
     def kernel_set_mask_norm() -> None:
         asc.set_mask_norm()
@@ -733,6 +721,7 @@ def test_set_mask_norm(mock_launcher_run):
 
 
 def test_dump_acc_chk_point(mock_launcher_run):
+
     @asc.jit
     def kernel_dump_acc_chk_point(x: asc.GlobalAddress) -> None:
         x_local = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.VECIN, addr=0, tile_size=512)
@@ -782,7 +771,8 @@ def test_set_vector_mask_kernel(mock_launcher_run):
     assert mock_launcher_run.call_count == 1
 
 
-def test_get_mrg_sort_result(mock_launcher_run): 
+def test_get_mrg_sort_result(mock_launcher_run):
+
     @asc.jit
     def kernel_get_mrg_sort_result():
         mrg1, mrg2, mrg3, mrg4 = asc.get_mrg_sort_result()
@@ -804,10 +794,10 @@ def test_mrg_sort_kernel(mock_launcher_run):
         element_count_list = [128, 128, 128, 128]
         sorted_num = [0, 0, 0, 0]
         asc.mrg_sort(dst, sort_list, element_count_list, sorted_num, valid_bit=15, repeat_time=1)
-        asc.mrg_sort(dst, sort_list, element_count_list, sorted_num, valid_bit=15, 
-                    repeat_time=1, is_exhausted_suspension=True)
-        mrg_sort4_info = asc.MrgSort4Info(element_count_list, if_exhausted_suspension=False, 
-                                          valid_bit=7, repeat_times=1)
+        asc.mrg_sort(dst, sort_list, element_count_list, sorted_num, valid_bit=15, repeat_time=1,
+                     is_exhausted_suspension=True)
+        mrg_sort4_info = asc.MrgSort4Info(element_count_list, if_exhausted_suspension=False, valid_bit=7,
+                                          repeat_times=1)
         asc.mrg_sort(dst, sort_list, mrg_sort4_info)
 
     mrg_sort_kernel[1]()
@@ -878,13 +868,8 @@ def test_transpose_kernel(mock_launcher_run):
         x_local = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.VECIN, addr=0, tile_size=512)
         z_local = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.VECOUT, addr=0, tile_size=512)
         asc.transpose(z_local, x_local)
-        params = asc.TransposeParamsExt(
-            n_size=1,
-            c_size=16,
-            h_size=4,
-            w_size=4,
-            transpose_type=asc.TransposeType.TRANSPOSE_NCHW2NHWC
-        )
+        params = asc.TransposeParamsExt(n_size=1, c_size=16, h_size=4, w_size=4,
+                                        transpose_type=asc.TransposeType.TRANSPOSE_NCHW2NHWC)
         tmp_buffer = asc.LocalTensor(dtype=asc.uint8, pos=asc.TPosition.VECCALC, addr=0, tile_size=512)
         asc.transpose(z_local, x_local, tmp_buffer, params)
 
@@ -904,30 +889,23 @@ def test_trans_data_to_5hd_kernel(mock_launcher_run):
         x_local.set_value(0, src_addr)
         dst_addr = z[0].get_phy_addr()
         z_local.set_value(0, dst_addr)
-        params = asc.TransDataTo5HDParams(
-            dst_high_half=False,
-            src_high_half=False,
-            repeat_times=16,
-            dst_rep_stride=16,
-            src_rep_stride=1
-        )
+        params = asc.TransDataTo5HDParams(dst_high_half=False, src_high_half=False, repeat_times=16, dst_rep_stride=16,
+                                          src_rep_stride=1)
         asc.trans_data_to_5hd(z_local, x_local, params)
-        dst_list = [z[0], z[1], z[2], z[3], z[4], z[5], z[6], z[7],
-                    z[8], z[9], z[10], z[11], z[12], z[13], z[14], z[15]]
-        src_list = [x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7],
-                    x[8], x[9], x[10], x[11], x[12], x[13], x[14], x[15]]
+        dst_list = [
+            z[0], z[1], z[2], z[3], z[4], z[5], z[6], z[7], z[8], z[9], z[10], z[11], z[12], z[13], z[14], z[15]
+        ]
+        src_list = [
+            x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7], x[8], x[9], x[10], x[11], x[12], x[13], x[14], x[15]
+        ]
         asc.trans_data_to_5hd(dst_list, src_list, params)
         addr_dst_list = [
-            dst_addr, dst_addr, dst_addr, dst_addr,
-            dst_addr, dst_addr, dst_addr, dst_addr,
-            dst_addr, dst_addr, dst_addr, dst_addr,
-            dst_addr, dst_addr, dst_addr, dst_addr
+            dst_addr, dst_addr, dst_addr, dst_addr, dst_addr, dst_addr, dst_addr, dst_addr, dst_addr, dst_addr,
+            dst_addr, dst_addr, dst_addr, dst_addr, dst_addr, dst_addr
         ]
         addr_src_list = [
-            src_addr, src_addr, src_addr, src_addr,
-            src_addr, src_addr, src_addr, src_addr,
-            src_addr, src_addr, src_addr, src_addr,
-            src_addr, src_addr, src_addr, src_addr
+            src_addr, src_addr, src_addr, src_addr, src_addr, src_addr, src_addr, src_addr, src_addr, src_addr,
+            src_addr, src_addr, src_addr, src_addr, src_addr, src_addr
         ]
         asc.trans_data_to_5hd(addr_dst_list, addr_src_list, params)
 
@@ -936,6 +914,7 @@ def test_trans_data_to_5hd_kernel(mock_launcher_run):
 
 
 def test_init_soc_state(mock_launcher_run):
+
     @asc.jit
     def kernel_init_soc_state() -> None:
         asc.init_soc_state()
@@ -945,6 +924,7 @@ def test_init_soc_state(mock_launcher_run):
 
 
 def test_set_store_atomic_config(mock_launcher_run):
+
     @asc.jit
     def kernel_set_store_atomic_config() -> None:
         asc.set_store_atomic_config(asc.AtomicDtype.ATOMIC_F16, asc.AtomicOp.ATOMIC_SUM)
@@ -954,6 +934,7 @@ def test_set_store_atomic_config(mock_launcher_run):
 
 
 def test_get_store_atomic_config(mock_launcher_run):
+
     @asc.jit
     def kernel_get_store_atomic_config() -> None:
         asc.set_store_atomic_config(asc.AtomicDtype.ATOMIC_F16, asc.AtomicOp.ATOMIC_SUM)
@@ -964,6 +945,7 @@ def test_get_store_atomic_config(mock_launcher_run):
 
 
 def test_check_local_memory_ia(mock_launcher_run):
+
     @asc.jit
     def kernel_check_local_memory_ia() -> None:
         params = asc.CheckLocalMemoryIAParam()
@@ -971,4 +953,3 @@ def test_check_local_memory_ia(mock_launcher_run):
 
     kernel_check_local_memory_ia[1]()
     assert mock_launcher_run.call_count == 1
-

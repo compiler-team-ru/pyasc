@@ -24,7 +24,6 @@ USE_CORE_NUM = 48
 IS_TRANS_A = False
 IS_TRANS_B = False
 
-
 logging.basicConfig(level=logging.INFO)
 
 
@@ -55,8 +54,8 @@ def matmul_kernel(a: asc.GlobalAddress, b: asc.GlobalAddress, c: asc.GlobalAddre
 
 
 @asc.jit
-def calc_offsets(tiling: asc.adv.TCubeTiling,
-                 is_trans_a: bool = False, is_trans_b: bool = False) -> Tuple[int, int, int, int, int]:
+def calc_offsets(tiling: asc.adv.TCubeTiling, is_trans_a: bool = False,
+                 is_trans_b: bool = False) -> Tuple[int, int, int, int, int]:
     block_idx = asc.get_block_idx()
     m_single_blocks = tiling.m.ceildiv(tiling.single_core_m)
     m_index = block_idx % m_single_blocks

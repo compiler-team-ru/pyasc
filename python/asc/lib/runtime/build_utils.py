@@ -56,21 +56,21 @@ def build_npu_ext(obj_name: str, is_model: bool, soc: config.Platform, src_path:
 
     pkg_include_path = os.path.join(asc_path, f'{arch}-linux', 'pkg_inc')
     profiling_include_path = os.path.join(asc_path, f'{arch}-linux', 'pkg_inc/profiling')
-    runtime_include_path = os.path.join(asc_path, f'{arch}-linux', 'pkg_inc/runtime') 
+    runtime_include_path = os.path.join(asc_path, f'{arch}-linux', 'pkg_inc/runtime')
     if Path(pkg_include_path).exists() and Path(profiling_include_path).exists()  \
         and Path(runtime_include_path).exists():
         include_path = [
-            f"-I{pkg_include_path}", f"-I{profiling_include_path}", f"-I{runtime_include_path}", 
-            "-DSEPARATE_PKG_ARCH"]
+            f"-I{pkg_include_path}", f"-I{profiling_include_path}", f"-I{runtime_include_path}", "-DSEPARATE_PKG_ARCH"
+        ]
     else:
         include_path = [
-            f"-I{os.path.join(asc_path, 'include/experiment')}",	 
-            f"-I{os.path.join(asc_path, 'include/experiment/msprof')}"]
+            f"-I{os.path.join(asc_path, 'include/experiment')}",
+            f"-I{os.path.join(asc_path, 'include/experiment/msprof')}"
+        ]
 
     cc_cmd += [
-        f"-I{os.path.join(asc_path, 'include')}",
-        f"-I{pybind11.get_include()}",
-        f"-L{os.path.join(asc_path, 'lib64')}"]
+        f"-I{os.path.join(asc_path, 'include')}", f"-I{pybind11.get_include()}", f"-L{os.path.join(asc_path, 'lib64')}"
+    ]
 
     cc_cmd += include_path
 

@@ -35,13 +35,12 @@ def data_cache_clean_and_invalid(entire_type: CacheLine, dst: GlobalTensor, dcci
 
     @dispatcher.register_auto
     def _(entire_type: CacheLine, dcci_dst: DcciDst, dst: GlobalTensor):
-        builder.create_asc_DataCacheCleanAndInvalidGlobalOp(
-            dst.to_ir(), ir.CacheLine.symbolize(entire_type), ir.DcciDst.symbolize(dcci_dst))
+        builder.create_asc_DataCacheCleanAndInvalidGlobalOp(dst.to_ir(), ir.CacheLine.symbolize(entire_type),
+                                                            ir.DcciDst.symbolize(dcci_dst))
 
     @dispatcher.register_auto
     def _(entire_type: CacheLine, dst: GlobalTensor):
-        builder.create_asc_DataCacheCleanAndInvalidGlobalNoDcciDstOp(
-            dst.to_ir(), ir.CacheLine.symbolize(entire_type))
+        builder.create_asc_DataCacheCleanAndInvalidGlobalNoDcciDstOp(dst.to_ir(), ir.CacheLine.symbolize(entire_type))
 
     if dcci_dst is not None:
         dispatcher(entire_type, dcci_dst, dst)
@@ -73,5 +72,3 @@ def icache_preload(pre_fetch_len: RuntimeInt) -> None:
     if not isinstance(builder, ir.Builder):
         raise TypeError("global_builder must provide an ir.Builder")
     builder.create_asc_ICachePreLoadOp(_mat(pre_fetch_len, KT.int64).to_ir())
-
-

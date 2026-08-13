@@ -19,10 +19,10 @@ except ModuleNotFoundError:
 
 
 @asc.jit
-def trans_5hd_tensor_list_kernel(x: asc.GlobalAddress, z: asc.GlobalAddress,
-                                 block_length: asc.ConstExpr[int], buffer_num: asc.ConstExpr[int]):
+def trans_5hd_tensor_list_kernel(x: asc.GlobalAddress, z: asc.GlobalAddress, block_length: asc.ConstExpr[int],
+                                 buffer_num: asc.ConstExpr[int]):
     tile_length = block_length
-    
+
     x_gm = asc.GlobalTensor()
     x_gm.set_global_buffer(x)
     z_gm = asc.GlobalTensor()
@@ -49,36 +49,29 @@ def copy_in(x_gm: asc.GlobalTensor, in_queue_x: asc.TQue, tile_length: asc.Const
 @asc.jit
 def compute(z_gm: asc.GlobalTensor, in_queue_x: asc.TQue, out_queue_z: asc.TQue):
     c0_size = 16
-    h = 16 
+    h = 16
     w = 16
-    outer_loop_count = 4 
+    outer_loop_count = 4
 
     x_local = in_queue_x.deque(z_gm.dtype)
     z_local = out_queue_z.alloc_tensor(z_gm.dtype)
-    
-    params = asc.TransDataTo5HDParams(
-        dst_high_half=False,
-        src_high_half=False,
-        repeat_times=16,
-        dst_rep_stride=16,
-        src_rep_stride=1
-    )
+
+    params = asc.TransDataTo5HDParams(dst_high_half=False, src_high_half=False, repeat_times=16, dst_rep_stride=16,
+                                      src_rep_stride=1)
 
     for j in range(outer_loop_count):
         base_dst_offset = j * c0_size * h * w
         base_src_offset = j * c0_size * h * w
 
         dst_list = [
-            z_local[base_dst_offset + w * 0], z_local[base_dst_offset + w * 1],
-            z_local[base_dst_offset + w * 2], z_local[base_dst_offset + w * 3],
-            z_local[base_dst_offset + w * 4], z_local[base_dst_offset + w * 5],
-            z_local[base_dst_offset + w * 6], z_local[base_dst_offset + w * 7],
-            z_local[base_dst_offset + w * 8], z_local[base_dst_offset + w * 9],
-            z_local[base_dst_offset + w * 10], z_local[base_dst_offset + w * 11],
-            z_local[base_dst_offset + w * 12], z_local[base_dst_offset + w * 13],
-            z_local[base_dst_offset + w * 14], z_local[base_dst_offset + w * 15]
+            z_local[base_dst_offset + w * 0], z_local[base_dst_offset + w * 1], z_local[base_dst_offset + w * 2],
+            z_local[base_dst_offset + w * 3], z_local[base_dst_offset + w * 4], z_local[base_dst_offset + w * 5],
+            z_local[base_dst_offset + w * 6], z_local[base_dst_offset + w * 7], z_local[base_dst_offset + w * 8],
+            z_local[base_dst_offset + w * 9], z_local[base_dst_offset + w * 10], z_local[base_dst_offset + w * 11],
+            z_local[base_dst_offset + w * 12], z_local[base_dst_offset + w * 13], z_local[base_dst_offset + w * 14],
+            z_local[base_dst_offset + w * 15]
         ]
-        
+
         src_list = [
             x_local[base_src_offset + h * w * 0], x_local[base_src_offset + h * w * 1],
             x_local[base_src_offset + h * w * 2], x_local[base_src_offset + h * w * 3],
@@ -116,7 +109,6 @@ param_list = [
     # torch.uint16,
     torch.int16,
 ]
-
 
 BACKENDS = [
     # config.Backend.Model,

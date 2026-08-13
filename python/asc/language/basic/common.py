@@ -45,10 +45,7 @@ def data_cache_preload(src: GlobalTensor, cache_offset: RuntimeInt) -> None:
 
     offset_val = _mat(cache_offset)
 
-    builder.create_asc_DataCachePreloadOp(
-        src.to_ir(),
-        offset_val.to_ir()
-    )
+    builder.create_asc_DataCachePreloadOp(src.to_ir(), offset_val.to_ir())
 
 
 @require_jit
@@ -90,8 +87,8 @@ def set_aipp_functions(src0: GlobalTensor, input_format: AippInputFormat, config
 
 
 @overload
-def set_aipp_functions(src0: GlobalTensor, src1: GlobalTensor, 
-                        input_format: AippInputFormat, config: AippParams) -> None:
+def set_aipp_functions(src0: GlobalTensor, src1: GlobalTensor, input_format: AippInputFormat,
+                       config: AippParams) -> None:
     ...
 
 
@@ -103,13 +100,13 @@ def set_aipp_functions(*args, **kwargs) -> None:
 
     @dispatcher.register_auto
     def _(src0: GlobalTensor, src1: GlobalTensor, input_format: AippInputFormat, config: AippParams):
-        builder.create_asc_SetAippFunctionsOp(
-            src0.to_ir(), src1.to_ir(), ir.AippInputFormat.symbolize(input_format), config.to_ir())
+        builder.create_asc_SetAippFunctionsOp(src0.to_ir(), src1.to_ir(), ir.AippInputFormat.symbolize(input_format),
+                                              config.to_ir())
 
     @dispatcher.register_auto
     def _(src0: GlobalTensor, input_format: AippInputFormat, config: AippParams):
-        builder.create_asc_SetAippFunctionsOp(
-            src0.to_ir(), None, ir.AippInputFormat.symbolize(input_format), config.to_ir())
+        builder.create_asc_SetAippFunctionsOp(src0.to_ir(), None, ir.AippInputFormat.symbolize(input_format),
+                                              config.to_ir())
 
     dispatcher(*args, **kwargs)
 
@@ -187,13 +184,12 @@ def set_sys_workspace(workspace: GlobalAddress) -> None:
 
 
 @overload
-def set_vector_mask(length: int, dtype: DataType, mode: MaskMode) -> None: 
+def set_vector_mask(length: int, dtype: DataType, mode: MaskMode) -> None:
     ...
 
 
 @overload
-def set_vector_mask(mask_high: int, mask_low: int, dtype: DataType, 
-                    mode: MaskMode) -> None: 
+def set_vector_mask(mask_high: int, mask_low: int, dtype: DataType, mode: MaskMode) -> None:
     ...
 
 
@@ -205,20 +201,13 @@ def set_vector_mask(*args, dtype: DataType, mode: MaskMode) -> None:
 
     @dispatcher.register_auto
     def _(length: RuntimeInt, dtype: DataType, mode: MaskMode):
-        builder.create_asc_SetVectorMaskL0Op(
-            _mat(length, KT.int32).to_ir(),
-            dtype.to_ir(),
-            ir.MaskMode.symbolize(mode)
-        )
+        builder.create_asc_SetVectorMaskL0Op(_mat(length, KT.int32).to_ir(), dtype.to_ir(), ir.MaskMode.symbolize(mode))
 
     @dispatcher.register_auto
     def _(mask_high: RuntimeInt, mask_low: RuntimeInt, dtype: DataType, mode: MaskMode):
         builder.create_asc_SetVectorMaskL1Op(
             _mat(mask_high, KT.uint64).to_ir(),
-            _mat(mask_low, KT.uint64).to_ir(),
-            dtype.to_ir(),
-            ir.MaskMode.symbolize(mode)
-        )
+            _mat(mask_low, KT.uint64).to_ir(), dtype.to_ir(), ir.MaskMode.symbolize(mode))
 
     dispatcher(*args, dtype=dtype, mode=mode)
 

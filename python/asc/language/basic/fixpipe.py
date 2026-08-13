@@ -18,13 +18,13 @@ from .utils import set_common_docstring
 
 @overload
 def fixpipe(dst: GlobalTensor, src: LocalTensor, params: FixpipeParamsV220,
-           config: FixpipeConfig = FixpipeConfig.cfg_row_major) -> None:
+            config: FixpipeConfig = FixpipeConfig.cfg_row_major) -> None:
     ...
 
 
 @overload
-def fixpipe(dst: GlobalTensor, src: LocalTensor, cbuf_workspace: LocalTensor,
-           params: FixpipeParamsV220, config: FixpipeConfig = FixpipeConfig.cfg_row_major) -> None:
+def fixpipe(dst: GlobalTensor, src: LocalTensor, cbuf_workspace: LocalTensor, params: FixpipeParamsV220,
+            config: FixpipeConfig = FixpipeConfig.cfg_row_major) -> None:
     ...
 
 
@@ -38,15 +38,14 @@ def fixpipe(dst: GlobalTensor, src: LocalTensor, *args, **kwargs) -> None:
     def _(params: FixpipeParamsV220, config: FixpipeConfig = FixpipeConfig.cfg_row_major):
         if callable(config):
             config = config()
-        builder.create_asc_FixpipeOp(
-            dst.to_ir(), src.to_ir(), params.to_ir(), config.to_ir())
+        builder.create_asc_FixpipeOp(dst.to_ir(), src.to_ir(), params.to_ir(), config.to_ir())
 
     @dispatcher.register_auto
     def _(cbuf_workspace: LocalTensor, params: FixpipeParamsV220, config: FixpipeConfig = FixpipeConfig.cfg_row_major):
         if callable(config):
             config = config()
-        builder.create_asc_FixpipeWithWorkspaceOp(
-            dst.to_ir(), src.to_ir(), cbuf_workspace.to_ir(), params.to_ir(), config.to_ir())
+        builder.create_asc_FixpipeWithWorkspaceOp(dst.to_ir(), src.to_ir(), cbuf_workspace.to_ir(), params.to_ir(),
+                                                  config.to_ir())
 
     dispatcher(*args, **kwargs)
 

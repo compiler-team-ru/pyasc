@@ -15,7 +15,7 @@ class TQueBindDocstring:
 
     def __init__(self) -> None:
         ...
-    
+
     @staticmethod
     def construct_docstring():
         func_introduction = """
@@ -99,7 +99,7 @@ class TQueBindDocstring:
               len = 1024
               pipe.init_buffer(que=que, num=num, len=len)
               tensor = que.alloc_tensor(asc.half)
-        
+
         - inplace接口
 
           .. code-block:: python
@@ -110,11 +110,11 @@ class TQueBindDocstring:
               len = 1024
               pipe.init_buffer(que=que, num=num, len=len)
               que.alloc_tensor(asc.half, tensor)
-                    
+
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, constraint_list, py_example]
-    
+
     @staticmethod
     def free_tensor_docstring():
         func_introduction = """
@@ -149,7 +149,7 @@ class TQueBindDocstring:
             pipe.init_buffer(que=que, num=num, len=len)
             tensor = que.alloc_tensor(asc.half)
             que.free_tensor(tensor)
-                    
+
         """
 
         return [func_introduction, cpp_signature, param_list, "", "", py_example]
@@ -195,11 +195,11 @@ class TQueBindDocstring:
             pipe.init_buffer(que=que, num=num, len=len)
             tensor = que.alloc_tensor(asc.half)
             que.enque(tensor)
-                    
+
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, "", py_example]
-    
+
     @staticmethod
     def deque_docstring():
         func_introduction = """
@@ -233,7 +233,7 @@ class TQueBindDocstring:
 
         non-inplace接口的返回值为从队列中取出的LocalTensor；inplace接口没有返回值。
         """
-        
+
         constraint_list = """
         **约束说明**
 
@@ -274,7 +274,7 @@ class TQueBindDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, constraint_list, py_example]
-    
+
     @staticmethod
     def vacant_in_que_docstring():
         func_introduction = """
@@ -334,7 +334,7 @@ class TQueBindDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, constraint_list, py_example]
-    
+
     @staticmethod
     def has_tensor_in_que_docstring():
         func_introduction = """
@@ -493,7 +493,7 @@ class TQueBindDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, constraint_list, py_example]
-    
+
     @staticmethod
     def free_all_event_docstring():
         func_introduction = """
@@ -541,7 +541,7 @@ class TQueBindDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, "", constraint_list, py_example]
-    
+
     @staticmethod
     def init_buf_handle_docstring():
         func_introduction = """
@@ -586,7 +586,7 @@ class TQueBindDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, "", constraint_list, py_example]
-    
+
     @staticmethod
     def init_start_buf_handle_docstring():
         func_introduction = """
@@ -680,7 +680,7 @@ class TBufDocstring:
             template <typename T>
             __aicore__ inline LocalTensor<T> Get()
 
-        .. code-block:: c++ 
+        .. code-block:: c++
 
             template <typename T>
             __aicore__ inline LocalTensor<T> Get(uint32_t len)
@@ -962,7 +962,7 @@ class TBufPoolDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, "", constraint_list, py_example]
-    
+
     @staticmethod
     def reset_docstring():
         func_introduction = """
@@ -1059,7 +1059,7 @@ class TPipeDocstring:
         **调用示例**
 
         .. code-block:: python
-                
+
             pipe = asc.Tpipe()
 
         """
@@ -1097,7 +1097,7 @@ class TPipeDocstring:
         **调用示例**
 
         .. code-block:: python
-                
+
             class KernelAsin:
                 ...
             op = KernelAsin
@@ -1147,7 +1147,7 @@ class TPipeDocstring:
         **调用示例**
 
         .. code-block:: python
-                
+
             pipe = asc.Tpipe()
             que = asc.TQue(asc.TPosition.VECOUT, 2)
             num = 2
@@ -1202,9 +1202,9 @@ class TPipeDocstring:
         **调用示例**
 
         .. code-block:: python
-                
+
             # 为TQue分配内存，分配内存块数为2，每块大小为128字节
-            pipe = asc.Tpipe() 
+            pipe = asc.Tpipe()
             que = asc.TQue(asc.TPosition.VECOUT, 2)
             num = 2
             len = 128
@@ -1239,14 +1239,14 @@ class TPipeDocstring:
 
         无。
         """
-        
+
         py_example = """
         **调用示例**
 
         .. code-block:: python
-                
+
             # 为TQue分配内存，分配内存块数为2，每块大小为128字节
-            pipe = asc.Tpipe() 
+            pipe = asc.Tpipe()
             que = asc.TQue(asc.TPosition.VECOUT, 1)
             num = 1;
             len = 192 * 1024;
@@ -1258,7 +1258,7 @@ class TPipeDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, "", "", py_example]
-    
+
     @staticmethod
     def alloc_event_id_docstring():
         func_introduction = """
@@ -1297,7 +1297,7 @@ class TPipeDocstring:
         **调用示例**
 
         .. code-block:: python
-                
+
             event_id = asc.get_tpipe_ptr().alloc_event_id(asc.HardEvent.V_S)
             asc.set_flag(asc.HardEvent.V_S, event_id)
             ...
@@ -1330,7 +1330,7 @@ class TPipeDocstring:
         - event：HardEvent硬件同步类型。
         - id：TEventID类型，调用alloc_event_id申请获得的TEventID。
         """
-        
+
         constraint_list = """
         **约束说明**
 
@@ -1341,7 +1341,7 @@ class TPipeDocstring:
         **调用示例**
 
         .. code-block:: python
-                
+
             event_id = asc.get_tpipe_ptr().alloc_event_id(asc.HardEvent.V_S)
             asc.set_flag(asc.HardEvent.V_S, event_id)
             ...
@@ -1351,7 +1351,7 @@ class TPipeDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, "", constraint_list, py_example]
-    
+
     @staticmethod
     def fetch_event_id_docstring():
         func_introduction = """
@@ -1374,13 +1374,13 @@ class TPipeDocstring:
 
         - event：HardEvent硬件同步类型。
         """
-        
+
         return_list = """
         **返回值说明**
 
         TEventID。
         """
-        
+
         constraint_list = """
         **约束说明**
 
@@ -1392,7 +1392,7 @@ class TPipeDocstring:
         **调用示例**
 
         .. code-block:: python
-                
+
             event_id = asc.get_tpipe_ptr().fetch_event_id(asc.HardEvent.V_S)
             asc.set_flag(asc.HardEvent.V_S, event_id)
             asc.wait_flag(asc.HardEvent.V_S, event_id)
@@ -1422,7 +1422,7 @@ class TPipeDocstring:
 
         - logic_pos：逻辑位置类型。
         """
-        
+
         return_list = """
         **返回值说明**
 
@@ -1433,7 +1433,7 @@ class TPipeDocstring:
         **调用示例**
 
         .. code-block:: python
-                
+
             abs_addr = asc.get_tpipe_ptr().get_base_addr(pos);
 
         """
@@ -1478,7 +1478,7 @@ class TPipeDocstring:
         **调用示例**
 
         .. code-block:: python
-                
+
             src0_global.set_global_buffer(src0_gm)
             src1_global.set_global_buffer(src1_gm)
             dst_global.set_global_buffer(dst_gm)
@@ -1494,7 +1494,7 @@ class TQueDocstring:
 
     def __init__(self) -> None:
         ...
-    
+
     @staticmethod
     def alloc_tensor_docstring():
         func_introduction, cpp_signature, param_list, return_list, constraint_list, py_example = \
@@ -1512,7 +1512,7 @@ class TQueDocstring:
             len = 1024
             pipe.init_buffer(que=que, num=num, len=len)
             tensor = que.alloc_tensor(asc.half)
-        
+
         - inplace接口
 
         .. code-block:: python
@@ -1523,7 +1523,7 @@ class TQueDocstring:
             len = 1024
             pipe.init_buffer(que=que, num=num, len=len)
             que.alloc_tensor(asc.half, tensor)
-                    
+
         """
         return [func_introduction, cpp_signature, param_list, return_list, constraint_list, py_example]
 
@@ -1543,7 +1543,7 @@ class TQueDocstring:
             pipe.init_buffer(que=que, num=num, len=len)
             tensor = que.alloc_tensor(asc.half)
             que.free_tensor(tensor)
-                    
+
         """
         return [func_introduction, cpp_signature, param_list, return_list, constraint_list, py_example]
 
@@ -1563,7 +1563,7 @@ class TQueDocstring:
             pipe.init_buffer(que=que, num=num, len=len)
             tensor = que.alloc_tensor(asc.half)
             que.enque(tensor)
-                    
+
         """
         return [func_introduction, cpp_signature, param_list, return_list, py_example]
 
@@ -1748,7 +1748,7 @@ DOC_HANDLERS = {
         "has_tensor_in_que": TQueDocstring.has_tensor_in_que_docstring,
         "get_tensor_count_in_que": TQueDocstring.get_tensor_count_in_que_docstring,
         "has_idle_buffer": TQueDocstring.has_idle_buffer_docstring,
-    }
+    },
 }
 
 

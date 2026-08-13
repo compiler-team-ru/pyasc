@@ -86,15 +86,14 @@ def vadd_launch(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 
 
 param_list = [
-    [torch.float32, (1000,)],
-    [torch.float32, (1,)],
-    [torch.float32, (9999,)],
-    [torch.float16, (2048,)],
-    [torch.int32, (8192,)],
-    [torch.int16, (8192,)],
+    [torch.float32, (1000, )],
+    [torch.float32, (1, )],
+    [torch.float32, (9999, )],
+    [torch.float16, (2048, )],
+    [torch.int32, (8192, )],
+    [torch.int16, (8192, )],
     [torch.int32, (153, 834)],
 ]
-
 
 BACKENDS = [
     # config.Backend.Model,

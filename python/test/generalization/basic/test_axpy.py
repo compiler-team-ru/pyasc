@@ -20,8 +20,8 @@ except ModuleNotFoundError:
 
 @asc.jit
 def axpy_kernel(x: asc.GlobalAddress, y: asc.GlobalAddress, z: asc.GlobalAddress, scalar: float,
-                block_length: asc.ConstExpr[int], buffer_num: asc.ConstExpr[int],
-                tile_length: asc.ConstExpr[int], tile_num: asc.ConstExpr[int]):
+                block_length: asc.ConstExpr[int], buffer_num: asc.ConstExpr[int], tile_length: asc.ConstExpr[int],
+                tile_num: asc.ConstExpr[int]):
     offset = asc.get_block_idx() * block_length
     x_gm = asc.GlobalTensor()
     y_gm = asc.GlobalTensor()
@@ -43,9 +43,8 @@ def axpy_kernel(x: asc.GlobalAddress, y: asc.GlobalAddress, z: asc.GlobalAddress
 
 
 @asc.jit
-def copy_in(i: int, x_gm: asc.GlobalAddress, y_gm: asc.GlobalAddress, z_gm: asc.GlobalAddress, 
-            in_queue_x: asc.TQue, in_queue_y: asc.TQue, out_queue_z: asc.TQue, 
-            tile_length: asc.ConstExpr[int]):
+def copy_in(i: int, x_gm: asc.GlobalAddress, y_gm: asc.GlobalAddress, z_gm: asc.GlobalAddress, in_queue_x: asc.TQue,
+            in_queue_y: asc.TQue, out_queue_z: asc.TQue, tile_length: asc.ConstExpr[int]):
     x_local = in_queue_x.alloc_tensor(x_gm.dtype)
     y_local = in_queue_y.alloc_tensor(y_gm.dtype)
     z_local = out_queue_z.alloc_tensor(z_gm.dtype)
@@ -58,8 +57,8 @@ def copy_in(i: int, x_gm: asc.GlobalAddress, y_gm: asc.GlobalAddress, z_gm: asc.
 
 
 @asc.jit
-def compute(z_gm: asc.GlobalTensor, in_queue_x: asc.TQue, in_queue_y: asc.TQue, out_queue_z: asc.TQue,
-            scalar: float, tile_length: asc.ConstExpr[int]):
+def compute(z_gm: asc.GlobalTensor, in_queue_x: asc.TQue, in_queue_y: asc.TQue, out_queue_z: asc.TQue, scalar: float,
+            tile_length: asc.ConstExpr[int]):
     x_local = in_queue_x.deque(z_gm.dtype)
     y_local = in_queue_y.deque(z_gm.dtype)
     z_local = out_queue_z.deque(z_gm.dtype)
@@ -91,12 +90,11 @@ def axpy_launch(x: torch.Tensor, y: torch.Tensor, scalar: float) -> torch.Tensor
 
 
 param_list = [
-    [torch.float32, (4096,)],
-    [torch.float32, (8192,)],
-    [torch.float16, (8192,)],
-    [torch.float16, (2048,)],
+    [torch.float32, (4096, )],
+    [torch.float32, (8192, )],
+    [torch.float16, (8192, )],
+    [torch.float16, (2048, )],
 ]
-
 
 BACKENDS = [
     # config.Backend.Model,

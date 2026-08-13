@@ -24,25 +24,25 @@ def compare(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, cmp_mode: CM
 
 
 @overload
-def compare(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, cmp_mode: CMPMODE, mask: int, repeat_times: int, 
+def compare(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, cmp_mode: CMPMODE, mask: int, repeat_times: int,
             repeat_params: BinaryRepeatParams, is_set_mask: bool = True) -> None:
     ...
 
 
 @overload
-def compare(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, cmp_mode: CMPMODE, mask: List[int], 
+def compare(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, cmp_mode: CMPMODE, mask: List[int],
             repeat_times: int, repeat_params: BinaryRepeatParams, is_set_mask: bool = True) -> None:
     ...
 
 
 @overload
-def compare(src0: LocalTensor, src1: LocalTensor, cmp_mode: CMPMODE, mask: List[int], repeat_params: BinaryRepeatParams, 
+def compare(src0: LocalTensor, src1: LocalTensor, cmp_mode: CMPMODE, mask: List[int], repeat_params: BinaryRepeatParams,
             is_set_mask: bool = True) -> None:
     ...
 
 
 @overload
-def compare(src0: LocalTensor, src1: LocalTensor, cmp_mode: CMPMODE, mask: int, repeat_params: BinaryRepeatParams, 
+def compare(src0: LocalTensor, src1: LocalTensor, cmp_mode: CMPMODE, mask: int, repeat_params: BinaryRepeatParams,
             is_set_mask: bool = True) -> None:
     ...
 
@@ -53,67 +53,68 @@ def compare(*args, **kwargs) -> None:
     dispatcher = OverloadDispatcher(__name__)
     builder = global_builder.get_ir_builder()
 
-    @dispatcher.register(dst=LocalTensor, src0=LocalTensor, src1=LocalTensor, cmp_mode=CMPMODE, mask=RuntimeInt, 
+    @dispatcher.register(dst=LocalTensor, src0=LocalTensor, src1=LocalTensor, cmp_mode=CMPMODE, mask=RuntimeInt,
                          repeat_times=RuntimeInt, repeat_params=BinaryRepeatParams)
-    def _(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, cmp_mode: CMPMODE, mask: RuntimeInt, 
+    def _(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, cmp_mode: CMPMODE, mask: RuntimeInt,
           repeat_times: RuntimeInt, repeat_params: BinaryRepeatParams, is_set_mask: bool = True):
         builder.create_asc_CompareL0Op(dst.to_ir(), src0.to_ir(), src1.to_ir(), ir.CMPMODE.symbolize(cmp_mode),
-                 _mat(mask, KT.uint64).to_ir(), _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
+                                       _mat(mask, KT.uint64).to_ir(),
+                                       _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
 
-    @dispatcher.register(dst=LocalTensor, src0=LocalTensor, src1=LocalTensor, cmp_mode=CMPMODE, mask=list, 
+    @dispatcher.register(dst=LocalTensor, src0=LocalTensor, src1=LocalTensor, cmp_mode=CMPMODE, mask=list,
                          repeat_times=RuntimeInt, repeat_params=BinaryRepeatParams)
-    def _(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, cmp_mode: CMPMODE, mask: list, 
+    def _(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, cmp_mode: CMPMODE, mask: list,
           repeat_times: RuntimeInt, repeat_params: BinaryRepeatParams, is_set_mask: bool = True):
         mask = [_mat(v, KT.uint64).to_ir() for v in mask]
-        builder.create_asc_CompareL1Op(dst.to_ir(), src0.to_ir(), src1.to_ir(), ir.CMPMODE.symbolize(cmp_mode), mask, 
-                _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
+        builder.create_asc_CompareL1Op(dst.to_ir(), src0.to_ir(), src1.to_ir(), ir.CMPMODE.symbolize(cmp_mode), mask,
+                                       _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
 
     @dispatcher.register_auto
     def _(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, cmp_mode: CMPMODE, count: RuntimeInt):
-        builder.create_asc_CompareL2Op(dst.to_ir(), src0.to_ir(), src1.to_ir(), ir.CMPMODE.symbolize(cmp_mode), 
+        builder.create_asc_CompareL2Op(dst.to_ir(), src0.to_ir(), src1.to_ir(), ir.CMPMODE.symbolize(cmp_mode),
                                        _mat(count, KT.int32).to_ir())
-        
-    @dispatcher.register(src0=LocalTensor, src1=LocalTensor, cmp_mode=CMPMODE, mask=RuntimeInt, 
+
+    @dispatcher.register(src0=LocalTensor, src1=LocalTensor, cmp_mode=CMPMODE, mask=RuntimeInt,
                          repeat_params=BinaryRepeatParams)
-    def _(src0: LocalTensor, src1: LocalTensor, cmp_mode: CMPMODE, mask: RuntimeInt, repeat_params: BinaryRepeatParams, 
+    def _(src0: LocalTensor, src1: LocalTensor, cmp_mode: CMPMODE, mask: RuntimeInt, repeat_params: BinaryRepeatParams,
           is_set_mask: bool = True):
         builder.create_asc_CompareRL0Op(src0.to_ir(), src1.to_ir(), ir.CMPMODE.symbolize(cmp_mode),
                                         _mat(mask, KT.uint64).to_ir(), repeat_params.to_ir(), is_set_mask)
 
-    @dispatcher.register(src0=LocalTensor, src1=LocalTensor, cmp_mode=CMPMODE, mask=list, 
+    @dispatcher.register(src0=LocalTensor, src1=LocalTensor, cmp_mode=CMPMODE, mask=list,
                          repeat_params=BinaryRepeatParams)
-    def _(src0: LocalTensor, src1: LocalTensor, cmp_mode: CMPMODE, mask: list, repeat_params: BinaryRepeatParams, 
+    def _(src0: LocalTensor, src1: LocalTensor, cmp_mode: CMPMODE, mask: list, repeat_params: BinaryRepeatParams,
           is_set_mask: bool = True):
         mask = [_mat(v, KT.uint64).to_ir() for v in mask]
-        builder.create_asc_CompareRL1Op(src0.to_ir(), src1.to_ir(), ir.CMPMODE.symbolize(cmp_mode), mask, 
-                                       repeat_params.to_ir(), is_set_mask)
+        builder.create_asc_CompareRL1Op(src0.to_ir(), src1.to_ir(), ir.CMPMODE.symbolize(cmp_mode), mask,
+                                        repeat_params.to_ir(), is_set_mask)
 
     dispatcher(*args, **kwargs)
 
 
 @overload
-def compare_scalar(dst: LocalTensor, src0: LocalTensor, src1_scalar: Union[int, float], cmp_mode: CMPMODE, 
+def compare_scalar(dst: LocalTensor, src0: LocalTensor, src1_scalar: Union[int, float], cmp_mode: CMPMODE,
                    count: int) -> None:
     ...
 
 
 @overload
-def compare_scalar(dst: LocalTensor, src0: LocalTensor, src1_scalar: Union[int, float], cmp_mode: CMPMODE, mask: int, 
-             repeat_times: int, repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
+def compare_scalar(dst: LocalTensor, src0: LocalTensor, src1_scalar: Union[int, float], cmp_mode: CMPMODE, mask: int,
+                   repeat_times: int, repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
     ...
 
 
 @overload
-def compare_scalar(dst: LocalTensor, src0: LocalTensor, src1_scalar: Union[int, float], cmp_mode: CMPMODE, 
-                   mask: List[int], repeat_times: int, repeat_params: UnaryRepeatParams, 
-                   is_set_mask: bool = True) -> None:
+def compare_scalar(dst: LocalTensor, src0: LocalTensor, src1_scalar: Union[int,
+                                                                           float], cmp_mode: CMPMODE, mask: List[int],
+                   repeat_times: int, repeat_params: UnaryRepeatParams, is_set_mask: bool = True) -> None:
     ...
 
 
 @require_jit
 @set_common_docstring(api_name="compare_scalar")
-def compare_scalar(dst: LocalTensor, src0: LocalTensor, src1_scalar: RuntimeNumeric, cmp_mode: CMPMODE, 
-                   *args, **kwargs) -> None:
+def compare_scalar(dst: LocalTensor, src0: LocalTensor, src1_scalar: RuntimeNumeric, cmp_mode: CMPMODE, *args,
+                   **kwargs) -> None:
     dispatcher = OverloadDispatcher(__name__)
     builder = global_builder.get_ir_builder()
     src1_scalar = _mat(src1_scalar, src0.dtype).to_ir()
@@ -121,18 +122,20 @@ def compare_scalar(dst: LocalTensor, src0: LocalTensor, src1_scalar: RuntimeNume
     @dispatcher.register(mask=RuntimeInt, repeat_times=RuntimeInt, repeat_params=UnaryRepeatParams)
     def _(mask: RuntimeInt, repeat_times: RuntimeInt, repeat_params: UnaryRepeatParams, is_set_mask: bool = True):
         builder.create_asc_CompareScalarL0Op(dst.to_ir(), src0.to_ir(), src1_scalar, ir.CMPMODE.symbolize(cmp_mode),
-                 _mat(mask, KT.uint64).to_ir(), _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
+                                             _mat(mask, KT.uint64).to_ir(),
+                                             _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
 
     @dispatcher.register(mask=list, repeat_times=RuntimeInt, repeat_params=UnaryRepeatParams)
     def _(mask: list, repeat_times: RuntimeInt, repeat_params: UnaryRepeatParams, is_set_mask: bool = True):
         mask = [_mat(v, KT.uint64).to_ir() for v in mask]
-        builder.create_asc_CompareScalarL1Op(dst.to_ir(), src0.to_ir(), src1_scalar, ir.CMPMODE.symbolize(cmp_mode), 
-                mask, _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
+        builder.create_asc_CompareScalarL1Op(dst.to_ir(), src0.to_ir(), src1_scalar, ir.CMPMODE.symbolize(cmp_mode),
+                                             mask,
+                                             _mat(repeat_times, KT.int8).to_ir(), repeat_params.to_ir(), is_set_mask)
 
     @dispatcher.register_auto
     def _(count: RuntimeInt):
-        builder.create_asc_CompareScalarL2Op(dst.to_ir(), src0.to_ir(), src1_scalar, ir.CMPMODE.symbolize(cmp_mode), 
-                                       _mat(count, KT.int32).to_ir())
+        builder.create_asc_CompareScalarL2Op(dst.to_ir(), src0.to_ir(), src1_scalar, ir.CMPMODE.symbolize(cmp_mode),
+                                             _mat(count, KT.int32).to_ir())
 
     dispatcher(*args, **kwargs)
 
@@ -152,52 +155,50 @@ def set_cmp_mask(src: LocalTensor) -> None:
 
 
 @overload
-def select(dst: LocalTensor, sel_mask: LocalTensor, src0: LocalTensor, src1: float,
-           sel_mode: SelMode, count: int) -> None:
-    ...
-
-
-@overload
-def select(dst: LocalTensor, sel_mask: LocalTensor, src0: LocalTensor, src1: LocalTensor,
-           sel_mode: SelMode, count: int) -> None:
-    ...
-
-
-@overload
 def select(dst: LocalTensor, sel_mask: LocalTensor, src0: LocalTensor, src1: float, sel_mode: SelMode,
+           count: int) -> None:
+    ...
+
+
+@overload
+def select(dst: LocalTensor, sel_mask: LocalTensor, src0: LocalTensor, src1: LocalTensor, sel_mode: SelMode,
+           count: int) -> None:
+    ...
+
+
+@overload
+def select(dst: LocalTensor, sel_mask: LocalTensor, src0: LocalTensor, src1: float, sel_mode: SelMode, mask: List[int],
+           repeat_times: int, repeat_params: BinaryRepeatParams, is_set_mask: bool = True) -> None:
+    ...
+
+
+@overload
+def select(dst: LocalTensor, sel_mask: LocalTensor, src0: LocalTensor, src1: float, sel_mode: SelMode, mask: int,
+           repeat_times: int, repeat_params: BinaryRepeatParams, is_set_mask: bool = True) -> None:
+    ...
+
+
+@overload
+def select(dst: LocalTensor, sel_mask: LocalTensor, src0: LocalTensor, repeat_times: int,
+           repeat_params: BinaryRepeatParams) -> None:
+    ...
+
+
+@overload
+def select(dst: LocalTensor, sel_mask: LocalTensor, src0: LocalTensor, src1: LocalTensor, sel_mode: SelMode,
            mask: List[int], repeat_times: int, repeat_params: BinaryRepeatParams, is_set_mask: bool = True) -> None:
     ...
 
 
 @overload
-def select(dst: LocalTensor, sel_mask: LocalTensor, src0: LocalTensor, src1: float, sel_mode: SelMode,
-           mask: int, repeat_times: int, repeat_params: BinaryRepeatParams, is_set_mask: bool = True) -> None:
+def select(dst: LocalTensor, sel_mask: LocalTensor, src0: LocalTensor, src1: LocalTensor, sel_mode: SelMode, mask: int,
+           repeat_times: int, repeat_params: BinaryRepeatParams, is_set_mask: bool = True) -> None:
     ...
 
 
 @overload
-def select(dst: LocalTensor, sel_mask: LocalTensor, src0: LocalTensor,
-           repeat_times: int, repeat_params: BinaryRepeatParams) -> None:
-    ...
-
-
-@overload
-def select(dst: LocalTensor, sel_mask: LocalTensor, src0: LocalTensor, src1: LocalTensor,
-           sel_mode: SelMode, mask: List[int], repeat_times: int, repeat_params: BinaryRepeatParams,
-           is_set_mask: bool = True) -> None:
-    ...
-
-
-@overload
-def select(dst: LocalTensor, sel_mask: LocalTensor, src0: LocalTensor, src1: LocalTensor,
-           sel_mode: SelMode, mask: int, repeat_times: int, repeat_params: BinaryRepeatParams,
-           is_set_mask: bool = True) -> None:
-    ...
-
-
-@overload
-def select(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor,
-           repeat_times: int, repeat_params: BinaryRepeatParams, sel_mode: SelMode) -> None:
+def select(dst: LocalTensor, src0: LocalTensor, src1: LocalTensor, repeat_times: int, repeat_params: BinaryRepeatParams,
+           sel_mode: SelMode) -> None:
     ...
 
 
@@ -210,12 +211,7 @@ def select(dst: LocalTensor, *args, **kwargs) -> None:
         raise TypeError("select: invalid arguments")
     if not hasattr(builder, "_select_mask_list_cache"):
         builder._select_mask_list_cache = {}
-    if (
-        len(args) == 2 and
-        "repeat_times" in kwargs and
-        "repeat_params" in kwargs and
-        "sel_mode" in kwargs
-    ):
+    if (len(args) == 2 and "repeat_times" in kwargs and "repeat_params" in kwargs and "sel_mode" in kwargs):
         src0, src1 = args
         builder.create_asc_SelectRegOp(
             dst.to_ir(),

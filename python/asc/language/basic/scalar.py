@@ -27,17 +27,14 @@ def scalar_cast(value_in: float, dtype: Type[T], round_mode: RoundMode) -> T:
 def scalar_cast(value_in: RuntimeFloat, dtype: Type[T], round_mode: RoundMode) -> T:
     builder = global_builder.get_ir_builder()
 
-    value_out = builder.create_asc_ScalarCastOp(
-        dtype.to_ir(), 
-        _mat(value_in, KT.float_).to_ir(),
-        dtype.to_ir(),                   
-        ir.RoundMode.symbolize(round_mode)    
-    )
+    value_out = builder.create_asc_ScalarCastOp(dtype.to_ir(),
+                                                _mat(value_in, KT.float_).to_ir(), dtype.to_ir(),
+                                                ir.RoundMode.symbolize(round_mode))
     if dtype in (KT.int32, KT.float16, KT.half):
-        return PlainValue(value_out)  
+        return PlainValue(value_out)
     else:
         raise TypeError(f"Unsupported target dtype: {dtype}")
-    
+
 
 @overload
 def scalar_get_sff_value(value_in: int, count_value: int) -> int:
@@ -52,8 +49,9 @@ def scalar_get_sff_value(value_in: RuntimeInt, count_value: RuntimeInt) -> Runti
         raise TypeError("count_value must be a Python int (compile-time constant).")
     if count_value not in (0, 1):
         raise ValueError("count_value must be 0 or 1.")
-    handle = builder.create_asc_ScalarGetSFFValueOp(KT.int64.to_ir(), _mat(value_in, KT.uint64).to_ir(),
-                                                     _mat(count_value, KT.int32).to_ir())
+    handle = builder.create_asc_ScalarGetSFFValueOp(KT.int64.to_ir(),
+                                                    _mat(value_in, KT.uint64).to_ir(),
+                                                    _mat(count_value, KT.int32).to_ir())
     return PlainValue(handle)
 
 
@@ -66,7 +64,8 @@ def scalar_get_count_of_value(value_in: int, count_value: int) -> int:
 @set_common_docstring(api_name="scalar_get_count_of_value")
 def scalar_get_count_of_value(value_in: RuntimeInt, count_value: RuntimeInt) -> RuntimeInt:
     builder = global_builder.get_ir_builder()
-    handle = builder.create_asc_ScalarGetCountOfValueOp(KT.int64.to_ir(), _mat(value_in, KT.uint64).to_ir(),
+    handle = builder.create_asc_ScalarGetCountOfValueOp(KT.int64.to_ir(),
+                                                        _mat(value_in, KT.uint64).to_ir(),
                                                         _mat(count_value, KT.int32).to_ir())
     return PlainValue(handle)
 

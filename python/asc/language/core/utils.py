@@ -222,7 +222,7 @@ class GlobalTensorDocstring:
 
     def __init__(self) -> None:
         ...
-    
+
     @staticmethod
     def set_global_buffer_docstring():
         func_introduction = """
@@ -263,7 +263,7 @@ class GlobalTensorDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, "", "", py_example]
-    
+
     @staticmethod
     def get_phy_addr_docstring():
         func_introduction = """
@@ -413,7 +413,7 @@ class GlobalTensorDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, "", "", ""]
-    
+
     @staticmethod
     def get_shape_info_docstring():
         func_introduction = """
@@ -440,9 +440,9 @@ class GlobalTensorDocstring:
 
         GlobalTensor的shape信息，ShapeInfo类型。
         """
-        
+
         return [func_introduction, cpp_signature, param_list, return_list, "", ""]
-    
+
     @staticmethod
     def set_l2_cache_hint_docstring():
         func_introduction = """
@@ -465,7 +465,7 @@ class GlobalTensorDocstring:
         - rw_mode：设置L2 Cache读写模式。
         - mode：用户指定的L2 Cache模式。
         """
-        
+
         constraint_list = """
         **约束说明**
 
@@ -601,7 +601,7 @@ class LocalTensorDocstring:
 
     def __init__(self) -> None:
         ...
-    
+
     @staticmethod
     def set_value_docstring():
         func_introduction = """
@@ -631,7 +631,7 @@ class LocalTensorDocstring:
 
         不要大量使用set_value对LocalTensor进行赋值，会使性能下降。若需要大批量赋值，请根据实际场景选择数据填充基础API接口或数据填充高阶API接口（Pad、Broadcast），以及在需要生成递增数列的场景，选择ArithProgression。
         """
-        
+
         py_example = """
         **调用示例**
 
@@ -645,7 +645,7 @@ class LocalTensorDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, "", constraint_list, py_example]
-    
+
     @staticmethod
     def get_value_docstring():
         func_introduction = """
@@ -837,7 +837,7 @@ class LocalTensorDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, "", py_example]
-    
+
     @staticmethod
     def reinterpret_cast_docstring():
         func_introduction = """
@@ -865,7 +865,7 @@ class LocalTensorDocstring:
 
         重解释转换后的Tensor。
         """
-        
+
         py_example = """
         **调用示例**
 
@@ -877,7 +877,7 @@ class LocalTensorDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, "", py_example]
-    
+
     @staticmethod
     def get_phy_addr_docstring():
         func_introduction = """
@@ -899,13 +899,13 @@ class LocalTensorDocstring:
 
         - offset：偏移量。
         """
-        
+
         return_list = """
         **返回值说明**
 
         LocalTensor的地址或指定偏移量后的地址。
         """
-        
+
         py_example = """
         **调用示例**
 
@@ -916,7 +916,7 @@ class LocalTensorDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, "", py_example]
-    
+
     @staticmethod
     def get_position_docstring():
         func_introduction = """
@@ -937,13 +937,13 @@ class LocalTensorDocstring:
 
         无。
         """
-        
+
         return_list = """
         **返回值说明**
 
         LocalTensor所在的TPosition逻辑位置。
         """
-        
+
         py_example = """
         **调用示例**
 
@@ -981,13 +981,13 @@ class LocalTensorDocstring:
 
         无。
         """
-        
+
         return_list = """
         **返回值说明**
 
         LocalTensor数据长度，单位为字节。
         """
-        
+
         py_example = """
         **调用示例**
 
@@ -999,7 +999,7 @@ class LocalTensorDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, "", py_example]
-    
+
     @staticmethod
     def set_shape_info_docstring():
         func_introduction = """
@@ -1020,7 +1020,7 @@ class LocalTensorDocstring:
 
         - shape_info：Shape信息，ShapeInfo结构体类型。
         """
-        
+
         py_example = """
         **调用示例**
 
@@ -1033,7 +1033,7 @@ class LocalTensorDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, "", "", py_example]
-    
+
     @staticmethod
     def get_shape_info_docstring():
         func_introduction = """
@@ -1054,13 +1054,13 @@ class LocalTensorDocstring:
 
         无。
         """
-        
+
         return_list = """
         **返回值说明**
 
         LocalTensor的Shape信息，ShapeInfo结构体类型。
         """
-        
+
         py_example = """
         **调用示例**
 
@@ -1071,7 +1071,7 @@ class LocalTensorDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, "", py_example]
-    
+
     @staticmethod
     def set_addr_with_offset_docstring():
         func_introduction = """
@@ -1094,7 +1094,7 @@ class LocalTensorDocstring:
         - src：基础地址的Tensor，将该Tensor的地址作为基础地址，设置偏移后的Tensor地址。
         - offset：偏移的长度，单位为元素。
         """
-        
+
         py_example = """
         **调用示例**
 
@@ -1108,7 +1108,7 @@ class LocalTensorDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, "", "", py_example]
-    
+
     @staticmethod
     def set_buffer_len_docstring():
         func_introduction = """
@@ -1129,7 +1129,7 @@ class LocalTensorDocstring:
 
         - data_len：Buffer长度，单位为字节。
         """
-        
+
         py_example = """
         **调用示例**
 
@@ -1142,7 +1142,7 @@ class LocalTensorDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, "", "", py_example]
-    
+
     @staticmethod
     def to_file_docstring():
         func_introduction = """
@@ -1163,13 +1163,13 @@ class LocalTensorDocstring:
 
         - file_name：保存的文件名称。
         """
-        
+
         return_list = """
         **返回值说明**
 
         返回0表示数据Dump成功，非0值表示失败。
         """
-        
+
         py_example = """
         **调用示例**
 
@@ -1181,7 +1181,7 @@ class LocalTensorDocstring:
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, "", py_example]
-    
+
     @staticmethod
     def print_docstring():
         func_introduction = """
@@ -1203,7 +1203,7 @@ class LocalTensorDocstring:
 
         - len：打印元素个数。
         """
-        
+
         py_example = """
         **调用示例**
 
@@ -1219,15 +1219,12 @@ class LocalTensorDocstring:
         return [func_introduction, cpp_signature, param_list, "", "", py_example]
 
 
-
 CLASS_DOC_HANDLERS = {
     "LocalMemAllocator": {
         "get_cur_addr": LocalMemAllocatorDocstring.get_cur_addr_docstring,
         "alloc": LocalMemAllocatorDocstring.alloc_docstring,
-    },
-    "ShapeInfo": {}
+    }, "ShapeInfo": {}
 }
-
 
 TENSOR_DOC_HANDLERS = {
     "GlobalTensor": {
@@ -1239,8 +1236,7 @@ TENSOR_DOC_HANDLERS = {
         "set_shape_info": GlobalTensorDocstring.set_shape_info_docstring,
         "get_shape_info": GlobalTensorDocstring.get_shape_info_docstring,
         "set_l2_cache_hint": GlobalTensorDocstring.set_l2_cache_hint_docstring,
-    },
-    "LocalTensor": {
+    }, "LocalTensor": {
         "set_value": LocalTensorDocstring.set_value_docstring,
         "get_value": LocalTensorDocstring.get_value_docstring,
         "set_size": LocalTensorDocstring.set_size_docstring,
@@ -1268,15 +1264,15 @@ def set_class_docstring(class_name: Optional[str] = None, api_name: Optional[str
     return_list = ""
     constraint_list = ""
     py_example = ""
-    
+
     if CLASS_DOC_HANDLERS.get(class_name) is None:
         raise RuntimeError(f"Invalid class name {class_name}")
     if CLASS_DOC_HANDLERS.get(class_name, {}).get(api_name) is None:
         raise RuntimeError(f"Unsupported API [{api_name}] for allocator type [{class_name}]")
-    
+
     handler = CLASS_DOC_HANDLERS.get(class_name, {}).get(api_name)
     func_introduction, cpp_signature, param_list, return_list, constraint_list, py_example = handler()
-    
+
     docstr = f"""
     {func_introduction}
     {cpp_signature}

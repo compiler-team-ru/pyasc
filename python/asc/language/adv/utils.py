@@ -37,7 +37,7 @@ def set_quant_scalar_docstring():
     - 需与set_dequant_type保持一致。
     - 本接口必须在iterate或者iterate_all前调用。
     """
-    
+
     py_example = """
     **调用示例**
 
@@ -129,7 +129,7 @@ def set_org_shape_docstring():
     - org_kb：设置矩阵B原始完整的形状Kb大小，单位为元素。
     - org_kc：设置输出C矩阵的N，单位为元素。需要输入B矩阵的N和输出C矩阵的N不一样时可设置，默认为0（即使用B矩阵的N，不进行修改）。
     备注：Ascend C第一个函数原型对应的python参数：org_m，org_n，org_ka；Ascend C第二个函数原型对应的python参数：org_m，org_n，org_ka，org_kb，org_kc。
-    """    
+    """
 
     constraint_list = """
     **约束说明**
@@ -179,7 +179,7 @@ def set_single_shape_docstring():
     - single_m：设置的singleCoreM大小，单位为元素。
     - single_n：设置的singleCoreN大小，单位为元素。
     - single_k：设置的singleCoreK大小，单位为元素。
-    """    
+    """
 
     py_example = """
     **调用示例**
@@ -583,7 +583,7 @@ def set_tail_docstring():
     - tail_n：重新设置的singleCoreN值。
     - tail_k：重新设置的singleCoreK值。
     """
-    
+
     py_example = """
     **调用示例**
 
@@ -1042,7 +1042,7 @@ def wait_iterate_all_docstring():
     - 配套iterate_all异步接口使用。
     - 仅支持连续输出至Global Memory。
     """
-    
+
     py_example = """
     **调用示例**
 
@@ -1757,7 +1757,7 @@ def get_special_mdl_config_docstring():
 
     MatmulConfig结构体。
     """
-    
+
     py_example = """
     **调用示例**
 
@@ -2253,7 +2253,7 @@ def concat_docstring():
     - tmp：输入，临时空间，用于接口内部复杂计算的中间存储。数据类型与src一致。
     - repeat_time：输入，重复迭代次数，每次迭代处理16个元素，下次迭代跳至相邻的下一组16个元素。取值范围：[0, 255]。
     """
-    
+
     constraint_list = """
     **约束说明**
 

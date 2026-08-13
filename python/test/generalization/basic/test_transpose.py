@@ -19,9 +19,8 @@ except ModuleNotFoundError:
 
 
 @asc.jit
-def transpose_kernel(x: asc.GlobalAddress, z: asc.GlobalAddress,
-                    block_length: asc.ConstExpr[int], buffer_num: asc.ConstExpr[int],
-                    tile_length: asc.ConstExpr[int], tile_num: asc.ConstExpr[int]):
+def transpose_kernel(x: asc.GlobalAddress, z: asc.GlobalAddress, block_length: asc.ConstExpr[int],
+                     buffer_num: asc.ConstExpr[int], tile_length: asc.ConstExpr[int], tile_num: asc.ConstExpr[int]):
     offset = asc.get_block_idx() * block_length
     x_gm = asc.GlobalTensor()
     z_gm = asc.GlobalTensor()
@@ -41,21 +40,19 @@ def transpose_kernel(x: asc.GlobalAddress, z: asc.GlobalAddress,
 
 
 @asc.jit
-def copy_in(i: int, x_gm: asc.GlobalAddress, in_queue_x: asc.TQue,
-            tile_length: asc.ConstExpr[int]):
+def copy_in(i: int, x_gm: asc.GlobalAddress, in_queue_x: asc.TQue, tile_length: asc.ConstExpr[int]):
     x_local = in_queue_x.alloc_tensor(x_gm.dtype)
     asc.data_copy(x_local, x_gm[i * tile_length:], count=tile_length)
     in_queue_x.enque(x_local)
 
 
 @asc.jit
-def compute(z_gm: asc.GlobalTensor, in_queue_x: asc.TQue, out_queue_z: asc.TQue,
-            tile_length: asc.ConstExpr[int]):
+def compute(z_gm: asc.GlobalTensor, in_queue_x: asc.TQue, out_queue_z: asc.TQue, tile_length: asc.ConstExpr[int]):
     x_local = in_queue_x.deque(z_gm.dtype)
     z_local = out_queue_z.alloc_tensor(z_gm.dtype)
-    
+
     asc.transpose(z_local, x_local)
-    
+
     out_queue_z.enque(z_local)
     in_queue_x.free_tensor(x_local)
 
@@ -84,7 +81,6 @@ param_list = [
     # torch.uint16,
     torch.int16,
 ]
-
 
 BACKENDS = [
     # config.Backend.Model,

@@ -33,10 +33,10 @@ def test_alloc_tensor(mock_launcher_run):
     def kernel_alloc_tensor() -> None:
         que = TQueBind(src=asc.TPosition.VECIN, dst=asc.TPosition.VECIN, depth=1)
         x_local = que.alloc_tensor(asc.float16)
-        
+
         que_in_place = TQueBind(src=asc.TPosition.VECIN, dst=asc.TPosition.VECIN, depth=0)
         y_local = asc.LocalTensor(asc.float32)
-        que_in_place.alloc_tensor(y_local) 
+        que_in_place.alloc_tensor(y_local)
 
     kernel_alloc_tensor[1]()
     assert mock_launcher_run.call_count == 1
@@ -51,8 +51,8 @@ def test_deque(mock_launcher_run):
         que.deque(asc.float16, asc.TPosition.GM, asc.TPosition.VECIN)
         que_in_place = TQueBind(src=asc.TPosition.VECIN, dst=asc.TPosition.VECIN, depth=0)
         y_local = asc.LocalTensor(asc.float32)
-        que_in_place.deque(y_local) 
-        
+        que_in_place.deque(y_local)
+
     kernel_deque[1]()
     assert mock_launcher_run.call_count == 1
 

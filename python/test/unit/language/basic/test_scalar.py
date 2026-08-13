@@ -31,7 +31,7 @@ def test_scalar_get_sff_value(mock_launcher_run):
 
     @asc.jit
     def scalar_get_sff_value_kernel():
-        value_in = 28 
+        value_in = 28
         one_count_0 = asc.scalar_get_sff_value(value_in, 0)
         one_count_1 = asc.scalar_get_sff_value(value_in, 1)
 
@@ -43,12 +43,12 @@ def test_scalar_get_count_of_value(mock_launcher_run):
 
     @asc.jit
     def scalar_get_count_of_value_kernel():
-        value_in = 16 
+        value_in = 16
         zero_count = asc.scalar_get_count_of_value(value_in, 0)
         one_count = asc.scalar_get_count_of_value(value_in, 1)
 
     scalar_get_count_of_value_kernel[1]()
-    assert mock_launcher_run.call_count == 1    
+    assert mock_launcher_run.call_count == 1
 
 
 def test_scalar_count_leading_zero(mock_launcher_run):

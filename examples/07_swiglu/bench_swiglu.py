@@ -20,7 +20,6 @@ import asc.runtime.config as config
 import asc.lib.runtime as rt
 from swiglu import swiglu_kernel, compute_launch_params
 
-
 ASCENDC_DEMO = Path(__file__).resolve().parent / "ascendc" / "build" / "demo"
 
 
@@ -37,12 +36,12 @@ def run_pyasc(shape, warmup, iters):
 
 def run_ascendc(shape, warmup, iters):
     cmd = [
-        str(ASCENDC_DEMO),
-        "--batch", str(shape[0]),
-        "--seq", str(shape[1]),
-        "--hidden", str(shape[2]),
-        "--warmup", str(warmup),
-        "--iters", str(iters),
+        str(ASCENDC_DEMO), "--batch",
+        str(shape[0]), "--seq",
+        str(shape[1]), "--hidden",
+        str(shape[2]), "--warmup",
+        str(warmup), "--iters",
+        str(iters)
     ]
     subprocess.run(cmd, check=True)
 

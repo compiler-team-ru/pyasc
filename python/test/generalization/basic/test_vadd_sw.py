@@ -72,7 +72,7 @@ def compute(global_pipe: asc.TPipe, i: int, z_gm: asc.GlobalTensor, x_gm: asc.Gl
     x_len = x_local.get_length()
     x_size = x_local.get_size()
 
-    x_tag = 13      # set custom tag
+    x_tag = 13  # set custom tag
     x_local.set_user_tag(x_tag)
     z_tag = x_local.get_user_tag()
 
@@ -113,15 +113,14 @@ def vadd_launch(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
 
 
 param_list = [
-    [torch.float32, (1000,)],
-    [torch.float32, (1,)],
-    [torch.float32, (9999,)],
-    [torch.float16, (2048,)],
-    [torch.int32, (8192,)],
-    [torch.int16, (8192,)],
+    [torch.float32, (1000, )],
+    [torch.float32, (1, )],
+    [torch.float32, (9999, )],
+    [torch.float16, (2048, )],
+    [torch.int32, (8192, )],
+    [torch.int16, (8192, )],
     [torch.int32, (153, 834)],
 ]
-
 
 BACKENDS = [
     # config.Backend.Model,

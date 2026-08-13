@@ -26,6 +26,6 @@ def test_axpy_kernel(mock_launcher_run):
         uint64_max = 2**64 - 1
         mask = [uint64_max, uint64_max]
         asc.axpy(z_local, x_local, 2, mask=mask, repeat_times=1, repeat_params=params)
-    
+
     axpy_kernel[1]()
     assert mock_launcher_run.call_count == 1
