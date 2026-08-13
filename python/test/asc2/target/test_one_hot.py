@@ -32,7 +32,7 @@ def one_hot(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, arang
         idx_pos = block_offset + i
         idx_scalar = asc2.copy_in(in_gm, [idx_pos])
         mask = asc2.equal(arange_tile, idx_scalar)
-        result = asc2.where(mask, asc2.number(on_value, output_ptr.dtype), asc2.number(off_value, output_ptr.dtype))
+        result = asc2.where(mask, asc2.cast(on_value, output_ptr.dtype), asc2.cast(off_value, output_ptr.dtype))
         asc2.copy_out(result, out_gm, [idx_pos * depth])
 
 

@@ -171,28 +171,6 @@ global_builder = GlobalBuilder()
 
 
 def ceildiv(x: int, y: int) -> int:
-    """
-    Compute ceiling division of two integers.
-
-    Returns the smallest integer greater than or equal to ``x / y``. This is commonly used to compute
-    the number of tiles or iterations needed to cover a given data size.
-
-    Can be used both on the host (outside a kernel) and inside a kernel. When used inside a kernel,
-    the operation follows C semantics (signed integer ceiling division).
-
-    Args:
-        x: The dividend (numerator). Must be a non-negative integer.
-        y: The divisor (denominator). Must be a positive integer.
-
-    Returns:
-        int: The ceiling of ``x / y``, computed as ``(x + y - 1) // y``.
-
-    Examples:
-        Compute the number of tiles needed to cover the input data: ::
-
-            num_tiles = asc2.ceildiv(size, tile_size)
-            tiles_per_core = asc2.ceildiv(num_tiles, asc2.block_num())
-    """
     return (x + y - 1) // y
 
 
@@ -1256,8 +1234,7 @@ CLASS_DOC_HANDLERS = {
     "LocalMemAllocator": {
         "get_cur_addr": LocalMemAllocatorDocstring.get_cur_addr_docstring,
         "alloc": LocalMemAllocatorDocstring.alloc_docstring,
-    },
-    "ShapeInfo": {},
+    }, "ShapeInfo": {}
 }
 
 TENSOR_DOC_HANDLERS = {
@@ -1270,8 +1247,7 @@ TENSOR_DOC_HANDLERS = {
         "set_shape_info": GlobalTensorDocstring.set_shape_info_docstring,
         "get_shape_info": GlobalTensorDocstring.get_shape_info_docstring,
         "set_l2_cache_hint": GlobalTensorDocstring.set_l2_cache_hint_docstring,
-    },
-    "LocalTensor": {
+    }, "LocalTensor": {
         "set_value": LocalTensorDocstring.set_value_docstring,
         "get_value": LocalTensorDocstring.get_value_docstring,
         "set_size": LocalTensorDocstring.set_size_docstring,
