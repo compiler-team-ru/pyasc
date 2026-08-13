@@ -24,9 +24,6 @@ from asc.language.core.dtype import (
     int_,
 )
 from asc.language.core.ir_value import GlobalAddress
-from asc.language.core.ops import inline, number
-from asc.language.core.range import static_range
-from asc.language.core.utils import ceildiv
 from asc.lib import profiling, runtime
 from asc.runtime.config import Backend, KernelType, Platform, set_platform
 
@@ -39,7 +36,6 @@ __all__ += [
     "Platform",
     "bfloat16",
     "bool_",
-    "ceildiv",
     "float16",
     "float32",
     "float64",
@@ -49,17 +45,15 @@ __all__ += [
     "int32",
     "int64",
     "int_",
-    "inline",
-    "number",
     "profiling",
     "runtime",
     "set_platform",
-    "static_range",
 ]
 
 from asc.language.tile.global_tensor import GlobalTensor, global_tensor
 from asc.language.tile.local_tensor import LocalTensor, RoundMode, TensorLocation
-from asc.language.tile.range import range
+from asc.language.tile.range import range, static_range
+from asc.language.tile.utils import ceildiv
 
 # Tile operations
 from asc.language.tile.atomic_ops import (
@@ -98,7 +92,9 @@ from asc.language.tile.creation_ops import (
     zeros_like,
 )
 from asc.language.tile.debug_ops import (
-    inline_vf, )
+    inline,
+    inline_vf,
+)
 from asc.language.tile.memory_ops import (
     copy,
     copy_in,
@@ -165,6 +161,9 @@ __all__ += [
     "TensorLocation",
     # range
     "range",
+    "static_range",
+    # utils
+    "ceildiv",
     # atomic_ops
     "atomic_add",
     "atomic_max",
@@ -198,6 +197,7 @@ __all__ += [
     "zeros_acc",
     "zeros_like",
     # debug_ops
+    "inline",
     "inline_vf",
     # memory_ops
     "copy",

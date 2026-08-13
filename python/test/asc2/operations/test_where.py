@@ -56,7 +56,7 @@ def where_scalar_kernel(x_ptr: asc2.GlobalAddress, scalar, z_ptr: asc2.GlobalAdd
     x = asc2.global_tensor(x_ptr, [SIZE])
     z = asc2.global_tensor(z_ptr, [SIZE])
     xt = asc2.copy_in(x, [0], [SIZE])
-    zt = asc2.where(op(xt, scalar), asc2.number(0.0, x_ptr.dtype), asc2.number(1.0, x_ptr.dtype))
+    zt = asc2.where(op(xt, scalar), asc2.cast(0.0, x_ptr.dtype), asc2.cast(1.0, x_ptr.dtype))
     asc2.copy_out(zt, z, [0])
 
 
@@ -108,7 +108,7 @@ def where_scalar_source_kernel(x_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAd
     for i in range(tile_per_block, unroll_factor=2):
         tile_offset = base_offset + i * tile_size
         x = asc2.copy_in(x_gm, [tile_offset], [tile_size])
-        scalar = asc2.number(scalar_value, x_ptr.dtype)
+        scalar = asc2.cast(scalar_value, x_ptr.dtype)
         if scalar_on_true:
             out = asc2.where(x > 0, scalar, x)
         else:

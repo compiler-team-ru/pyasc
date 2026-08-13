@@ -55,30 +55,6 @@ class range(BaseRange):
 
 
 class static_range:
-    """
-    A static range loop construct for use in JIT functions.
-
-    Unlike :py:class:`range`, this class requires all loop bounds to be compile-time constants (integers), not runtime
-    values. This enables more aggressive compile-time optimizations such as complete loop unrolling.
-
-    Args:
-        start: Start index of the loop (or stop index if only one argument provided)
-        stop: Stop index of the loop (exclusive). If None, start is treated as stop and start is 0.
-        step: Step size for the loop iteration
-
-    Raises:
-        ValueError: If number of arguments is not between 1 and 3
-
-    Note:
-        All arguments must be integer constants, not runtime values.
-        Use :py:class:`range` when loop bounds are runtime-dependent.
-
-    Examples:
-        Loop with compile-time constant bounds: ::
-
-            for i in asc.static_range(0, 128):
-                ...
-    """
 
     @overload
     def __init__(self, stop: int, /):

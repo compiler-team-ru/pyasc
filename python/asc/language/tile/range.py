@@ -9,7 +9,7 @@
 from typing import overload
 
 from ..._C import ir
-from ..core.range import BaseRange
+from ..core.range import BaseRange, static_range as asc_static_range
 from ..core.utils import global_builder
 from .validation import check_type
 
@@ -57,15 +57,15 @@ class range(BaseRange):
     """
 
     @overload
-    def __init__(self, stop: int, /, unroll_factor: int = 1, gm_barrier: bool = False):
+    def __init__(self, stop: int, /, *, unroll_factor: int = 1, gm_barrier: bool = False):
         ...
 
     @overload
-    def __init__(self, start: int, stop: int, /, unroll_factor: int = 1, gm_barrier: bool = False):
+    def __init__(self, start: int, stop: int, /, *, unroll_factor: int = 1, gm_barrier: bool = False):
         ...
 
     @overload
-    def __init__(self, start: int, stop: int, step: int, /, unroll_factor: int = 1, gm_barrier: bool = False):
+    def __init__(self, start: int, stop: int, step: int, /, *, unroll_factor: int = 1, gm_barrier: bool = False):
         ...
 
     def __init__(self, *args, unroll_factor: int = 1, gm_barrier: bool = False):
@@ -82,3 +82,30 @@ class range(BaseRange):
         op.set_attr(ir.attr.unroll_factor, builder.get_index_attr(self.unroll_factor))
         if self.gm_barrier:
             op.set_attr(ir.attr.gm_barrier, builder.get_unit_attr())
+
+
+class static_range(asc_static_range):
+    """
+    A static range loop construct for use in JIT functions.
+
+    Unlike :py:class:`range`, this class requires all loop bounds to be compile-time constants (integers), not runtime
+    values. This enables more aggressive compile-time optimizations such as complete loop unrolling.
+
+    Args:
+        start: Start index of the loop (or stop index if only one argument provided)
+        stop: Stop index of the loop (exclusive). If None, start is treated as stop and start is 0.
+        step: Step size for the loop iteration
+
+    Raises:
+        ValueError: If number of arguments is not between 1 and 3
+
+    Note:
+        All arguments must be integer constants, not runtime values.
+        Use :py:class:`range` when loop bounds are runtime-dependent.
+
+    Examples:
+        Loop with compile-time constant bounds: ::
+
+            for i in asc2.static_range(0, 128):
+                ...
+    """

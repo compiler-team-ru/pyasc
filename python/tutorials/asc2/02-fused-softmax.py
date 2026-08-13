@@ -41,7 +41,7 @@ def fused_softmax(
     # `asc2.block_idx()` function is used to get current AICORE index.
     block_offset = asc2.block_idx() * rows_per_block
     # Define the loop iterating over tiles
-    ub_loop = asc2.number(asc2.ceildiv(rows_per_block, tile_shape[0]), asc2.int_)
+    ub_loop = asc2.cast(asc2.ceildiv(rows_per_block, tile_shape[0]), asc2.int_)
 
     # `unroll_factor` parameter of `asc2.range` in `for` loop can be used to manage software pipelining. Set it to `2` to enable double buffering.
     # `parallel` parameter of `asc2.range` in `for` loop enable overlapping of store operation of `i`-th iteration and load of `i+1`-th iteration.

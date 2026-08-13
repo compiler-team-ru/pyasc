@@ -23,8 +23,8 @@ def softmax_fused(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
     rows_per_block = rows_per_core
     start_offset = asc2.block_idx() * rows_per_block
 
-    ub_loop = asc2.number(asc2.ceildiv(rows_per_block, tile_shape[0]), asc2.int_)
-    tail_rows = asc2.number(tile_shape[0], asc2.int_)
+    ub_loop = asc2.cast(asc2.ceildiv(rows_per_block, tile_shape[0]), asc2.int_)
+    tail_rows = asc2.cast(tile_shape[0], asc2.int_)
     #TODO: remove redundant tail handling when the accuracy issue is resolved
     if asc2.block_idx() == asc2.block_num() - 1:
         tail_rows_per_block = input_num_rows - rows_per_block * (asc2.block_num() - 1)
