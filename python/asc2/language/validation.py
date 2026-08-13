@@ -8,11 +8,12 @@
 
 from typing import Any, Iterable, Optional, Protocol, Tuple, Type, TypeGuard, Union
 
-from ..._C import ir
-from ...common.compat import isinstance
-from ..core.dtype import DataType
-from ..core.ir_value import PlainValue, RuntimeInt
-from ..core.utils import get_type_name
+from asc._C import ir
+from asc.common.compat import isinstance
+from asc.language.core.dtype import DataType
+from asc.language.core.ir_value import PlainValue, RuntimeInt
+from asc.language.core.utils import get_type_name
+
 from .tensor_location import TensorLocation
 
 

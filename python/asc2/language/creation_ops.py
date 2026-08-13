@@ -9,10 +9,11 @@
 from numbers import Real
 from typing import Iterable, Optional, Union, overload
 
-from ..._C import ir
-from ..core.dtype import DataType, KnownTypes as KT
-from ..core.ir_value import PlainValue, RuntimeNumeric, materialize_ir_value
-from ..core.utils import global_builder, require_jit
+from asc._C import ir
+from asc.language.core.dtype import DataType, KnownTypes as KT
+from asc.language.core.ir_value import PlainValue, RuntimeNumeric, materialize_ir_value
+from asc.language.core.utils import global_builder, require_jit
+
 from .local_tensor import LocalTensor, RoundMode
 from .tensor_location import TensorLocation, TensorLocLike
 from .utils import check_bias, constant_tile, splat_tile

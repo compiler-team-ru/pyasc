@@ -8,10 +8,11 @@
 
 from typing import Iterable, List, Optional, Tuple, Union, overload
 
-from ..._C import ir
-from ..core.dtype import KnownTypes as KT
-from ..core.ir_value import IRHandle, PlainValue, RuntimeInt, RuntimeNumeric, materialize_ir_value as _mat
-from ..core.utils import global_builder, require_jit
+from asc._C import ir
+from asc.language.core.dtype import KnownTypes as KT
+from asc.language.core.ir_value import IRHandle, PlainValue, RuntimeInt, RuntimeNumeric, materialize_ir_value as _mat
+from asc.language.core.utils import global_builder, require_jit
+
 from .global_tensor import GlobalTensor
 from .local_tensor import LocalTensor
 from .tensor_location import TensorLocation, TensorLocLike

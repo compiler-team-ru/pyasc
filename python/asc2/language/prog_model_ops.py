@@ -6,9 +6,9 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-from ..basic.sys_var import get_block_idx, get_block_num
-from ..core.ir_value import PlainValue
-from ..core.utils import require_jit
+from asc.language.basic.sys_var import get_block_idx, get_block_num
+from asc.language.core.ir_value import PlainValue
+from asc.language.core.utils import require_jit
 
 
 @require_jit

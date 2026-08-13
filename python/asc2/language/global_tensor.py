@@ -11,11 +11,12 @@ from __future__ import annotations
 from typing import Generator, Iterable
 from typing_extensions import Self
 
-from ..._C import ir
-from ..core.dtype import DataType, int32
-from ..core.tensor import GlobalAddress
-from ..core.ir_value import IRHandle, IRValue, PlainValue, RuntimeInt, materialize_ir_value as mat
-from ..core.utils import global_builder, require_jit
+from asc._C import ir
+from asc.language.core.dtype import DataType, int32
+from asc.language.core.tensor import GlobalAddress
+from asc.language.core.ir_value import IRHandle, IRValue, PlainValue, RuntimeInt, materialize_ir_value as mat
+from asc.language.core.utils import global_builder, require_jit
+
 from .validation import check_type, verify_runtime_ints
 
 

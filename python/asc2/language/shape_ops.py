@@ -9,9 +9,10 @@
 import math
 from typing import Iterable, Tuple
 
-from ..._C import ir
-from ..core.dtype import KnownTypes as KT
-from ..core.utils import global_builder, require_jit
+from asc._C import ir
+from asc.language.core.dtype import KnownTypes as KT
+from asc.language.core.utils import allow_jit, global_builder, require_jit
+
 from .local_tensor import LocalTensor, bind_tensor_method
 from .tensor_location import TensorLocation
 from .utils import infer_common_shape_impl
@@ -77,7 +78,7 @@ def broadcast_to(input: LocalTensor, *shape: int) -> LocalTensor:
     return LocalTensor(handle)
 
 
-# @require_jit is not needed
+@allow_jit
 def broadcast_shapes(*shapes: Iterable[int]) -> Tuple[int, ...]:
     """
     Compute the common shape that all input shapes can be broadcast to.

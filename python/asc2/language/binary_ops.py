@@ -8,11 +8,12 @@
 
 from typing import Any, Callable, Optional, Tuple, TypeVar, Union
 
-from ..._C import ir
-from ...common.compat import isinstance
-from ..core.dtype import DataType, KnownTypes as KT
-from ..core.ir_value import IRHandle, RuntimeInt, RuntimeNumeric
-from ..core.utils import global_builder, require_jit
+from asc._C import ir
+from asc.common.compat import isinstance
+from asc.language.core.dtype import DataType, KnownTypes as KT
+from asc.language.core.ir_value import IRHandle, RuntimeInt, RuntimeNumeric
+from asc.language.core.utils import global_builder, require_jit
+
 from .local_tensor import BinaryOperandTypeError, LocalTensor, bind_tensor_method
 from .tensor_location import TensorLocation
 from .utils import check_bias, create_tile, infer_common_dtype, infer_common_shape
@@ -288,6 +289,7 @@ def check_matmul_arguments(input: LocalTensor, other: LocalTensor, hf32: bool) -
 
 
 @bind_tensor_method(name="__matmul__", binary_op="@")
+@require_jit
 def matmul(input: LocalTensor, other: LocalTensor, bias: Optional[LocalTensor] = None, *,
            hf32: bool = False) -> LocalTensor:
     """
@@ -347,6 +349,7 @@ def matmul(input: LocalTensor, other: LocalTensor, bias: Optional[LocalTensor] =
     return LocalTensor(handle)
 
 
+@require_jit
 def matmul_acc(acc: LocalTensor, input: LocalTensor, other: LocalTensor, *, hf32: bool = False) -> None:
     """
     Computes the matrix multiplication of ``input`` and ``other`` and accumulates the result into ``acc``.

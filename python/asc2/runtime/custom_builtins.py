@@ -14,9 +14,10 @@ from typing import Any, Callable, Iterable, List, Tuple, Union
 
 from asc.codegen.function_visitor import CustomBuiltins
 from asc.language.core.ir_value import PlainValue, RuntimeNumeric
-from asc.language.tile.binary_ops import maximum, minimum
-from asc.language.tile.range import range as custom_range
-from asc.language.tile.local_tensor import LocalTensor
+
+from ..language.binary_ops import maximum, minimum
+from ..language.range import range as custom_range
+from ..language.local_tensor import LocalTensor
 
 
 class SplitAccumulation:

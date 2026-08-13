@@ -346,13 +346,14 @@ packages = [
     "asc/language/basic",
     "asc/language/core",
     "asc/language/fwk",
-    "asc/language/tile",
     "asc/lib",
     "asc/lib/host",
     "asc/lib/profiling",
     "asc/lib/runtime",
     "asc/runtime",
     "asc2",
+    "asc2/language",
+    "asc2/runtime",
 ]
 
 extras_require = {
