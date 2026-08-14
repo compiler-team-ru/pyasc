@@ -86,6 +86,55 @@ struct TensorInfo {
     ascendc::BaseTensorType type;
 };
 
+template <typename T>
+SmallVector<T> applyPermute(const SmallVectorImpl<T>& input, ArrayRef<int64_t> permute)
+{
+    SmallVector<T> result;
+    for (auto i : permute) {
+        result.push_back(input[i]);
+    }
+    return result;
+}
+
+template <typename T, typename C>
+SmallVector<T> reversePermute(const C& input, ArrayRef<int64_t> permute)
+{
+    assert(input.size() == permute.size());
+    SmallVector<T> result;
+    result.assign(permute.size(), T{});
+    for (size_t i = 0; i < permute.size(); ++i) {
+        result[permute[i]] = static_cast<T>(input[i]);
+    }
+    return result;
+}
+
+SmallVector<Value> getStrides(
+    ConvertRewriter& rewriter, Location loc, ascir::ConstantOpBuilder& consts, ValueRange shape)
+{
+    SmallVector<Value> result;
+    result.assign(shape.size(), Value{});
+    Value stride = consts.i32(1);
+    for (size_t i = shape.size() - 1; i + 1 >= 1; --i) {
+        result[i] = stride;
+        if (i > 0) {
+            stride = rewriter.create<arith::MulIOp>(loc, stride, shape[i]);
+        }
+    }
+    return result;
+}
+
+SmallVector<int64_t> getStrides(ArrayRef<int64_t> shape)
+{
+    SmallVector<int64_t> result;
+    result.assign(shape.size(), 0);
+    int64_t stride = 1;
+    for (size_t i = shape.size() - 1; i + 1 >= 1; --i) {
+        result[i] = stride;
+        stride *= shape[i];
+    }
+    return result;
+}
+
 TensorInfo prepareTensorInfo(ConvertRewriter& rewriter, Location loc, Value base, ValueRange offsets = {})
 {
     auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
@@ -133,8 +182,8 @@ std::optional<ascendc::QuantMode> getQuantizeMode(
 }
 
 Value calculateCopyCount(
-    ConvertRewriter& rewriter, Location& loc, const SmallVector<int64_t>& ubShape, const SmallVector<Value>& gmShape,
-    const OperandRange& offsets, const OperandRange& realShape, size_t dim)
+    ConvertRewriter& rewriter, Location& loc, ArrayRef<int64_t> ubShape, ValueRange gmShape, ValueRange offsets,
+    ValueRange realShape, size_t dim)
 {
     ascir::ConstantOpBuilder consts(rewriter);
     Value tailElementsCount = rewriter.create<arith::SubIOp>(loc, gmShape[dim], offsets[dim]);
@@ -306,52 +355,6 @@ struct ConvertLoadToUBWithTranspose : ConvertOp<asctile::LoadOp> {
         }
     }
 
-    template <typename T>
-    static SmallVector<T> applyPermute(const SmallVector<T>& input, const SmallVector<int64_t>& permute)
-    {
-        SmallVector<T> result;
-        for (auto i : permute) {
-            result.push_back(input[i]);
-        }
-        return result;
-    }
-    template <typename T, typename A>
-    static SmallVector<T> reversePermute(const SmallVector<A>& input, const SmallVector<int64_t>& permute)
-    {
-        SmallVector<T> result;
-        result.assign(permute.size(), T{});
-        for (size_t i = 0; i < permute.size(); ++i) {
-            result[permute[i]] = static_cast<A>(input[i]);
-        }
-        return result;
-    }
-
-    static SmallVector<Value> getStrides(
-        ConvertRewriter& rewriter, Location loc, ascir::ConstantOpBuilder& consts, ValueRange shape)
-    {
-        SmallVector<Value> result;
-        result.assign(shape.size(), Value{});
-        Value stride = consts.i32(1);
-        for (size_t i = shape.size() - 1; i + 1 >= 1; --i) {
-            result[i] = stride;
-            if (i > 0) {
-                stride = rewriter.create<arith::MulIOp>(loc, stride, shape[i]);
-            }
-        }
-        return result;
-    }
-    static SmallVector<int64_t> getStrides(const ArrayRef<int64_t>& shape)
-    {
-        SmallVector<int64_t> result;
-        result.assign(shape.size(), 0);
-        int64_t stride = 1;
-        for (size_t i = shape.size() - 1; i + 1 >= 1; --i) {
-            result[i] = stride;
-            stride *= shape[i];
-        }
-        return result;
-    }
-
     LogicalResult matchAndRewrite(asctile::LoadOp op, ConvertRewriter& rewriter) const override
     {
         auto opType = op.getType();
@@ -371,7 +374,7 @@ struct ConvertLoadToUBWithTranspose : ConvertOp<asctile::LoadOp> {
         SmallVector<int64_t> dimsOrder{static_cast<ArrayRef<int32_t>>(transposeAttrs)};
         auto dimCount = dimsOrder.size();
 
-        SmallVector<int64_t> readShape = reversePermute<int64_t>(SmallVector<int64_t>{dstShape}, dimsOrder);
+        SmallVector<int64_t> readShape = reversePermute<int64_t>(dstShape, dimsOrder);
         SmallVector<Value> copyCount;
         for (size_t i = 0; i < dimCount; ++i) {
             copyCount.push_back(
@@ -559,6 +562,44 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
 
+    static bool needLoopMode(ArrayRef<int64_t> shape)
+    {
+        for (size_t dim = 0; dim + 2 < shape.size(); ++dim) {
+            if (shape[dim] > 1)
+                return true;
+        }
+        return false;
+    }
+    static bool checkShape(ArrayRef<int64_t> shape)
+    {
+        for (size_t dim = 0; dim + 4 < shape.size(); ++dim) {
+            if (shape[dim] > 1)
+                return false;
+        }
+        return true;
+    }
+    static SmallVector<Value> makeLoopModeValues(
+        ConvertRewriter& rewriter, Location loc, ascir::ConstantOpBuilder& consts, ValueRange dstShape,
+        ArrayRef<int64_t> srcShape, Value typeSize, ValueRange offsets, ValueRange realShape)
+    {
+        Value loop1Size =
+            calculateCopyCount(rewriter, loc, srcShape, dstShape, offsets, realShape, srcShape.size() - 3);
+        Value loop2Size =
+            srcShape.size() == 3 ?
+                consts.i32(1) :
+                calculateCopyCount(rewriter, loc, srcShape, dstShape, offsets, realShape, srcShape.size() - 4);
+        Value dim0SrcStride = rewriter.create<arith::MulIOp>(loc, consts.i32(srcShape[srcShape.size() - 1]), typeSize);
+        Value dim1SrcStride =
+            rewriter.create<arith::MulIOp>(loc, dim0SrcStride, consts.i32(srcShape[srcShape.size() - 2]));
+        Value dim2SrcStride =
+            rewriter.create<arith::MulIOp>(loc, dim1SrcStride, consts.i32(srcShape[srcShape.size() - 3]));
+
+        Value dim0DstStride = rewriter.create<arith::MulIOp>(loc, dstShape[dstShape.size() - 1], typeSize);
+        Value dim1DstStride = rewriter.create<arith::MulIOp>(loc, dim0DstStride, dstShape[dstShape.size() - 2]);
+        Value dim2DstStride = rewriter.create<arith::MulIOp>(loc, dim1DstStride, dstShape[dstShape.size() - 3]);
+        return SmallVector<Value>{loop1Size, loop2Size, dim1SrcStride, dim1DstStride, dim2SrcStride, dim2DstStride};
+    }
+
     LogicalResult matchAndRewrite(asctile::StoreOp op, ConvertRewriter& rewriter) const override
     {
         auto value = op.getValue();
@@ -566,13 +607,17 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
         Value src = rewriter.getRemappedValue(value);
         auto srcType = cast<ascendc::BaseTensorType>(src.getType());
         SmallVector<Value> srcShape = getStaticShape(rewriter, srcType);
-        if (srcShape.size() > 2)
+        if (op->hasAttrOfType<DenseI32ArrayAttr>(asctile::attr::transposeDims))
             return failure();
+        if (!checkShape(srcType.getShape()))
+            return op.emitError("Store tensors with dim > 4 not implemented");
         auto loc = op.getLoc();
         auto offsets = op.getOffsets();
         ascir::ConstantOpBuilder consts(rewriter);
         TensorInfo dstInfo = prepareTensorInfo(rewriter, loc, op.getBase(), offsets);
         auto const0 = consts.i32(0);
+        auto ui32Type = rewriter.getIntegerType(32, false);
+        auto ui64Type = rewriter.getIntegerType(64, false);
         Value typeSize = consts.i32(ascendc::getElementTypeSize(srcType));
         Value srcLastDim = srcShape.back();
         Value dstLastDim = dstInfo.shape.back();
@@ -591,31 +636,43 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
         Value srcStrideElements = rewriter.create<arith::SubIOp>(loc, srcLastDim, minTailElements);
         Value dstStrideElements = rewriter.create<arith::SubIOp>(loc, dstLastDim, minTailElements);
         Value blockCount = consts.i32(1);
-        if (realShape.size() > 1) {
-            for (size_t i = 0; i + 1 < realShape.size(); ++i)
-                blockCount = rewriter.create<arith::MulIOp>(loc, blockCount, realShape[i]);
-        } else {
-            for (size_t i = 0; i + 1 < srcShape.size(); ++i)
-                blockCount = rewriter.create<arith::MulIOp>(loc, blockCount, srcShape[i]);
+        if (srcShape.size() > 1) {
+            blockCount = realShape.empty() ? srcShape[srcShape.size() - 2] : realShape[srcShape.size() - 2];
         }
         Value dataBlockSize = consts.i32(ascendc::ubBlockSize);
         Value srcStrideBytes = rewriter.create<arith::MulIOp>(loc, srcStrideElements, typeSize);
         Value srcStride = rewriter.create<arith::DivSIOp>(loc, srcStrideBytes, dataBlockSize);
         Value dstStride = rewriter.create<arith::MulIOp>(loc, dstStrideElements, typeSize);
-        auto ui32Type = rewriter.getIntegerType(32, false);
-        auto params = rewriter.create<ascendc::ConstructOp>(
+
+        bool multiDim = needLoopMode(srcType.getShape());
+        if (multiDim) {
+            auto params = makeLoopModeValues(
+                rewriter, loc, consts, dstInfo.shape, srcType.getShape(), typeSize, SmallVector<Value>{offsets},
+                SmallVector<Value>{realShape});
+            auto paramsOp = rewriter.create<ascendc::ConstructOp>(
+                loc, rewriter.getType<ascendc::LoopModeParamsType>(), params,
+                rewriter.getTypeArrayAttr({ui32Type, ui32Type, ui64Type, ui64Type, ui64Type, ui64Type}));
+            auto setParamsOp =
+                rewriter.create<ascendc::SetLoopModeParaOp>(loc, paramsOp, ascendc::DataCopyMVType::UB_TO_OUT);
+        }
+        auto dataCopyExtParams = rewriter.create<ascendc::ConstructOp>(
             loc, rewriter.getType<ascendc::DataCopyExtParamsType>(),
             ValueRange{blockCount, blockLen, srcStride, dstStride, const0},
             rewriter.getTypeArrayAttr({rewriter.getIntegerType(16, false), ui32Type, ui32Type, ui32Type, ui32Type}));
-        auto copyOp = rewriter.replaceOpWithNewOp<ascendc::DataCopyPadExtL2Op>(op, dstInfo.tensor, src, params);
+        auto copyOp =
+            rewriter.replaceOpWithNewOp<ascendc::DataCopyPadExtL2Op>(op, dstInfo.tensor, src, dataCopyExtParams);
         copyOp.setDirection(ascendc::TPosition::VECCALC, ascendc::TPosition::GM);
+        if (multiDim) {
+            rewriter.create<ascendc::ResetLoopModeParaOp>(loc, ascendc::DataCopyMVType::UB_TO_OUT);
+        }
         return success();
     }
 };
 
-struct ConvertStoreHighDims : ConvertOp<asctile::StoreOp> {
+struct ConvertStoreWithTranspose : ConvertOp<asctile::StoreOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
+    // Do transpose to copy_out in GM. Works only for 3d/4d tensor if last dim unchanged by permute
 
     LogicalResult matchAndRewrite(asctile::StoreOp op, ConvertRewriter& rewriter) const override
     {
@@ -627,61 +684,76 @@ struct ConvertStoreHighDims : ConvertOp<asctile::StoreOp> {
         auto srcType = cast<ascendc::BaseTensorType>(src.getType());
         assert(value.getType().getLoc() == asctile::TensorLocation::UB && "tensor must be located in UB");
         ascir::ConstantOpBuilder consts(rewriter);
-        SmallVector<int64_t> srcShape{static_cast<ArrayRef<int64_t>>(srcType.getShape())};
-        if (srcShape.size() <= 2 || srcShape.size() > 4)
+        SmallVector<int64_t> srcShape{srcType.getShape()};
+
+        if (srcType.getShape().size() != 3 && srcType.getShape().size() != 4)
             return failure();
+        if (!op->hasAttrOfType<DenseI32ArrayAttr>(asctile::attr::transposeDims))
+            return failure();
+        auto transposeAttrs = op->getAttrOfType<DenseI32ArrayAttr>(asctile::attr::transposeDims);
+        assert(transposeAttrs.size() == srcShape.size());
+        SmallVector<int64_t> dimsOrder{transposeAttrs.asArrayRef()};
+        assert(transposeAttrs[transposeAttrs.size() - 1] == transposeAttrs.size() - 1);
         auto const0 = consts.i32(0);
         Value typeSize = consts.i32(ascendc::getElementTypeSize(srcType));
-        Value srcLastDim = consts.i32(srcShape.back());
-        Value dstLastDim = dstInfo.shape.back();
-        Value minTailElements =
-            calculateCopyCount(rewriter, loc, srcShape, dstInfo.shape, offsets, op.getRealShape(), srcShape.size() - 1);
 
-        Value blockLen = rewriter.create<arith::MulIOp>(loc, minTailElements, typeSize);
-        Value srcStrideElements = rewriter.create<arith::SubIOp>(loc, srcLastDim, minTailElements);
-        Value dstStrideElements = rewriter.create<arith::SubIOp>(loc, dstLastDim, minTailElements);
-        Value blockCount = consts.i32(1);
-        blockCount =
-            calculateCopyCount(rewriter, loc, srcShape, dstInfo.shape, offsets, op.getRealShape(), srcShape.size() - 2);
-        Value dataBlockSize = consts.i32(ascendc::ubBlockSize);
-        Value srcStrideBytes = rewriter.create<arith::MulIOp>(loc, srcStrideElements, typeSize);
-        Value srcStride = rewriter.create<arith::DivSIOp>(loc, srcStrideBytes, dataBlockSize);
-        Value dstStride = rewriter.create<arith::MulIOp>(loc, dstStrideElements, typeSize);
+        SmallVector<Value> copyCount;
+        SmallVector<Value> dstShapeRev = reversePermute<Value>(dstInfo.shape, dimsOrder);
+        SmallVector<Value> offsetsRev = reversePermute<Value>(ValueRange{offsets}, dimsOrder);
+        SmallVector<Value> realShapeRev =
+            op.getRealShape().empty() ? SmallVector<Value>{} : reversePermute<Value>(op.getRealShape(), dimsOrder);
+        SmallVector<Value> dstStrides =
+            reversePermute<Value>(getStrides(rewriter, loc, consts, dstInfo.shape), dimsOrder);
+        SmallVector<int64_t> srcStrides = getStrides(srcShape);
+        for (size_t i = 0; i < srcShape.size(); ++i) {
+            copyCount.push_back(calculateCopyCount(rewriter, loc, srcShape, dstShapeRev, offsetsRev, realShapeRev, i));
+        }
+
         auto ui32Type = rewriter.getIntegerType(32, false);
-        auto extParams = rewriter.create<ascendc::ConstructOp>(
-            loc, rewriter.getType<ascendc::DataCopyExtParamsType>(),
-            ValueRange{blockCount, blockLen, srcStride, dstStride, const0},
-            rewriter.getTypeArrayAttr({rewriter.getIntegerType(16, false), ui32Type, ui32Type, ui32Type, ui32Type}));
-        Value loop1Size =
-            calculateCopyCount(rewriter, loc, srcShape, dstInfo.shape, offsets, op.getRealShape(), srcShape.size() - 3);
-        Value loop2Size = srcShape.size() == 3 ? consts.i32(1) :
-                                                 calculateCopyCount(
-                                                     rewriter, loc, srcShape, dstInfo.shape, offsets, op.getRealShape(),
-                                                     srcShape.size() - 4);
+        Value blockSize = consts.i32(ascendc::ubBlockSize);
+        Value blockCount = copyCount[copyCount.size() - 2];
+        Value blockLen = copyCount.back();
 
-        Value dim0SrcStride = rewriter.create<arith::MulIOp>(loc, consts.i32(srcShape[srcShape.size() - 1]), typeSize);
-        Value dim1SrcStride =
-            rewriter.create<arith::MulIOp>(loc, dim0SrcStride, consts.i32(srcShape[srcShape.size() - 2]));
-        Value dim2SrcStride =
-            rewriter.create<arith::MulIOp>(loc, dim1SrcStride, consts.i32(srcShape[srcShape.size() - 3]));
+        blockLen = rewriter.create<arith::MulIOp>(loc, blockLen, typeSize);
+        Value innerSrcStride = consts.i32(srcShape.back());
+        innerSrcStride = rewriter.create<arith::SubIOp>(loc, innerSrcStride, copyCount.back());
+        innerSrcStride = rewriter.create<arith::MulIOp>(loc, innerSrcStride, typeSize);
+        innerSrcStride = rewriter.create<arith::DivSIOp>(loc, innerSrcStride, blockSize);
+        Value innerDstStride = dstStrides[dstStrides.size() - 2];
+        innerDstStride = rewriter.create<arith::SubIOp>(loc, innerDstStride, copyCount.back());
+        innerDstStride = rewriter.create<arith::MulIOp>(loc, innerDstStride, typeSize);
 
-        Value dim0DstStride = rewriter.create<arith::MulIOp>(loc, dstInfo.shape[dstInfo.shape.size() - 1], typeSize);
-        Value dim1DstStride =
-            rewriter.create<arith::MulIOp>(loc, dim0DstStride, dstInfo.shape[dstInfo.shape.size() - 2]);
-        Value dim2DstStride =
-            rewriter.create<arith::MulIOp>(loc, dim1DstStride, dstInfo.shape[dstInfo.shape.size() - 3]);
-
-        auto copyOp = rewriter.replaceOpWithNewOp<ascendc::DataCopyPadExtL2Op>(op, dstInfo.tensor, src, extParams);
-        copyOp.setDirection(ascendc::TPosition::VECCALC, ascendc::TPosition::GM);
+        size_t secondDim = srcShape.size() - 3;
+        Value dim0SrcStride = rewriter.create<arith::MulIOp>(loc, consts.i32(srcStrides[secondDim]), typeSize);
+        Value dim0DstStride = rewriter.create<arith::MulIOp>(loc, dstStrides[secondDim], typeSize);
+        Value dim0CopyCount = copyCount[secondDim];
+        Value dim1SrcStride;
+        Value dim1DstStride;
+        Value dim1CopyCount;
+        if (srcShape.size() == 4) {
+            size_t firstDim = srcShape.size() - 4;
+            dim1SrcStride = rewriter.create<arith::MulIOp>(loc, consts.i32(srcStrides[firstDim]), typeSize);
+            dim1DstStride = rewriter.create<arith::MulIOp>(loc, dstStrides[firstDim], typeSize);
+            dim1CopyCount = copyCount[firstDim];
+        } else {
+            dim1SrcStride = blockSize;
+            dim1DstStride = blockSize;
+            dim1CopyCount = consts.i32(1);
+        }
         auto ui64Type = rewriter.getIntegerType(64, false);
         auto params = rewriter.create<ascendc::ConstructOp>(
             loc, rewriter.getType<ascendc::LoopModeParamsType>(),
-            ValueRange{loop1Size, loop2Size, dim1SrcStride, dim1DstStride, dim2SrcStride, dim2DstStride},
+            ValueRange{dim0CopyCount, dim1CopyCount, dim0SrcStride, dim0DstStride, dim1SrcStride, dim1DstStride},
             rewriter.getTypeArrayAttr({ui32Type, ui32Type, ui64Type, ui64Type, ui64Type, ui64Type}));
         auto setParamsOp = rewriter.create<ascendc::SetLoopModeParaOp>(loc, params, ascendc::DataCopyMVType::UB_TO_OUT);
+        auto dataCopyExtParams = rewriter.create<ascendc::ConstructOp>(
+            loc, rewriter.getType<ascendc::DataCopyExtParamsType>(),
+            ValueRange{blockCount, blockLen, innerSrcStride, innerDstStride, const0},
+            rewriter.getTypeArrayAttr({rewriter.getIntegerType(16, false), ui32Type, ui32Type, ui32Type, ui32Type}));
+        auto copyOp =
+            rewriter.replaceOpWithNewOp<ascendc::DataCopyPadExtL2Op>(op, dstInfo.tensor, src, dataCopyExtParams);
+        copyOp.setDirection(ascendc::TPosition::VECCALC, ascendc::TPosition::GM);
         rewriter.create<ascendc::ResetLoopModeParaOp>(loc, ascendc::DataCopyMVType::UB_TO_OUT);
-        rewriter.moveOpBefore(setParamsOp, copyOp);
-        rewriter.moveOpBefore(params, setParamsOp);
         return success();
     }
 };
@@ -1030,7 +1102,7 @@ struct LowerAscTileDataTransferPass
         patterns.insert<
             //
             ConvertLoadToUB, ConvertLoadToUBWithTranspose, ConvertLoadToL1, ConvertStore, ConvertStoreFixpipe,
-            ConvertCopy, ConvertGetValue, ConvertSetValue, ConvertCopyFixpipe, ConvertStoreHighDims
+            ConvertCopy, ConvertGetValue, ConvertSetValue, ConvertCopyFixpipe, ConvertStoreWithTranspose
             //
             >(converter, context);
         auto op = getOperation();

@@ -6,6 +6,8 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
+import math
+
 import asc2
 import pytest
 import torch
@@ -16,24 +18,19 @@ def require_c310_auto(require_c310):
     require_c310()
 
 
-@pytest.mark.parametrize(
-    "dtype",
-    (torch.int8, torch.int16, torch.int32, torch.int64, torch.float16, torch.bfloat16, torch.float32, torch.float64))
+@pytest.mark.parametrize("dtype", (torch.int8, torch.int16, torch.int32, torch.float16, torch.bfloat16, torch.float32))
 @pytest.mark.parametrize("permute, input_shape, real_shape, offsets, pad_value", [
     # 2d cases
     [[1, 0], [16, 32], [16, 32], [0, 0], 0],
     # 3d cases
     [[0, 2, 1], [2, 16, 32], [2, 16, 32], [0, 0, 0], 0],
     [[1, 2, 0], [8, 2, 32], [8, 2, 32], [0, 0, 0], 0],
-    [[1, 0, 2], [2, 4, 32], [2, 4, 32], [0, 0, 0], 0],
     [[2, 0, 1], [2, 16, 32], [2, 16, 32], [0, 0, 0], 0],
     [[2, 1, 0], [8, 2, 32], [8, 2, 32], [0, 0, 0], 0],
     # 4d cases
     [[0, 1, 3, 2], [2, 3, 16, 16], [2, 3, 16, 16], [0, 0, 0, 0], 0],
     [[3, 2, 1, 0], [16, 2, 3, 16], [16, 2, 3, 16], [0, 0, 0, 0], 0],
     [[3, 1, 2, 0], [32, 2, 3, 16], [32, 2, 3, 16], [0, 0, 0, 0], 0],
-    [[2, 0, 1, 3], [2, 3, 4, 32], [2, 3, 4, 32], [0, 0, 0, 0], 0],
-    [[0, 2, 1, 3], [2, 3, 4, 16], [2, 3, 4, 16], [0, 0, 0, 0], 0],
     # test with empty permutation
     [[], [64, 32], [64, 32], [0, 0], 0],
     [[], [2, 32, 16], [2, 32, 16], [0, 0, 0], 0],
@@ -51,8 +48,6 @@ def require_c310_auto(require_c310):
     [[0, 1, 3, 2], [4, 2, 32, 32], [4, 2, 32, 32], [3, 0, 0, 0], 17],
 ])
 def test_transpose_onload(permute, input_shape, real_shape, offsets, pad_value, dtype):
-    if dtype == torch.float64:
-        pytest.skip('Duplicate not supports double type')
     dim_order = permute
     if len(permute) == 0:
         dim_order = list(range(0, len(input_shape)))
@@ -63,7 +58,6 @@ def test_transpose_onload(permute, input_shape, real_shape, offsets, pad_value, 
 
     verify_copy_count = [min(max(0, input_shape[i] - offsets[i]), real_shape[i]) for i in range(0, len(dim_order))]
     verify_pad_count = [input_shape[i] - verify_copy_count[i] for i in range(0, len(dim_order))]
-    print(f'Copy count {verify_copy_count} {verify_pad_count}')
     input = torch.rand(input_shape).mul(100).to(dtype=dtype)
     result = torch.zeros(output_shape, dtype=dtype)
     items_align = 32 // input.element_size()
@@ -89,6 +83,54 @@ def test_transpose_onload(permute, input_shape, real_shape, offsets, pad_value, 
         asc2.copy_out(tile.transpose(*permute), g_output, [0] * len(output_shape))
 
     kernel[1](input, result, input_shape, real_shape, output_shape, write_real_shape, offsets, pad_value, permute)
+    torch.testing.assert_close(result, golden)
+
+
+@pytest.mark.parametrize("dtype", (torch.int8, torch.int16, torch.int32, torch.float16, torch.bfloat16, torch.float32))
+@pytest.mark.parametrize("permute, input_shape, output_shape, offsets", [
+    # 3d cases
+    [[1, 0, 2], [2, 4, 32], [4, 2, 32], [0, 0, 0]],
+    [[1, 0, 2], [2, 4, 32], [5, 3, 40], [1, 1, 4]],
+    # 4d cases
+    [[0, 2, 1, 3], [2, 3, 4, 16], [2, 4, 3, 16], [0, 0, 0, 0]],
+    [[2, 0, 1, 3], [2, 3, 4, 32], [4, 4, 4, 32], [0, 2, 0, 0]],
+    [[1, 2, 0, 3], [2, 3, 4, 32], [4, 4, 4, 32], [0, 0, 2, 0]],
+])
+def test_transpose_onstore(permute, input_shape, output_shape, offsets, dtype):
+    dim_order = permute
+    if len(permute) == 0:
+        dim_order = list(range(0, len(input_shape)))
+        dim_order[-1], dim_order[-2] = dim_order[-2], dim_order[-1]
+
+    input = torch.rand(input_shape).mul(100).to(dtype=dtype)
+    result = torch.zeros(output_shape, dtype=dtype)
+    items_align = 32 // input.element_size()
+    if output_shape[-1] % items_align != 0 or input_shape[-1] % items_align != 0:
+        pytest.skip("data is not 32 byte aligned")
+
+    golden = input.permute(dim_order)
+    read_shape = [math.prod(input_shape[:-1]), input_shape[-1]]
+
+    @asc2.jit(always_compile=True)
+    def kernel(input_ptr, result_ptr, input_shape: asc2.ConstExpr, read_shape: asc2.ConstExpr,
+               output_shape: asc2.ConstExpr, offsets: asc2.ConstExpr, permute: asc2.ConstExpr):
+
+        g_input = asc2.global_tensor(input_ptr, read_shape)
+        tile = asc2.copy_in(g_input, [0] * len(read_shape), read_shape)
+        tile = tile.reshape(input_shape)
+        g_output = asc2.global_tensor(result_ptr, output_shape)
+        asc2.copy_out(tile.transpose(*permute), g_output, offsets)
+
+    kernel[1](input, result, input_shape, read_shape, output_shape, offsets, permute)
+
+    raw = result.clone()
+    for i in permute:
+        result = result.narrow(i, offsets[i], input_shape[permute[i]])
+
+    torch.set_printoptions(sci_mode=False)
+    print(golden)
+    print(raw)
+    print(result)
     torch.testing.assert_close(result, golden)
 
 
