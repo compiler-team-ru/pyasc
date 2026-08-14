@@ -34,11 +34,11 @@ jobs:
         uses: actions/cache@v5
         with:
           path: cann.run
-          key: cann_9.0.0-beta.2_linux-x86_64
+          key: cann_9.2.0-beta.1_linux-x86_64
       - name: Download CANN
         if: steps.cache-cann.outputs.cache-hit != 'true'
         run: |
-          wget -qO cann.run https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN%209.0.T511/Ascend-cann_9.0.0-beta.2_linux-x86_64.run
+          wget -qO cann.run https://ascend-cann-open.obs.cn-north-4.myhuaweicloud.com/CANN/CANN%209.2.0-beta.1/Ascend-cann_9.2.0-beta.1_linux-x86_64.run
       - name: Install CANN
         run: |
           printf 'y\ny\n2\n' | bash cann.run --full
