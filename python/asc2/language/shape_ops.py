@@ -314,8 +314,7 @@ def squeeze(input: LocalTensor, *axis: int) -> LocalTensor:
 def transpose(input: LocalTensor, *axis: int) -> LocalTensor:
     """
     Rearrange tensor dimensions in specific order.
-    The supported data types are: ``int8``, ``int16``, ``int32``, ``int64``, ``float16``, ``bfloat16``, ``float32``,
-    ``float64``.
+    The supported data types are: ``int8``, ``int16``, ``int32``, ``float16``, ``bfloat16``, ``float32``.
 
     Args:
         input: The input tensor
@@ -355,8 +354,7 @@ def transpose(input: LocalTensor, *axis: int) -> LocalTensor:
             result = temp.transpose()
     """
     check_type("input", input, LocalTensor)
-    check_dtype("input", input,
-                (KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32, KT.float64))
+    check_dtype("input", input, (KT.int8, KT.int16, KT.int32, KT.float16, KT.bfloat16, KT.float32))
     rank = len(input.shape)
     if len(axis) == 0:
         axis = list(range(0, rank))

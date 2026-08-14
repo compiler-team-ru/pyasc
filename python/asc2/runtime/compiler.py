@@ -80,7 +80,7 @@ class Compiler(CompilerBase):
         passes.asctile.add_detect_bias_load(pm)
         passes.asctile.add_mark_reuse_source(pm)
         if arch_c310:
-            passes.asctile.add_vector_transpose_to_load(pm)
+            passes.asctile.add_vector_transpose_to_load_store(pm)
             passes.asctile.add_unscalarize_reduction(pm)
             passes.common.add_canonicalizer(pm)
             passes.common.add_cse(pm)

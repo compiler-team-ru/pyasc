@@ -449,13 +449,14 @@ def UnscalarizeReduction : Pass<"asctile-unscalarize-reduction", "func::FuncOp">
   }];
 }
 
-def VectorTransposeToLoad : Pass<"asctile-vector-transpose-to-load", "func::FuncOp"> {
-  let summary = "Replace transpose and load to single operation when possible";
-  let constructor = "mlir::asctile::createVectorTransposeToLoadPass()";
+def VectorTransposeToLoadStore : Pass<"asctile-vector-transpose-to-load-store", "func::FuncOp"> {
+  let summary = "Replace transpose and store or transpose and load to single operation when possible";
+  let constructor = "mlir::asctile::createVectorTransposeToLoadStorePass()";
   let dependentDialects = ["asctile::AscTileDialect"];
   let description = [{
     Replace `asctile.load` and `asctile.transpose` into single `asctile.load` with `asctile.transpose_dims` attribute.
-    This pass only handles GM->UB transfers.
+    Replace `asctile.transpose` and `asctile.store` into single `asctile.store` with `asctile.transpose_dims` attribute.
+    This pass only handles transfers between UB and GM.
 
     Example:
     ```mlir

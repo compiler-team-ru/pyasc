@@ -20,7 +20,7 @@
 
 namespace mlir {
 namespace asctile {
-#define GEN_PASS_DEF_VECTORTRANSPOSETOLOAD
+#define GEN_PASS_DEF_VECTORTRANSPOSETOLOADSTORE
 #include "ascir/Dialect/AscTile/Transforms/Passes.h.inc"
 } // namespace asctile
 } // namespace mlir
@@ -54,13 +54,45 @@ struct VectorTransposeToLoad : OpRewritePattern<asctile::TransposeOp> {
     }
 };
 
-struct VectorTransposeToLoadPass : public asctile::impl::VectorTransposeToLoadBase<VectorTransposeToLoadPass> {
+struct VectorTransposeToStore : OpRewritePattern<asctile::TransposeOp> {
+    using OpRewritePattern<asctile::TransposeOp>::OpRewritePattern;
+
+    LogicalResult matchAndRewrite(TransposeOp op, PatternRewriter& rewriter) const override
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        if (op.getType().getLoc() != TensorLocation::UB || !op.getResult().hasOneUse() ||
+            op.getType().getShape().size() < 3) {
+            return failure();
+        }
+        SmallVector<int32_t> dimOrder;
+        for (auto value : op.getDims().getAsValueRange<IntegerAttr>()) {
+            dimOrder.push_back(static_cast<int32_t>(value.getSExtValue()));
+        }
+        if (dimOrder.back() != dimOrder.size() - 1) {
+            return failure();
+        }
+        auto storeOp = dyn_cast<asctile::StoreOp>(*op.getResult().getUsers().begin());
+        if (!storeOp)
+            return failure();
+        auto newStoreOp = rewriter.replaceOpWithNewOp<asctile::StoreOp>(
+            storeOp, op.getOperand(), storeOp.getBase(), storeOp.getOffsets(), storeOp.getRealShape());
+
+        rewriter.startOpModification(newStoreOp);
+        newStoreOp->setAttr(asctile::attr::transposeDims, rewriter.getDenseI32ArrayAttr(dimOrder));
+        rewriter.finalizeOpModification(newStoreOp);
+        return success();
+    }
+};
+
+struct VectorTransposeToLoadStorePass
+    : public asctile::impl::VectorTransposeToLoadStoreBase<VectorTransposeToLoadStorePass> {
     void runOnOperation() override
     {
         auto op = getOperation();
         MLIRContext* context = &getContext();
         RewritePatternSet patterns(context);
-        patterns.add<VectorTransposeToLoad>(context);
+        patterns.add<VectorTransposeToLoad>(context, 1);
+        patterns.add<VectorTransposeToStore>(context, 2);
         if (applyPatternsAndFoldGreedily(op, std::move(patterns)).failed()) {
             signalPassFailure();
             return;
@@ -70,7 +102,7 @@ struct VectorTransposeToLoadPass : public asctile::impl::VectorTransposeToLoadBa
 
 } // namespace
 
-std::unique_ptr<Pass> mlir::asctile::createVectorTransposeToLoadPass()
+std::unique_ptr<Pass> mlir::asctile::createVectorTransposeToLoadStorePass()
 {
-    return std::make_unique<VectorTransposeToLoadPass>();
+    return std::make_unique<VectorTransposeToLoadStorePass>();
 }

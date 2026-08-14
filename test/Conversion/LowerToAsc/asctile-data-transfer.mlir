@@ -861,6 +861,39 @@ func.func @lower_store_4d_tensor(%arg0: memref<*xf32, 22>, %arg1: tensor<32x32x3
   return
 }
 
+// CHECK-LABEL: func.func @lower_store_4d_with_transpose
+// CHECK-DAG: %[[STRIDE1:.*]] = arith.constant 4096 : i32
+// CHECK-DAG: %[[STRIDE1a:.*]] = arith.constant 128 : i32
+// CHECK-DAG: %[[STRIDE2:.*]] = arith.constant 131072 : i32
+// CHECK-DAG: %[[COUNT1:.*]] = arith.constant 32 : i32
+// CHECK: %[[PARAMS:.*]] = ascendc.construct !ascendc.loop_mode_params(%[[COUNT1]], %[[COUNT1:.*]], %[[STRIDE1]], %[[STRIDE1a]], %[[STRIDE2]], %[[STRIDE2]]
+// CHECK: ascendc.set_loop_mode_para %[[PARAMS]] {mvType = 0 : i32}
+// CHECK: ascendc.data_copy_pad
+// CHECK: ascendc.reset_loop_mode_para {mvType = 0 : i32}
+func.func @lower_store_4d_with_transpose(%arg0: memref<*xf32, 22>, %arg1: tensor<32x32x32x32xf32, #asctile.local<UB>>) {
+  %0 = asctile.tensor %arg0() : memref<*xf32, 22>, tensor<32x32x32x32xf32, #asctile.global>
+  %c0_i32 = arith.constant 0 : i32
+  asctile.store %arg1, %0[%c0_i32, %c0_i32, %c0_i32, %c0_i32] {asctile.transpose_dims = array<i32: 0, 2, 1, 3>}: tensor<32x32x32x32xf32, #asctile.local<UB>>, tensor<32x32x32x32xf32, #asctile.global>
+  return
+}
+
+// CHECK-LABEL: func.func @lower_store_3d_with_transpose
+// CHECK-DAG: %[[STRIDE1:.*]] = arith.constant 4096 : i32
+// CHECK-DAG: %[[STRIDE2:.*]] = arith.constant 128 : i32
+// CHECK-DAG: %[[COUNT1:.*]] = arith.constant 32 : i32
+// CHECK-DAG: %[[ONE:.*]] = arith.constant 1 : i32
+// CHECK: %[[PARAMS:.*]] = ascendc.construct !ascendc.loop_mode_params(%[[COUNT1]], %[[ONE:.*]], %[[STRIDE1]], %[[STRIDE2]], %[[ANY1:.*]], %[[ANY2:.*]]
+// CHECK: ascendc.set_loop_mode_para %[[PARAMS]] {mvType = 0 : i32}
+// CHECK: ascendc.data_copy_pad
+// CHECK: ascendc.reset_loop_mode_para {mvType = 0 : i32}
+func.func @lower_store_3d_with_transpose(%arg0: memref<*xf32, 22>, %arg1: tensor<32x32x32xf32, #asctile.local<UB>>) {
+  %0 = asctile.tensor %arg0() : memref<*xf32, 22>, tensor<32x32x32xf32, #asctile.global>
+  %c0_i32 = arith.constant 0 : i32
+  asctile.store %arg1, %0[%c0_i32, %c0_i32, %c0_i32] {asctile.transpose_dims = array<i32: 1, 0, 2>}: tensor<32x32x32xf32, #asctile.local<UB>>, tensor<32x32x32xf32, #asctile.global>
+  return
+}
+
+
 // CHECK-LABEL: func.func @lower_copy_fixpipe_relu_quantize(%arg0: tensor<16x32xf32, #asctile.local<L0C>>, %arg1: i32, %arg2: i32) -> tensor<16x32xbf16, #asctile.local<L1>> {
 // CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : tensor<16x32xf32, #asctile.local<L0C>> to !ascendc.local_tensor<16x32xf32>
 // CHECK-NEXT:  %1 = ascendc.local_tensor_auto a1() : <16x32xbf16>

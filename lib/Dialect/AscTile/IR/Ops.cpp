@@ -203,13 +203,24 @@ LogicalResult LoadOp::verify()
 
 LogicalResult StoreOp::verify()
 {
-    auto realShape = getRealShape();
+    SmallVector<Value> realShape = getRealShape();
     if (realShape.empty())
         return success();
     auto tileShape = getValue().getType().getShape();
     if (tileShape.size() != realShape.size())
         return emitOpError() << "real_shape must have same size as tensor shape";
 
+    if (auto attr = getOperation()->getAttrOfType<DenseI32ArrayAttr>(asctile::attr::transposeDims)) {
+        ArrayRef<int32_t> transposeDims = attr;
+        if (transposeDims.size() != tileShape.size())
+            return emitOpError() << "transpose_dims must have same rank as tensor";
+        SmallVector<Value> tmp;
+        for (size_t i = 0; i < tileShape.size(); ++i) {
+            auto dim = transposeDims[i];
+            tmp.push_back(realShape[dim]);
+        }
+        tmp.swap(realShape);
+    }
     for (auto [realDimValue, tileDim] : llvm::zip_equal(realShape, tileShape)) {
         APInt realDim;
         if (!matchPattern(realDimValue, m_ConstantInt(&realDim)))

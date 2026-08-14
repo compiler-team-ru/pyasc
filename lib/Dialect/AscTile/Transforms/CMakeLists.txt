@@ -20,7 +20,7 @@ add_mlir_dialect_library(MLIRAscTileTransforms
   TransformStoreFixpipe.cpp
   UnrollLoop.cpp
   UnscalarizeReduction.cpp
-  VectorTransposeToLoad.cpp
+  VectorTransposeToLoadStore.cpp
   WrapCVGroups.cpp
 
   ADDITIONAL_HEADER_DIRS

@@ -70,104 +70,78 @@ def transpose_line(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress
         asc2.copy_out(transposed, result_tensor, [0, offset], real_shape=[width, load_height])
 
 
-# Iteration step is [1..1,axis_step,remaining_transposed_shape] for transposed shape.
-# Step for high dimension is 1. Lower dimensions loads as is.
-# Selected dimension loads in axis_step:
-# axis_step = 10, store_shape_axis = 1, *output_shape*=[1024,256,32] ub shape is [1,10,32]
+# For permutation like [0,2,1,3] when last dimension untouch
+# Iterate over first dimension
 @asc2.jit(reuse_alloc=1)
-def transpose_nlast_axis(
-        input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_shape: asc2.ConstExpr,  # Read tensor shape
-        axis_step: asc2.ConstExpr[int],  # How many compute per step
-        load_axes: asc2.
-    ConstExpr,  # Axis which iterated reverse order: 0 -> store_shape_axis, 1 -> store_shape_axis-1, ...
-        store_shape_axis: asc2.ConstExpr[int],  # 0,...store_shape_axis are iterated in output_shape
-        ub_load_shape: asc2.ConstExpr,  # Buffer size in ub
-        load_shape: asc2.ConstExpr,  # Used to fill real_shape on load
-        permute: asc2.ConstExpr,  # Dimensions to permute
-        block_count: asc2.ConstExpr[int],  # How many steps do total
-        unroll_factor: asc2.ConstExpr[int]):
+def transpose_nlast_axis(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, axis_step: asc2.ConstExpr,
+                         repeats: asc2.ConstExpr, permute: asc2.ConstExpr, gm_read_shape: asc2.ConstExpr,
+                         gm_write_shape: asc2.ConstExpr, ub_shape: asc2.ConstExpr, read_shape: asc2.ConstExpr,
+                         unroll_factor: asc2.ConstExpr):
+    input_tensor = asc2.global_tensor(input_ptr, gm_read_shape)
+    output_tensor = asc2.global_tensor(output_ptr, gm_write_shape)
+    for i in asc2.range(asc2.block_idx(), repeats, asc2.block_num(), unroll_factor=1):
 
-    load_shape_axis = load_axes[0]
-    output_shape = []
-    ub_store_shape = []
-    store_shape = []
-    for dim in asc2.static_range(0, len(input_shape)):
-        output_shape += [input_shape[permute[dim]]]
-        ub_store_shape += [ub_load_shape[permute[dim]]]
-        store_shape += [load_shape[permute[dim]]]
-    inner_total = asc2.ceildiv(input_shape[load_shape_axis], axis_step)
+        store_offsets = [0] * len(permute)
+        store_offsets[permute[0]] = i * axis_step
 
-    input_tensor = asc2.global_tensor(input_ptr, input_shape)
-    output_tensor = asc2.global_tensor(output_ptr, output_shape)
-
-    for i in asc2.range(asc2.block_idx(), block_count, asc2.block_num(), unroll_factor=unroll_factor):
-        id0 = i % inner_total  # this one walk by step
-        offset0 = id0 * axis_step
-        real_count = axis_step if offset0 + axis_step <= input_shape[
-            load_shape_axis] else input_shape[load_shape_axis] - offset0
-
-        store_real_shape = store_shape
-        store_real_shape[store_shape_axis] = real_count
-        store_offsets = [0] * len(input_shape)
-        store_offsets[store_shape_axis] = offset0
-
-        load_real_shape = load_shape
-        load_real_shape[load_shape_axis] = real_count
-        load_offsets = [0] * len(input_shape)
-        load_offsets[load_shape_axis] = offset0
-
-        if store_shape_axis > 0:
-            id1 = i // inner_total % output_shape[store_shape_axis - 1]
-            load_offsets[load_axes[1]] = id1
-            store_offsets[store_shape_axis - 1] = id1
-        if store_shape_axis > 1:
-            id2 = i // inner_total // output_shape[store_shape_axis - 1] % output_shape[store_shape_axis - 2]
-            load_offsets[load_axes[2]] = id2
-            store_offsets[store_shape_axis - 2] = id2
-
-        tile = asc2.copy_in(input_tensor, load_offsets, ub_load_shape)
-        tile2 = tile.transpose(*permute)
-
-        asc2.copy_out(tile2, output_tensor, store_offsets, real_shape=store_real_shape)
+        tile = asc2.copy_in(input_tensor, [i * axis_step, 0], read_shape).reshape(*ub_shape)
+        tile = tile.transpose(*permute)
+        asc2.copy_out(tile, output_tensor, store_offsets)
 
 
-def launch_nlast_axis(input, permute, axis, axis_step, unroll_factor, cores, dtype, runs, profiler):
+@asc2.jit(reuse_alloc=1)
+def transpose_nlast_axis_fat(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, axis_step: asc2.ConstExpr,
+                             repeats: asc2.ConstExpr, inner_steps: asc2.ConstExpr, permute: asc2.ConstExpr,
+                             gm_read_shape: asc2.ConstExpr, gm_write_shape: asc2.ConstExpr, ub_shape: asc2.ConstExpr,
+                             read_shape: asc2.ConstExpr, unroll_factor: asc2.ConstExpr):
+    input_tensor = asc2.global_tensor(input_ptr, gm_read_shape)
+    output_tensor = asc2.global_tensor(output_ptr, gm_write_shape)
+
+    for i in asc2.range(asc2.block_idx(), repeats, asc2.block_num(), unroll_factor=unroll_factor):
+        store_offsets = [0] * len(permute)
+        outer_id = i // inner_steps
+        axis_id = i % inner_steps
+        store_offsets[permute[0]] = outer_id
+        store_offsets[permute[1]] = axis_id * axis_step
+        tile = asc2.copy_in(input_tensor, [axis_id * axis_step + outer_id * gm_write_shape[permute[1]], 0],
+                            read_shape).reshape(*ub_shape)
+        tile = tile.transpose(*permute)
+        asc2.copy_out(tile, output_tensor, store_offsets)
+
+
+# For cases when last dimension is unchanged.
+def launch_nlast_axis(input, permute, unroll_factor, block_num, input_dtype, ub_size, runs, profiler):
     input_shape = list(input.shape)
     output_shape = [input_shape[permute[i]] for i in range(0, len(input_shape))]
-    output = torch.zeros(output_shape, dtype=dtype)
+    output = torch.zeros(output_shape, dtype=input.dtype)
     items_in_block = 32 // input.element_size()
-
-    store_shape_axis = -1  # Where load_shape_axis goes in target shape
-    load_shape_axis = permute[axis]
-    load_axes = [load_shape_axis]
-    if axis > 0:
-        load_axes += [permute[axis - 1]]
-    if axis > 1:
-        load_axes += [permute[axis - 2]]
-    for i in range(0, len(input_shape)):
-        if permute[i] == load_shape_axis:
-            store_shape_axis = i
-
-    count_main = asc2.ceildiv(output_shape[axis], axis_step)
-    count_axis0 = 1 if axis < 1 else output_shape[axis - 1]
-    count_axis1 = 1 if axis < 2 else output_shape[axis - 2]
-    count_axis2 = 1 if axis < 3 else output_shape[axis - 3]
-
-    block_count = count_main * count_axis0 * count_axis1 * count_axis2
-    load_shape = [i for i in input_shape]
-    load_shape[load_shape_axis] = axis_step
-    for i in range(0, axis):
-        load_shape[permute[i]] = 1
-
-    ub_shape = [i for i in load_shape]
+    inner_dimensions = math.prod(input_shape[1:])
+    axis_step = ub_size // (inner_dimensions * unroll_factor * input.element_size()) // 2
+    ub_shape = [i for i in input_shape]
     ub_shape[-1] = asc2.ceildiv(ub_shape[-1], items_in_block) * items_in_block
-    ub_shape[permute[-1]] = asc2.ceildiv(ub_shape[permute[-1]], items_in_block) * items_in_block
-    ub_load_shape = ub_shape
-
-    with profiler.profile():
-        for _ in range(runs):
-            transpose_nlast_axis[cores](input, output, input_shape, axis_step, load_axes, store_shape_axis,
-                                        ub_load_shape, load_shape, permute, block_count, unroll_factor)
+    gm_write_shape = output_shape
+    if axis_step > 0:
+        ub_shape[0] = axis_step
+        read_shape = [axis_step, inner_dimensions]
+        gm_read_shape = [input_shape[0], inner_dimensions]
+        repeats = asc2.ceildiv(input_shape[0], axis_step)
+        with profiler.profile():
+            for _ in range(runs):
+                transpose_nlast_axis[block_num](input, output, axis_step, repeats, permute, gm_read_shape,
+                                                gm_write_shape, ub_shape, read_shape, unroll_factor)
+    else:
+        gm_read_shape = [input_shape[0] * input_shape[1], math.prod(input_shape[2:])]
+        axis_step = ub_size // (math.prod(input_shape[2:]) * unroll_factor * input.element_size())
+        assert (axis_step > 0)
+        ub_shape[0] = 1
+        ub_shape[1] = axis_step
+        read_shape = [axis_step, math.prod(input_shape[2:])]
+        axis_steps_count = asc2.ceildiv(input_shape[1], axis_step)
+        repeats = axis_steps_count * input_shape[0] * axis_steps_count
+        with profiler.profile():
+            for _ in range(runs):
+                transpose_nlast_axis_fat[block_num](input, output, axis_step, repeats, axis_steps_count, permute,
+                                                    gm_read_shape, gm_write_shape, ub_shape, read_shape, unroll_factor)
     return output
 
 
@@ -462,17 +436,7 @@ def test_transpose(profiler, runs, kernel_type, test_name, block_num, input_shap
         axis_step = asc2.ceildiv(input.shape[axis], block_num)
         out = launch_one_axis(input, permute, axis, axis_step, unroll_factor, block_num, input_dtype, runs, profiler)
     elif tiling_key == 10004:  #Split on N-last dims
-        assert (len(input_shape) == 3 or len(input_shape) == 4)
-        iterate_axis = 0
-        # Select iteration axis which fit in UB
-        for axis in range(0, 3, 1):
-            subtensor_size = input.element_size() * math.prod(out_shape[axis + 1:]) * unroll_factor
-            if subtensor_size < ub_size:
-                iterate_axis = axis
-                step = ub_size // subtensor_size
-                break
-        out = launch_nlast_axis(input, permute, iterate_axis, step, unroll_factor, block_num, input_dtype, runs,
-                                profiler)
+        out = launch_nlast_axis(input, permute, unroll_factor, block_num, input_dtype, ub_size, runs, profiler)
     elif tiling_key == 10002:  #Split on single axis
         longest_axis = max(input.shape)
         axis = list(input.shape).index(longest_axis)
