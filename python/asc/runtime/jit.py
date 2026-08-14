@@ -56,24 +56,17 @@ class JITFunction(Function[P, T]):
         if unknown_options:
             raise RuntimeError("The following option names are unknown: " + ", ".join(unknown_options))
         self.default_options: Dict[str, Any] = options
-        self.launch_options = LaunchOptions()
+        self.launch_options = self.launcher.options_cls()
         self.kernel_cache: Dict[str, CompiledKernel] = {}
 
     def __getitem__(self, options: Union[int, tuple]) -> Callable:
         if not isinstance(options, tuple):
             options = (options, )
         try:
-            self.launch_options = LaunchOptions(*options)
+            self.launch_options = self.launcher.options_cls(*options)
         except Exception as e:
             raise TypeError("Provided launch options are not supported") from e
         return self
-
-    @staticmethod
-    def get_clashed_args(fn: Callable) -> List[str]:
-        keywords = set(__class__.get_config_keywords())
-        signature = inspect.signature(fn)
-        keywords.intersection_update(signature.parameters)
-        return list(keywords)
 
     @staticmethod
     def get_arg_type(value: Any) -> BaseArgType:
@@ -147,7 +140,7 @@ class JITFunction(Function[P, T]):
         if cached_keywords is not None:
             return cached_keywords
         keywords = []
-        for datacls in CodegenOptions, CompileOptions, LaunchOptions:
+        for datacls in cls.codegen.options_cls, cls.compiler.options_cls, cls.launcher.options_cls:
             keywords.extend(f.name for f in fields(datacls))
         setattr(cls, attr, keywords)
         return keywords

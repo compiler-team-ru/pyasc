@@ -36,8 +36,9 @@ Attributes from the following classes can be used as keyword arguments in :py:ob
    :members:
    :member-order: bysource
 
-.. autoclass:: asc.CompileOptions
+.. autoclass:: asc2.CompileOptions
    :members:
+   :inherited-members:
    :member-order: bysource
 
 .. autoclass:: asc.LaunchOptions
