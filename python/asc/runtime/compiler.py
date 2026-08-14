@@ -14,7 +14,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Literal, Optional, Tuple, final
+from typing import List, Optional, Tuple, Type
 
 from .._C import ir, passes, translation
 from ..lib.runtime import CoreType, get_soc_version
@@ -59,44 +59,10 @@ class CompileOptions:
     Typically, this parameter affects the ``-O`` argument of the command line for the compiler.
     """
 
-    run_asc2_passes: bool = False
-    """
-    Enable PyAsc2 compilation pipeline.
-    **This option is enabled automatically** when ``@asc2.jit`` decorator is used.
-    """
-
     insert_sync: Optional[bool] = None
     """
     Insert synchronization instructions automatically.
     **This feature is enabled by default**, which is usually a must, but may be disabled for the debugging purposes.
-    """
-
-    reuse_alloc: Literal[0, 1, 2] = 0
-    """
-    Try to reduce the on-chip memory usage by replacing the tensors with those allocated earlier but became unused.
-    Having this feature enabled may help to avoid memory overflow but may introduce performance regressions.
-
-    ===== ======
-    Value Effect
-    ===== ======
-    ``0`` Disable the feature (default)
-    ``1`` Enable the feature, use a legacy implementation (recommended)
-    ``2`` Enable the feature, use an experimental implementation
-    ===== ======
-    """
-
-    static_alloc: Optional[bool] = None
-    """
-    Perform static allocation for tiles instead of relying on Ascend C TPipe backend.
-    The static allocation feature may help to reduce an overhead caused by scalar code.
-
-    **This feature is enabled by default** on supported platforms (such as ``Ascend950PR_9599``).
-    """
-
-    vf_fusion: bool = False
-    """
-    Fuse groups of consecutive vector operations into VF blocks using Ascend C register API.
-    This feature may help to eliminate unnecessary memory transfers and improve data locality.
     """
 
     vf_vec_len: Optional[int] = None
@@ -145,8 +111,6 @@ class Compiler:
         self.arch = platform_to_arch(self.soc_version)
         if self.options.vf_vec_len is not None and self.arch != CompilationArch.C310:
             raise RuntimeError(f"The vector register length option is not supported for the {self.arch} architecture")
-        if self.options.vf_fusion and self.arch != CompilationArch.C310:
-            raise RuntimeError(f"The vf fusion option is not supported for the {self.arch} architecture")
         if self.options.vf_vec_len is None and self.arch == CompilationArch.C310:
             self.options.vf_vec_len = 256
         self.dump_dir: Optional[Path] = None
@@ -171,78 +135,16 @@ class Compiler:
     def run_translation(mod: ir.ModuleOp) -> str:
         return translation.ir_to_ascendc(mod)
 
-    def _schedule_lowering(self, pm: passes.PassManager) -> None:
-        arch_c310 = self.arch == CompilationArch.C310
+    @staticmethod
+    def _schedule_lowering(pm: passes.PassManager) -> None:
         passes.ascendc.add_privatize_func(pm)
         passes.common.add_inliner(pm)
         passes.common.add_symbol_dce(pm)
         passes.common.add_canonicalizer(pm)
         passes.common.add_reconcile_unrealized_casts(pm)
-        if self.options.run_asc2_passes:
-            passes.asctile.add_split_cube_load(pm)
-            passes.asctile.add_cube_transpose_to_load(pm)
-            passes.asctile.add_legalize_matmul(pm)
-            passes.common.add_canonicalizer(pm)
-            passes.asctile.add_mark_matmul_acc_with_bias(pm)
-            passes.asctile.add_fold_cast(pm)
-            passes.asctile.add_transform_math_ops(pm)
-            passes.asctile.add_transform_store_fixpipe(pm)
-            passes.asctile.add_detect_bias_load(pm)
-            passes.asctile.add_mark_reuse_source(pm)
-            if arch_c310:
-                passes.asctile.add_vector_transpose_to_load(pm)
-                passes.asctile.add_unscalarize_reduction(pm)
-                passes.common.add_canonicalizer(pm)
-                passes.common.add_cse(pm)
-            passes.asctile.add_wrap_cv_groups(pm)
-            passes.asctile.add_merge_cv_groups(pm)
-            passes.asclower.add_expand_math(pm)
-            passes.asclower.add_redress_i1_tensor(pm)
-            passes.asclower.add_lower_arith(pm)
-            passes.asclower.add_lower_arith_binary(pm)
-            passes.asclower.add_lower_atomic(pm)
-            passes.asclower.add_lower_asctile_data_transfer(pm)
-            passes.asclower.add_lower_asctile(pm)
-            passes.asclower.add_lower_asctile_to_basic(pm)
-            passes.asclower.add_lower_math(pm)
-            passes.asclower.add_lower_scf(pm)
-            passes.asclower.add_lower_tensor(pm)
-            passes.asclower.add_displace_concat(pm)
-            passes.common.add_canonicalizer(pm)
-            passes.asclower.add_realize_conversion_cast(pm)
-            passes.asclower.add_expand_mask(pm)
-            passes.ascendc.add_promote_cv_block(pm)
-            passes.ascendc.add_fill_asc_operands(pm)
-            passes.ascendc.add_fixup_mmad_acc_params_pass(pm)
         passes.ascendc.add_input_output_tensor(pm)
-        if self.options.reuse_alloc == 1:
-            passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=True)
-        passes.asctile.add_unroll_loop(pm, annotate=True)
-        passes.ascendc.add_compute_reuse_group(pm)
-        passes.common.add_canonicalizer(pm)
-        passes.common.add_cse(pm)
-        passes.ascendc.add_hoist_tensor_allocation(pm, exclude_in_out=not arch_c310)
-        passes.ascendc.add_refine_cube_position(pm)
-        if self.options.reuse_alloc == 1:
-            passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=False)
-        elif self.options.reuse_alloc == 2:
-            passes.ascendc.add_reuse_tensor_allocation(pm)
-        passes.common.add_canonicalizer(pm)
-        if self.options.vf_fusion:
-            passes.ascvf.add_find_vf_group(pm)
-            passes.ascvf.add_lower_to_reg(pm)
-            passes.common.add_canonicalizer(pm)
-            passes.common.add_cse(pm)
-            passes.ascvf.add_reorder_ops_in_vec_scope(pm)
-            passes.ascvf.add_fuse_vf_for(pm)
-            passes.ascvf.add_eliminate_common_mask(pm)
-            passes.ascvf.add_dispatch_hoist(pm)
-            passes.common.add_canonicalizer(pm)
-            passes.common.add_cse(pm)
-            passes.ascvf.add_insert_local_mem_bar(pm)
-            passes.ascvf.add_materialize_load_store(pm)
-        passes.ascendc.add_dispatch_alloc(pm)
-        passes.ascendc.add_unify_bias_tensor(pm)
+        passes.ascendc.add_hoist_tensor_allocation(pm, exclude_in_out=True)
+        passes.ascendc.add_materialize_tensor(pm, always_buf=False)
         passes.ascendc.add_unify_pipe(pm)
         passes.common.add_canonicalizer(pm)
         passes.common.add_cse(pm)
@@ -251,19 +153,10 @@ class Compiler:
         passes.common.add_licm(pm)
         passes.common.add_sccp(pm)
         passes.common.add_canonicalizer(pm)
-        if self.options.run_asc2_passes:
-            passes.ascendc.add_promote_cv_block(pm)
-            passes.ascendc.add_insert_cross_core_sync(pm)
         if self.options.insert_sync:
             passes.ascendc.add_erase_sync(pm)
             passes.ascendc.add_hoist_que_bind(pm)
-            if self.arch != CompilationArch.C310:
-                passes.ascendc.add_insert_sync(pm)
-            else:
-                passes.ascendc.add_insert_bufid_sync(pm)
-                passes.ascendc.add_insert_bias_bufid_sync(pm)
-                passes.common.add_canonicalizer(pm)
-                passes.ascendc.add_fuse_bufid_sync(pm)
+            passes.ascendc.add_insert_sync(pm)
             passes.ascendc.add_unify_pipe(pm)
             passes.common.add_canonicalizer(pm)
 
@@ -302,18 +195,12 @@ class Compiler:
                 self.options.kernel_type = KernelType.AIV_ONLY
             elif kernel_type == "cube":
                 self.options.kernel_type = KernelType.AIC_ONLY
-        self.enable_debug = (mod.op.has_unit_attr(ir.attr.enable_debug)
+        self.enable_debug = (mod.op.has_unit_attr("asc.enable_debug")
                              and str(os.environ.get("ASCENDC_DUMP", "True")).lower() == "true")
 
     def run(self, mod: ir.ModuleOp, func_name: str) -> CompiledKernel:
         utils.FileUtils.dump_file(self.dump_dir, "codegen.mlir", str(mod))
-        builder = ir.Builder(mod.op)
-        mod.set_attr(ir.attr.compilation_arch, builder.get_str_attr(self.arch.value))
-        mod.set_attr(ir.attr.soc_version, builder.get_str_attr(self.soc_version.value))
-        if self.options.static_alloc is not None:
-            mod.set_attr(ir.attr.static_alloc, builder.get_bool_attr(self.options.static_alloc))
-        if self.options.vf_vec_len is not None:
-            mod.set_attr(ir.attr.vf_vec_len, builder.get_i32_attr(self.options.vf_vec_len))
+        self.preprocess_module(mod)
         if self.options.run_passes:
             self.run_passes(mod)
         self.postprocess_module(mod)
@@ -335,17 +222,6 @@ class Compiler:
             self.options.insert_sync = mod.need_insert_sync()
         self.schedule_passes(pm)
         pm.run(mod)
-        if self.options.kernel_type is None:
-            kernel_type = mod.op.get_str_attr(ir.attr.kernel_type)
-            if kernel_type == "mixed":
-                self.options.kernel_type = (KernelType.AIC_ONLY
-                                            if self.options.matmul_cube_only else KernelType.MIX_AIC_1_2)
-            elif kernel_type == "vector":
-                self.options.kernel_type = KernelType.AIV_ONLY
-            elif kernel_type == "cube":
-                self.options.kernel_type = KernelType.AIC_ONLY
-        self.enable_debug = (mod.op.has_unit_attr("asc.enable_debug")
-                             and str(os.environ.get("ASCENDC_DUMP", "True")).lower() == "true")
 
     def run_compilation(self, source: str, kernel_args: Optional[Tuple[ir.KernelArgument]] = None,
                         **compiled_kernel_args) -> CompiledKernel:
@@ -377,19 +253,20 @@ class Compiler:
     def _schedule_postprocessing(self, pm: passes.PassManager) -> None:
         passes.ascendc.add_declare_py_struct(pm)
         passes.ascendc.add_generate_boilerplate(pm)
-        if self.options.run_asc2_passes:
-            passes.ascendc.add_insert_subblock_guard(pm)
         if self.options.matmul_cube_only:
             passes.ascendc.add_define_cube_only(pm)
-        passes.ascendc.add_legalize_kernel_args(pm, set_ffts_addr=(self.arch != CompilationArch.C310))
+        passes.ascendc.add_legalize_kernel_args(pm, set_ffts_addr=True)
         passes.ascendc.add_detect_kernel_type(pm)
         passes.ascendc.add_detect_enable_debug(pm)
         if self.options.verify_sync:
             passes.ascendc.add_verify_sync(pm)
         if self.options.strip_loc:
             passes.common.add_strip_debug_info(pm)
-        if self.options.run_asc2_passes:
-            passes.ascendc.add_compute_memory_consumption(pm)
+
+    def schedule_passes(self, pm: passes.PassManager) -> None:
+        self._schedule_lowering(pm)
+        self._schedule_optimizing(pm)
+        self._schedule_postprocessing(pm)
 
     def _gen_init_dump_code(self, source: str, func_name: str) -> str:
         dump_code = ""

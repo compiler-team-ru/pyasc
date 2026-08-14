@@ -9,7 +9,7 @@
 import os
 import ctypes
 from dataclasses import dataclass, replace as dataclass_replace
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union
 from typing_extensions import TypeAlias
 
 import numpy as np

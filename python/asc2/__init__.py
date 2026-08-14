@@ -149,6 +149,7 @@ from .language.reduction_ops import (
     reduce_prod,
 )
 
+from .runtime.compiler import CompileOptions
 from .runtime.jit import jit
 
 __all__ += [
@@ -246,6 +247,8 @@ __all__ += [
     "reduce_max",
     "reduce_min",
     "reduce_prod",
+    # .runtime.compiler
+    "CompileOptions",
     # .runtime.jit
     "jit",
 ]

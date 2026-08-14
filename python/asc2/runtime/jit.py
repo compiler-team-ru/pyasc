@@ -9,12 +9,17 @@
 from typing import Callable, Optional, TypeVar, overload
 from typing_extensions import ParamSpec
 
-from asc.runtime.jit import JITFunction
+from asc.runtime.jit import JITFunction as JITFunctionBase
 
+from .compiler import Compiler
 from .custom_builtins import get_custom_builtins
 
 P = ParamSpec("P")
 T = TypeVar("T")
+
+
+class JITFunction(JITFunctionBase[P, T]):
+    compiler = Compiler
 
 
 @overload
@@ -39,11 +44,9 @@ def jit(fn: Optional[Callable[P, T]] = None, **options):
             ...
 
     JIT options may be provided as keyword arguments to be applied to the decorated kernel function.
-    See :py:obj:`asc.CodegenOptions`, :py:obj:`asc.CompileOptions`, :py:obj:`asc.LaunchOptions` for the details.
+    See :py:obj:`asc.CodegenOptions`, :py:obj:`asc2.CompileOptions`, :py:obj:`asc.LaunchOptions` for the details.
     """
     options.setdefault("custom_builtins", get_custom_builtins())
-    options.setdefault("insert_sync", True)
-    options.setdefault("run_asc2_passes", True)
 
     def decorator(fn: Callable[P, T]) -> JITFunction[P, T]:
         return JITFunction(fn, **options)
