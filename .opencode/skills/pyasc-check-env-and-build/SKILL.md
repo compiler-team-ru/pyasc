@@ -183,9 +183,9 @@ If the output is empty, no venv was found.
   Then skip to Section 3.4.
 
 - **Multiple venvs found** (e.g., `.venv`, `venv`, `env`): Ask the user which one to use.
-  
+
   Ask the user: "Multiple virtual environments found in the project root: {list}. Which one should I activate?"
-  
+
   After the user selects, activate it:
   ```bash
   source <selected_venv>/bin/activate
@@ -193,9 +193,9 @@ If the output is empty, no venv was found.
   Then skip to Section 3.4.
 
 - **No venv found**: Ask the user whether to create one.
-  
+
   Ask the user: "No virtual environment found in the project root. Would you like me to create one?"
-  
+
   **BEFORE creating, verify the directory does not exist**:
   ```bash
   test -d .venv && echo "ERROR: .venv already exists" || python3 -m venv .venv --prompt pyasc
@@ -418,5 +418,3 @@ Ask the user to either delete the broken virtual environment manually or provide
 chmod +x $LLVM_INSTALL_PREFIX/bin/*
 chmod +x /usr/local/Ascend/cann/set_env.sh
 ```
-
-
