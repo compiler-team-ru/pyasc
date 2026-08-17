@@ -54,7 +54,9 @@ void appendImplicitUsers(Value value, SmallVectorImpl<Operation*>& allUsers)
         }
         // if value return in yield op then it is accumulator and he used as return value in forOp
         if (auto yieldOp = dyn_cast<scf::YieldOp>(user)) {
-            auto forOp = cast<scf::ForOp>(yieldOp->getParentOp());
+            auto forOp = dyn_cast<scf::ForOp>(yieldOp->getParentOp());
+            if (!forOp)
+                return;
             allUsers.push_back(forOp);
             auto opnds = yieldOp.getOperands();
             auto iterArgs = forOp.getRegionIterArgs();
@@ -62,6 +64,17 @@ void appendImplicitUsers(Value value, SmallVectorImpl<Operation*>& allUsers)
                 if (opnds[i] == value) {
                     appendImplicitUsers(iterArgs[i], allUsers);
                     appendImplicitUsers(forOp->getResult(i), allUsers);
+                }
+            }
+        }
+        if (auto yieldOp = dyn_cast<ascendc::YieldOp>(user)) {
+            Operation* ifCoreOp = yieldOp->getParentOp();
+            if (!isa<ascendc::IfAIVOp>(ifCoreOp) && !isa<ascendc::IfAICOp>(ifCoreOp))
+                return;
+            auto opnds = yieldOp.getOperands();
+            for (int i = 0; i < opnds.size(); ++i) {
+                if (opnds[i] == value) {
+                    appendImplicitUsers(ifCoreOp->getResult(i), allUsers);
                 }
             }
         }

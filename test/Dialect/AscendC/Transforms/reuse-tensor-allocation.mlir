@@ -772,3 +772,42 @@ func.func @matmul_v3_kernel(%arg0: !ascendc.mmad_params, %arg1: !ascendc.load_da
   }
   return
 }
+
+// CHECK-LABEL:func.func @reuse_cv_block(%arg0: !ascendc.data_copy_ext_params, %arg1: !ascendc.data_copy_pad_ext_params<f32>) {
+// CHECK-NEXT:  %0 = ascendc.local_tensor_auto veccalc() input : <32x64xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <32x64xf32>
+// CHECK-NEXT:  %2 = ascendc.local_tensor_auto veccalc() input : <32x64xf32>
+// CHECK-NEXT:  %c2048_i64 = arith.constant 2048 : i64
+// CHECK-NEXT:  %c4_i32 = arith.constant 4 : i32
+// CHECK-NEXT:  %c1_i32 = arith.constant 1 : i32
+// CHECK-NEXT:  %3 = ascendc.global_tensor : !ascendc.global_tensor<128x64xf32>
+// CHECK-NEXT:  ascendc.data_copy_pad_l0_ext %2, %3, %arg0, %arg1 {direction = #ascendc.copy_direction<gm, veccalc>} : !ascendc.local_tensor<32x64xf32>, !ascendc.global_tensor<128x64xf32>, !ascendc.data_copy_ext_params, !ascendc.data_copy_pad_ext_params<f32>
+// CHECK-NEXT:  %4 = scf.for %arg2 = %c1_i32 to %c4_i32 step %c1_i32 iter_args(%arg3 = %2) -> (!ascendc.local_tensor<32x64xf32>)  : i32 {
+// CHECK-NEXT:    %5 = ascendc.if_aiv(%arg3 : !ascendc.local_tensor<32x64xf32>) -> !ascendc.local_tensor<32x64xf32> {
+// CHECK-NEXT:      ascendc.data_copy_pad_l0_ext %0, %3, %arg0, %arg1 {direction = #ascendc.copy_direction<gm, veccalc>} : !ascendc.local_tensor<32x64xf32>, !ascendc.global_tensor<128x64xf32>, !ascendc.data_copy_ext_params, !ascendc.data_copy_pad_ext_params<f32>
+// CHECK-NEXT:      ascendc.add_l2 %1, %arg3, %0, %c2048_i64 : !ascendc.local_tensor<32x64xf32>, !ascendc.local_tensor<32x64xf32>, !ascendc.local_tensor<32x64xf32>, i64
+// CHECK-NEXT:      ascendc.yield %1 : !ascendc.local_tensor<32x64xf32>
+// CHECK-NEXT:    }
+// CHECK-NEXT:    scf.yield %5 : !ascendc.local_tensor<32x64xf32>
+// CHECK-NEXT:  }
+// CHECK-NEXT:  return
+// CHECK-NEXT:}
+func.func @reuse_cv_block(%arg0: !ascendc.data_copy_ext_params, %arg1: !ascendc.data_copy_pad_ext_params<f32>) {
+  %0 = ascendc.local_tensor_auto veccalc() input : <32x64xf32>
+  %1 = ascendc.local_tensor_auto veccalc() : <32x64xf32>
+  %2 = ascendc.local_tensor_auto veccalc() input : <32x64xf32>
+  %c2048_i64 = arith.constant 2048 : i64
+  %c4_i32 = arith.constant 4 : i32
+  %c1_i32 = arith.constant 1 : i32
+  %3 = ascendc.global_tensor : !ascendc.global_tensor<128x64xf32>
+  ascendc.data_copy_pad_l0_ext %0, %3, %arg0, %arg1 {direction = #ascendc.copy_direction<gm, veccalc>} : !ascendc.local_tensor<32x64xf32>, !ascendc.global_tensor<128x64xf32>, !ascendc.data_copy_ext_params, !ascendc.data_copy_pad_ext_params<f32>
+  %4 = scf.for %arg2 = %c1_i32 to %c4_i32 step %c1_i32 iter_args(%arg3 = %0) -> (!ascendc.local_tensor<32x64xf32>)  : i32 {
+    %5 = ascendc.if_aiv(%arg3 : !ascendc.local_tensor<32x64xf32>) -> !ascendc.local_tensor<32x64xf32> {
+      ascendc.data_copy_pad_l0_ext %2, %3, %arg0, %arg1 {direction = #ascendc.copy_direction<gm, veccalc>} : !ascendc.local_tensor<32x64xf32>, !ascendc.global_tensor<128x64xf32>, !ascendc.data_copy_ext_params, !ascendc.data_copy_pad_ext_params<f32>
+      ascendc.add_l2 %1, %arg3, %2, %c2048_i64 : !ascendc.local_tensor<32x64xf32>, !ascendc.local_tensor<32x64xf32>, !ascendc.local_tensor<32x64xf32>, i64
+      ascendc.yield %1 : !ascendc.local_tensor<32x64xf32>
+    }
+    scf.yield %5 : !ascendc.local_tensor<32x64xf32>
+  }
+  return
+}
