@@ -41,6 +41,13 @@ struct InlineNestedGroup : public OpRewritePattern<CVCondOp> {
     }
 };
 
+LogicalResult eraseUnusedOp(Operation* op, PatternRewriter& rewriter)
+{
+    if (!op->getUses().empty()) {
+        return failure();
+    }
+};
+
 } // namespace
 
 //===----------------------------------------------------------------------===//
@@ -60,7 +67,7 @@ void IfAICOp::getCanonicalizationPatterns(RewritePatternSet& results, MLIRContex
 {
     results.add<
         ascir::EraseEmptyGroup<IfAICOp, YieldOp>, ascir::EraseUnusedOperands<IfAICOp, YieldOp>,
-        ascir::EraseUnusedResults<IfAICOp, YieldOp>>(context);
+        ascir::EraseUnusedResults<IfAICOp, YieldOp>, InlineNestedGroup<IfAICOp>>(context);
 }
 
 //===----------------------------------------------------------------------===//
@@ -71,7 +78,7 @@ void IfAIVOp::getCanonicalizationPatterns(RewritePatternSet& results, MLIRContex
 {
     results.add<
         ascir::EraseEmptyGroup<IfAIVOp, YieldOp>, ascir::EraseUnusedOperands<IfAIVOp, YieldOp>,
-        ascir::EraseUnusedResults<IfAIVOp, YieldOp>>(context);
+        ascir::EraseUnusedResults<IfAIVOp, YieldOp>, InlineNestedGroup<IfAIVOp>>(context);
 }
 
 //===----------------------------------------------------------------------===//
