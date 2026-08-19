@@ -63,9 +63,9 @@ def cast_two(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, inpu
     ("cast_test_3", 10, ([128, 80], ), (torch.int32, ), ([128, 80], ), (torch.float16, ), (1, ), (2, 1), 0, (10, 21120, 1024, 1, 1, 1024, 1024, 0, 0, 0, 0, 0)),
     ("cast_test_4", 40, ([400, 1, 50], ), (torch.int64, ), ([400, 1, 50], ), (torch.float32, ), (0, ), (2, 0), 0, (40, 10560, 504, 1, 1, 504, 344, 0, 0, 0, 0, 0)),
     ("cast_test_5", 1, ([128], ), (torch.int64, ), ([128], ), (torch.int32, ), (3, ), (2, 3), 0, (1, 10560, 128, 1, 1, 128, 128, 32, 16, 330, 4, 4)),
-    # BUG: int8 -> int64 ("cast_test_6", 4, ([128, 128], ), (torch.int8, ), ([128, 128], ), (torch.int64, ), (9, ), (2, 9), 0, (4, 9728, 4096, 1, 1, 4096, 4096, 0, 0, 0, 0, 0)),
-    # BUG: int8 -> int64 ("cast_test_7", 1, ([1, 256], ), (torch.int8, ), ([1, 256], ), (torch.int64, ), (9, ), (2, 9), 0, (1, 9728, 256, 1, 1, 256, 256, 0, 0, 0, 0, 0)),
-    # BUG: int8 -> int64 ("cast_test_8", 1, ([1, 300], ), (torch.int8, ), ([1, 300], ), (torch.int64, ), (9, ), (2, 9), 0, (1, 9728, 304, 1, 1, 304, 300, 0, 0, 0, 0, 0)),
+    ("cast_test_6", 4, ([128, 128], ), (torch.int8, ), ([128, 128], ), (torch.int64, ), (9, ), (2, 9), 0, (4, 9728, 4096, 1, 1, 4096, 4096, 0, 0, 0, 0, 0)),
+    ("cast_test_7", 1, ([1, 256], ), (torch.int8, ), ([1, 256], ), (torch.int64, ), (9, ), (2, 9), 0, (1, 9728, 256, 1, 1, 256, 256, 0, 0, 0, 0, 0)),
+    ("cast_test_8", 1, ([1, 300], ), (torch.int8, ), ([1, 300], ), (torch.int64, ), (9, ), (2, 9), 0, (1, 9728, 304, 1, 1, 304, 300, 0, 0, 0, 0, 0)),
     ("cast_test_9", 2, ([7376, 1], ), (torch.int8, ), ([7376, 1], ), (torch.float32, ), (0, ), (2, 0), 0, (2, 17920, 3688, 1, 1, 3688, 3688, 0, 0, 0, 0, 0)),
     ("cast_test_10", 8, ([100, 1, 302], ), (torch.int8, ), ([100, 1, 302], ), (torch.float32, ), (0, ), (2, 0), 0, (8, 17920, 3776, 1, 1, 3776, 3768, 0, 0, 0, 0, 0)),
     ("cast_test_11", 64, ([650, 100], ), (torch.int32, ), ([650, 100], ), (torch.float32, ), (0, ), (2, 0), 0, (64, 15808, 1016, 1, 1, 1016, 992, 0, 0, 0, 0, 0)),
@@ -169,7 +169,11 @@ def test_cast(profiler, runs, kernel_type, test_name, block_num, input_shapes, i
         params.extend([input_shape_1d[0], block_loop_num, block_loop_num_tail, block_length])
 
     if input_dtype == torch.int8 or output_dtype == torch.int8:
-        intermediate_dtype = asc2.float16
+        if input_dtype == torch.int64 or output_dtype == torch.int64:
+            # workaround for int8 -> int64 casts
+            intermediate_dtype = asc2.int32
+        else:
+            intermediate_dtype = asc2.float16
         params.extend([tile_length, intermediate_dtype, dst_dtype, unroll_factor])
 
         with profiler.profile():
