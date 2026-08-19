@@ -143,7 +143,7 @@ def broadcast_tensors(*tensors: LocalTensor) -> Tuple[LocalTensor, ...]:
     """
     if len(tensors) < 2:
         return tensors
-    common_shape = broadcast_shapes(tensor.shape for tensor in tensors)
+    common_shape = broadcast_shapes(*(tensor.shape for tensor in tensors))
     return tuple(tensor.broadcast_to(common_shape) for tensor in tensors)
 
 
