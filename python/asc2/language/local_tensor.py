@@ -146,6 +146,45 @@ class LocalTensor(IRValue):
     def __matmul__(self, other: Self) -> Self:
         ...
 
+    # Binary operations (reversed)
+
+    def __radd__(self, other: Union[Self, RuntimeNumeric]) -> Self:
+        from .binary_ops import add
+        return add(other, self)
+
+    def __rsub__(self, other: Union[Self, RuntimeNumeric]) -> Self:
+        from .binary_ops import sub
+        return sub(other, self)
+
+    def __rmul__(self, other: Union[Self, RuntimeNumeric]) -> Self:
+        from .binary_ops import mul
+        return mul(other, self)
+
+    def __rtruediv__(self, other: Union[Self, RuntimeNumeric]) -> Self:
+        from .binary_ops import div
+        return div(other, self)
+
+    def __rfloordiv__(self, other: Union[Self, RuntimeNumeric]) -> Self:
+        return other / self
+
+    def __rand__(self, other: Union[Self, RuntimeNumeric]) -> Self:
+        from .binary_ops import bitwise_and
+        return bitwise_and(other, self)
+
+    def __ror__(self, other: Union[Self, RuntimeNumeric]) -> Self:
+        from .binary_ops import bitwise_or
+        return bitwise_or(other, self)
+
+    def __rxor__(self, other: Union[Self, RuntimeNumeric]) -> Self:
+        from .binary_ops import bitwise_xor
+        return bitwise_xor(other, self)
+
+    def __rmatmul__(self, other: Self) -> Self:
+        from .binary_ops import matmul
+        return matmul(other, self)
+
+    # Comparison operations
+
     def __eq__(self, other: Union[Self, RuntimeNumeric]) -> Self:
         ...
 

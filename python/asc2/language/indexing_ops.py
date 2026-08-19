@@ -133,13 +133,15 @@ def mask(*, count: Optional[RuntimeInt] = None, bits: Optional[Iterable[RuntimeI
     if other is not None:
         check_type("other", other, RuntimeNumeric)
         other = _mat(other).to_ir()
-    if count is not None:
+    has_count = count is not None
+    has_bits = bits is not None
+    if has_count and has_bits:
+        raise ValueError("Only one of 'count' or 'bits' can be provided, not both")
+    if has_count:
         check_runtime_int("count", count)
         mask_op = builder.create_asctile_CountMaskOp(_mat(count, KT.int64).to_ir(), other)
-    elif bits is not None:
-        bits = verify_runtime_ints(bits, "bits")
-        if len(bits) != 2:
-            raise RuntimeError(f"Expected two integers in 'bits', got {len(bits)}")
+    elif has_bits:
+        bits = verify_runtime_ints(bits, "bits", 2)
         mask_op = builder.create_asctile_BitwiseMaskOp(
             _mat(bits[0], KT.int64).to_ir(),
             _mat(bits[1], KT.int64).to_ir(), other)
