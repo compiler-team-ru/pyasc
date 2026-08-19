@@ -23,6 +23,23 @@ using namespace mlir::ascendc;
 
 namespace {
 
+template <typename CVCondOp>
+struct InlineNestedGroup : public OpRewritePattern<CVCondOp> {
+    using OpRewritePattern<CVCondOp>::OpRewritePattern;
+
+    LogicalResult matchAndRewrite(CVCondOp op, PatternRewriter& rewriter) const override
+    {
+        if (!op->template getParentOfType<CVCondOp>())
+            return failure();
+        Block* body = op.getBody();
+        auto yieldOp = cast<YieldOp>(body->getTerminator());
+        rewriter.inlineBlockBefore(body, op);
+        rewriter.replaceOp(op, yieldOp.getOperands());
+        rewriter.eraseOp(yieldOp);
+        return success();
+    }
+};
+
 LogicalResult eraseUnusedOp(Operation* op, PatternRewriter& rewriter)
 {
     if (!op->getUses().empty()) {
@@ -51,7 +68,7 @@ void IfAICOp::getCanonicalizationPatterns(RewritePatternSet& results, MLIRContex
 {
     results.add<
         ascir::EraseEmptyGroup<IfAICOp, YieldOp>, ascir::EraseUnusedOperands<IfAICOp, YieldOp>,
-        ascir::EraseUnusedResults<IfAICOp, YieldOp>>(context);
+        ascir::EraseUnusedResults<IfAICOp, YieldOp>, InlineNestedGroup<IfAICOp>>(context);
 }
 
 //===----------------------------------------------------------------------===//
@@ -62,7 +79,7 @@ void IfAIVOp::getCanonicalizationPatterns(RewritePatternSet& results, MLIRContex
 {
     results.add<
         ascir::EraseEmptyGroup<IfAIVOp, YieldOp>, ascir::EraseUnusedOperands<IfAIVOp, YieldOp>,
-        ascir::EraseUnusedResults<IfAIVOp, YieldOp>>(context);
+        ascir::EraseUnusedResults<IfAIVOp, YieldOp>, InlineNestedGroup<IfAIVOp>>(context);
 }
 
 //===----------------------------------------------------------------------===//
