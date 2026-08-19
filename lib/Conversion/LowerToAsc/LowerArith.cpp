@@ -42,8 +42,11 @@ struct ConvertSplatConstant : ConvertOp<arith::ConstantOp> {
         Value scalar = rewriter.create<arith::ConstantOp>(op.getLoc(), dense.getSplatValue<TypedAttr>());
         Location loc = op.getLoc();
         Value dst = createTensorOp(rewriter, loc, op.getType());
+        auto ifOp = rewriter.create<ascendc::IfAIVOp>(loc, TypeRange{}, ValueRange{});
+        rewriter.setInsertionPointToStart(&ifOp.getRegion().emplaceBlock());
         rewriter.create<ascendc::DuplicateL2Op>(loc, dst, scalar, consts.i64(calCount(dst)));
         rewriter.replaceOp(op, dst);
+        rewriter.create<ascendc::YieldOp>(loc);
         return success();
     }
 };

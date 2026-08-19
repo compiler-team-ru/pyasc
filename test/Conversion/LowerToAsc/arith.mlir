@@ -12,7 +12,9 @@
 // CHECK:       %cst = arith.constant 8.000000e+00 : f32
 // CHECK:       %0 = ascendc.local_tensor_auto veccalc() : <3xf32>
 // CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %0 : !ascendc.local_tensor<3xf32> to tensor<3xf32, #asctile.local<UB>>
-// CHECK-NEXT:  ascendc.duplicate_l2 %0, %cst, %c3_i64 : !ascendc.local_tensor<3xf32>, f32, i64
+// CHECK-NEXT:  ascendc.if_aiv {
+// CHECK-NEXT:    ascendc.duplicate_l2 %0, %cst, %c3_i64 : !ascendc.local_tensor<3xf32>, f32, i64
+// CHECK-NEXT:  }
 // CHECK-NEXT:  return %1 : tensor<3xf32, #asctile.local<UB>>
 // CHECK-NEXT:}
 func.func @lower_splat_constant() -> tensor<3xf32, #asctile.local<UB>> {
