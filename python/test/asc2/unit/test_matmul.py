@@ -57,6 +57,19 @@ def test_matmul_hf32(jit_test, mock_launch, zero_tile):
     assert mock_launch.call_count == 1
 
 
+def test_matmul_acc(jit_test, mock_launch, zero_tile):
+
+    @jit_test
+    def kernel():
+        acc = zero_tile([64, 128], asc2.float32, asc2.TensorLocation.L0C)
+        x = zero_tile([64, 128], asc2.float32, asc2.TensorLocation.L0A)
+        y = zero_tile([128, 128], asc2.float32, asc2.TensorLocation.L0B)
+        asc2.matmul_acc(acc, x, y)
+
+    kernel[1]()
+    assert mock_launch.call_count == 1
+
+
 @pytest.mark.parametrize("dtype", invalid_dtypes)
 def test_invalid_dtype(jit_test, zero_tile, dtype):
 

@@ -363,3 +363,13 @@ class TestBroadcastTensors:
 
         with pytest.raises(RuntimeError, match="not broadcastable"):
             kernel[1]()
+
+    def test_single_tensor(self, jit_test, mock_launch, zero_tile):
+
+        @jit_test
+        def kernel():
+            x = zero_tile([32, 64], asc2.float32)
+            asc2.broadcast_tensors(x)
+
+        kernel[1]()
+        assert mock_launch.call_count == 1

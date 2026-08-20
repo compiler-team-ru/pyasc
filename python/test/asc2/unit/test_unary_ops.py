@@ -141,3 +141,64 @@ def test_invalid_location(jit_test, zero_tile, spec: UnaryOpSpec, loc):
 
     with pytest.raises(RuntimeError, match="location"):
         kernel[1]()
+
+
+def test_softmax_3d_error(jit_test, zero_tile):
+
+    @jit_test
+    def kernel():
+        x = zero_tile([2, 3, 4], asc2.float32)
+        asc2.softmax(x)
+
+    with pytest.raises(RuntimeError, match="dimensionality"):
+        kernel[1]()
+
+
+def test_rms_norm(jit_test, mock_launch, zero_tile):
+
+    @jit_test
+    def kernel():
+        x = zero_tile([32, 128], asc2.float32)
+        gamma = zero_tile([128], asc2.float32)
+        asc2.rms_norm(x, gamma, 1e-6)
+
+    kernel[1]()
+    assert mock_launch.call_count == 1
+
+
+def test_rms_norm_3d_error(jit_test, zero_tile):
+
+    @jit_test
+    def kernel():
+        x = zero_tile([2, 3, 4], asc2.float32)
+        gamma = zero_tile([4], asc2.float32)
+        asc2.rms_norm(x, gamma, 1e-6)
+
+    with pytest.raises(RuntimeError, match="dimensionality"):
+        kernel[1]()
+
+
+def test_layer_norm(jit_test, mock_launch, zero_tile):
+
+    @jit_test
+    def kernel():
+        x = zero_tile([32, 128], asc2.float32)
+        gamma = zero_tile([128], asc2.float32)
+        beta = zero_tile([128], asc2.float32)
+        asc2.layer_norm(x, gamma, beta, 1e-6)
+
+    kernel[1]()
+    assert mock_launch.call_count == 1
+
+
+def test_layer_norm_3d_error(jit_test, zero_tile):
+
+    @jit_test
+    def kernel():
+        x = zero_tile([2, 3, 4], asc2.float32)
+        gamma = zero_tile([4], asc2.float32)
+        beta = zero_tile([4], asc2.float32)
+        asc2.layer_norm(x, gamma, beta, 1e-6)
+
+    with pytest.raises(RuntimeError, match="dimensionality"):
+        kernel[1]()
