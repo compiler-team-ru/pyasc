@@ -50,6 +50,36 @@ class TestCopyIn:
         kernel[1](MockTensor(asc2.float32))
         assert mock_launch.call_count == 1
 
+    def test_pad_value_without_real_shape(self, jit_test, mock_launch):
+
+        @jit_test
+        def kernel(x_ptr: asc2.GlobalAddress):
+            x_gm = asc2.global_tensor(x_ptr, [128])
+            asc2.copy_in(x_gm, [0], [128], pad_value=0.0)
+
+        kernel[1](MockTensor(asc2.float32))
+        assert mock_launch.call_count == 1
+
+    def test_real_shape_without_pad_value(self, jit_test, mock_launch):
+
+        @jit_test
+        def kernel(x_ptr: asc2.GlobalAddress):
+            x_gm = asc2.global_tensor(x_ptr, [128])
+            asc2.copy_in(x_gm, [0], [128], real_shape=[64])
+
+        kernel[1](MockTensor(asc2.float32))
+        assert mock_launch.call_count == 1
+
+    def test_real_shape_exceeds_tensor(self, jit_test):
+
+        @jit_test
+        def kernel(x_ptr: asc2.GlobalAddress):
+            x_gm = asc2.global_tensor(x_ptr, [64])
+            asc2.copy_in(x_gm, [0], [128], real_shape=[256])
+
+        with pytest.raises(RuntimeError, match="exceeds"):
+            kernel[1](MockTensor(asc2.float32))
+
     def test_invalid_src_type(self, jit_test):
 
         @jit_test
@@ -298,3 +328,14 @@ class TestTo:
 
         kernel[1](MockTensor(asc2.float32))
         assert mock_launch.call_count == 1
+
+
+def test_copy_in_misaligned(jit_test):
+
+    @jit_test
+    def kernel(x_ptr: asc2.GlobalAddress):
+        x_gm = asc2.global_tensor(x_ptr, [32, 33])
+        asc2.copy_in(x_gm, [0, 0], [32, 33])
+
+    with pytest.raises(RuntimeError, match="aligned"):
+        kernel[1](MockTensor(asc2.float32))

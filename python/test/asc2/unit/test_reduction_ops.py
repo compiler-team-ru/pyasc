@@ -177,3 +177,14 @@ def test_reduce_all_dims_not_supported(jit_test, zero_tile):
 
     with pytest.raises(RuntimeError, match="not supported"):
         kernel[1]()
+
+
+def test_reduce_all_unit_dims(jit_test, mock_launch, zero_tile):
+
+    @jit_test
+    def kernel():
+        x = zero_tile([1, 1], asc2.float32)
+        asc2.reduce_sum(x, 0, 1, keep_dims=True)
+
+    kernel[1]()
+    assert mock_launch.call_count == 1

@@ -27,6 +27,26 @@ def test_full(jit_test, mock_launch, dtype):
     assert mock_launch.call_count == 1
 
 
+def test_full_infer_int_dtype(jit_test, mock_launch):
+
+    @jit_test
+    def kernel():
+        asc2.full([32], 42)
+
+    kernel[1]()
+    assert mock_launch.call_count == 1
+
+
+def test_full_infer_float_dtype(jit_test, mock_launch):
+
+    @jit_test
+    def kernel():
+        asc2.full([32], 3.14)
+
+    kernel[1]()
+    assert mock_launch.call_count == 1
+
+
 @pytest.mark.parametrize("dtype", valid_dtypes)
 def test_zeros(jit_test, mock_launch, dtype):
 
@@ -95,6 +115,26 @@ def test_cast(jit_test, mock_launch, zero_tile, src_dtype, dst_dtype):
 
     kernel[1]()
     assert mock_launch.call_count == 1
+
+
+def test_cast_scalar(jit_test, mock_launch):
+
+    @jit_test
+    def kernel():
+        asc2.cast(2.0, asc2.float16)
+
+    kernel[1]()
+    assert mock_launch.call_count == 1
+
+
+def test_cast_scalar_with_round_mode(jit_test):
+
+    @jit_test
+    def kernel():
+        asc2.cast(2.0, asc2.float16, round_mode=asc2.RoundMode.Floor)
+
+    with pytest.raises(RuntimeError, match="round_mode"):
+        kernel[1]()
 
 
 @pytest.mark.parametrize("dtype", valid_dtypes)
