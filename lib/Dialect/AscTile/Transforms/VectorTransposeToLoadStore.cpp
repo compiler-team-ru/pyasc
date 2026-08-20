@@ -8,6 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/AscTile/Transforms/Passes.h"
 #include "ascir/Dialect/AscTile/Utils/Attributes.h"
@@ -69,6 +70,9 @@ struct VectorTransposeToStore : OpRewritePattern<asctile::TransposeOp> {
             dimOrder.push_back(static_cast<int32_t>(value.getSExtValue()));
         }
         if (dimOrder.back() != dimOrder.size() - 1) {
+            return failure();
+        }
+        if (op.getType().getShape().back() * ascendc::getElementTypeSize(op.getType()) <= ascendc::ubBlockSize * 2) {
             return failure();
         }
         auto storeOp = dyn_cast<asctile::StoreOp>(*op.getResult().getUsers().begin());
