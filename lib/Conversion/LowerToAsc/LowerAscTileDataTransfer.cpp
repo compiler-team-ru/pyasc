@@ -637,7 +637,8 @@ struct ConvertStore : ConvertOp<asctile::StoreOp> {
         Value dstStrideElements = rewriter.create<arith::SubIOp>(loc, dstLastDim, minTailElements);
         Value blockCount = consts.i32(1);
         if (srcShape.size() > 1) {
-            blockCount = realShape.empty() ? srcShape[srcShape.size() - 2] : realShape[srcShape.size() - 2];
+            blockCount = calculateCopyCount(
+                rewriter, loc, srcType.getShape(), dstInfo.shape, offsets, realShape, srcShape.size() - 2);
         }
         Value dataBlockSize = consts.i32(ascendc::ubBlockSize);
         Value srcStrideBytes = rewriter.create<arith::MulIOp>(loc, srcStrideElements, typeSize);

@@ -89,12 +89,12 @@ def test_transpose_onload(permute, input_shape, real_shape, offsets, pad_value, 
 @pytest.mark.parametrize("dtype", (torch.int8, torch.int16, torch.int32, torch.float16, torch.bfloat16, torch.float32))
 @pytest.mark.parametrize("permute, input_shape, output_shape, offsets", [
     # 3d cases
-    [[1, 0, 2], [2, 4, 32], [4, 2, 32], [0, 0, 0]],
-    [[1, 0, 2], [2, 4, 32], [5, 3, 40], [1, 1, 4]],
+    [[1, 0, 2], [2, 4, 128], [4, 2, 128], [0, 0, 0]],
+    [[1, 0, 2], [2, 4, 128], [5, 3, 160], [1, 1, 4]],
     # 4d cases
-    [[0, 2, 1, 3], [2, 3, 4, 16], [2, 4, 3, 16], [0, 0, 0, 0]],
-    [[2, 0, 1, 3], [2, 3, 4, 32], [4, 4, 4, 32], [0, 2, 0, 0]],
-    [[1, 2, 0, 3], [2, 3, 4, 32], [4, 4, 4, 32], [0, 0, 2, 0]],
+    [[0, 2, 1, 3], [2, 3, 4, 128], [2, 4, 3, 128], [0, 0, 0, 0]],
+    [[2, 0, 1, 3], [2, 3, 4, 128], [4, 4, 4, 128], [0, 2, 0, 0]],
+    [[1, 2, 0, 3], [2, 3, 4, 128], [4, 4, 4, 128], [0, 0, 2, 0]],
 ])
 def test_transpose_onstore(permute, input_shape, output_shape, offsets, dtype):
     dim_order = permute
