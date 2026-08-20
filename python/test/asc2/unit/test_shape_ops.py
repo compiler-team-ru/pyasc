@@ -268,6 +268,17 @@ class TestTranspose:
         with pytest.raises(RuntimeError, match="location"):
             kernel[1]()
 
+    @pytest.mark.parametrize("loc", (asc2.TensorLocation.L0A, asc2.TensorLocation.L0B, asc2.TensorLocation.L1))
+    def test_non_ub_align(self, jit_test, mock_launch, zero_tile, loc):
+
+        @jit_test
+        def kernel():
+            x = zero_tile([8, 64], asc2.float16, loc)
+            x.T
+
+        kernel[1]()
+        assert mock_launch.call_count == 1
+
 
 class TestBroadcastShapes:
 

@@ -364,14 +364,15 @@ def transpose(input: LocalTensor, *axis: int) -> LocalTensor:
     if list(axis) == list(range(0, rank)):  # Identity transformation
         return input
     if rank == 2:
-        verify_location(input.location, "input",
-                        (TensorLocation.UB, TensorLocation.L1, TensorLocation.L0A, TensorLocation.L0B))
+        location = verify_location(input.location, "input",
+                                   (TensorLocation.UB, TensorLocation.L1, TensorLocation.L0A, TensorLocation.L0B))
     else:
-        verify_location(input.location, "input", TensorLocation.UB)
+        location = verify_location(input.location, "input", TensorLocation.UB)
     if set(axis) != set(range(0, rank)):
         raise RuntimeError(f"Wrong dimensions rearrangement {axis} for tensor of {rank} dimensions")
     result_shape = [input.shape[i] for i in axis]
-    check_data_alignment(result_shape, input.dtype)
+    if location == TensorLocation.UB:
+        check_data_alignment(result_shape, input.dtype)
     ir_type = ir.clone_shaped_type(input.to_ir().get_type(), result_shape)
     handle = global_builder.get_ir_builder().create_asctile_TransposeOp(
         ir_type, input.to_ir(),
