@@ -30,6 +30,7 @@ jobs:
         with:
           ref: ${{ atomgit.event.pull_request.merge_commit_sha }}
           token: ${{secrets.GIT_TOKEN}}
+          path: ${{ steps.process_checkout.outputs.path }}
       -
         name: download
         uses: obs-download
@@ -74,9 +75,6 @@ jobs:
             ${{ steps.process_checkout.outputs.path }}/${{ inputs.ut_package }}
           object-prefix: ${{ env.obs_path }}/
     if: "${{ default() }}"
-    runs-on:
-      - dedicate-hosted
-      - x64
-      - ${{ inputs.spec }}
+    runs-on: ["self-hosted", "arch=x64", "spec=${{ inputs.spec }}"]
     container:
       image: swr.cn-north-4.myhuaweicloud.com/ci_cann/${{ inputs.image_version }}

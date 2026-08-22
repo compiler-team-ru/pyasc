@@ -11,7 +11,6 @@
 set -e
 set -o pipefail
 
-mkdir -p /home/taskspace && cd /home/taskspace
 echo "start run test case, please wait ..."
 
 export ASCEND_GLOBAL_LOG_LEVEL=2
@@ -32,11 +31,6 @@ conda deactivate
 mkdir -p /root/ascend
 slog_name="slog.tar.gz"
 tar -zcf slog.tar.gz -C /root/ascend log
-OBS_KEY="${obs_smoke_path}/plog/${slog_name}"
-# upload plog
-if python3 /home/upload.py --bucket-name "ascend-ci" --action upload  --local-file "slog.tar.gz" --obs-object-key "${OBS_KEY}"; then
-  echo "::set-output var=plog_url:https://ascend-ci.obs.cn-north-4.myhuaweicloud.com/${OBS_KEY}"
-fi
 
 date_time=$(date +%Y%m%d.%H%M%S)
 mkdir -p ./npu_log
