@@ -11,7 +11,8 @@
 
 set -e
 set -o pipefail
-
+apt update
+apt install -y lcov
 REPOSITORY_NAME="pyasc"
 
 # Print and execute command
@@ -23,14 +24,14 @@ function LOG_DO() {
 }
 
 cd "${WORKSPACE}" || exit 1
-export LLVM_INSTALL_PREFIX=/home/jenkins/opensource/llvm
+# export LLVM_INSTALL_PREFIX=/home/jenkins/opensource/llvm
 ver=$(grep -E "^VERSION_ID=" /etc/os-release | cut -d'"' -f2)
-if [[ "$ver" != "20.04" ]] ; then
-    export PATH=/opt/buildtools/python-3.10.2/bin:$PATH
-    if [[ "${task_name}" == *_ubuntu24 ]] ; then
-        sudo update-alternatives --set gcc /usr/bin/gcc-14
-    fi
-fi
+# if [[ "$ver" != "20.04" ]] ; then
+    # export PATH=/opt/buildtools/python-3.10.2/bin:$PATH
+    # if [[ "${task_name}" == *_ubuntu24 ]] ; then
+    #     update-alternatives --set gcc /usr/bin/gcc-14
+    # fi
+# fi
 gcc --version
 cmake --version
 lcov --version
@@ -38,7 +39,7 @@ gcov --version
 mkdir -p "${WORKSPACE}/build_out" || exit 1
 
 set +e
-LOG_DO python3 -m pip wheel . --wheel-dir="${WORKSPACE}"
+LOG_DO python3 -m pip wheel . --wheel-dir="${WORKSPACE}" --default-timeout=100 -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/
 ret=$?
 if [[ ${ret} -eq 0 ]]; then
     echo "Install ${REPOSITORY_NAME} via pip wheel success"
@@ -68,7 +69,8 @@ else
     exit 1
 fi
 
-source /home/jenkins/Ascend/cann/bin/setenv.bash
+source /usr/local/Ascend/cann/bin/setenv.bash
+export ASCEND_HOME_PATH=/usr/local/Ascend/cann
 export LD_LIBRARY_PATH="${ASCEND_HOME_PATH}/tools/simulator/Ascend910B1/lib:${LD_LIBRARY_PATH:-}"
 echo "Build ${REPOSITORY_NAME}."
 # 跑仿真用例，非NPU用例

@@ -67,7 +67,7 @@ stages:
           task_name: 'compile_x86'
           package_name: 'cann-pyasc_linux-x86_64.whl'
           arch: 'x64'
-          spec: 'large'
+          spec: 'xlarge'
           image_version: ${{ jobs.JOB_image.outputs.Compile_Ascend_x86 }}
       Compile_Ascend_ARM:
         name: Compile_Ascend_ARM
@@ -76,7 +76,7 @@ stages:
           task_name: 'compile_arm'
           package_name: 'cann-pyasc_linux-aarch64.whl'
           arch: 'arm64'
-          spec: 'xlarge'
+          spec: 'large'
           image_version: ${{ jobs.JOB_image.outputs.Compile_Ascend_ARM }}
       Compile_Ascend_X86_ubuntu24:
         name: Compile_Ascend_X86_ubuntu24
@@ -97,11 +97,11 @@ stages:
           spec: 'xlarge'
           image_version: ${{ jobs.JOB_image.outputs.Compile_Ascend_ARM_ubuntu24 }}
       JOB_codecheck:
-         name: CodeCheck
-         uses: .gitcode/workflows/codecheck_action.yml
-         with:
-           precommit_image_version: ${{ jobs.JOB_image.outputs.precommit }}
-           codecheck_image_version: ${{ jobs.JOB_image.outputs.codecheck }}
+        name: CodeCheck
+        uses: cann/.gitcode/.gitcode/workflows/codecheck_action.yml@master
+        with:
+          precommit_image_version: ${{ jobs.JOB_image.outputs.precommit }}
+          codecheck_image_version: ${{ jobs.JOB_image.outputs.codecheck }}
       JOB_staticcheck_md_check:
          name: CodeCheck_staticcheck_md_check
          uses: .gitcode/workflows/staticcheck_action.yml

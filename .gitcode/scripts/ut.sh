@@ -17,7 +17,7 @@ echo "${TARGET_BRANCH:-}"
 echo "${obs_path:-}"
 
 grep -E "^VERSION_ID=" /etc/os-release | cut -d'"' -f2
-sudo update-alternatives --set gcc /usr/bin/gcc-14
+# update-alternatives --set gcc /usr/bin/gcc-14
 gcc --version
 
 # Print and execute command
@@ -37,16 +37,20 @@ main(){
     #########
     # install #
     #########
-    export ASCEND_HOME_PATH=/home/jenkins/Ascend/cann
-    source /home/jenkins/Ascend/cann/bin/setenv.bash
-    export LLVM_INSTALL_PREFIX=/home/jenkins/opensource/llvm
+    # export ASCEND_HOME_PATH=/home/jenkins/Ascend/cann
+    # source /home/jenkins/Ascend/cann/bin/setenv.bash
+    export ASCEND_HOME_PATH=/usr/local/Ascend/cann
+    source /usr/local/Ascend/cann/bin/setenv.bash
+    # export LLVM_INSTALL_PREFIX=/home/jenkins/opensource/llvm
 
     export LD_LIBRARY_PATH="${ASCEND_HOME_PATH}/tools/simulator/Ascend910B1/lib:${LD_LIBRARY_PATH:-}"
-    ln -sf /opt/buildtools/python-3.10.2/bin/coverage /usr/local/bin/coverage || { echo "Failed to ln coverage"; exit 1; }
+    apt update && apt install -y lcov
+    pip3 install lit -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/
+    ln -sf $(which coverage) /usr/local/bin/coverage || { echo "Failed to ln coverage"; exit 1; }
 
     set +e
     local obs_base="https://ascend-ci.obs.cn-north-4.myhuaweicloud.com/${obs_path}/cann-pyasc_linux-x86_64_ubuntu24.whl"
-    local p_name="pyasc-1.1.1+gf870bf7-cp310-cp310-linux_x86_64.whl"
+    local p_name="pyasc-1.1.1+gf870bf7-cp311-cp311-linux_x86_64.whl"
     if ! wget -O "${p_name}" "${obs_base}"; then
         echo "Download ${p_name} from ${obs_base} failed"
         exit 1
@@ -59,7 +63,11 @@ main(){
     echo "Start run c++ testcase"
     cd "${WORKSPACE}/test" || exit 1
     coverage_save="false"
+    pip install coverage -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/
+    pip install lcov -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/
+    pip install pytest -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/
     if [[ "${ut_type}" == "python" ]]; then
+        echo "ut_process=ut_cov" >> "${ATOMGIT_OUTPUT}"
         LOG_DO bash build_llt.sh --cov --run_python_ut --llvm_install_path "${LLVM_INSTALL_PREFIX}" -f "${WORKSPACE}/pr_filelist.txt"
         ret=$?
         if [[ ${ret} -eq 200 ]]; then
@@ -67,9 +75,9 @@ main(){
             exit 0
         fi
     elif [[ "${ut_type}" == "cpp" ]]; then
-        export PATH="/opt/buildtools/python-3.10.2/bin:${PATH}"
         export LIT_INSTALL_PATH="$(dirname "$(dirname "$(which lit)")")"
         echo $LIT_INSTALL_PATH
+        echo "ut_process=ut_cov" >> "${ATOMGIT_OUTPUT}"
         LOG_DO bash build_llt.sh --cov --check-ascir --llvm_install_path "${LLVM_INSTALL_PREFIX}" --lit_install_path "${LIT_INSTALL_PATH}" -f "${WORKSPACE}/pr_filelist.txt"
         ret=$?
         if [[ ${ret} -eq 200 ]]; then
@@ -85,7 +93,9 @@ main(){
         echo "run ut fail"
         exit 1
     fi
-    echo "ut_process=coverage" >> "${ATOMGIT_OUTPUT}"
+    coverage_info=$(find "${WORKSPACE}" -type f -name "coverage.info" | head -n1)
+    mkdir -p ${WORKSPACE}/cov
+    cp -rf ${coverage_info} ${WORKSPACE}/cov/coverage.info
     exit 0
 }
 

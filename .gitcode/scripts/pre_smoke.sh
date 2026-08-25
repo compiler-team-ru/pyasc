@@ -18,14 +18,11 @@ export ASCEND_SLOG_PRINT_TO_STDOUT=0
 
 source /usr/local/Ascend/cann/set_env.sh
 obs_base="https://ascend-ci.obs.cn-north-4.myhuaweicloud.com/${obs_path}/${package_name}"
-wget -O "pyasc-1.1.1+ge7eeb79-cp310-cp310-linux_aarch64.whl" ${obs_base}
-
-source /opt/conda/bin/activate python310
-python -m pip install --force-reinstall --quiet pyasc-1.1.1+ge7eeb79-cp310-cp310-linux_aarch64.whl
-python -m pip install pyyaml --disable-pip-version-check
+wget -O "pyasc-1.1.1+ge7eeb79-cp311-cp311-linux_aarch64.whl" ${obs_base}
+/opt/conda/bin/python3.11 -m pip install --force-reinstall --quiet pyasc-1.1.1+ge7eeb79-cp311-cp311-linux_aarch64.whl
+/opt/conda/bin/python3.11 -m pip install pyyaml --disable-pip-version-check
 source /usr/local/Ascend/ascend-toolkit/latest/bin/setenv.bash
 bash test/run_presmoke_npu_test.sh 2>&1 | tee -a ./run_test.log
-conda deactivate
 
 # 打包plog
 mkdir -p /root/ascend
