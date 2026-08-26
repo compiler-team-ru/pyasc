@@ -30,6 +30,8 @@ Programming model
     global_tensor
     block_idx
     block_num
+    sub_block_idx
+    sub_block_num
 
 
 Iterators
