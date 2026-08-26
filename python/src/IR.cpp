@@ -42,6 +42,7 @@
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
 #include "mlir/IR/Verifier.h"
+#include "llvm/Support/SourceMgr.h"
 
 #include <pybind11/cast.h>
 #include <pybind11/functional.h>
@@ -668,6 +669,7 @@ void bindOperation(py::module& m)
 
 void bindOpstate(py::module& m)
 {
+    using namespace py::literals;
     using ret = py::return_value_policy;
     py::class_<OpState>(m, "OpState", py::module_local())
         .def("get_context", &OpState::getContext, ret::reference)
@@ -699,7 +701,22 @@ void bindOpstate(py::module& m)
                 return str;
             })
         .def("append_operand", [](OpState& self, Value& val) { self->insertOperands(self->getNumOperands(), val); })
-        .def("verify", [](OpState& self) -> bool { return succeeded(verify(self.getOperation())); })
+        .def(
+            "verify",
+            [](OpState& self, bool raising) -> bool {
+                llvm::SourceMgr sourceMgr;
+                std::string diagnostic;
+                llvm::raw_string_ostream os(diagnostic);
+                SourceMgrDiagnosticHandler handler(sourceMgr, self.getContext(), os);
+                auto result = verify(self.getOperation());
+                if (result.failed() && raising) {
+                    constexpr StringLiteral prefix = "Failed to verify the operation";
+                    diagnostic = (Twine(prefix) + (diagnostic.empty() ? "" : ":\n") + diagnostic).str();
+                    throw std::runtime_error(diagnostic.c_str());
+                }
+                return result.succeeded();
+            },
+            "raising"_a = false)
         .def_property_readonly("op", &OpState::getOperation, ret::reference);
 }
 

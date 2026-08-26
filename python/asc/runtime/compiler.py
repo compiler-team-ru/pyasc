@@ -216,7 +216,7 @@ class Compiler:
     def run_passes(self, mod: ir.ModuleOp) -> None:
         pm = passes.PassManager(mod.get_context())
         pm.enable_verifier()
-        if self.options.print_ir_before_all:
+        if self.options.print_ir_before_all or os.environ.get("PYASC_PRINT_IR"):
             pm.enable_printing()
         if self.options.insert_sync is None:
             self.options.insert_sync = mod.need_insert_sync()

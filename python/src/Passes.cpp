@@ -56,9 +56,14 @@ void definePassManager(py::module& m)
             "run",
             [](PassManager& self, ModuleOp& mod) {
                 llvm::SourceMgr sourceMgr;
-                SourceMgrDiagnosticHandler handler(sourceMgr, self.getContext());
-                if (self.run(mod.getOperation()).failed())
-                    throw std::runtime_error("Failed to run passes");
+                std::string diagnostic;
+                llvm::raw_string_ostream os(diagnostic);
+                SourceMgrDiagnosticHandler handler(sourceMgr, self.getContext(), os);
+                if (self.run(mod.getOperation()).failed()) {
+                    constexpr StringLiteral prefix = "Failed to run passes";
+                    diagnostic = (Twine(prefix) + (diagnostic.empty() ? "" : ":\n") + diagnostic).str();
+                    throw std::runtime_error(diagnostic.c_str());
+                }
             })
         .def(
             "enable_verifier", [](PassManager& self, bool enable) { self.enableVerifier(enable); }, "enable"_a = true)
