@@ -1,5 +1,5 @@
 name: Question|问题咨询
-description: 如果您需要咨询或者讨论问题，请使用此模板。
+description: Use this template to ask questions or start a discussion. / 如果您需要咨询或者讨论问题，请使用此模板。
 title: "[Question|问题咨询]: "
 labels: ["question"]
 body:
@@ -9,7 +9,7 @@ body:
         Welcome to ask questions and discuss with other members.
   - type: textarea
     attributes:
-      label: 问题描述
-      description: 请描述下您的问题
+      label: Question / 问题描述 (Mandatory / 必填)
+      description: Please describe your question. / 请描述下您的问题
     validations:
       required: true

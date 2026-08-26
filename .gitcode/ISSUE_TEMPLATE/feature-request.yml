@@ -1,33 +1,33 @@
 name: Requirement|需求建议
-description: 您需要反馈或实现一个新需求时，请使用此模板。
+description: Use this template to suggest or propose a new feature. / 您需要反馈或实现一个新需求时，请使用此模板。
 title: "[Requirement|需求建议]: "
 labels: ["requirement"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for sending an requirement! Please fill in the following template to help quickly solve your problem.
+        Thanks for sending a feature request! Please fill in the following template to help us evaluate it quickly.
   - type: textarea
     attributes:
-      label: Backgroud（背景信息）
-      description: 请描述下新需求的功能是什么，解决了什么问题
+      label: Background / 背景信息 (Mandatory / 必填)
+      description: Please describe what the new feature does and what problem it solves. / 请描述下新需求的功能是什么，解决了什么问题
     validations:
       required: true
   - type: textarea
     attributes:
-      label: Origin（信息来源）
-      description: 请说明下是哪个部门/团队提出的需求，以便我们确定优先级
+      label: Origin / 信息来源 (Mandatory / 必填)
+      description: Please tell us which department/team raised this request, so we can prioritize it. / 请说明下是哪个部门/团队提出的需求，以便我们确定优先级
     validations:
       required: true
   - type: textarea
     attributes:
-      label: Benefit / Necessity （价值/作用）
-      description: 请描述下该需求的价值，应用场景等
+      label: Benefit / Necessity / 价值/作用 (Optional / 选填)
+      description: Please describe the value of this feature and its application scenarios. / 请描述下该需求的价值，应用场景等
     validations:
       required: false
   - type: textarea
     attributes:
-      label: Design（设计方案）
-      description: 请描述/解释设计的总体思路（可以使用伪代码）
+      label: Design / 设计方案 (Optional / 选填)
+      description: Please describe the overall design idea (pseudocode is welcome). / 请描述/解释设计的总体思路（可以使用伪代码）
     validations:
       required: false
