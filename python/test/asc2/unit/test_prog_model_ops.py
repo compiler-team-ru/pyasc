@@ -29,3 +29,25 @@ def test_block_num(jit_test, mock_launch):
 
     kernel[1]()
     assert mock_launch.call_count == 1
+
+
+def test_sub_block_idx(jit_test, mock_launch):
+
+    @jit_test
+    def kernel():
+        idx = asc2.sub_block_idx()
+        assert idx.dtype == asc2.int32
+
+    kernel[1]()
+    assert mock_launch.call_count == 1
+
+
+def test_sub_block_num(jit_test, mock_launch):
+
+    @jit_test
+    def kernel():
+        num = asc2.sub_block_num()
+        assert num.dtype == asc2.int32
+
+    kernel[1]()
+    assert mock_launch.call_count == 1

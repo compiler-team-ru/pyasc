@@ -60,13 +60,13 @@ def AscendC_GetProgramCounterOp : APIOp<"get_program_counter", "GetProgramCounte
 def AscendC_GetSubBlockIdxOp
     : APIOp<"get_sub_block_idx", "GetSubBlockIdx", [AscFunc]> {
   let description = "Get the vector core ID in AI Core";
-  let results = (outs I64:$value);
+  let results = (outs AnySignlessIntegerOrIndex:$value);
   let assemblyFormat = "attr-dict `:` type($value)";
 }
 
 def AscendC_GetSubBlockNumOp : APIOp<"get_sub_block_num", "GetSubBlockNum", [AscFunc]> {
   let description = "Get the num of vector core in aicore";
-  let results = (outs UI64:$value);
+  let results = (outs AnySignlessIntegerOrIndex:$value);
   let assemblyFormat = "attr-dict `:` type($value)";
 }
 

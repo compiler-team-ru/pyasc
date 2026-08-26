@@ -103,6 +103,8 @@ from .language.memory_ops import (
 from .language.prog_model_ops import (
     block_idx,
     block_num,
+    sub_block_idx,
+    sub_block_num,
 )
 from .language.shape_ops import (
     broadcast_shapes,
@@ -207,6 +209,8 @@ __all__ += [
     # .language.prog_model_ops
     "block_idx",
     "block_num",
+    "sub_block_idx",
+    "sub_block_num",
     # .language.shape_ops
     "broadcast_shapes",
     "broadcast_tensors",

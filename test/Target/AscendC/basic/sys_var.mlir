@@ -13,7 +13,6 @@
 // CHECK-NEXT:  int64_t v2 = static_cast<int64_t>(AscendC::GetBlockIdx());
 // CHECK-NEXT:  uint32_t v3 = static_cast<uint32_t>(AscendC::GetBlockNum());
 // CHECK-NEXT:  int32_t v4 = static_cast<int32_t>(AscendC::GetBlockNum());
-// CHECK-NEXT:  uint64_t v5 = AscendC::GetSubBlockNum();
 // CHECK-NEXT:  return;
 // CHECK-NEXT: }
 func.func @emit_get_block_info() {
@@ -21,7 +20,19 @@ func.func @emit_get_block_info() {
   %1 = ascendc.get_block_idx : i64
   %2 = ascendc.get_block_num : index
   %3 = ascendc.get_block_num : i32
-  %4 = ascendc.get_sub_block_num : ui64
+  return
+}
+
+// CHECK-LABEL:void emit_get_sub_block_info(__gm__ uint64_t* v1) {
+// CHECK-NEXT:  set_ffts_base_addr(*v1);
+// CHECK-NEXT:  int32_t v2 = AscendC::GetSubBlockIdx();
+// CHECK-NEXT:  int32_t v3 = AscendC::GetSubBlockNum();
+// CHECK-NEXT:  return;
+// CHECK-NEXT:}
+func.func @emit_get_sub_block_info(%arg0: memref<?xui64, 22>) {
+  ascendc.set_ffts_base_addr %arg0 : memref<?xui64, 22>
+  %0 = ascendc.get_sub_block_idx : i32
+  %1 = ascendc.get_sub_block_num : i32
   return
 }
 
@@ -54,17 +65,6 @@ func.func @emit_get_data_block_size_in_bytes() {
 func.func @emit_get_program_counter() {
   %0 = ascendc.get_program_counter : i32
   %1 = ascendc.get_program_counter : i64
-  return
-}
-
-// CHECK-LABEL:void emit_get_sub_block_idx(__gm__ uint64_t* v1) {
-// CHECK-NEXT:  set_ffts_base_addr(*v1);
-// CHECK-NEXT:  int64_t v2 = AscendC::GetSubBlockIdx();
-// CHECK-NEXT:  return;
-// CHECK-NEXT:}
-func.func @emit_get_sub_block_idx(%arg0: memref<?xui64, 22>){
-  ascendc.set_ffts_base_addr %arg0 : memref<?xui64, 22>
-  %0 = ascendc.get_sub_block_idx : i64
   return
 }
 
