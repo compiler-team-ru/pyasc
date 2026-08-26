@@ -22,7 +22,7 @@ from ..language.core.constexpr import ConstExpr
 from ..language.core.dtype import DataType, KnownTypes as KT
 from ..language.core.range import range as asc_range
 from ..language.core.struct import Struct
-from ..language.core.utils import global_builder
+from ..language.core.utils import global_builder, static_assert
 from ..lib import runtime as rt
 from .._C import ir
 from .compiler import CompileOptions, Compiler
@@ -249,7 +249,7 @@ def jit(**options) -> Callable[[Callable[P, T]], JITFunction[P, T]]:
 
 
 def jit(fn: Optional[Callable[P, T]] = None, **options):
-    options.setdefault("custom_builtins", CustomBuiltins(range=asc_range))
+    options.setdefault("custom_builtins", CustomBuiltins({"assert": static_assert, "range": asc_range}))
 
     def decorator(fn: Callable[P, T]) -> JITFunction[P, T]:
         return JITFunction(fn, **options)

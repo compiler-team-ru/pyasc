@@ -10,10 +10,11 @@ from dataclasses import dataclass
 import functools
 import itertools
 import operator
-from typing import Any, Callable, Iterable, List, Tuple, Union
+from typing import Any, Callable, Iterable, List, Optional, Tuple, Union
 
 from asc.codegen.function_visitor import CustomBuiltins
 from asc.language.core.ir_value import PlainValue, RuntimeNumeric
+from asc.language.core.utils import static_assert
 
 from ..language.binary_ops import maximum, minimum
 from ..language.range import range as custom_range
@@ -96,8 +97,13 @@ def custom_sum(iterable: Iterable, /, start: Union[LocalTensor, RuntimeNumeric] 
                               builtin_fn=operator.add)
 
 
+def custom_assert(test: bool, message: Optional[str] = None) -> None:
+    static_assert(test, message)
+
+
 def get_custom_builtins() -> CustomBuiltins:
     return CustomBuiltins({
+        "assert": custom_assert,
         "max": custom_max,
         "min": custom_min,
         "range": custom_range,

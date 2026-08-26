@@ -26,7 +26,7 @@ from ..language.core.dtype import KnownTypes
 from ..language.core.ir_value import GlobalAddress, IRHandle, IRValue, PlainValue, materialize_ir_value
 from ..language.core.range import BaseRange, static_range
 from ..language.core.struct import BaseField, Struct
-from ..language.core.utils import static_assert, global_builder
+from ..language.core.utils import global_builder
 
 T = TypeVar("T")
 P = ParamSpec("P")
@@ -398,13 +398,13 @@ class FunctionVisitor(ast.NodeVisitor):
 
     def visit_Assert(self, node: ast.Assert) -> None:
         test = self.visit(node.test)
+        message = self.visit(node.msg)
         try:
-            test = ConstExpr(test)
-            static_assert(test, self.visit(node.msg))
-        except TypeError:
-            self.raise_unsupported(
-                node,
-                f"An assertion turned out to test a runtime value {test!r}, only compile-time values are supported")
+            assert_handler = self.scope.lookup("assert")
+            return assert_handler(test, message)
+        except NameError:
+            pass
+        assert test, message
 
     def visit_Assign(self, node: ast.Assign) -> None:
         targets = [node.target] if isinstance(node, ast.AnnAssign) else node.targets
