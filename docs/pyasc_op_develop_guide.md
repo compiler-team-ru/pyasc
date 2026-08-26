@@ -12,11 +12,11 @@
 
 - **pyasc 安装**
 
-  pyasc 支持通过 pip 快速安装和基于源码编译安装两种方式。具体请参考 [pyasc 快速入门-编译环境准备](quick_start.md#buildenv)。
+  pyasc 支持通过 pip 快速安装和基于源码编译安装两种方式。具体请参考 [pyasc 快速入门-pyasc安装](quick_start.md#buildenv)。
 
 - **CANN 软件安装**
 
-  开发算子前需要安装 CANN 软件。安装 CANN 软件后，需要设置环境变量。具体请参考 [pyasc 快速入门-运行环境准备](quick_start.md#runtimeenv)。
+  开发算子前需要安装 CANN 软件，具体请参考 [pyasc 快速入门-下载安装CANN包](quick_start.md#canninstall)。安装 CANN 软件后，需要设置环境变量，具体请参考 [pyasc 快速入门-运行环境变量配置](quick_start.md#envvar-config)。
 
 ## 算子分析
 

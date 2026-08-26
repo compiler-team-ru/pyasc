@@ -116,7 +116,8 @@
     | `<ascend/cann:tag>` | 指定要运行的Docker镜像 | 请确保此镜像名和标签（tag）与您通过`docker pull`拉取的镜像完全一致 |
     | `bash` | 容器启动后立即执行的命令 | - |
 
-### 3️⃣ 下载安装CANN包<a name=canninstall></a>
+<a id="canninstall"></a>
+### 3️⃣ 下载安装CANN包
 
 若您需要手动安装软件包，请按照如下步骤选择正确的版本进行安装。
 
@@ -238,7 +239,8 @@ python3 -m pip install -r requirements-runtime.txt # run-time dependencies
 - GLIBC >= 2.31
 - cmake >= 3.20
 
-## 🔨 pyasc安装<a name="buildenv"></a>
+<a id="buildenv"></a>
+## 🔨 pyasc安装
 
 pyasc支持通过pip快速安装和基于源码编译安装两种方式。
 
@@ -306,7 +308,7 @@ pip install pyasc
   pip3 list | grep -w "pyasc"
   ```
 
-<a name="envvar-config"></a>
+<a id="envvar-config"></a>
 ## ⚙️ 运行环境变量配置
 
 > [!NOTE] 使用前须知
