@@ -20,7 +20,7 @@ def jit_test():
 
 
 def verify_module(mod, options):
-    assert mod.verify(), f"IR verification failed\n{mod}"
+    mod.verify(raising=True)
 
 
 @pytest.fixture(autouse=True)
