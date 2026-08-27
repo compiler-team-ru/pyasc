@@ -10,6 +10,7 @@
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Utils/CVGroupCanonicalization.h"
+#include "ascir/Dialect/Utils/Utils.h"
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/Matchers.h"
@@ -40,15 +41,6 @@ struct InlineNestedGroup : public OpRewritePattern<CVCondOp> {
     }
 };
 
-LogicalResult eraseUnusedOp(Operation* op, PatternRewriter& rewriter)
-{
-    if (!op->getUses().empty()) {
-        return failure();
-    }
-    rewriter.eraseOp(op);
-    return success();
-}
-
 } // namespace
 
 //===----------------------------------------------------------------------===//
@@ -57,7 +49,7 @@ LogicalResult eraseUnusedOp(Operation* op, PatternRewriter& rewriter)
 
 LogicalResult GlobalTensorOp::canonicalize(GlobalTensorOp op, PatternRewriter& rewriter)
 {
-    return eraseUnusedOp(op, rewriter);
+    return ascir::eraseUnusedOp(op, rewriter);
 }
 
 //===----------------------------------------------------------------------===//
@@ -99,7 +91,7 @@ OpFoldResult GlobalTensorSubIndexOp::fold([[maybe_unused]] FoldAdaptor adaptor)
 
 LogicalResult LocalTensorOp::canonicalize(LocalTensorOp op, PatternRewriter& rewriter)
 {
-    return eraseUnusedOp(op, rewriter);
+    return ascir::eraseUnusedOp(op, rewriter);
 }
 
 //===----------------------------------------------------------------------===//
@@ -168,7 +160,7 @@ OpFoldResult LocalTensorReinterpretCastOp::fold([[maybe_unused]] FoldAdaptor ada
 
 LogicalResult LocalTensorAutoOp::canonicalize(LocalTensorAutoOp op, PatternRewriter& rewriter)
 {
-    return eraseUnusedOp(op, rewriter);
+    return ascir::eraseUnusedOp(op, rewriter);
 }
 
 //===----------------------------------------------------------------------===//
@@ -177,7 +169,7 @@ LogicalResult LocalTensorAutoOp::canonicalize(LocalTensorAutoOp op, PatternRewri
 
 LogicalResult RegTensorOp::canonicalize(RegTensorOp op, PatternRewriter& rewriter)
 {
-    return eraseUnusedOp(op, rewriter);
+    return ascir::eraseUnusedOp(op, rewriter);
 }
 
 //===----------------------------------------------------------------------===//

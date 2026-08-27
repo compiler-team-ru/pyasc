@@ -9,6 +9,7 @@
  */
 
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
+#include "ascir/Dialect/Utils/Utils.h"
 
 #include "mlir/Dialect/Utils/StaticValueUtils.h"
 #include "mlir/IR/Builders.h"
@@ -152,11 +153,7 @@ OpFoldResult VariableOp::getInit(bool fold)
 
 LogicalResult VariableOp::canonicalize(VariableOp op, PatternRewriter& rewriter)
 {
-    if (op->getUses().empty()) {
-        rewriter.eraseOp(op);
-        return success();
-    }
-    return failure();
+    return ascir::eraseUnusedOp(op, rewriter);
 }
 
 //===----------------------------------------------------------------------===//

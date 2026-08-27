@@ -11,6 +11,7 @@
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/AscTile/Utils/Attributes.h"
 #include "ascir/Dialect/Utils/CVGroupCanonicalization.h"
+#include "ascir/Dialect/Utils/Utils.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/IR/Builders.h"
@@ -19,8 +20,6 @@
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/TypeUtilities.h"
 #include "llvm/ADT/STLExtras.h"
-
-#include <numeric>
 
 using namespace mlir;
 using namespace mlir::asctile;
@@ -85,11 +84,7 @@ LogicalResult verifyCVGroupOp(Operation* op)
 
 LogicalResult AccumulatorOp::canonicalize(AccumulatorOp op, PatternRewriter& rewriter)
 {
-    if (op->getUses().empty()) {
-        rewriter.eraseOp(op);
-        return success();
-    }
-    return failure();
+    return ascir::eraseUnusedOp(op, rewriter);
 }
 
 //===----------------------------------------------------------------------===//
@@ -145,27 +140,13 @@ LogicalResult DimOp::verify()
 // CopyOp
 //===----------------------------------------------------------------------===//
 
-LogicalResult CopyOp::canonicalize(CopyOp op, PatternRewriter& rewriter)
-{
-    if (op->getUses().empty()) {
-        rewriter.eraseOp(op);
-        return success();
-    }
-    return failure();
-}
+LogicalResult CopyOp::canonicalize(CopyOp op, PatternRewriter& rewriter) { return ascir::eraseUnusedOp(op, rewriter); }
 
 //===----------------------------------------------------------------------===//
 // LoadOp
 //===----------------------------------------------------------------------===//
 
-LogicalResult LoadOp::canonicalize(LoadOp op, PatternRewriter& rewriter)
-{
-    if (op->getUses().empty()) {
-        rewriter.eraseOp(op);
-        return success();
-    }
-    return failure();
-}
+LogicalResult LoadOp::canonicalize(LoadOp op, PatternRewriter& rewriter) { return ascir::eraseUnusedOp(op, rewriter); }
 
 LogicalResult LoadOp::verify()
 {
@@ -293,11 +274,7 @@ LogicalResult StoreFixpipeOp::verify()
 
 LogicalResult CopyFixpipeOp::canonicalize(CopyFixpipeOp op, PatternRewriter& rewriter)
 {
-    if (op->getUses().empty()) {
-        rewriter.eraseOp(op);
-        return success();
-    }
-    return failure();
+    return ascir::eraseUnusedOp(op, rewriter);
 }
 
 LogicalResult CopyFixpipeOp::verify()

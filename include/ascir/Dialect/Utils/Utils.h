@@ -11,6 +11,8 @@
 #ifndef ASCIR_DIALECT_UTILS_UTILS_H
 #define ASCIR_DIALECT_UTILS_UTILS_H
 
+#include "mlir/IR/Operation.h"
+#include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/Value.h"
 
 #include <cstddef>
@@ -32,6 +34,18 @@ using ValueSet = std::unordered_set<Value, PointerLikeTypeHash<Value>>;
 
 using ValueVector = SmallVector<Value>;
 
+namespace ascir {
+
+inline LogicalResult eraseUnusedOp(Operation* op, PatternRewriter& rewriter)
+{
+    if (op->getUses().empty()) {
+        rewriter.eraseOp(op);
+        return success();
+    }
+    return failure();
+}
+
+} // namespace ascir
 } // namespace mlir
 
 #endif // ASCIR_DIALECT_UTILS_UTILS_H
