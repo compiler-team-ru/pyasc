@@ -41,13 +41,6 @@ struct InlineNestedGroup : public OpRewritePattern<CVCondOp> {
     }
 };
 
-LogicalResult eraseUnusedOp(Operation* op, PatternRewriter& rewriter)
-{
-    if (!op->getUses().empty()) {
-        return failure();
-    }
-};
-
 } // namespace
 
 //===----------------------------------------------------------------------===//
@@ -167,7 +160,7 @@ OpFoldResult LocalTensorReinterpretCastOp::fold([[maybe_unused]] FoldAdaptor ada
 
 LogicalResult LocalTensorAutoOp::canonicalize(LocalTensorAutoOp op, PatternRewriter& rewriter)
 {
-    return eraseUnusedOp(op, rewriter);
+    return ascir::eraseUnusedOp(op, rewriter);
 }
 
 //===----------------------------------------------------------------------===//
@@ -176,7 +169,7 @@ LogicalResult LocalTensorAutoOp::canonicalize(LocalTensorAutoOp op, PatternRewri
 
 LogicalResult RegTensorOp::canonicalize(RegTensorOp op, PatternRewriter& rewriter)
 {
-    return eraseUnusedOp(op, rewriter);
+    return ascir::eraseUnusedOp(op, rewriter);
 }
 
 //===----------------------------------------------------------------------===//
