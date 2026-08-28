@@ -957,17 +957,24 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
             auto srcTensorType = cast<ascendc::BaseTensorType>(srcType);
             auto elemType = srcTensorType.getElementType();
             int64_t elementSize = ascendc::getElementTypeSize(srcTensorType);
-            int64_t height = srcShape[0];
-            int64_t width = srcShape[1];
+            auto dstShape = opType.getShape();
+            int64_t height = dstShape[0];
+            int64_t width = dstShape[1];
+            int64_t srcWidth = srcShape[1];
+            if (!offsets.empty()) {
+                Value linearOffset = linearizeOffset(rewriter, loc, getStaticShape(rewriter, srcTensorType), offsets);
+                src = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcTensorType, src, linearOffset);
+            }
             int64_t cubeKBlockSize = static_cast<int64_t>(cubeKBlockBytes) / elementSize;
             int64_t colBlocks = width / cubeKBlockSize;
+            int64_t srcColBlocks = srcWidth / cubeKBlockSize;
             int64_t totalElements = height * width;
             auto const0 = consts.i32(0);
             auto const1 = consts.i32(1);
             auto tempUB = createTensorOp(rewriter, loc, {totalElements}, elemType).getResult();
             auto dataCopyParams = rewriter.create<ascendc::ConstructOp>(
                 loc, rewriter.getType<ascendc::DataCopyParamsType>(),
-                ValueRange{consts.i32(height), const1, consts.i32(colBlocks - 1), const0});
+                ValueRange{consts.i32(height), const1, consts.i32(srcColBlocks - 1), const0});
             auto tempType = cast<ascendc::BaseTensorType>(tempUB.getType());
             auto forOp = rewriter.create<scf::ForOp>(loc, const0, consts.i32(colBlocks), const1);
             {
