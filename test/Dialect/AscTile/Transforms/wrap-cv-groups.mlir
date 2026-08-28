@@ -154,3 +154,23 @@ func.func @matmul_acc_cube_group(%arg0: tensor<16x16xf32, #asctile.local<L0C>>, 
   asctile.matmul_acc %arg0, %arg1, %arg2 : tensor<16x16xf32, #asctile.local<L0C>>, tensor<16x16xf16, #asctile.local<L0A>>, tensor<16x16xf16, #asctile.local<L0B>>
   return
 }
+
+// CHECK-LABEL: func.func @sync_all_hard_wrap() {
+// CHECK-NEXT:    asctile.vector_group {
+// CHECK-NEXT:      ascendc.sync_all_hard
+// CHECK-NEXT:    }
+// CHECK-NEXT:    return
+// CHECK-NEXT:  }
+func.func @sync_all_hard_wrap() {
+  ascendc.sync_all_hard
+  return
+}
+
+// CHECK-LABEL: func.func @no_sync_all_soft_wrap(%arg0: !ascendc.global_tensor<*xui8>, %arg1: !ascendc.local_tensor<*xui8>, %arg2: i32) {
+// CHECK-NEXT:    ascendc.sync_all_soft %arg0, %arg1, %arg2 : !ascendc.global_tensor<*xui8>, !ascendc.local_tensor<*xui8>, i32
+// CHECK-NEXT:    return
+// CHECK-NEXT:  }
+func.func @no_sync_all_soft_wrap(%arg0: !ascendc.global_tensor<*xui8>, %arg1: !ascendc.local_tensor<*xui8>, %arg2: i32) {
+  ascendc.sync_all_soft %arg0, %arg1, %arg2 : !ascendc.global_tensor<*xui8>, !ascendc.local_tensor<*xui8>, i32
+  return
+}

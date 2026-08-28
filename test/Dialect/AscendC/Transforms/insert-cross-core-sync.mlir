@@ -13,14 +13,20 @@
 // CHECK-NEXT:    %2 = ascendc.local_tensor_v3 co1, 0, 1024 : !ascendc.local_tensor<16x16xf32>
 // CHECK-NEXT:    ascendc.mmad %2, %arg0, %arg1, %arg2 : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.mmad_params
 // CHECK-NEXT:    %c0_i32 = arith.constant 0 : i32
-// CHECK-NEXT:    ascendc.cross_core_set_flag %c0_i32, 4, pipe_m : i32
+// CHECK-NEXT:    ascendc.cross_core_set_flag %c0_i32, 4, pipe_fix : i32
 // CHECK-NEXT:    %c16_i32 = arith.constant 16 : i32
-// CHECK-NEXT:    ascendc.cross_core_set_flag %c16_i32, 4, pipe_m : i32
+// CHECK-NEXT:    ascendc.cross_core_set_flag %c16_i32, 4, pipe_fix : i32
+// CHECK-NEXT:    %c0_i32_0 = arith.constant 0 : i32
+// CHECK-NEXT:    ascendc.cross_core_set_flag %c0_i32_0, 4, pipe_mte1 : i32
+// CHECK-NEXT:    %c16_i32_1 = arith.constant 16 : i32
+// CHECK-NEXT:    ascendc.cross_core_set_flag %c16_i32_1, 4, pipe_mte1 : i32
 // CHECK-NEXT:    ascendc.yield %2 : !ascendc.local_tensor<16x16xf32>
 // CHECK-NEXT:  }
 // CHECK-NEXT:  %1 = ascendc.if_aiv(%0 : !ascendc.local_tensor<16x16xf32>) -> !ascendc.local_tensor<32xf32> {
 // CHECK-NEXT:    %c0_i32 = arith.constant 0 : i32
 // CHECK-NEXT:    ascendc.cross_core_wait_flag %c0_i32, 4, pipe_s : i32
+// CHECK-NEXT:    %c0_i32_0 = arith.constant 0 : i32
+// CHECK-NEXT:    ascendc.cross_core_wait_flag %c0_i32_0, 4, pipe_s : i32
 // CHECK-NEXT:    %2 = ascendc.local_tensor_v3 veccalc, 0, 128 : !ascendc.local_tensor<32xf32>
 // CHECK-NEXT:    ascendc.relu_l2 %2, %0, %arg3 : !ascendc.local_tensor<32xf32>, !ascendc.local_tensor<16x16xf32>, i64
 // CHECK-NEXT:    ascendc.yield %2 : !ascendc.local_tensor<32xf32>
@@ -46,7 +52,7 @@ func.func @aic_mmad_then_aiv(%arg0: !ascendc.local_tensor<16x16xf32>, %arg1: !as
 // CHECK-NEXT:    %2 = ascendc.local_tensor_v3 veccalc, 0, 128 : !ascendc.local_tensor<32xf32>
 // CHECK-NEXT:    ascendc.relu_l2 %2, %arg0, %arg3 : !ascendc.local_tensor<32xf32>, !ascendc.local_tensor<32xf32>, i64
 // CHECK-NEXT:    %c0_i32 = arith.constant 0 : i32
-// CHECK-NEXT:    ascendc.cross_core_set_flag %c0_i32, 4, pipe_v : i32
+// CHECK-NEXT:    ascendc.cross_core_set_flag %c0_i32, 4, pipe_mte3 : i32
 // CHECK-NEXT:    ascendc.yield %2 : !ascendc.local_tensor<32xf32>
 // CHECK-NEXT:  }
 // CHECK-NEXT:  %1 = ascendc.if_aic(%arg1, %arg1, %arg2 : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.mmad_params) -> !ascendc.local_tensor<16x16xf32> {

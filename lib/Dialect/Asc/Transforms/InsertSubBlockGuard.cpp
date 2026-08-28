@@ -37,6 +37,9 @@ public:
         auto kernelTypeAttr = ascendc::getModule(funcOp)->getAttrOfType<StringAttr>(ascendc::attr::kernelType);
         if (!kernelTypeAttr || kernelTypeAttr.getValue() != ascendc::attr::kernelMixed)
             return;
+        // Unused Vector sub block must execute SyncAll to prevent deadlock.
+        if (funcOp.walk([](ascendc::SyncAllHardOp) { return WalkResult::interrupt(); }).wasInterrupted())
+            return;
         auto builder = OpBuilder::atBlockBegin(&funcOp.getBody().front());
         builder.create<emitc::VerbatimOp>(funcOp.getLoc(), "if (AscendC::GetSubBlockIdx() != 0) return;");
     }
