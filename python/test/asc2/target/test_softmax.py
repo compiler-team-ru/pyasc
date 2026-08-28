@@ -14,7 +14,7 @@ STATIC = "static"
 DYNAMIC = "dynamic"
 
 
-@asc2.jit(reuse_alloc=1)
+@asc2.jit(reuse_alloc=2)
 def softmax_fused(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows: asc2.ConstExpr,
                   input_num_cols: asc2.ConstExpr, tile_shape: asc2.ConstExpr, rows_per_core: asc2.ConstExpr,
                   unroll_factor: asc2.ConstExpr):
@@ -40,7 +40,7 @@ def softmax_fused(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
         asc2.copy_out(out, out_gm, [row_start_offset, 0], real_shape=[real_rows, input_num_cols])
 
 
-@asc2.jit(reuse_alloc=1)
+@asc2.jit(reuse_alloc=2)
 def softmax_small_row(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, input_num_rows, input_num_cols,
                       tile_shape: asc2.ConstExpr, ub_loop, unroll_factor: asc2.ConstExpr):
     in_gm = asc2.global_tensor(input_ptr, [input_num_rows, input_num_cols])
@@ -97,17 +97,17 @@ op_name = ["softmax_v2"]
     ("softmax_test_27", 70, ([200, 8, 1, 256], ), (torch.float32, ), ([200, 8, 1, 256], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (1600, 256, 256, 23, 23, 4)),
     ("softmax_test_28", 72, ([7000, 1, 10], ), (torch.float32, ), ([7000, 1, 10], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (7000, 10, 16, 98, 98, 1)),
     ("softmax_test_29", 70, ([200, 8, 1, 300], ), (torch.float32, ), ([200, 8, 1, 300], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (1600, 300, 304, 23, 23, 5)),
-    # TODO: UB overflow ("softmax_test_30", 72, ([800, 8, 256], ), (torch.float32, ), ([800, 8, 256], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (6400, 256, 256, 49, 89, 4)),
-    # TODO: UB overflow ("softmax_test_31", 72, ([10000, 100, 100], ), (torch.float32, ), ([10000, 100, 100], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (1000000, 100, 104, 121, 13889, 2)),
-    # TODO: UB overflow ("softmax_test_32", 72, ([800, 185, 100], ), (torch.float32, ), ([800, 185, 100], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (148000, 100, 104, 121, 2056, 2)),
-    # TODO: UB overflow ("softmax_test_33", 72, ([512, 150, 150], ), (torch.float32, ), ([512, 150, 150], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (76800, 150, 152, 83, 1067, 3)),
-    # TODO: UB overflow ("softmax_test_34", 72, ([1024, 1000, 50], ), (torch.float32, ), ([1024, 1000, 50], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (1024000, 50, 56, 225, 14223, 1)),
-    # TODO: UB overflow ("softmax_test_35", 72, ([4, 1500, 27, 27], ), (torch.float32, ), ([4, 1500, 27, 27], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (162000, 27, 32, 394, 2250, 1)),
-    # TODO: UB overflow ("softmax_test_36", 72, ([4096, 2, 39, 39], ), (torch.float32, ), ([4096, 2, 39, 39], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (319488, 39, 40, 315, 4438, 1)),
-    # TODO: UB overflow ("softmax_test_37", 72, ([4096, 50, 50], ), (torch.float32, ), ([4096, 50, 50], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (204800, 50, 56, 225, 2845, 1)),
-    # TODO: UB overflow ("softmax_test_38", 72, ([256, 200, 200], ), (torch.float32, ), ([256, 200, 200], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (51200, 200, 200, 63, 712, 4)),
+    ("softmax_test_30", 72, ([800, 8, 256], ), (torch.float32, ), ([800, 8, 256], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (6400, 256, 256, 49, 89, 4)),
+    ("softmax_test_31", 72, ([10000, 100, 100], ), (torch.float32, ), ([10000, 100, 100], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (1000000, 100, 104, 121, 13889, 2)),
+    ("softmax_test_32", 72, ([800, 185, 100], ), (torch.float32, ), ([800, 185, 100], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (148000, 100, 104, 121, 2056, 2)),
+    ("softmax_test_33", 72, ([512, 150, 150], ), (torch.float32, ), ([512, 150, 150], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (76800, 150, 152, 83, 1067, 3)),
+    ("softmax_test_34", 72, ([1024, 1000, 50], ), (torch.float32, ), ([1024, 1000, 50], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (1024000, 50, 56, 225, 14223, 1)),
+    ("softmax_test_35", 72, ([4, 1500, 27, 27], ), (torch.float32, ), ([4, 1500, 27, 27], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (162000, 27, 32, 391, 2250, 1)), # TODO: (162000, 27, 32, 394, 2250, 1)
+    ("softmax_test_36", 72, ([4096, 2, 39, 39], ), (torch.float32, ), ([4096, 2, 39, 39], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (319488, 39, 40, 314, 4438, 1)), # TODO: (319488, 39, 40, 315, 4438, 1)
+    ("softmax_test_37", 72, ([4096, 50, 50], ), (torch.float32, ), ([4096, 50, 50], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (204800, 50, 56, 225, 2845, 1)),
+    ("softmax_test_38", 72, ([256, 200, 200], ), (torch.float32, ), ([256, 200, 200], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (51200, 200, 200, 63, 712, 4)),
     ("softmax_test_39", 72, ([8, 1500, 1, 512], ), (torch.float32, ), ([8, 1500, 1, 512], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (12000, 512, 512, 24, 167, 8)),
-# TODO: UB overflow ("softmax_test_40", 72, ([512, 100, 100], ), (torch.float32, ), ([512, 100, 100], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (51200, 100, 104, 121, 712, 2)),
+    ("softmax_test_40", 72, ([512, 100, 100], ), (torch.float32, ), ([512, 100, 100], ), (torch.float32, ), ([-1], ), (2, [-1]), 1000, (51200, 100, 104, 121, 712, 2)),
 # PYASC_TESTS_END
 ])
 # yapf: enable
