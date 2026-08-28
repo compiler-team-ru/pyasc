@@ -99,6 +99,8 @@ from .language.memory_ops import (
     copy,
     copy_in,
     copy_out,
+    gather,
+    scatter,
 )
 from .language.prog_model_ops import (
     block_idx,
@@ -206,6 +208,8 @@ __all__ += [
     "copy",
     "copy_in",
     "copy_out",
+    "gather",
+    "scatter",
     # .language.prog_model_ops
     "block_idx",
     "block_num",

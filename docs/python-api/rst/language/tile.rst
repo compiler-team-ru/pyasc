@@ -71,6 +71,8 @@ Memory operations
     copy
     copy_in
     copy_out
+    gather
+    scatter
 
 
 Arithmetic operations
