@@ -91,50 +91,10 @@ func.func @copy_fixpipe_type_mismatch(%arg0: tensor<16x16xf32, #asctile.local<L0
 
 // -----
 
-func.func @accumulator_bias_not_bt(%arg0: tensor<8xf32, #asctile.local<UB>>) -> tensor<8x8xf32, #asctile.local<L0C>> {
-  // expected-error@below {{bias must have BT tensor location}}
-  %0 = asctile.accumulator %arg0 : tensor<8x8xf32, #asctile.local<L0C>>, tensor<8xf32, #asctile.local<UB>>
-  return %0 : tensor<8x8xf32, #asctile.local<L0C>>
-}
-
-// -----
-
 func.func @accumulator_bias_shape_mismatch(%arg0: tensor<16xf32, #asctile.local<BT>>) -> tensor<8x8xf32, #asctile.local<L0C>> {
   // expected-error@below {{bias shape must match result's second dimension}}
   %0 = asctile.accumulator %arg0 : tensor<8x8xf32, #asctile.local<L0C>>, tensor<16xf32, #asctile.local<BT>>
   return %0 : tensor<8x8xf32, #asctile.local<L0C>>
-}
-
-// -----
-
-func.func @matmul_wrong_a_location(%arg0: tensor<8x16xf32, #asctile.local<UB>>, %arg1: tensor<16x8xf32, #asctile.local<L0B>>) -> tensor<8x8xf32, #asctile.local<L0C>> {
-  // expected-error@below {{matrixA must have L0A tensor location}}
-  %0 = asctile.matmul %arg0, %arg1 : tensor<8x16xf32, #asctile.local<UB>>, tensor<16x8xf32, #asctile.local<L0B>> -> tensor<8x8xf32, #asctile.local<L0C>>
-  return %0 : tensor<8x8xf32, #asctile.local<L0C>>
-}
-
-// -----
-
-func.func @matmul_wrong_b_location(%arg0: tensor<8x16xf32, #asctile.local<L0A>>, %arg1: tensor<16x8xf32, #asctile.local<UB>>) -> tensor<8x8xf32, #asctile.local<L0C>> {
-  // expected-error@below {{matrixB must have L0B tensor location}}
-  %0 = asctile.matmul %arg0, %arg1 : tensor<8x16xf32, #asctile.local<L0A>>, tensor<16x8xf32, #asctile.local<UB>> -> tensor<8x8xf32, #asctile.local<L0C>>
-  return %0 : tensor<8x8xf32, #asctile.local<L0C>>
-}
-
-// -----
-
-func.func @matmul_wrong_result_location(%arg0: tensor<8x16xf32, #asctile.local<L0A>>, %arg1: tensor<16x8xf32, #asctile.local<L0B>>) -> tensor<8x8xf32, #asctile.local<UB>> {
-  // expected-error@below {{result must have L0C tensor location}}
-  %0 = asctile.matmul %arg0, %arg1 : tensor<8x16xf32, #asctile.local<L0A>>, tensor<16x8xf32, #asctile.local<L0B>> -> tensor<8x8xf32, #asctile.local<UB>>
-  return %0 : tensor<8x8xf32, #asctile.local<UB>>
-}
-
-// -----
-
-func.func @matmul_acc_wrong_acc_location(%arg0: tensor<8x8xf32, #asctile.local<UB>>, %arg1: tensor<8x16xf32, #asctile.local<L0A>>, %arg2: tensor<16x8xf32, #asctile.local<L0B>>) {
-  // expected-error@below {{acc must have L0C tensor location}}
-  asctile.matmul_acc %arg0, %arg1, %arg2 : tensor<8x8xf32, #asctile.local<UB>>, tensor<8x16xf32, #asctile.local<L0A>>, tensor<16x8xf32, #asctile.local<L0B>>
-  return
 }
 
 // -----

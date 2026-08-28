@@ -13,7 +13,7 @@ from typing import Callable, Optional, Tuple, Type
 import asc2
 import pytest
 
-from .helpers import all_dtypes, all_locations
+from .helpers import all_dtypes
 
 compare_valid_dtypes = (asc2.int8, asc2.int16, asc2.int32, asc2.float16, asc2.bfloat16, asc2.float32)
 bitwise_valid_dtypes = (asc2.int8, asc2.int16, asc2.int32, asc2.int64)
@@ -40,7 +40,6 @@ class BinaryOpSpec:
     supports_tile_tile: bool = True
     supports_tile_scalar: bool = True
     supports_scalar_tile: bool = True
-    supported_locations: Tuple[asc2.TensorLocation, ...] = (asc2.TensorLocation.UB, )
     operator_fn: Optional[Callable] = None
     invalid_cases: Tuple[InvalidInputCase, ...] = field(default_factory=tuple)
     invalid_dtypes: Tuple[asc2.DataType, ...] = field(init=False)
@@ -170,19 +169,4 @@ def test_invalid_operand_type(jit_test, spec: BinaryOpSpec, case: InvalidInputCa
         spec.fn(case.lhs, case.rhs)
 
     with pytest.raises(case.expected_exception, match=case.match):
-        kernel[1]()
-
-
-@pytest.mark.parametrize(
-    "spec, loc",
-    [(s, loc) for s in specs for loc in all_locations if s.supports_tile_tile and loc not in s.supported_locations])
-def test_invalid_location(jit_test, zero_tile, spec: BinaryOpSpec, loc):
-    dtype = spec.valid_dtypes[0]
-
-    @jit_test
-    def kernel():
-        x, y = zero_tile([32, 32], dtype, loc, n=2)
-        spec.fn(x, y)
-
-    with pytest.raises(RuntimeError, match="location"):
         kernel[1]()

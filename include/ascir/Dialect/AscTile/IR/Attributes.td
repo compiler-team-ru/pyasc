@@ -26,6 +26,7 @@ class AscTile_EnumAttr<EnumAttrInfo info, string name = ""> : EnumAttr<AscTile_D
 }
 
 def AscTile_TensorLocationAttr : I32EnumAttr<"TensorLocation", "tensor location", [
+  I32EnumAttrCase<"Auto", 0, "auto">,
   I32EnumAttrCase<"L0A", 23>,
   I32EnumAttrCase<"L0B", 24>,
   I32EnumAttrCase<"L0C", 25>,

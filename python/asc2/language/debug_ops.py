@@ -15,7 +15,8 @@ from asc.language.core.utils import global_builder, require_jit
 
 from .local_tensor import LocalTensor
 from .tensor_location import TensorLocation
-from .validation import check_type, verify_location, verify_shape
+from .utils import cast_tensor_location as cast_loc
+from .validation import check_type, verify_shape
 
 
 @require_jit
@@ -119,10 +120,8 @@ def inline_vf(code: str, shape: Tuple[int, ...], dtype: DataType,
     ir_tiles = []
     if inputs is not None:
         for index, tensor in enumerate(inputs):
-            tensor_name = f"inputs[{index}]"
-            check_type(tensor_name, tensor, LocalTensor)
-            verify_location(tensor.location, tensor_name, TensorLocation.UB)
-            ir_tiles.append(tensor.to_ir())
+            check_type(f"inputs[{index}]", tensor, LocalTensor)
+            ir_tiles.append(cast_loc(tensor, TensorLocation.UB).to_ir())
     ir_type = ir.get_asctile_LocalTensorType(shape, dtype.to_ir(), TensorLocation.UB)
     handle = global_builder.get_ir_builder().create_asctile_InlineVFOp(ir_type, ir_tiles, code)
-    return LocalTensor(handle)
+    return cast_loc(LocalTensor(handle))

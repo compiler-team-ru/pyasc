@@ -16,7 +16,8 @@ from asc.language.core.utils import global_builder, require_jit
 from .global_tensor import GlobalTensor
 from .local_tensor import LocalTensor
 from .tensor_location import TensorLocation, TensorLocLike
-from .validation import check_data_alignment, check_type, check_dtype, check_runtime_int, verify_location, verify_runtime_ints, verify_shape
+from .utils import cast_tensor_location as cast_loc
+from .validation import check_dtype, check_runtime_int, check_type, verify_location, verify_runtime_ints, verify_shape
 
 
 def to_ir_list(values: Iterable[RuntimeInt]) -> List[IRHandle]:
@@ -106,7 +107,7 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
         location = verify_location(location, allow=(TensorLocation.L1, TensorLocation.UB))
     elif src.location == TensorLocation.UB:
         location = verify_location(location, allow=TensorLocation.L1)
-    else:
+    elif src.location != TensorLocation.Auto:
         raise RuntimeError(f"'src' tensor location must be L1, L0C, or UB, got {src.location.name}")
     if shape is None:
         shape = src.shape
@@ -118,12 +119,12 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
         offsets = verify_offsets(offsets, src.rank)
     ir_type = ir.get_asctile_LocalTensorType(list(shape), src.dtype.to_ir(), location)
     handle = global_builder.get_ir_builder().create_asctile_CopyOp(ir_type, src.to_ir(), to_ir_list(offsets))
-    return LocalTensor(handle)
+    return cast_loc(LocalTensor(handle))
 
 
 @overload
 def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Iterable[int],
-            location: TensorLocLike = TensorLocation.UB, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
+            location: TensorLocLike = TensorLocation.Auto, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
             pad_value: Optional[RuntimeNumeric] = None) -> LocalTensor:
     ...
 
@@ -135,7 +136,7 @@ def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt]) -> PlainValue:
 
 @require_jit
 def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[Iterable[int]] = None,
-            location: TensorLocLike = TensorLocation.UB, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
+            location: TensorLocLike = TensorLocation.Auto, *, real_shape: Optional[Iterable[RuntimeInt]] = None,
             pad_value: Optional[RuntimeNumeric] = None) -> Union[LocalTensor, PlainValue]:
     """
     Copy data from a global tensor into a local tensor or scalar value.
@@ -154,7 +155,7 @@ def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[It
             Must contain static values (e.g., ``ConstExpr`` or compile-time constants).
             For 1D tensors, any shape is supported. For 2D+ tensors in ``UB``, the last dimension must be aligned to 32
             bytes (e.g., 8 elements for float32, 16 elements for float16).
-        location: The memory location for the local tensor. Default is ``TensorLocation.UB``.
+        location: The memory location for the local tensor. Default is ``TensorLocation.Auto``.
             Available locations: ``UB``, ``L1``, ``L0A``, ``L0B``, ``BT``.
         real_shape: Explicitly specify how many elements to load from the global tensor.
             The local tensor will have the given ``shape``, but only ``real_shape`` elements are loaded;
@@ -207,7 +208,7 @@ def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[It
     location = verify_location(
         location,
         allow=(TensorLocation.UB, TensorLocation.L1, TensorLocation.L0A, TensorLocation.L0B, TensorLocation.BT))
-    if real_shape is not None and location != TensorLocation.UB:
+    if real_shape is not None and location not in (TensorLocation.Auto, TensorLocation.UB):
         raise RuntimeError(f"'real_shape' argument is not supported with {location.name} tensor location")
     builder = global_builder.get_ir_builder()
     offsets = to_ir_list(verify_offsets(offsets, src.rank))
@@ -215,8 +216,6 @@ def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[It
         handle = builder.create_asctile_GetValueOp(src.dtype.to_ir(), src.to_ir(), offsets)
         return PlainValue(handle)
     shape = verify_shape(shape, src.rank)
-    if location == TensorLocation.UB:
-        check_data_alignment(shape, src.dtype)
     ir_type = ir.get_asctile_LocalTensorType(list(shape), src.dtype.to_ir(), location)
     if pad_value is not None and real_shape is None:
         real_shape = shape
@@ -225,7 +224,7 @@ def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[It
     pad_value = _mat(pad_value if pad_value is not None else 0, src.dtype).to_ir()
     real_shape = [] if real_shape is None else to_ir_list(verify_real_shape(real_shape, shape))
     handle = builder.create_asctile_LoadOp(ir_type, src.to_ir(), offsets, pad_value, real_shape)
-    return LocalTensor(handle)
+    return cast_loc(LocalTensor(handle))
 
 
 @overload
@@ -315,15 +314,13 @@ def copy_out(src: Union[LocalTensor, RuntimeNumeric], dst: GlobalTensor, offsets
         builder.create_asctile_SetValueOp(src.to_ir(), dst.to_ir(), offsets)
         return
     verify_location(src.location, "src", (TensorLocation.UB, TensorLocation.L0C))
-    if src.location == TensorLocation.UB:
-        check_data_alignment(src.shape, src.dtype)
     real_shape = [] if real_shape is None else to_ir_list(verify_real_shape(real_shape, src.shape))
     builder.create_asctile_StoreOp(src.to_ir(), dst.to_ir(), offsets, real_shape)
 
 
 @require_jit
 def gather(src: GlobalTensor, offsets: Iterable[RuntimeInt], index: LocalTensor, dim: int, check_bounds: bool = True,
-           real_shape: Iterable[RuntimeInt] | None = None, pad_value: RuntimeNumeric | None = None) -> LocalTensor:
+           real_shape: Optional[RuntimeInt] = None, pad_value: Optional[RuntimeNumeric] = None) -> LocalTensor:
     """
     Gather individual elements from global tensor
 
@@ -398,7 +395,6 @@ def gather(src: GlobalTensor, offsets: Iterable[RuntimeInt], index: LocalTensor,
         real_shape = _mat(real_shape, KT.int32).to_ir()
     if pad_value is not None:
         pad_value = _mat(pad_value, src.dtype).to_ir()
-
     target_shape = list(index.shape)
     for i in range(dim + 1, src.rank):
         if src.shape.is_dynamic_dim(i):
@@ -409,15 +405,15 @@ def gather(src: GlobalTensor, offsets: Iterable[RuntimeInt], index: LocalTensor,
     elements_in_block = ir.ub_block_size // dtype_size
     target_shape[-1] = (target_shape[-1] + (elements_in_block - 1)) // elements_in_block * elements_in_block
     ir_type = ir.get_asctile_LocalTensorType(target_shape, src.dtype.to_ir(), TensorLocation.UB)
-    builder = global_builder.get_ir_builder()
-    handle = builder.create_asctile_GatherOp(ir_type, src.to_ir(), offsets, index.to_ir(), real_shape, dim,
-                                             check_bounds, pad_value)
-    return LocalTensor(handle)
+    index = cast_loc(index, TensorLocation.UB)
+    handle = global_builder.get_ir_builder().create_asctile_GatherOp(ir_type, src.to_ir(), offsets, index.to_ir(),
+                                                                     real_shape, dim, check_bounds, pad_value)
+    return cast_loc(LocalTensor(handle))
 
 
 @require_jit
 def scatter(index: LocalTensor, src: LocalTensor, dst: GlobalTensor, offsets: Iterable[RuntimeInt], dim: int,
-            check_bounds: bool = True, real_shape: Iterable[RuntimeInt] | None = None) -> None:
+            check_bounds: bool = True, real_shape: Optional[RuntimeInt] = None) -> None:
     """
     Modify individual elements or subtensors of global tensor ``dst`` specified by ``index`` with values from ``src``:
 
@@ -487,9 +483,6 @@ def scatter(index: LocalTensor, src: LocalTensor, dst: GlobalTensor, offsets: It
     check_type("src", src, LocalTensor)
     check_dtype("index", index, (KT.int8, KT.int16, KT.int32, KT.int64))
     offsets = to_ir_list(verify_runtime_ints(offsets, "offsets", dim + 1))
-    verify_location(index.location, "index", allow=TensorLocation.UB)
-    verify_location(src.location, "src", allow=TensorLocation.UB)
-
     if dim < 0 or dim >= dst.rank:
         raise ValueError(f"'dim' value {dim} out of tensor 'dst' rank {dst.rank}")
     if dim == dst.rank - 1:
@@ -500,7 +493,6 @@ def scatter(index: LocalTensor, src: LocalTensor, dst: GlobalTensor, offsets: It
         raise TypeError(f"'index' tensor have rank {dst.rank}, supports only rank 1")
     if dst.dtype != src.dtype:
         raise TypeError(f"'src' and 'dst' have different element types: {src.dtype} and {dst.dtype}")
-
     for i in range(dim + 1, len(dst.shape)):
         if dst.shape.is_dynamic_dim(i):
             raise ValueError(f"All dimensions {dim}..{dst.rank-1} of 'dst' tensor should have static size")
@@ -510,6 +502,7 @@ def scatter(index: LocalTensor, src: LocalTensor, dst: GlobalTensor, offsets: It
     if real_shape is not None:
         check_runtime_int("real_shape", real_shape)
         real_shape = _mat(real_shape, KT.int32).to_ir()
-
-    builder = global_builder.get_ir_builder()
-    builder.create_asctile_ScatterOp(src.to_ir(), index.to_ir(), dst.to_ir(), offsets, real_shape, dim, check_bounds)
+    src = cast_loc(src, TensorLocation.UB)
+    index = cast_loc(index, TensorLocation.UB)
+    global_builder.get_ir_builder().create_asctile_ScatterOp(src.to_ir(), index.to_ir(), dst.to_ir(), offsets,
+                                                             real_shape, dim, check_bounds)

@@ -10,8 +10,6 @@ import asc2
 from asc.runtime.jit import MockTensor
 import pytest
 
-from .helpers import all_locations
-
 
 class TestInline:
 
@@ -90,15 +88,4 @@ class TestInlineVf:
             asc2.inline_vf('// noop', [32], asc2.float32, ["invalid"])
 
         with pytest.raises(TypeError, match="inputs"):
-            kernel[1]()
-
-    @pytest.mark.parametrize("loc", [loc for loc in all_locations if loc != asc2.TensorLocation.UB])
-    def test_invalid_input_location(self, jit_test, zero_tile, loc):
-
-        @jit_test
-        def kernel():
-            x = zero_tile([32, 64], asc2.float32, loc)
-            asc2.inline_vf('// noop', [32, 64], asc2.float32, [x])
-
-        with pytest.raises(RuntimeError, match="location"):
             kernel[1]()

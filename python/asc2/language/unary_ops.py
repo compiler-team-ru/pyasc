@@ -15,7 +15,8 @@ from asc.language.core.utils import global_builder, require_jit
 
 from .local_tensor import LocalTensor, bind_tensor_method
 from .tensor_location import TensorLocation
-from .validation import check_dtype, check_runtime_float, check_type, verify_location
+from .utils import cast_tensor_location as cast_loc
+from .validation import check_dtype, check_runtime_float, check_type
 
 T = TypeVar("T")
 
@@ -31,7 +32,7 @@ def op_unary_impl(
     if is_tensor:
         if support_dtypes is not None:
             check_dtype("input", input, support_dtypes)
-        verify_location(input.location, "input", support_loc)
+        input = cast_loc(input, support_loc[0] if len(support_loc) == 1 else TensorLocation.Auto)
     input = input if is_tensor else _mat(input, KT.float32)  # TODO: infer dtype using builders availability
     dtype = input.dtype
     if dtype.is_float() and build_float is not None:
@@ -40,7 +41,7 @@ def op_unary_impl(
         handle = build_int(input.to_ir())
     else:
         raise RuntimeError(f"Input tensor dtype is not supported: {dtype}")
-    return LocalTensor(handle) if is_tensor else PlainValue(handle)
+    return cast_loc(LocalTensor(handle)) if is_tensor else PlainValue(handle)
 
 
 def set_docstring(name: str, support_dtypes: Tuple[DataType], support_scalar: bool = False) -> Callable[[T], T]:
@@ -303,11 +304,11 @@ def softmax(input: LocalTensor) -> LocalTensor:
     """
     check_type("input", input, LocalTensor)
     check_dtype("input", input, (KT.float16, KT.float32))
-    verify_location(input.location, "input", TensorLocation.UB)
     if len(input.shape) > 2:
         raise RuntimeError("Tensor dimensionality greater than two is not supported")
+    input = cast_loc(input, TensorLocation.UB)
     handle = global_builder.get_ir_builder().create_asctile_SoftmaxOp(input.to_ir().get_type(), input.to_ir())
-    return LocalTensor(handle)
+    return cast_loc(LocalTensor(handle))
 
 
 @require_jit
@@ -349,14 +350,15 @@ def rms_norm(input: LocalTensor, gamma: LocalTensor, epsilon: RuntimeFloat) -> L
     for name, value in ("input", input), ("gamma", gamma):
         check_type(name, value, LocalTensor)
         check_dtype(name, value, (KT.float16, KT.float32))
-        verify_location(value.location, name, TensorLocation.UB)
     check_runtime_float("epsilon", epsilon)
     if len(input.shape) > 2:
         raise RuntimeError("Tensor dimensionality greater than two is not supported.")
+    input = cast_loc(input, TensorLocation.UB)
+    gamma = cast_loc(gamma, TensorLocation.UB)
     handle = global_builder.get_ir_builder().create_asctile_RmsNormOp(input.to_ir().get_type(), input.to_ir(),
                                                                       gamma.to_ir(),
                                                                       _mat(epsilon, input.dtype).to_ir())
-    return LocalTensor(handle)
+    return cast_loc(LocalTensor(handle))
 
 
 @require_jit
@@ -410,10 +412,12 @@ def layer_norm(input: LocalTensor, gamma: LocalTensor, beta: LocalTensor, epsilo
     for name, value in ("input", input), ("gamma", gamma), ("beta", beta):
         check_type(name, value, LocalTensor)
         check_dtype(name, value, (KT.float16, KT.bfloat16, KT.float32))
-        verify_location(value.location, name, TensorLocation.UB)
     check_runtime_float("epsilon", epsilon)
     if input.rank > 2:
         raise RuntimeError("Tensor dimensionality greater than two is not supported.")
+    input = cast_loc(input, TensorLocation.UB)
+    gamma = cast_loc(gamma, TensorLocation.UB)
+    beta = cast_loc(beta, TensorLocation.UB)
     input_type = input.to_ir().get_type()
     mean_var_shape = [input.shape[0]] if input.rank == 2 else [1]
     builder = global_builder.get_ir_builder()
@@ -421,4 +425,4 @@ def layer_norm(input: LocalTensor, gamma: LocalTensor, beta: LocalTensor, epsilo
     op = builder.create_asctile_LayerNormOp(input_type, mean_var_type, mean_var_type, input.to_ir(), gamma.to_ir(),
                                             beta.to_ir(),
                                             _mat(epsilon, KT.float32).to_ir(), output_rstd)
-    return LocalTensor(op.get_result(0)), LocalTensor(op.get_result(1)), LocalTensor(op.get_result(2))
+    return tuple(cast_loc(LocalTensor(op.get_result(i))) for i in range(3))

@@ -9,7 +9,7 @@
 import asc2
 import pytest
 
-from .helpers import all_dtypes, non_ub_locations, non_ub_l0c_locations
+from .helpers import all_dtypes, non_ub_locations
 
 valid_dtypes = (asc2.int8, asc2.int16, asc2.int32, asc2.int64, asc2.float16, asc2.bfloat16, asc2.float32)
 invalid_dtypes = tuple(d for d in all_dtypes if d not in valid_dtypes)
@@ -213,18 +213,6 @@ def test_cast_invalid_dtype_arg(jit_test, zero_tile):
         kernel[1]()
 
 
-@pytest.mark.parametrize("loc", non_ub_l0c_locations)
-def test_cast_invalid_location(jit_test, zero_tile, loc):
-
-    @jit_test
-    def kernel():
-        x = zero_tile([32, 32], asc2.float32, loc)
-        asc2.cast(x, asc2.float16)
-
-    with pytest.raises(RuntimeError, match="location"):
-        kernel[1]()
-
-
 def test_concat_invalid_input(jit_test):
 
     @jit_test
@@ -256,17 +244,4 @@ def test_concat_shape_mismatch(jit_test, zero_tile):
         asc2.concat(x, y)
 
     with pytest.raises(RuntimeError, match="shape"):
-        kernel[1]()
-
-
-@pytest.mark.parametrize("loc", non_ub_locations)
-def test_concat_invalid_location(jit_test, zero_tile, loc):
-
-    @jit_test
-    def kernel():
-        x = zero_tile([32, 32], asc2.float32, loc)
-        y = zero_tile([64, 32], asc2.float32, loc)
-        asc2.concat(x, y)
-
-    with pytest.raises(RuntimeError, match="location"):
         kernel[1]()

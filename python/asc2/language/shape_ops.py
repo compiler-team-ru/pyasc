@@ -15,8 +15,8 @@ from asc.language.core.utils import allow_jit, global_builder, require_jit
 
 from .local_tensor import LocalTensor, bind_tensor_method
 from .tensor_location import TensorLocation
-from .utils import infer_common_shape_impl
-from .validation import check_dtype, check_type, verify_location, verify_shape, check_data_alignment
+from .utils import cast_tensor_location as cast_loc, infer_common_shape_impl
+from .validation import check_dtype, check_type, verify_shape
 
 
 def shapes_match(shape: Tuple[int, ...], target_shape: Tuple[int, ...]) -> bool:
@@ -66,16 +66,16 @@ def broadcast_to(input: LocalTensor, *shape: int) -> LocalTensor:
     """
     check_type("input", input, LocalTensor)
     check_dtype("input", input, (KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32))
-    verify_location(input.location, "input", TensorLocation.UB)
     shape = normalize_shape_args(shape)
     shape = verify_shape(shape)
     if input.shape == shape:
         return input
     if not shapes_match(input.shape, shape):
         raise RuntimeError(f"Cannot broadcast tensor with shape {input.shape} to {shape}")
+    input = cast_loc(input, TensorLocation.UB)
     result_type = ir.clone_shaped_type(input.to_ir().get_type(), shape)
     handle = global_builder.get_ir_builder().create_asctile_BroadcastOp(result_type, input.to_ir())
-    return LocalTensor(handle)
+    return cast_loc(LocalTensor(handle))
 
 
 @allow_jit
@@ -193,7 +193,7 @@ def reshape(input: LocalTensor, *shape: int) -> LocalTensor:
     builder = global_builder.get_ir_builder()
     ir_type = ir.clone_shaped_type(input.to_ir().get_type(), shape)
     handle = builder.create_asctile_ReshapeOp(ir_type, input.to_ir())
-    return LocalTensor(handle)
+    return cast_loc(LocalTensor(handle))
 
 
 @bind_tensor_method
@@ -363,18 +363,10 @@ def transpose(input: LocalTensor, *axis: int) -> LocalTensor:
         raise RuntimeError(f"Transpose axis count {len(axis)} should match count of tensor dimensions {rank}")
     if list(axis) == list(range(0, rank)):  # Identity transformation
         return input
-    if rank == 2:
-        location = verify_location(input.location, "input",
-                                   (TensorLocation.UB, TensorLocation.L1, TensorLocation.L0A, TensorLocation.L0B))
-    else:
-        location = verify_location(input.location, "input", TensorLocation.UB)
     if set(axis) != set(range(0, rank)):
         raise RuntimeError(f"Wrong dimensions rearrangement {axis} for tensor of {rank} dimensions")
     result_shape = [input.shape[i] for i in axis]
-    if location == TensorLocation.UB:
-        check_data_alignment(result_shape, input.dtype)
     ir_type = ir.clone_shaped_type(input.to_ir().get_type(), result_shape)
-    handle = global_builder.get_ir_builder().create_asctile_TransposeOp(
-        ir_type, input.to_ir(),
-        global_builder.get_ir_builder().get_i32_array_attr(axis))
-    return LocalTensor(handle)
+    builder = global_builder.get_ir_builder()
+    handle = builder.create_asctile_TransposeOp(ir_type, input.to_ir(), builder.get_i32_array_attr(axis))
+    return cast_loc(LocalTensor(handle))

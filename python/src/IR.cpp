@@ -214,6 +214,7 @@ void bindEnums(py::module& m)
 
     py::enum_<asctile::TensorLocation>(
         m, "asctile_TensorLocation", py::module_local(), "A memory location of a :py:class:`LocalTensor`.")
+        .value("Auto", asctile::TensorLocation::Auto, "Automatic resolution (if available)")
         .value("BT", asctile::TensorLocation::BT, "Bias Table buffer (Cube)")
         .value("L0A", asctile::TensorLocation::L0A, "L0A buffer (Cube)")
         .value("L0B", asctile::TensorLocation::L0B, "L0B buffer (Cube)")

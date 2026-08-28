@@ -8,6 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/AscTile/Utils/Attributes.h"
 #include "ascir/Dialect/Utils/CVGroupCanonicalization.h"
@@ -73,6 +74,19 @@ LogicalResult verifyCVGroupOp(Operation* op)
     }
     if (op->getParentOfType<CubeGroupOp>() || op->getParentOfType<VectorGroupOp>())
         return op->emitOpError("is not allowed to be nested to other cube/vector group");
+    return success();
+}
+
+LogicalResult verifyDataAlignment(Operation* op, LocalTensorType type)
+{
+    if (type.getRank() < 2)
+        return success();
+    auto itemSize = type.getElementTypeBitWidth() / CHAR_BIT;
+    if (itemSize < 1)
+        return success();
+    if (type.getShape().back() % (ascendc::ubBlockSize / itemSize) != 0)
+        return op->emitError() << "Last dimension of a tensor must be aligned by " << ascendc::ubBlockSize
+                               << " bytes, got " << type.getShape().back() << " x " << itemSize << " bytes";
     return success();
 }
 
@@ -150,10 +164,13 @@ LogicalResult LoadOp::canonicalize(LoadOp op, PatternRewriter& rewriter) { retur
 
 LogicalResult LoadOp::verify()
 {
+    auto type = getType();
+    if (type.getLoc() == TensorLocation::UB && verifyDataAlignment(getOperation(), type).failed())
+        return failure();
     SmallVector<Value> realShape = getRealShape();
     if (realShape.empty())
         return success();
-    auto tileShape = getType().getShape();
+    auto tileShape = type.getShape();
     if (tileShape.size() != realShape.size())
         return emitOpError() << "real_shape must have same size as tensor shape";
 
@@ -184,10 +201,13 @@ LogicalResult LoadOp::verify()
 
 LogicalResult StoreOp::verify()
 {
+    auto srcType = getValue().getType();
+    if (srcType.getLoc() == TensorLocation::UB && verifyDataAlignment(getOperation(), srcType).failed())
+        return failure();
     SmallVector<Value> realShape = getRealShape();
     if (realShape.empty())
         return success();
-    auto tileShape = getValue().getType().getShape();
+    auto tileShape = srcType.getShape();
     if (tileShape.size() != realShape.size())
         return emitOpError() << "real_shape must have same size as tensor shape";
 
@@ -294,57 +314,11 @@ LogicalResult AccumulatorOp::verify()
     auto bias = getBias();
     if (!bias)
         return success();
-    auto biasType = bias.getType();
-    if (biasType.getLoc() != TensorLocation::BT)
-        return emitOpError("bias must have BT tensor location");
-    auto result = getResult();
-    auto resultShape = result.getType().getShape();
-    auto biasShape = biasType.getShape();
+    auto resultShape = getType().getShape();
     if (resultShape.size() != 2)
         return emitOpError("result must be a 2D tensor");
-    if (biasShape[0] != resultShape[1])
+    if (bias.getType().getShape()[0] != resultShape[1])
         return emitOpError("bias shape must match result's second dimension");
-    return success();
-}
-
-//===----------------------------------------------------------------------===//
-// MatmulOp
-//===----------------------------------------------------------------------===//
-
-LogicalResult MatmulOp::verify()
-{
-    if (getMatrixA().getType().getLoc() != TensorLocation::L0A) {
-        return emitOpError("matrixA must have L0A tensor location");
-    }
-    if (getMatrixB().getType().getLoc() != TensorLocation::L0B) {
-        return emitOpError("matrixB must have L0B tensor location");
-    }
-    if (getResult().getType().getLoc() != TensorLocation::L0C) {
-        return emitOpError("result must have L0C tensor location");
-    }
-    if (getBias()) {
-        if (getBias().getType().getLoc() != TensorLocation::BT) {
-            return emitOpError("bias must have BT tensor location");
-        }
-    }
-    return success();
-}
-
-//===----------------------------------------------------------------------===//
-// MatmulAccOp
-//===----------------------------------------------------------------------===//
-
-LogicalResult MatmulAccOp::verify()
-{
-    if (getMatrixA().getType().getLoc() != TensorLocation::L0A) {
-        return emitOpError("matrixA must have L0A tensor location");
-    }
-    if (getMatrixB().getType().getLoc() != TensorLocation::L0B) {
-        return emitOpError("matrixB must have L0B tensor location");
-    }
-    if (getAcc().getType().getLoc() != TensorLocation::L0C) {
-        return emitOpError("acc must have L0C tensor location");
-    }
     return success();
 }
 
@@ -373,6 +347,17 @@ void VectorGroupOp::getCanonicalizationPatterns(RewritePatternSet& results, MLIR
 }
 
 LogicalResult VectorGroupOp::verify() { return verifyCVGroupOp(*this); }
+
+//===----------------------------------------------------------------------===//
+// TransposeOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult TransposeOp::verify()
+{
+    if (getType().getLoc() == TensorLocation::UB)
+        return verifyDataAlignment(getOperation(), getType());
+    return success();
+}
 
 //===----------------------------------------------------------------------===//
 // AscTileDialect

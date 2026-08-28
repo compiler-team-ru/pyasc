@@ -23,16 +23,19 @@ std::unique_ptr<Pass> createCubeTransposeToLoadPass();
 std::unique_ptr<Pass> createDetectBiasLoadPass();
 std::unique_ptr<Pass> createFoldCastPass();
 std::unique_ptr<Pass> createLegalizeMatmulPass();
+std::unique_ptr<Pass> createLocationCastToCopyPass();
 std::unique_ptr<Pass> createMarkMatmulAccWithBiasPass();
 std::unique_ptr<Pass> createMarkReuseSourcePass();
 std::unique_ptr<Pass> createMergeCVGroupsPass();
 std::unique_ptr<Pass> createPromotePureOpsPass();
+std::unique_ptr<Pass> createResolveAutoLocationPass();
 std::unique_ptr<Pass> createSplitCubeLoadPass();
 std::unique_ptr<Pass> createTransformMathOpsPass();
 std::unique_ptr<Pass> createTransformStoreFixpipePass();
 std::unique_ptr<Pass> createUnrollLoopPass(bool annotate = false);
 std::unique_ptr<Pass> createUnscalarizeReductionPass();
 std::unique_ptr<Pass> createVectorTransposeToLoadStorePass();
+std::unique_ptr<Pass> createVerifyTensorLocationPass();
 std::unique_ptr<Pass> createWrapCVGroupsPass();
 
 } // namespace asctile

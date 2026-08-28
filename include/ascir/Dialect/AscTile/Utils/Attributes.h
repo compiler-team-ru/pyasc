@@ -20,6 +20,7 @@ LITERAL gmBarrier = "asctile.gm_barrier";
 LITERAL hasBias = "asctile.has_bias";
 LITERAL isBias = "asctile.is_bias";
 LITERAL isMatrixA = "asctile.is_matrix_a";
+LITERAL locationCast = "asctile.location_cast";
 LITERAL reuseSource = "asctile.reuse_source";
 LITERAL transposeAL0 = "asctile.transpose_a_l0";
 LITERAL transposeAL1 = "asctile.transpose_a_l1";
