@@ -29,13 +29,12 @@ namespace {
 
 constexpr uint8_t crossCoreMode = 4;
 
-ascendc::Pipe getLastOpPipe(Operation* groupOp)
+SmallVector<ascendc::Pipe> getGroupOutPipes(Operation* groupOp)
 {
-    Block& block = groupOp->getRegion(0).front();
-    if (llvm::hasSingleElement(block))
-        return ascendc::Pipe::PIPE_S;
-    auto& lastOp = *std::prev(block.end(), 2);
-    return ascendc::getOpPipe(&lastOp);
+    // TODO: Reduce number of pipes requiring syncronization based on copy operations in group
+    if (isa<ascendc::IfAICOp>(groupOp))
+        return {ascendc::Pipe::PIPE_FIX, ascendc::Pipe::PIPE_MTE1};
+    return {ascendc::Pipe::PIPE_MTE3};
 }
 
 struct InsertCrossCoreSyncPass : public ascendc::impl::InsertCrossCoreSyncBase<InsertCrossCoreSyncPass> {
@@ -59,18 +58,23 @@ struct InsertCrossCoreSyncPass : public ascendc::impl::InsertCrossCoreSyncBase<I
             Operation* next = groupOps[i];
             if (prev->getName() == next->getName())
                 continue;
-            ascendc::Pipe setPipe = getLastOpPipe(prev);
             Block& prevBlock = prev->getRegion(0).front();
             Operation* prevYield = prevBlock.getTerminator();
             builder.setInsertionPoint(prevYield);
-            builder.create<ascendc::CrossCoreSetFlagOp>(prev->getLoc(), consts.i32(0), crossCoreMode, setPipe);
-            if (isa<ascendc::IfAICOp>(prev)) {
-                builder.create<ascendc::CrossCoreSetFlagOp>(prev->getLoc(), consts.i32(16), crossCoreMode, setPipe);
+            auto syncPipes = getGroupOutPipes(prev);
+            for (auto setPipe : syncPipes) {
+                builder.create<ascendc::CrossCoreSetFlagOp>(prev->getLoc(), consts.i32(0), crossCoreMode, setPipe);
+                if (isa<ascendc::IfAICOp>(prev)) {
+                    // TODO: Add only if MIX_1_2 is used
+                    builder.create<ascendc::CrossCoreSetFlagOp>(prev->getLoc(), consts.i32(16), crossCoreMode, setPipe);
+                }
             }
             Block& nextBlock = next->getRegion(0).front();
             builder.setInsertionPointToStart(&nextBlock);
-            builder.create<ascendc::CrossCoreWaitFlagOp>(
-                next->getLoc(), consts.i32(0), crossCoreMode, ascendc::Pipe::PIPE_S);
+            // TODO: Add second wait on Cube from second AIV if MIX_1_2 is used
+            for (int i = 0; i < syncPipes.size(); i++)
+                builder.create<ascendc::CrossCoreWaitFlagOp>(
+                    next->getLoc(), consts.i32(0), crossCoreMode, ascendc::Pipe::PIPE_S);
         }
     }
 };

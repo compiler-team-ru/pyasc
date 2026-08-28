@@ -8,6 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/AscTile/Transforms/Passes.h"
 
@@ -47,6 +48,9 @@ ComputeUnit classifyOperation(Operation* op)
 {
     if (isa<CubeGroupOp, VectorGroupOp>(op))
         return ComputeUnit::Neither;
+    // SyncAll can be moved inside IS_AIV block only if has IsAIVOnly == true.
+    if (isa<ascendc::SyncAllHardOp>(op))
+        return ComputeUnit::Vector;
     if (isa<LoadOp>(op))
         return classifyByTileType(op->getResult(0).getType());
     if (isa<StoreOp, CopyOp, StoreFixpipeOp, CopyFixpipeOp, AtomicRMWOp>(op))
