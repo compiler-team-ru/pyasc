@@ -1082,6 +1082,221 @@ struct ConvertSetValue : ConvertOp<asctile::SetValueOp> {
     }
 };
 
+struct ConvertGather : ConvertOp<asctile::GatherOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    LogicalResult matchAndRewrite(asctile::GatherOp op, ConvertRewriter& rewriter) const override
+    {
+        auto loc = op.getLoc();
+        auto operand = op.getOperand();
+        auto operandShape = operand.getType().getShape();
+        auto indexShape = op.getIndex().getType().getShape();
+        auto resultShape = op.getType().getShape();
+        auto i32Type = rewriter.getIntegerType(32);
+        auto ui32Type = rewriter.getIntegerType(32, false);
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto const0 = consts.i32(0);
+        auto const1 = consts.i32(1);
+        size_t dim = static_cast<size_t>(op.getDim());
+        size_t elementsPerBlock = ascendc::ubBlockSize / ascendc::getElementTypeSize(operand.getType());
+        auto elementSize = ascendc::getElementTypeSize(op.getType());
+        auto elementType = operand.getType().getElementType();
+        auto indexType = op.getIndex().getType().getElementType();
+
+        if (dim >= operandShape.size())
+            return op.emitError("'dim' out of 'operand' rank");
+        if (indexShape.size() != 1)
+            return op.emitError("'index' have rank != 1");
+        if (resultShape.back() * elementSize % ascendc::ubBlockSize != 0)
+            return op.emitError("'result' inner dimension not aligned to block size");
+
+        auto elementsCount = op.getType().getNumElements();
+        auto result = createTensorOp(rewriter, loc, elementsCount, elementType).getResult();
+        auto indexTensor = rewriter.getRemappedValue(op.getIndex());
+        auto srcTensor = rewriter.getRemappedValue(operand);
+
+        SmallVector<Value> offsets{op.getOffsets()};
+        offsets.insert(offsets.end(), operandShape.size() - offsets.size(), const0);
+        auto srcInfo = prepareTensorInfo(rewriter, loc, operand, offsets);
+
+        auto ubStrides = getStrides(resultShape);
+        auto gmStrides = getStrides(operandShape.drop_front(dim));
+
+        Value dstStride = consts.i32(ubStrides.front()); // Stride in elements between writes to ub
+        Value srcStride = consts.i32(gmStrides.front()); // Stride in elements between reads from gm
+
+        int64_t blockLen = operandShape.back() * elementSize;         // Size of last dimension in bytes
+        int64_t blockCount = gmStrides.front() / operandShape.back(); // Size of dimensions from dim+1 except last
+        size_t padElements = (elementsPerBlock - operandShape.back() % elementsPerBlock) % elementsPerBlock;
+        Value padValue;
+        if (op.getPadValue()) {
+            padValue = rewriter.getRemappedValue(op.getPadValue());
+        } else {
+            if (auto intType = dyn_cast<IntegerType>(elementType)) {
+                padValue = consts.create(intType, 0);
+            } else if (auto floatType = dyn_cast<FloatType>(elementType)) {
+                padValue = consts.create(floatType, 0.0);
+            } else {
+                return op.emitOpError("doesn't support element type") << elementType;
+            }
+        }
+        assert((blockLen + padElements * elementSize) % ascendc::ubBlockSize == 0);
+        Value repeatsCount = op.getRealShape() ? rewriter.create<arith::MinSIOp>(
+                                                     loc, op.getRealShape(), consts.i32(indexShape.front())) :
+                                                 consts.i32(indexShape.front());
+        Value maxIndex = rewriter.create<arith::SubIOp>(loc, srcInfo.shape[dim], op.getOffsets().back());
+        auto forOp = rewriter.create<scf::ForOp>(loc, const0, repeatsCount, const1);
+        {
+            ConvertRewriter::InsertionGuard guard(rewriter);
+            rewriter.setInsertionPointToStart(forOp.getBody());
+            auto stepIndex = forOp.getInductionVar();
+            Value indexValue = rewriter.create<ascendc::LocalTensorGetValueOp>(loc, indexType, indexTensor, stepIndex);
+            if (auto typeSize = ascendc::getTypeSize(indexValue.getType()); typeSize < 4)
+                indexValue = rewriter.create<arith::ExtSIOp>(loc, i32Type, indexValue);
+            else if (typeSize > 4)
+                indexValue = rewriter.create<arith::TruncIOp>(loc, i32Type, indexValue);
+            Value valueInBounds = consts.i1(true);
+            if (op.getCheckBounds()) {
+                auto check1 = rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::sge, indexValue, const0);
+                auto check2 = rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::slt, indexValue, maxIndex);
+                valueInBounds = rewriter.create<arith::AndIOp>(loc, check1, check2);
+            }
+
+            auto writeOffset = rewriter.create<arith::MulIOp>(loc, stepIndex, dstStride);
+            auto writeTensor =
+                rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, result.getType(), result, writeOffset);
+            auto ifIndexValid = rewriter.create<scf::IfOp>(loc, valueInBounds, true);
+            {
+                ConvertRewriter::InsertionGuard guard(rewriter);
+                rewriter.setInsertionPointToStart(ifIndexValid.thenBlock());
+                auto readOffset = rewriter.create<arith::MulIOp>(loc, indexValue, srcStride);
+                auto readTensor =
+                    rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, srcInfo.type, srcInfo.tensor, readOffset);
+
+                auto dataCopyExtParams = rewriter.create<ascendc::ConstructOp>(
+                    loc, rewriter.getType<ascendc::DataCopyExtParamsType>(),
+                    ValueRange{consts.i32(blockCount), consts.i32(blockLen), const0, const0, const0},
+                    rewriter.getTypeArrayAttr(
+                        {rewriter.getIntegerType(16, false), ui32Type, ui32Type, ui32Type, ui32Type}));
+                auto dataCopyPadExtParams = rewriter.create<ascendc::ConstructOp>(
+                    loc, rewriter.getType<ascendc::DataCopyPadExtParamsType>(padValue.getType()),
+                    ValueRange{const1, const0, consts.i32(static_cast<int64_t>(padElements)), padValue},
+                    rewriter.getTypeArrayAttr(
+                        {i32Type, i32Type, rewriter.getIntegerType(8, false), padValue.getType()}));
+                auto copyOp = rewriter.create<ascendc::DataCopyPadExtL0Op>(
+                    loc, writeTensor, readTensor, dataCopyExtParams, dataCopyPadExtParams);
+                copyOp.setDirection(ascendc::TPosition::GM, ascendc::TPosition::VECCALC);
+            }
+            {
+                ConvertRewriter::InsertionGuard guard(rewriter);
+                rewriter.setInsertionPointToStart(ifIndexValid.elseBlock());
+                auto fillOp = rewriter.create<ascendc::DuplicateL2Op>(loc, writeTensor, padValue, dstStride);
+                fillOp->setAttr(ascendc::attr::calCountSet, rewriter.getUnitAttr());
+            }
+        }
+        rewriter.setInsertionPointAfter(forOp);
+        rewriter.replaceOp(op, result);
+        return success();
+    }
+};
+
+struct ConvertScatter : ConvertOp<asctile::ScatterOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    LogicalResult matchAndRewrite(asctile::ScatterOp op, ConvertRewriter& rewriter) const override
+    {
+        auto loc = op.getLoc();
+        auto baseShape = op.getBase().getType().getShape();
+        auto indexShape = op.getIndex().getType().getShape();
+        auto srcShape = op.getSrc().getType().getShape();
+        auto i32Type = rewriter.getIntegerType(32);
+        auto ui32Type = rewriter.getIntegerType(32, false);
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto const0 = consts.i32(0);
+        auto const1 = consts.i32(1);
+        size_t dim = static_cast<size_t>(op.getDim());
+        size_t elementsPerBlock = ascendc::ubBlockSize / ascendc::getElementTypeSize(op.getBase().getType());
+        auto elementSize = ascendc::getElementTypeSize(op.getBase().getType());
+        auto elementType = op.getBase().getType().getElementType();
+        auto indexType = op.getIndex().getType().getElementType();
+
+        if (dim >= baseShape.size())
+            return op.emitError("'dim' out of 'operand' rank");
+        if (indexShape.size() != 1)
+            return op.emitError("'index' have rank != 1");
+        if (srcShape.size() != baseShape.size() - dim)
+            return op.emitError("'src' have rank of ") << srcShape.size() << " should be " << baseShape.size() - dim;
+        if (op.getSrc().getType().getElementType() != op.getBase().getType().getElementType())
+            return op.emitError("'base' and 'src' mismatch types: ")
+                   << op.getSrc().getType().getElementType() << " and " << op.getBase().getType().getElementType();
+        if (indexShape.front() > srcShape.front())
+            return op.emitError("'src' and 'index' shape mismatch");
+
+        auto indexTensor = rewriter.getRemappedValue(op.getIndex());
+        auto srcTensor = rewriter.getRemappedValue(op.getSrc());
+
+        SmallVector<Value> offsets{op.getOffsets()};
+        offsets.insert(offsets.end(), baseShape.size() - offsets.size(), const0);
+        auto dstInfo = prepareTensorInfo(rewriter, loc, op.getBase(), offsets);
+
+        auto ubStrides = getStrides(srcShape);
+        auto gmStrides = getStrides(baseShape.drop_front(dim));
+
+        Value srcStride = consts.i32(ubStrides.front()); // Stride in elements between writes to ub
+        Value dstStride = consts.i32(gmStrides.front()); // Stride in elements between reads from gm
+
+        int64_t blockLen = std::min(baseShape.back(), srcShape.back()) * elementSize; // Size of last dimension in bytes
+        int64_t blockCount = gmStrides.front() / baseShape.back(); // Size of dimensions from dim+1 except last
+
+        Value repeatsCount = op.getRealShape() ? rewriter.create<arith::MinSIOp>(
+                                                     loc, op.getRealShape(), consts.i32(indexShape.front())) :
+                                                 consts.i32(indexShape.front());
+        Value maxIndex = rewriter.create<arith::SubIOp>(loc, dstInfo.shape[dim], op.getOffsets().back());
+        auto forOp = rewriter.create<scf::ForOp>(loc, const0, repeatsCount, const1);
+        {
+            ConvertRewriter::InsertionGuard guard(rewriter);
+            rewriter.setInsertionPointToStart(forOp.getBody());
+            auto stepIndex = forOp.getInductionVar();
+            Value indexValue = rewriter.create<ascendc::LocalTensorGetValueOp>(loc, indexType, indexTensor, stepIndex);
+            if (auto typeSize = ascendc::getTypeSize(indexValue.getType()); typeSize < 4)
+                indexValue = rewriter.create<arith::ExtSIOp>(loc, i32Type, indexValue);
+            else if (typeSize > 4)
+                indexValue = rewriter.create<arith::TruncIOp>(loc, i32Type, indexValue);
+            Value valueInBounds = consts.i1(true);
+            if (op.getCheckBounds()) {
+                auto check1 = rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::sge, indexValue, const0);
+                auto check2 = rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::slt, indexValue, maxIndex);
+                valueInBounds = rewriter.create<arith::AndIOp>(loc, check1, check2);
+            }
+
+            auto srcOffset = rewriter.create<arith::MulIOp>(loc, stepIndex, srcStride);
+            auto readTensor =
+                rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcTensor.getType(), srcTensor, srcOffset);
+            auto ifIndexValid = rewriter.create<scf::IfOp>(loc, valueInBounds, false);
+            {
+                ConvertRewriter::InsertionGuard guard(rewriter);
+                rewriter.setInsertionPointToStart(ifIndexValid.thenBlock());
+                auto writeOffset = rewriter.create<arith::MulIOp>(loc, indexValue, dstStride);
+                auto writeTensor =
+                    rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, dstInfo.type, dstInfo.tensor, writeOffset);
+                auto dataCopyExtParams = rewriter.create<ascendc::ConstructOp>(
+                    loc, rewriter.getType<ascendc::DataCopyExtParamsType>(),
+                    ValueRange{consts.i32(blockCount), consts.i32(blockLen), const0, const0, const0},
+                    rewriter.getTypeArrayAttr(
+                        {rewriter.getIntegerType(16, false), ui32Type, ui32Type, ui32Type, ui32Type}));
+                auto copyOp =
+                    rewriter.create<ascendc::DataCopyPadExtL2Op>(loc, writeTensor, readTensor, dataCopyExtParams);
+                copyOp.setDirection(ascendc::TPosition::VECCALC, ascendc::TPosition::GM);
+            }
+        }
+        rewriter.eraseOp(op);
+        rewriter.setInsertionPointAfter(forOp);
+        return success();
+    }
+};
+
 struct LowerAscTileDataTransferPass
     : public asclower::impl::LowerAscTileDataTransferBase<LowerAscTileDataTransferPass> {
     void runOnOperation() override
@@ -1092,7 +1307,7 @@ struct LowerAscTileDataTransferPass
         target.addIllegalOp<
             //
             asctile::LoadOp, asctile::StoreOp, asctile::CopyOp, asctile::StoreFixpipeOp, asctile::GetValueOp,
-            asctile::SetValueOp, asctile::CopyFixpipeOp
+            asctile::SetValueOp, asctile::CopyFixpipeOp, asctile::GatherOp, asctile::ScatterOp
             //
             >();
         target.addLegalDialect<
@@ -1103,7 +1318,8 @@ struct LowerAscTileDataTransferPass
         patterns.insert<
             //
             ConvertLoadToUB, ConvertLoadToUBWithTranspose, ConvertLoadToL1, ConvertStore, ConvertStoreFixpipe,
-            ConvertCopy, ConvertGetValue, ConvertSetValue, ConvertCopyFixpipe, ConvertStoreWithTranspose
+            ConvertCopy, ConvertGetValue, ConvertSetValue, ConvertCopyFixpipe, ConvertStoreWithTranspose, ConvertGather,
+            ConvertScatter
             //
             >(converter, context);
         auto op = getOperation();

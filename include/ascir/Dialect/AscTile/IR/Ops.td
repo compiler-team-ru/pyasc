@@ -313,4 +313,29 @@ def BitwiseNotOp : AscTile_Op<"bitwise_not", [Pure, AllTypesMatch<["operand", "r
   let assemblyFormat = "$operand attr-dict `:` type($operand)";
 }
 
+def GatherOp : AscTile_Op<"gather", [AllElementTypesMatch<["operand", "result"]>, AttrSizedOperandSegments,
+  OptionalShapedMatchElemType<"result", "padValue">, MemoryEffectsOpInterface]> {
+  let summary = "Load elements from a global tensor by index";
+  let arguments = (ins Arg<GlobalTensor, "tensor to read from", [MemRead]>:$operand, Variadic<I32>:$offsets,
+                   LocalTensorOfRankAndType<[1], [I8, I16, I32, I64]>:$index, Optional<I32>:$realShape,
+                   I32Attr:$dim, UnitAttr:$checkBounds, Optional<AscTile_Numeric>:$padValue);
+  let results = (outs NumericLocalTensor:$result);
+  let assemblyFormat = [{
+    $operand `[` $offsets `]` `,` $index (`,` $realShape^ )? `,` $dim (`,` $padValue^ )? attr-dict `:` type($result) `,`
+    type($operand) `,` type($index)
+  }];
+}
+
+def ScatterOp : AscTile_Op<"scatter", [AllElementTypesMatch<["base", "src"]>, AttrSizedOperandSegments,
+  MemoryEffectsOpInterface]> {
+  let summary = "Store elements by index to a global tensor";
+  let arguments = (ins NumericLocalTensor:$src, LocalTensorOfRankAndType<[1], [I8, I16, I32, I64]>:$index,
+                   Arg<GlobalTensor, "tensor to store to", [MemWrite]>:$base, Variadic<I32>:$offsets,
+                   Optional<I32>:$realShape, I32Attr:$dim, UnitAttr:$checkBounds);
+  let assemblyFormat = [{
+    $base `[` $offsets `]` `,` $index `,` $src ( `,` $realShape^ )? `,` $dim attr-dict `:` type($base) `,` type($index)
+    `,` type($src)
+  }];
+}
+
 #endif // ASCTILE_OPS_TD
