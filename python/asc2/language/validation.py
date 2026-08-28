@@ -8,7 +8,6 @@
 
 from typing import Any, Iterable, Optional, Protocol, Tuple, Type, TypeGuard, Union
 
-from asc._C import ir
 from asc.common.compat import isinstance
 from asc.language.core.dtype import DataType
 from asc.language.core.ir_value import PlainValue, RuntimeInt
@@ -19,16 +18,6 @@ from .tensor_location import TensorLocation
 
 class DataTyped(Protocol):
     dtype: DataType
-
-
-def check_data_alignment(shape: Tuple[int, ...], dtype: DataType) -> None:
-    try:
-        dtype_size = dtype.sizeof()
-    except ValueError:  # sizeof might be not supported
-        return
-    if len(shape) > 1 and shape[-1] % (ir.ub_block_size // dtype_size) != 0:
-        raise RuntimeError(f"Last dimension of tensor must be aligned by {ir.ub_block_size} bytes, "
-                           f"got {shape[-1]} x {dtype_size} bytes")
 
 
 def check_type(name: str, value: Any, constraint: Union[Type, Tuple[Type, ...]],
@@ -101,7 +90,7 @@ def verify_location(location: Any, name: str = "location",
     if allow is None:
         return location
     allow = allow if isinstance(allow, tuple) else (allow, )
-    if location in allow:
+    if location == TensorLocation.Auto or location in allow:
         return location
     loc_str = " or ".join(loc.name for loc in allow)
     raise RuntimeError(f"'{name}' tensor location must be {loc_str}, got {location.name}")

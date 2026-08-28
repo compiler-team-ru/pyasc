@@ -9,8 +9,6 @@
 import asc2
 import pytest
 
-from .helpers import non_ub_locations
-
 valid_src_dtypes = (asc2.int16, asc2.int32, asc2.float16, asc2.bfloat16, asc2.float32)
 
 
@@ -89,19 +87,6 @@ class TestWhere:
             asc2.where(mask, a, "invalid")
 
         with pytest.raises(TypeError, match="src1"):
-            kernel[1]()
-
-    @pytest.mark.parametrize("loc", non_ub_locations)
-    def test_invalid_location(self, jit_test, zero_tile, loc):
-
-        @jit_test
-        def kernel():
-            a = zero_tile([32, 64], asc2.float32, loc)
-            b = zero_tile([32, 64], asc2.float32, loc)
-            mask = a > b
-            asc2.where(mask, a, b)
-
-        with pytest.raises(RuntimeError, match="location"):
             kernel[1]()
 
 

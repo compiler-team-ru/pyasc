@@ -29,8 +29,8 @@ def add(input_x_ptr: asc2.GlobalAddress, input_y_ptr: asc2.GlobalAddress, output
 
     for i in asc2.range(block_loop_num, unroll_factor=unroll_factor):
         current_offset = block_offset + i * tile_length
-        xt = asc2.copy_in(x, [current_offset], [tile_length])
-        yt = asc2.copy_in(y, [current_offset], [tile_length])
+        xt = asc2.copy_in(x, [current_offset], [tile_length], asc2.TensorLocation.UB)
+        yt = asc2.copy_in(y, [current_offset], [tile_length])  # test "auto" location
         zt = xt + yt
         asc2.copy_out(zt, z, [current_offset])
 

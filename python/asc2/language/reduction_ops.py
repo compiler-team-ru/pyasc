@@ -15,7 +15,8 @@ from asc.language.core.utils import global_builder, require_jit
 
 from .local_tensor import LocalTensor, bind_tensor_method
 from .tensor_location import TensorLocation
-from .validation import check_dtype, check_type, verify_location
+from .utils import cast_tensor_location as cast_loc
+from .validation import check_dtype, check_type
 
 
 def get_reduction_shape(tensor_shape: Tuple[int, ...], keep_dims: bool, dims: Tuple[int, ...]) -> List[int]:
@@ -35,8 +36,8 @@ def op_reduce_impl(input: LocalTensor, keep_dims: bool, dims: Tuple[int, ...], k
                    support_dtypes: Tuple[DataType, ...],
                    support_dtypes_as_1d: Tuple[DataType, ...]) -> Union[LocalTensor, PlainValue]:
     check_type("input", input, LocalTensor)
-    verify_location(input.location, "input", TensorLocation.UB)
     check_type("keep_dims", keep_dims, bool)
+    input = cast_loc(input, TensorLocation.UB)
     builder = global_builder.get_ir_builder()
     if len(dims) == 0:
         if not support_dtypes_as_1d:
@@ -63,7 +64,7 @@ def op_reduce_impl(input: LocalTensor, keep_dims: bool, dims: Tuple[int, ...], k
     ir_type = ir.clone_shaped_type(input.to_ir().get_type(), target_shape)
     dims_attr = global_builder.get_ir_builder().get_i32_array_attr(dims)
     handle = builder.create_asctile_ReduceOp(ir_type, input.to_ir(), dims_attr, kind)
-    return LocalTensor(handle)
+    return cast_loc(LocalTensor(handle))
 
 
 @overload

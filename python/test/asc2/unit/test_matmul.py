@@ -11,7 +11,7 @@ import operator
 import asc2
 import pytest
 
-from .helpers import all_dtypes, all_locations
+from .helpers import all_dtypes
 
 valid_dtypes = (asc2.float16, asc2.bfloat16, asc2.float32)
 invalid_dtypes = tuple(d for d in all_dtypes if d not in valid_dtypes)
@@ -144,30 +144,4 @@ def test_invalid_hf32_non_float32(jit_test, zero_tile):
         asc2.matmul(x, y, hf32=True)
 
     with pytest.raises(RuntimeError, match="HF32.*float32"):
-        kernel[1]()
-
-
-@pytest.mark.parametrize("loc", [loc for loc in all_locations if loc != asc2.TensorLocation.L0A])
-def test_invalid_location_lhs(jit_test, zero_tile, loc):
-
-    @jit_test
-    def kernel():
-        x = zero_tile([64, 128], asc2.float32, loc)
-        y = zero_tile([128, 256], asc2.float32, asc2.TensorLocation.L0B)
-        asc2.matmul(x, y)
-
-    with pytest.raises(RuntimeError, match="location"):
-        kernel[1]()
-
-
-@pytest.mark.parametrize("loc", [loc for loc in all_locations if loc != asc2.TensorLocation.L0B])
-def test_invalid_location_rhs(jit_test, zero_tile, loc):
-
-    @jit_test
-    def kernel():
-        x = zero_tile([64, 128], asc2.float32, asc2.TensorLocation.L0A)
-        y = zero_tile([128, 256], asc2.float32, loc)
-        asc2.matmul(x, y)
-
-    with pytest.raises(RuntimeError, match="location"):
         kernel[1]()

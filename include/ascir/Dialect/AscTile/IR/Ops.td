@@ -245,7 +245,6 @@ def MatmulOp : AscTile_Op<"matmul", [Pure, AllElementTypesMatch<["matrixA", "mat
     $matrixA `,` $matrixB (`,` $bias^)? attr-dict `:` type($matrixA) `,` type($matrixB) (`,` type($bias)^)? `->`
     type($result)
   }];
-  let hasVerifier = 1;
 }
 
 def MatmulAccOp : AscTile_Op<"matmul_acc", [AllElementTypesMatch<["matrixA", "matrixB"]>, MemoryEffectsOpInterface]> {
@@ -254,7 +253,6 @@ def MatmulAccOp : AscTile_Op<"matmul_acc", [AllElementTypesMatch<["matrixA", "ma
   let arguments = (ins Arg<LocalTensorOfRankAndType<[2], [F32]>, "tensor to store to", [MemWrite]>:$acc,
                    inputType:$matrixA, inputType:$matrixB, UnitAttr:$hf32);
   let assemblyFormat = "$acc `,` $matrixA `,` $matrixB attr-dict `:` type($acc) `,` type($matrixA) `,` type($matrixB)";
-  let hasVerifier = 1;
 }
 
 def BroadcastOp : AscTile_Op<"broadcast", [Pure, AllElementTypesMatch<["operand", "result"]>]> {
@@ -297,6 +295,7 @@ def TransposeOp : AscTile_Op<"transpose", [Pure, SameOperandsAndResultElementTyp
   let arguments = (ins NumericLocalTensor:$operand, I32ArrayAttr:$dims);
   let results = (outs NumericLocalTensor:$result);
   let assemblyFormat = "$operand `,` $dims attr-dict `:` qualified(type($operand)) `to` qualified(type($result))";
+  let hasVerifier = 1;
 }
 
 def InlineVFOp : AscTile_Op<"inline_vf", [Pure]> {

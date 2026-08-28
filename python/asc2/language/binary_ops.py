@@ -16,8 +16,8 @@ from asc.language.core.utils import global_builder, require_jit
 
 from .local_tensor import BinaryOperandTypeError, LocalTensor, bind_tensor_method
 from .tensor_location import TensorLocation
-from .utils import check_bias, create_tile, infer_common_dtype, infer_common_shape
-from .validation import check_dtype, check_runtime_int, check_type, verify_location
+from .utils import cast_tensor_location as cast_loc, check_bias, create_tile, infer_common_dtype, infer_common_shape
+from .validation import check_dtype, check_type
 
 T = TypeVar("T")
 
@@ -30,7 +30,6 @@ def check_numeric_tensor_like(name: str, value: Any, support_dtypes: Tuple[DataT
     check_type(name, value, (LocalTensor, RuntimeNumeric), BinaryOperandTypeError)
     if isinstance(value, LocalTensor):
         check_dtype(name, value, support_dtypes)
-        verify_location(value.location, name, TensorLocation.UB)
 
 
 def unify_tensors(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor, RuntimeNumeric],
@@ -41,8 +40,8 @@ def unify_tensors(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalT
         raise BinaryOperandTypeError(f"At least one operand must be tensor, got {type(input)} and {type(other)}")
     result_dtype = infer_common_dtype(input, other)
     result_shape = infer_common_shape(input, other)
-    input = create_tile(input, result_dtype, result_shape)
-    other = create_tile(other, result_dtype, result_shape)
+    input = create_tile(input, result_dtype, result_shape, TensorLocation.UB)
+    other = create_tile(other, result_dtype, result_shape, TensorLocation.UB)
     return input, other
 
 
@@ -61,7 +60,7 @@ def op_binary_impl(
         handle = build_float(input.to_ir(), other.to_ir())
     else:
         raise RuntimeError(f"Unexpected result tensor dtype: {result_dtype}")
-    return LocalTensor(handle)
+    return cast_loc(LocalTensor(handle))
 
 
 def op_compare_impl(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor, RuntimeNumeric],
@@ -75,14 +74,14 @@ def op_compare_impl(input: Union[LocalTensor, RuntimeNumeric], other: Union[Loca
         build = builder.create_arith_CmpIOp
         pred = pred_int
     handle = build(pred, input.to_ir(), other.to_ir())
-    return LocalTensor(handle)
+    return cast_loc(LocalTensor(handle))
 
 
 def op_bitwise_impl(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor, RuntimeNumeric],
                     build: Callable[..., IRHandle]) -> LocalTensor:
     input, other = unify_tensors(input, other, bitwise_support_dtypes)
     handle = build(input.to_ir(), other.to_ir())
-    return LocalTensor(handle)
+    return cast_loc(LocalTensor(handle))
 
 
 def set_docstring(name: str, support_dtypes: Tuple[DataType, ...], rhs_scalar_only: bool = False) -> Callable[[T], T]:
@@ -250,33 +249,24 @@ def bitwise_xor(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTen
 @require_jit
 @set_docstring("left shift (bitwise)", (KT.int16, KT.int32, KT.int64), rhs_scalar_only=True)
 def left_shift(input: LocalTensor, other: RuntimeInt) -> LocalTensor:
-    check_type("input", input, LocalTensor, BinaryOperandTypeError)
-    check_dtype("input", input, (KT.int16, KT.int32, KT.int64))
-    verify_location(input.location, "input", TensorLocation.UB)
-    check_runtime_int("other", other, BinaryOperandTypeError)
-    other = create_tile(other, input.dtype, input.shape)
+    input, other = unify_tensors(input, other, (KT.int16, KT.int32, KT.int64))
     handle = global_builder.get_ir_builder().create_arith_ShLIOp(input.to_ir(), other.to_ir())
-    return LocalTensor(handle)
+    return cast_loc(LocalTensor(handle))
 
 
 @bind_tensor_method(name="__rshift__", binary_op=">>")
 @require_jit
 @set_docstring("right shift (bitwise)", (KT.int16, KT.int32, KT.int64), rhs_scalar_only=True)
 def right_shift(input: LocalTensor, other: RuntimeInt) -> LocalTensor:
-    check_type("input", input, LocalTensor, BinaryOperandTypeError)
-    check_dtype("input", input, (KT.int16, KT.int32, KT.int64))
-    verify_location(input.location, "input", TensorLocation.UB)
-    check_runtime_int("other", other, BinaryOperandTypeError)
-    other = create_tile(other, input.dtype, input.shape)
+    input, other = unify_tensors(input, other, (KT.int16, KT.int32, KT.int64))
     handle = global_builder.get_ir_builder().create_arith_ShRSIOp(input.to_ir(), other.to_ir())
-    return LocalTensor(handle)
+    return cast_loc(LocalTensor(handle))
 
 
 def check_matmul_arguments(input: LocalTensor, other: LocalTensor, hf32: bool) -> None:
     for name, value, loc in ("input", input, TensorLocation.L0A), ("other", other, TensorLocation.L0B):
         check_type(name, value, LocalTensor, BinaryOperandTypeError)
         check_dtype(name, value, (KT.float16, KT.bfloat16, KT.float32))
-        verify_location(value.location, name, loc)
     if input.dtype != other.dtype:
         raise RuntimeError(f"Input tensors must have the same types, got {input.dtype} and {other.dtype}")
     if len(input.shape) != 2 or len(other.shape) != 2:
@@ -342,11 +332,13 @@ def matmul(input: LocalTensor, other: LocalTensor, bias: Optional[LocalTensor] =
     """
     check_matmul_arguments(input, other, hf32)
     check_bias(bias, other.shape[1])
-    builder = global_builder.get_ir_builder()
+    input = cast_loc(input, TensorLocation.L0A)
+    other = cast_loc(other, TensorLocation.L0B)
+    if bias is not None:
+        bias = cast_loc(bias, TensorLocation.BT).to_ir()
     ir_type = ir.get_asctile_LocalTensorType([input.shape[0], other.shape[1]], KT.float32.to_ir(), TensorLocation.L0C)
-    bias_ir = bias.to_ir() if bias is not None else None
-    handle = builder.create_asctile_MatmulOp(ir_type, input.to_ir(), other.to_ir(), bias_ir, hf32)
-    return LocalTensor(handle)
+    handle = global_builder.get_ir_builder().create_asctile_MatmulOp(ir_type, input.to_ir(), other.to_ir(), bias, hf32)
+    return cast_loc(LocalTensor(handle))
 
 
 @require_jit
@@ -408,8 +400,10 @@ def matmul_acc(acc: LocalTensor, input: LocalTensor, other: LocalTensor, *, hf32
     """
     check_type("acc", acc, LocalTensor)
     check_dtype("acc", acc, KT.float32)
-    verify_location(acc.location, "acc", TensorLocation.L0C)
     check_matmul_arguments(input, other, hf32)
     if len(acc.shape) != 2:
         raise RuntimeError(f"Accumulation tensor must have two dims, got {len(acc.shape)}")
+    acc = cast_loc(acc, TensorLocation.L0C)
+    input = cast_loc(input, TensorLocation.L0A)
+    other = cast_loc(other, TensorLocation.L0B)
     global_builder.get_ir_builder().create_asctile_MatmulAccOp(acc.to_ir(), input.to_ir(), other.to_ir(), hf32)

@@ -15,8 +15,8 @@ from asc.language.core.utils import global_builder, require_jit
 
 from .local_tensor import LocalTensor
 from .tensor_location import TensorLocation
-from .utils import create_tile, infer_common_dtype
-from .validation import check_dtype, check_runtime_int, check_type, verify_location, verify_runtime_ints
+from .utils import cast_tensor_location as cast_loc, create_tile, infer_common_dtype
+from .validation import check_dtype, check_runtime_int, check_type, verify_runtime_ints
 
 
 @require_jit
@@ -59,17 +59,15 @@ def where(mask: LocalTensor, src0: Union[LocalTensor, RuntimeNumeric], src1: Uni
     """
     check_type("mask", mask, LocalTensor)
     check_dtype("mask", mask, KT.int1)
-    verify_location(mask.location, "mask", TensorLocation.UB)
+    mask = cast_loc(mask, TensorLocation.UB)
     for name, value in ("src0", src0), ("src1", src1):
         check_type(name, value, (LocalTensor, RuntimeNumeric))
         check_dtype(name, value, (KT.int16, KT.int32, KT.float16, KT.bfloat16, KT.float32))
-        if isinstance(value, LocalTensor):
-            verify_location(value.location, name, TensorLocation.UB)
     src_dtype = infer_common_dtype(src0, src1)
-    src0 = create_tile(src0, src_dtype, mask.shape)
-    src1 = create_tile(src1, src_dtype, mask.shape)
+    src0 = create_tile(src0, src_dtype, mask.shape, TensorLocation.UB)
+    src1 = create_tile(src1, src_dtype, mask.shape, TensorLocation.UB)
     handle = global_builder.get_ir_builder().create_arith_SelectOp(mask.to_ir(), src0.to_ir(), src1.to_ir())
-    return LocalTensor(handle)
+    return cast_loc(LocalTensor(handle))
 
 
 @overload

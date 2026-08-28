@@ -11,7 +11,7 @@ import pytest
 import torch
 
 
-@asc2.jit()
+@asc2.jit(always_compile=1)
 def gather_kernel(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, index_ptr: asc2.GlobalAddress,
                   data_count: int, index_count: int, read_count: asc2.ConstExpr, offset: int,
                   check_bounds: asc2.ConstExpr, row_len: asc2.ConstExpr, pad_value: asc2.ConstExpr) -> None:
@@ -24,7 +24,7 @@ def gather_kernel(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
     asc2.copy_out(tile, output_tensor, [0, 0])
 
 
-@asc2.jit()
+@asc2.jit(always_compile=1)
 def gather_kernel_realshape(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
                             index_ptr: asc2.GlobalAddress, data_count: int, index_count: int,
                             read_count: asc2.ConstExpr, offset: int, check_bounds: asc2.ConstExpr,

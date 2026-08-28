@@ -11,16 +11,19 @@ add_mlir_dialect_library(MLIRAscTileTransforms
   DetectBiasLoad.cpp
   FoldCast.cpp
   LegalizeMatmul.cpp
+  LocationCastToCopy.cpp
   MarkMatmulAccWithBias.cpp
   MarkReuseSource.cpp
   MergeCVGroups.cpp
   PromotePureOps.cpp
+  ResolveAutoLocation.cpp
   SplitCubeLoad.cpp
   TransformMathOps.cpp
   TransformStoreFixpipe.cpp
   UnrollLoop.cpp
   UnscalarizeReduction.cpp
   VectorTransposeToLoadStore.cpp
+  VerifyTensorLocation.cpp
   WrapCVGroups.cpp
 
   ADDITIONAL_HEADER_DIRS

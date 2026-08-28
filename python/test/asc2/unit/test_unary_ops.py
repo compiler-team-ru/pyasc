@@ -13,7 +13,7 @@ from typing import Callable, Optional, Tuple, Type
 import asc2
 import pytest
 
-from .helpers import all_dtypes, all_locations
+from .helpers import all_dtypes
 
 
 @dataclass(frozen=True)
@@ -32,7 +32,6 @@ class UnaryOpSpec:
     fn: Callable
     valid_dtypes: Tuple[asc2.DataType, ...] = (asc2.float16, asc2.float32)
     supports_scalar: bool = False
-    supported_locations: Tuple[asc2.TensorLocation, ...] = (asc2.TensorLocation.UB, )
     operator_fn: Optional[Callable] = None
     invalid_cases: Tuple[InvalidInputCase, ...] = field(default_factory=tuple)
     invalid_dtypes: Tuple[asc2.DataType, ...] = field(init=False)
@@ -69,8 +68,7 @@ specs = (
     UnaryOpSpec(fn=asc2.exp2, invalid_cases=common_invalid_cases),
     UnaryOpSpec(fn=asc2.rsqrt, invalid_cases=common_invalid_cases),
     UnaryOpSpec(fn=asc2.sqrt, supports_scalar=True, invalid_cases=common_invalid_cases),
-    UnaryOpSpec(fn=asc2.relu, supported_locations=(asc2.TensorLocation.UB, asc2.TensorLocation.L0C),
-                invalid_cases=common_invalid_cases),
+    UnaryOpSpec(fn=asc2.relu, invalid_cases=common_invalid_cases),
     UnaryOpSpec(fn=asc2.negative,
                 valid_dtypes=(asc2.int16, asc2.int32, asc2.int64, asc2.float16, asc2.bfloat16, asc2.float32),
                 operator_fn=operator.neg),
@@ -126,20 +124,6 @@ def test_invalid_operand_type(jit_test, spec: UnaryOpSpec, case: InvalidInputCas
         spec.fn(case.input)
 
     with pytest.raises(case.expected_exception, match=case.match):
-        kernel[1]()
-
-
-@pytest.mark.parametrize("spec, loc",
-                         [(s, loc) for s in specs for loc in all_locations if loc not in s.supported_locations])
-def test_invalid_location(jit_test, zero_tile, spec: UnaryOpSpec, loc):
-    dtype = spec.valid_dtypes[0]
-
-    @jit_test
-    def kernel():
-        x = zero_tile([32, 32], dtype, loc)
-        spec.fn(x)
-
-    with pytest.raises(RuntimeError, match="location"):
         kernel[1]()
 
 

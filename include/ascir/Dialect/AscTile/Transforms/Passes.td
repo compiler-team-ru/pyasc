@@ -132,6 +132,18 @@ def LegalizeMatmul : Pass<"asctile-legalize-matmul", "func::FuncOp"> {
   }];
 }
 
+def LocationCastToCopy : Pass<"asctile-location-cast-to-copy", "func::FuncOp"> {
+  let summary = "Replace tensor.cast operations that change tensor location with asctile.copy operations";
+  let constructor = "mlir::asctile::createLocationCastToCopyPass()";
+  let dependentDialects = ["asctile::AscTileDialect"];
+  let description = [{
+    Replaces `tensor.cast` operations that change the memory location of a local tensor with `asctile.copy`
+    operations using zero offsets. The generated `copy` is annotated with the `asctile.location_cast` unit
+    attribute so that downstream passes can distinguish it from user-written copies. This transformation enables
+    direct location changes to be routed through the standard data-transfer path.
+  }];
+}
+
 def MarkMatmulAccWithBias : Pass<"asctile-mark-matmul-acc-with-bias", "func::FuncOp"> {
   let summary = "Mark matmul_acc operations that have bias in their accumulator";
   let constructor = "mlir::asctile::createMarkMatmulAccWithBiasPass()";
@@ -240,6 +252,47 @@ def PromotePureOps : Pass<"asctile-promote-pure-ops", "func::FuncOp"> {
       gpu.barrier
     }
     ```
+  }];
+}
+
+def ResolveAutoLocation : Pass<"asctile-resolve-auto-location", "func::FuncOp"> {
+  let summary = "Resolve Auto tensor locations to concrete memory locations inferred from usage context";
+  let constructor = "mlir::asctile::createResolveAutoLocationPass()";
+  let dependentDialects = ["tensor::TensorDialect"];
+  let description = [{
+    Resolves `Auto` tensor locations to concrete memory locations (e.g., `UB`, `L1`, `L0A`) by inferring the
+    required location from the operation's usage context. Applied after high-level operations have been
+    generated and before hardware-specific verification, allowing kernel authors to omit explicit locations
+    when they can be unambiguously determined.
+
+    **Location inference**: For a value with `Auto` location, examines all its users. If every user is a
+    `tensor.cast` that casts to the same target location, that location is assigned to the value. If users
+    disagree or include non-cast operations, the location remains unresolved.
+
+    **First-stage patterns** (resolve from surrounding `tensor.cast` users and producers):
+    - `asctile.load`, `asctile.copy`, `asctile.store`, `asctile.set_value`: Resolve operand and result
+      locations from surrounding `tensor.cast` users and producers.
+    - `asctile.cast`, `asctile.relu`: Resolve operands (from casts) and results (from users); restricted to
+      `UB` or `L0C` locations.
+    - `asctile.reshape`: Resolve operands and results from surrounding casts (any location).
+    - `asctile.transpose`: Resolve operands and results from surrounding casts; restricted to `UB`, `L1`,
+      `L0A`, or `L0B` locations.
+    - `scf.for`: Resolve `Auto`-typed init arguments by inserting `tensor.cast` on the init value and
+      yielded value, then updating the loop-carried result type.
+    - `scf.if`: Resolve result locations from users, inserting `tensor.cast` on `then`/`else` yield
+      operands as needed.
+    - `ReconcileTensorCast`: Collapses chains of `tensor.cast` operations into a single cast, or removes
+      redundant casts when the source already matches the target type.
+
+    **Second-stage patterns** (`RequireSameLoc`): For operations whose operand and result locations could
+    not be fully resolved by the first stage, insert `tensor.cast` on operands and results so they share a
+    single common location. Applies to `asctile.load`/`asctile.store` (default `UB`), `asctile.cast`/
+    `asctile.relu` (restricted to `UB` or `L0C`, default `UB`), `asctile.reshape` (default `UB`), and
+    `asctile.transpose` (restricted to `UB`, `L1`, `L0A`, `L0B`, default `UB`).
+
+    After pattern application, any remaining `Auto`-typed tensor operand or result (excluding `tensor.cast`)
+    triggers an error requesting the user to provide explicit tensor locations in related creation or memory
+    operations.
   }];
 }
 
@@ -467,6 +520,31 @@ def VectorTransposeToLoadStore : Pass<"asctile-vector-transpose-to-load-store", 
     // After:
     %2 = asctile.load {asctile.transpose_dims = [1, 0]} : tensor<32x16xf32, UB>
     ```
+  }];
+}
+
+def VerifyTensorLocation : Pass<"asctile-verify-tensor-location", "func::FuncOp"> {
+  let summary = "Verify that tensor locations conform to hardware-supported memory location constraints";
+  let constructor = "mlir::asctile::createVerifyTensorLocationPass()";
+  let description = [{
+    Verifies that tensor memory locations used by AscTile operations conform to hardware-supported data flow
+    constraints. Emits errors on violations but does not transform the IR.
+
+    **Operation-specific checks**:
+    - `asctile.load`: Result must be `UB`, `L1`, `L0A`, `L0B`, or `BT`.
+    - `asctile.copy`: Source must be `L1`, `L0C`, or `UB`. Valid destination depends on the source: `L1` to
+      `L0A`/`L0B`/`BT`, `L0C` to `L1`/`UB`, `UB` to `L1`. Copies annotated with `asctile.location_cast` that
+      violate these constraints produce a detailed error indicating the unsupported transfer.
+    - `asctile.accumulator`: The bias operand must be `BT`.
+    - `asctile.matmul`: Operand A must be `L0A`, operand B must be `L0B`, result must be `L0C`, and the
+      optional bias must be `BT`.
+    - `asctile.matmul_acc`: Operand A must be `L0A`, operand B must be `L0B`, and the accumulator must be
+      `L0C`.
+    - `asctile.transpose`: 1D transpose operand must be `UB`; 2D transpose operand may be `UB`, `L1`, `L0A`,
+      or `L0B`.
+
+    Additionally, any non-terminator operation with an unresolved `Auto`-typed operand or result triggers an
+    error requesting the user to provide explicit tensor locations in related creation or memory operations.
   }];
 }
 

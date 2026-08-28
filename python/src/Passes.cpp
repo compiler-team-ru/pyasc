@@ -162,15 +162,18 @@ void defineAscTilePasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_detect_bias_load", createDetectBiasLoadPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_fold_cast", createFoldCastPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_legalize_matmul", createLegalizeMatmulPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_location_cast_to_copy", createLocationCastToCopyPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_mark_matmul_acc_with_bias", createMarkMatmulAccWithBiasPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_mark_reuse_source", createMarkReuseSourcePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_merge_cv_groups", createMergeCVGroupsPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_promote_pure_operations", createPromotePureOpsPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_resolve_auto_location", createResolveAutoLocationPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_split_cube_load", createSplitCubeLoadPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_transform_math_ops", createTransformMathOpsPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_transform_store_fixpipe", createTransformStoreFixpipePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_unscalarize_reduction", createUnscalarizeReductionPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_vector_transpose_to_load_store", createVectorTransposeToLoadStorePass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_verify_tensor_location", createVerifyTensorLocationPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_wrap_cv_groups", createWrapCVGroupsPass);
 
     m.def(

@@ -16,7 +16,7 @@ from asc.language.core.utils import global_builder, require_jit
 
 from .local_tensor import LocalTensor, RoundMode
 from .tensor_location import TensorLocation, TensorLocLike
-from .utils import check_bias, constant_tile, splat_tile
+from .utils import cast_tensor_location as cast_loc, check_bias, constant_tile, splat_tile
 from .validation import check_dtype, check_type, verify_location, verify_shape
 
 
@@ -64,11 +64,11 @@ def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] 
     if isinstance(value, Real):
         if dtype is None:
             dtype = KT.int32 if isinstance(value, int) else KT.float32
-        return constant_tile(value, shape, dtype, location)
+        return cast_loc(constant_tile(value, shape, dtype, TensorLocation.UB))
     if dtype is None:
         check_dtype("value", value, support_dtypes)
         dtype = value.dtype
-    return splat_tile(value, shape, dtype, location)
+    return cast_loc(splat_tile(value, shape, dtype, TensorLocation.UB))
 
 
 @require_jit
@@ -209,10 +209,11 @@ def zeros_acc(shape: Iterable[int], dtype: DataType, *, bias: Optional[LocalTens
     check_dtype("dtype", dtype, KT.float32)
     check_bias(bias, shape[1])
     shape = verify_shape(shape)
+    if bias is not None:
+        bias = cast_loc(bias, TensorLocation.BT).to_ir()
     ir_type = ir.get_asctile_LocalTensorType(list(shape), dtype.to_ir(), TensorLocation.L0C)
-    bias_ir = bias.to_ir() if bias is not None else None
-    handle = global_builder.get_ir_builder().create_asctile_AccumulatorOp(ir_type, bias_ir)
-    return LocalTensor(handle)
+    handle = global_builder.get_ir_builder().create_asctile_AccumulatorOp(ir_type, bias)
+    return cast_loc(LocalTensor(handle))
 
 
 @overload
@@ -294,10 +295,9 @@ def cast(input: Union[LocalTensor, RuntimeNumeric], dtype: DataType,
         return materialize_ir_value(input, dtype)
     if input.dtype == dtype:
         return input
-    verify_location(input.location, "input", (TensorLocation.UB, TensorLocation.L0C))
     ir_type = ir.clone_shaped_type(input.to_ir().get_type(), dtype.to_ir())
     handle = global_builder.get_ir_builder().create_asctile_CastOp(ir_type, input.to_ir(), round_mode)
-    return LocalTensor(handle)
+    return cast_loc(LocalTensor(handle))
 
 
 @require_jit
@@ -335,8 +335,6 @@ def concat(*inputs: LocalTensor) -> LocalTensor:
     """
     if not inputs or not all(isinstance(inp, LocalTensor) for inp in inputs):
         raise TypeError("All input arguments must be tensors")
-    for tensor in inputs:
-        verify_location(tensor.location, "inputs", TensorLocation.UB)
     same_shape = inputs[0].shape[1:]
     if not all(inp.shape[1:] == same_shape for inp in inputs):
         raise RuntimeError("All tensors must have the same shape except their first dimension")
@@ -348,6 +346,7 @@ def concat(*inputs: LocalTensor) -> LocalTensor:
     except ValueError:
         raise RuntimeError("LocalTensor dtype size must fit an integer number of bytes")
     result_shape = [sum(inp.shape[0] for inp in inputs), *same_shape]
+    inputs = [cast_loc(tensor, TensorLocation.UB) for tensor in inputs]
     ir_type = ir.get_asctile_LocalTensorType(result_shape, dtype.to_ir(), TensorLocation.UB)
     handle = global_builder.get_ir_builder().create_tensor_ConcatOp(ir_type, 0, [inp.to_ir() for inp in inputs])
-    return LocalTensor.from_ir(handle)
+    return cast_loc(LocalTensor(handle))

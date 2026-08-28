@@ -58,7 +58,7 @@ def ceildiv(x: RuntimeInt, y: RuntimeInt) -> RuntimeInt:
 
 
 def constant_tile(value: Real, shape: TensorShape, dtype: DataType,
-                  loc: TensorLocation = TensorLocation.UB) -> LocalTensor:
+                  loc: TensorLocation = TensorLocation.Auto) -> LocalTensor:
     builder = global_builder.get_ir_builder()
     attr_builders = {
         "int8": builder.get_i8_attr,
@@ -80,19 +80,26 @@ def constant_tile(value: Real, shape: TensorShape, dtype: DataType,
 
 
 def splat_tile(value: PlainValue, shape: TensorShape, dtype: DataType,
-               loc: TensorLocation = TensorLocation.UB) -> LocalTensor:
+               loc: TensorLocation = TensorLocation.Auto) -> LocalTensor:
     ir_type = ir.get_asctile_LocalTensorType(shape, dtype.to_ir(), loc)
     handle = global_builder.get_ir_builder().create_tensor_SplatOp(ir_type, value.cast(dtype).to_ir())
     return LocalTensor.from_ir(handle)
 
 
-def create_tile(value: Union[LocalTensor, RuntimeNumeric], dtype: DataType, shape: Tuple[int, ...]) -> LocalTensor:
+def cast_tensor_location(tensor: LocalTensor, loc: TensorLocation = TensorLocation.Auto) -> LocalTensor:
+    if tensor.location != loc:
+        tensor = LocalTensor.from_ir(global_builder.get_ir_builder().cast_tensor_location(loc, tensor.to_ir()))
+    return tensor
+
+
+def create_tile(value: Union[LocalTensor, RuntimeNumeric], dtype: DataType, shape: Tuple[int, ...],
+                loc: TensorLocation = TensorLocation.Auto) -> LocalTensor:
     if isinstance(value, LocalTensor):
-        return value.to(dtype).broadcast_to(*shape)
+        return cast_tensor_location(value.to(dtype).broadcast_to(*shape), loc)
     if isinstance(value, Real):
-        return constant_tile(value, shape, dtype)
+        return constant_tile(value, shape, dtype, loc)
     if isinstance(value, PlainValue):
-        return splat_tile(value, shape, dtype)
+        return splat_tile(value, shape, dtype, loc)
     raise BinaryOperandTypeError(f"LocalTensor cannot be created from {value.__class__.__name__}")
 
 

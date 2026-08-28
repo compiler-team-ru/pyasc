@@ -45,19 +45,6 @@ def test_atomic_invalid_dtype(jit_test, fn, dtype):
 
 
 @pytest.mark.parametrize("fn", [asc2.atomic_add, asc2.atomic_max, asc2.atomic_min])
-def test_atomic_invalid_src_location(jit_test, zero_tile, fn):
-
-    @jit_test
-    def kernel(out_ptr: asc2.GlobalAddress):
-        out_gm = asc2.global_tensor(out_ptr, [128])
-        src = zero_tile([128], asc2.float32, asc2.TensorLocation.L0C)
-        fn(src, out_gm, [0])
-
-    with pytest.raises(RuntimeError, match="location"):
-        kernel[1](MockTensor(asc2.float32))
-
-
-@pytest.mark.parametrize("fn", [asc2.atomic_add, asc2.atomic_max, asc2.atomic_min])
 def test_atomic_dtype_mismatch(jit_test, zero_tile, fn):
 
     @jit_test

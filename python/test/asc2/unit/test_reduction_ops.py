@@ -12,7 +12,7 @@ from typing import Callable, Tuple
 import asc2
 import pytest
 
-from .helpers import all_dtypes, non_ub_locations
+from .helpers import all_dtypes
 
 
 @dataclass(frozen=True)
@@ -94,19 +94,6 @@ def test_invalid_dtype(jit_test, zero_tile, spec: ReductionSpec, dtype):
         spec.fn(x, 0)
 
     with pytest.raises(RuntimeError, match="dtype"):
-        kernel[1]()
-
-
-@pytest.mark.parametrize("spec, loc", [(s, loc) for s in specs for loc in non_ub_locations])
-def test_invalid_location(jit_test, zero_tile, spec: ReductionSpec, loc):
-    dtype = spec.valid_dtypes[0]
-
-    @jit_test
-    def kernel():
-        x = zero_tile([32, 64], dtype, loc)
-        spec.fn(x, 0)
-
-    with pytest.raises(RuntimeError, match="location"):
         kernel[1]()
 
 

@@ -150,8 +150,9 @@ struct ConvertOp : public OpConversionPattern<OpType> {
                 return ascendc::TPosition::VECCALC;
             case asctile::TensorLocation::BT:
                 return ascendc::TPosition::C2;
+            default:
+                llvm_unreachable("unexpected TensorLocation value");
         }
-        llvm_unreachable("unexpected TensorLocation value");
     }
 
     static ascendc::LocalTensorAutoOp createTensorOp(

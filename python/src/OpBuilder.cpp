@@ -1152,12 +1152,26 @@ void bindCreateTensorOperations(py::class_<PyOpBuilder>& clss)
     using namespace pybind11::literals;
 
     clss.def(
+            "create_tensor_CastOp",
+            [](PyOpBuilder& self, Type result, Value operand) -> Value {
+                return self.create<tensor::CastOp>(result, operand);
+            })
+        .def(
             "create_tensor_ConcatOp",
             [](PyOpBuilder& self, Type result, uint64_t dim, const std::vector<Value>& inputs) -> Value {
                 return self.create<tensor::ConcatOp>(result, dim, inputs);
             })
-        .def("create_tensor_SplatOp", [](PyOpBuilder& self, Type result, Value input) -> Value {
-            return self.create<tensor::SplatOp>(result, input);
+        .def(
+            "create_tensor_SplatOp",
+            [](PyOpBuilder& self, Type result, Value input) -> Value {
+                return self.create<tensor::SplatOp>(result, input);
+            })
+        .def("cast_tensor_location", [](PyOpBuilder& self, asctile::TensorLocation loc, Value tensor) -> Value {
+            auto type = dyn_cast<asctile::LocalTensorType>(tensor.getType());
+            if (!type)
+                throw std::runtime_error("cast_tensor_location(): value must have LocalTensorType");
+            return self.create<tensor::CastOp>(
+                asctile::LocalTensorType::get(type.getShape(), type.getElementType(), loc), tensor);
         });
 }
 

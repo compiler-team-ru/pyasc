@@ -212,11 +212,10 @@ def matmul_add_kernel(a_ptr: asc2.GlobalAddress, b_ptr: asc2.GlobalAddress, c_pt
     a_gm = asc2.global_tensor(a_ptr, a_shape)
     b_gm = asc2.global_tensor(b_ptr, b_shape)
     c_gm = asc2.global_tensor(c_ptr, c_shape)
-    a = asc2.copy_in(a_gm, [0, 0], a_shape, "L0A")
+    a = asc2.copy_in(a_gm, [0, 0], a_shape)  # test "auto" location
     b = asc2.copy_in(b_gm, [0, 0], b_shape, "L0B")
     c = a @ b
-    c_ub = c.to(asc2.TensorLocation.UB)
-    res = c_ub + c_ub
+    res = c + c  # test implicit "copy"
     asc2.copy_out(res, c_gm, [0, 0])
 
 

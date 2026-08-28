@@ -10,7 +10,7 @@ import asc2
 import pytest
 import torch
 
-from .helpers import all_dtypes, non_ub_locations
+from .helpers import all_dtypes
 
 valid_dtypes = (asc2.int8, asc2.int16, asc2.int32, asc2.int64, asc2.float16, asc2.bfloat16, asc2.float32)
 reshape_dtypes = valid_dtypes + (asc2.float64, )
@@ -48,17 +48,6 @@ class TestBroadcastTo:
             x.broadcast_to(64, 32)
 
         with pytest.raises(RuntimeError, match="Cannot broadcast"):
-            kernel[1]()
-
-    @pytest.mark.parametrize("loc", non_ub_locations)
-    def test_invalid_location(self, jit_test, zero_tile, loc):
-
-        @jit_test
-        def kernel():
-            x = zero_tile([1, 64], asc2.float32, loc)
-            x.broadcast_to(32, 64)
-
-        with pytest.raises(RuntimeError, match="location"):
             kernel[1]()
 
     def test_invalid_input_type(self, jit_test):
@@ -255,17 +244,6 @@ class TestTranspose:
             x.transpose()
 
         with pytest.raises(RuntimeError, match="dtype"):
-            kernel[1]()
-
-    @pytest.mark.parametrize("loc", non_ub_locations)
-    def test_invalid_location_3d(self, jit_test, zero_tile, loc):
-
-        @jit_test
-        def kernel():
-            x = zero_tile([16, 32, 64], asc2.float32, loc)
-            x.transpose(2, 0, 1)
-
-        with pytest.raises(RuntimeError, match="location"):
             kernel[1]()
 
     @pytest.mark.parametrize("loc", (asc2.TensorLocation.L0A, asc2.TensorLocation.L0B, asc2.TensorLocation.L1))

@@ -16,15 +16,16 @@ from asc.language.core.utils import global_builder, require_jit
 from .global_tensor import GlobalTensor
 from .local_tensor import LocalTensor
 from .tensor_location import TensorLocation
-from .validation import check_dtype, check_type, verify_location, verify_runtime_ints
+from .utils import cast_tensor_location as cast_loc
+from .validation import check_dtype, check_type, verify_runtime_ints
 
 
 def op_atomic_impl(src: LocalTensor, dst: GlobalTensor, offsets: Iterable[RuntimeInt], kind: ir.AtomicKind) -> None:
     check_type("src", src, LocalTensor)
-    verify_location(src.location, "src", TensorLocation.UB)
     check_type("dst", dst, GlobalTensor)
     check_dtype("dst", dst, (KT.int16, KT.int32, KT.float16, KT.bfloat16, KT.float32))
     check_dtype("src", src, (dst.dtype, ))
+    src = cast_loc(src, TensorLocation.UB)
     offsets = [_mat(v, KT.int32).to_ir() for v in verify_runtime_ints(offsets, "offsets")]
     global_builder.get_ir_builder().create_asctile_AtomicRMWOp(src.to_ir(), dst.to_ir(), offsets, kind)
 
