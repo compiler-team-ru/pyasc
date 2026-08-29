@@ -13,38 +13,35 @@ import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
-from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Tuple, final
+from typing import List, Optional, Tuple, Type
 
-from asc._C import ir, passes, translation
-from asc.lib.runtime import CoreType, get_soc_version
-from asc.lib.utils import get_ascend_path
-from .config import KernelType
+from .._C import ir, passes, translation
+from ..lib.runtime import CoreType, get_soc_version
+from ..lib.utils import get_ascend_path
+from .config import CompilationArch, KernelType, platform_to_arch
+from .kernel_meta import CompiledKernel, KernelMeta
 from . import utils
 
 
 @dataclass
 class CompileOptions:
+    """Binary compilation and IR transformation options"""
+
     debug: bool = False
     strip_loc: bool = False
     verify_sync: bool = False
     print_ir_before_all: bool = False
     run_passes: bool = True
     kernel_type: Optional[KernelType] = None
-    opt_level: Optional[int] = 3
+    opt_level: int = 3
     auto_sync: Optional[bool] = True
     auto_sync_log: Optional[str] = ""
-    bisheng_options: Optional[Tuple[str]] = None
+    bisheng_options: Optional[Tuple[str, ...]] = None
     always_compile: bool = False
     matmul_cube_only: bool = False
     insert_sync: Optional[bool] = None
-
-
-class CompilePlatform(Enum):
-    """get soc version"""
-    Ascend910B = "Ascend910B"
-    Ascend910_93 = "Ascend910_93"
+    vf_vec_len: Optional[int] = None
 
 
 @dataclass(frozen=True)
@@ -57,14 +54,12 @@ class CompilationTarget:
     cube_options: List[str] = field(default_factory=list)
 
     @staticmethod
-    def get(kernel_type: KernelType, platform: CompilePlatform) -> CompilationTarget:
-        if platform in [CompilePlatform.Ascend910B, CompilePlatform.Ascend910_93]:
+    def get(kernel_type: KernelType, arch: CompilationArch) -> CompilationTarget:
+        if arch in [CompilationArch.C220, CompilationArch.C310]:
             common_option = [
                 "-std=c++17", "--cce-disable-kernel-global-attr-check", "-mllvm", "-cce-aicore-stack-size=0x8000",
                 "-mllvm", "-cce-aicore-function-stack-size=0x8000", "-mllvm", "-cce-aicore-dcci-insert-for-scalar=false"
             ]
-            if platform == CompilePlatform.Ascend910B or platform == CompilePlatform.Ascend910_93:
-                arch = "c220"
             if kernel_type in [KernelType.MIX_AIC_1_1, KernelType.MIX_AIC_1_2]:
                 return CompilationTarget(vec_arch="dav-%s-vec" % arch, cube_arch="dav-%s-cube" % arch,
                                          common_options=common_option)
@@ -72,29 +67,23 @@ class CompilationTarget:
                 return CompilationTarget(common_arch="dav-%s-vec" % arch, common_options=common_option)
             else:
                 return CompilationTarget(common_arch="dav-%s-cube" % arch, common_options=common_option)
-        raise RuntimeError(f"Compilation is not supported for {CompilePlatform.value} platform")
-
-
-@dataclass(frozen=True)
-class CompiledKernel:
-    binary: Optional[bytes] = None
-    core_type: CoreType = CoreType.VectorCore
-    enable_debug: bool = False
-    kernel_args: Optional[Tuple[ir.KernelArgument]] = None
+        raise RuntimeError(f"Compilation is not supported for {arch.value} platform")
 
 
 class Compiler:
+    options_cls: Type[CompileOptions] = CompileOptions
 
     def __init__(self, options: Optional[CompileOptions] = None):
-        self.options = CompileOptions() if options is None else options
+        self.options = self.options_cls() if options is None else options
         self.soc_version = get_soc_version()
         if not self._check_compile_options():
             raise RuntimeError("Please check input compile option")
+        self.arch = platform_to_arch(self.soc_version)
+        if self.options.vf_vec_len is not None and self.arch != CompilationArch.C310:
+            raise RuntimeError(f"The vector register length option is not supported for the {self.arch} architecture")
+        if self.options.vf_vec_len is None and self.arch == CompilationArch.C310:
+            self.options.vf_vec_len = 256
         self.dump_dir: Optional[Path] = None
-        self.platform = CompilePlatform.Ascend910B
-        if self.soc_version.value.startswith("Ascend910_93"):
-            self.platform = CompilePlatform.Ascend910_93
-
         dump_dir = os.environ.get("PYASC_DUMP_PATH", None)
         if dump_dir is not None:
             try:
@@ -124,8 +113,8 @@ class Compiler:
         passes.common.add_canonicalizer(pm)
         passes.common.add_reconcile_unrealized_casts(pm)
         passes.ascendc.add_input_output_tensor(pm)
-        passes.ascendc.add_hoist_ub_allocation(pm)
-        passes.ascendc.add_materialize_tensor(pm)
+        passes.ascendc.add_hoist_tensor_allocation(pm, exclude_in_out=True)
+        passes.ascendc.add_materialize_tensor(pm, always_buf=False)
         passes.ascendc.add_unify_pipe(pm)
         passes.common.add_canonicalizer(pm)
         passes.common.add_cse(pm)
@@ -137,7 +126,7 @@ class Compiler:
         if self.options.insert_sync:
             passes.ascendc.add_erase_sync(pm)
             passes.ascendc.add_hoist_que_bind(pm)
-            passes.ascendc.add_insert_sync(pm)
+            passes.ascendc.add_insert_que_sync(pm)
             passes.ascendc.add_unify_pipe(pm)
             passes.common.add_canonicalizer(pm)
 
@@ -159,18 +148,40 @@ class Compiler:
             raise RuntimeError("{} failed!\nError message is {}\nPlease rerun {}".format(
                 cmd_type, out.decode(), (" ".join(cmd))))
 
-    @final
+    def preprocess_module(self, mod: ir.ModuleOp) -> None:
+        builder = ir.Builder(mod.op)
+        mod.set_attr(ir.attr.compilation_arch, builder.get_str_attr(self.arch.value))
+        mod.set_attr(ir.attr.soc_version, builder.get_str_attr(self.soc_version.value))
+        if self.options.vf_vec_len is not None:
+            mod.set_attr(ir.attr.vf_vec_len, builder.get_i32_attr(self.options.vf_vec_len))
+
+    def postprocess_module(self, mod: ir.ModuleOp) -> None:
+        if self.options.kernel_type is None:
+            kernel_type = mod.op.get_str_attr(ir.attr.kernel_type)
+            if kernel_type == "mixed":
+                self.options.kernel_type = (KernelType.AIC_ONLY
+                                            if self.options.matmul_cube_only else KernelType.MIX_AIC_1_2)
+            elif kernel_type == "vector":
+                self.options.kernel_type = KernelType.AIV_ONLY
+            elif kernel_type == "cube":
+                self.options.kernel_type = KernelType.AIC_ONLY
+        self.enable_debug = (mod.op.has_unit_attr(ir.attr.enable_debug)
+                             and str(os.environ.get("ASCENDC_DUMP", "True")).lower() == "true")
+
     def run(self, mod: ir.ModuleOp, func_name: str) -> CompiledKernel:
         utils.FileUtils.dump_file(self.dump_dir, "codegen.mlir", str(mod))
+        self.preprocess_module(mod)
         if self.options.run_passes:
             self.run_passes(mod)
+        self.postprocess_module(mod)
         utils.FileUtils.dump_file(self.dump_dir, "ascir.mlir", str(mod))
         source = self.run_translation(mod)
         if self.enable_debug:
             source = self._gen_init_dump_code(source, func_name)
         utils.FileUtils.dump_file(self.dump_dir, "ascendc.cpp", source)
         kernel_args = ir.get_kernel_arg_attrs(mod)
-        return self.run_compilation(source, kernel_args)
+        return self.run_compilation(source, kernel_args, enable_debug=self.enable_debug,
+                                    memory_consumed=mod.op.get_dict_of_int_attr(ir.attr.memory_consumed))
 
     def run_passes(self, mod: ir.ModuleOp) -> None:
         pm = passes.PassManager(mod.get_context())
@@ -179,18 +190,11 @@ class Compiler:
             pm.enable_printing()
         if self.options.insert_sync is None:
             self.options.insert_sync = mod.need_insert_sync()
-        self._schedule_passes(pm)
+        self.schedule_passes(pm)
         pm.run(mod)
-        if self.options.kernel_type is None:
-            if mod.op.has_unit_attr("asc.compile_mix"):
-                self.options.kernel_type = KernelType.AIC_ONLY if self.options.matmul_cube_only else\
-                                           KernelType.MIX_AIC_1_2
-            else:
-                self.options.kernel_type = KernelType.AIV_ONLY
-        self.enable_debug = mod.op.has_unit_attr("asc.enable_debug") and\
-            str(os.environ.get("ASCENDC_DUMP", "True")).lower() == "true"
 
-    def run_compilation(self, source: str, kernel_args: Optional[Tuple[ir.KernelArgument]] = None) -> CompiledKernel:
+    def run_compilation(self, source: str, kernel_args: Optional[Tuple[ir.KernelArgument]] = None,
+                        **compiled_kernel_args) -> CompiledKernel:
         with tempfile.TemporaryDirectory(prefix="pyasc_compiler_") as tmp_dir:
             src = Path(tmp_dir) / "input.cce"
             src.write_text(source)
@@ -206,13 +210,19 @@ class Compiler:
                 core_type = CoreType.VectorCore
             else:
                 core_type = CoreType.CubeCore
-            return CompiledKernel(dst.read_bytes(), core_type, self.enable_debug, kernel_args)
+            return CompiledKernel(dst.read_bytes(), KernelMeta(core_type, kernel_args, **compiled_kernel_args))
+
+    def schedule_passes(self, pm: passes.PassManager) -> None:
+        self._schedule_lowering(pm)
+        self._schedule_optimizing(pm)
+        self._schedule_postprocessing(pm)
 
     def _check_compile_options(self) -> bool:
-        is_soc_version_valid = self.soc_version.value.startswith("Ascend910B") or \
-            self.soc_version.value.startswith("Ascend910_93")
-        is_core_type_valid = self.options.kernel_type is None or (isinstance(self.options.kernel_type, KernelType) and \
-            self.options.kernel_type.value <= 7 and self.options.kernel_type.value >= 0)
+        is_soc_version_valid = (self.soc_version.value.startswith("Ascend910B")
+                                or self.soc_version.value.startswith("Ascend910_93"))
+        is_core_type_valid = (self.options.kernel_type is None
+                              or (isinstance(self.options.kernel_type, KernelType)
+                                  and self.options.kernel_type.value <= 7 and self.options.kernel_type.value >= 0))
         is_opt_level_valid = self.options.opt_level in [1, 2, 3]
         return is_soc_version_valid and is_core_type_valid and is_opt_level_valid
 
@@ -221,18 +231,13 @@ class Compiler:
         passes.ascendc.add_generate_boilerplate(pm)
         if self.options.matmul_cube_only:
             passes.ascendc.add_define_cube_only(pm)
-        passes.ascendc.add_legalize_kernel_args(pm)
+        passes.ascendc.add_legalize_kernel_args(pm, set_ffts_addr=True)
         passes.ascendc.add_detect_kernel_type(pm)
         passes.ascendc.add_detect_enable_debug(pm)
         if self.options.verify_sync:
             passes.ascendc.add_verify_sync(pm)
         if self.options.strip_loc:
             passes.common.add_strip_debug_info(pm)
-
-    def _schedule_passes(self, pm: passes.PassManager) -> None:
-        self._schedule_lowering(pm)
-        self._schedule_optimizing(pm)
-        self._schedule_postprocessing(pm)
 
     def _gen_init_dump_code(self, source: str, func_name: str) -> str:
         dump_code = ""
@@ -272,7 +277,7 @@ class Compiler:
         return kernel_code_with_dump
 
     def _gen_dst_kernel(self, tmp_dir: str, src: Path, dst: Path) -> None:
-        target = CompilationTarget.get(self.options.kernel_type, self.platform)
+        target = CompilationTarget.get(self.options.kernel_type, self.arch)
         common_options = []
         ascend_path = get_ascend_path()
         tikcpp_path = os.path.realpath(os.path.join(ascend_path, "compiler", "tikcpp"))
@@ -334,6 +339,8 @@ class Compiler:
             compile_cmds += ["-DASCENDC_DUMP=1"]
         if self.options.debug:
             compile_cmds += ["-g", "-mllvm", "--cce-aicore-jump-expand=true"]
+        if self.arch == CompilationArch.C310:
+            compile_cmds += ["-Xclang", f"-fcce-vf-vl={self.options.vf_vec_len}"]
         if self.options.auto_sync:
             compile_cmds += ["--cce-auto-sync", "-mllvm", "-api-deps-filter"]
             if self.options.auto_sync_log != "":

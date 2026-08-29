@@ -35,7 +35,7 @@ func.func @emit_ascend_is_aicv() {
 // CHECK-NEXT:   return;
 // CHECK-NEXT: }
 func.func @emit_data_cache_preload(
-  %src_gm: !ascendc.global_tensor<*xui64>, 
+  %src_gm: !ascendc.global_tensor<*xui64>,
   %offset: i32
 ) attributes {ascendc.aicore, ascendc.global} {
   ascendc.data_cache_preload %src_gm, %offset : !ascendc.global_tensor<*xui64>, i32
@@ -487,7 +487,7 @@ func.func @emit_set_vector_mask(%len: i32, %maskHigh: i64, %maskLow: i64) {
 // CHECK-NEXT:  constexpr uint32_t v4 = 0;
 // CHECK-NEXT:  constexpr bool c0_i1 = false;
 // CHECK-NEXT:  AscendC::CheckLocalMemoryIAParam v5{v3, v4, v4, c0_i1, c0_i1, c0_i1, c0_i1, c0_i1, c0_i1, c0_i1};
-// CHECK-NEXT:  AscendC::CheckLocalMemoryIA(v5); 
+// CHECK-NEXT:  AscendC::CheckLocalMemoryIA(v5);
 // CHECK-NEXT:  return;
 // CHECK-NEXT:}
 func.func @emit_common_test() {
@@ -496,8 +496,30 @@ func.func @emit_common_test() {
   %type, %op = ascendc.get_store_atomic_config  : ui16, ui16
   %val_8 = "emitc.constant"() <{value = 0 : ui8}> : () -> ui8
   %val_32 = "emitc.constant"() <{value = 0 : ui32}> : () -> ui32
-  %false = arith.constant false 
+  %false = arith.constant false
   %param = ascendc.construct !ascendc.check_local_memory_ia_param(%val_8, %val_32, %val_32, %false, %false, %false, %false, %false, %false, %false) [ui8, ui32, ui32, i1, i1, i1, i1, i1, i1, i1] : ui8, ui32, ui32, i1, i1, i1, i1, i1, i1, i1
   ascendc.check_local_memory_ia %param : !ascendc.check_local_memory_ia_param
+  return
+}
+
+// CHECK-LABEL:void emit_get_buf() {
+// CHECK-NEXT:  get_buf(PIPE_V, 0, 0);
+// CHECK-NEXT:  get_buf(PIPE_MTE2, 1, 1);
+// CHECK-NEXT:  return;
+// CHECK-NEXT:}
+func.func @emit_get_buf() {
+  ascendc.get_buf pipe_v, 0
+  ascendc.get_buf pipe_mte2, 1 {mode}
+  return
+}
+
+// CHECK-LABEL:void emit_rls_buf() {
+// CHECK-NEXT:  rls_buf(PIPE_V, 0, 0);
+// CHECK-NEXT:  rls_buf(PIPE_MTE2, 1, 1);
+// CHECK-NEXT:  return;
+// CHECK-NEXT:}
+func.func @emit_rls_buf() {
+  ascendc.rls_buf pipe_v, 0
+  ascendc.rls_buf pipe_mte2, 1 {mode}
   return
 }

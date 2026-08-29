@@ -11,6 +11,7 @@
 #include "ascir/Target/Asc/EmitAsc.h"
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
+#include "ascir/Target/Asc/External/Scf.h"
 #include "mlir/IR/BuiltinAttributes.h"
 
 using namespace mlir;
@@ -61,6 +62,16 @@ LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::Deref
     return success();
 }
 
+LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::MaskOp op)
+{
+    // Mask in AscendC: [maskL, maskH]
+    auto& os = emitter.ostream();
+    os << "uint64_t " << emitter.getOrCreateName(op.getResult()) << "[2] = {static_cast<uint64_t>("
+       << emitter.getOrCreateName(op.getMaskL()) << "), static_cast<uint64_t>("
+       << emitter.getOrCreateName(op.getMaskH()) << ")}";
+    return success();
+}
+
 LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::MemberOp op)
 {
     auto& os = emitter.ostream();
@@ -106,6 +117,17 @@ LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::Decla
     os.unindent() << "};\n";
     os << "#pragma pack(pop)\n";
 
+    return success();
+}
+
+LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::InitStructOp op)
+{
+    FAIL_OR(emitter.emitType(op.getLoc(), op.getType()));
+    auto& os = emitter.ostream();
+    auto result = emitter.getOrCreateName(op.getResult());
+    os << ' ' << result;
+    for (auto [name, value] : llvm::zip_equal(op.getFieldNames(), op.getFieldValues()))
+        os << ";\n" << result << '.' << cast<StringAttr>(name).getValue() << " = " << emitter.getOrCreateName(value);
     return success();
 }
 

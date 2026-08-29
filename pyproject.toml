@@ -1,6 +1,9 @@
 [build-system]
-requires = ["setuptools>=71", "setuptools-scm>=8,<9", "wheel", "pybind11==2.10.3", "cmake>=3.20,<4", "ninja>=1.11.1"]
+requires = ["setuptools>=71", "setuptools-scm>=8,<9", "wheel", "pybind11==2.13.1", "cmake>=3.20,<4", "ninja>=1.11.1"]
 build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib"]
 
 [tool.coverage.paths]
 source = ["python/asc", "/**/dist-packages/asc", "/**/site-packages/asc"]

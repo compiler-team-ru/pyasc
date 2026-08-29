@@ -8,10 +8,11 @@
 
 from typing import overload
 
+from ..._C import ir
 from .ir_value import RuntimeInt
 
 
-class range:
+class BaseRange:
 
     @overload
     def __init__(self, stop: int, /):
@@ -27,7 +28,7 @@ class range:
 
     def __init__(self, *args):
         if len(args) < 1 or len(args) > 3:
-            raise ValueError(f"range expects from 1 to 3 arguments, got {len(args)}")
+            raise ValueError(f"'range' expects from 1 to 3 arguments, got {len(args)}")
         self.start: RuntimeInt = 0
         self.stop: RuntimeInt = 0
         self.step: RuntimeInt = 1
@@ -44,6 +45,13 @@ class range:
 
     def __next__(self) -> int:
         raise NotImplementedError("This function must not be called")
+
+    def handle_op(self, op: ir.ForOp) -> None:
+        pass
+
+
+class range(BaseRange):
+    pass
 
 
 class static_range:
@@ -62,7 +70,7 @@ class static_range:
 
     def __init__(self, *args):
         if len(args) < 1 or len(args) > 3:
-            raise ValueError(f"range expects from 1 to 3 arguments, got {len(args)}")
+            raise ValueError(f"'static_range' expects from 1 to 3 arguments, got {len(args)}")
         self.start: int = 0
         self.stop: int = 0
         self.step: int = 1

@@ -11,6 +11,7 @@
 #include "ascir/Target/Asc/CodeEmitter.h"
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
+#include "ascir/Target/Asc/Common.h"
 #include "ascir/Target/Asc/Utils.h"
 
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
@@ -19,6 +20,7 @@
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Location.h"
 #include "mlir/Support/LogicalResult.h"
+#include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormatVariadic.h"
 
@@ -74,6 +76,18 @@ void CodeEmitter::emitTPosition(raw_ostream& os, ascendc::TPosition pos)
         os << ascNamespace << "::TPosition::VECCALC";
     else
         llvm_unreachable("unexpected ascendc::TPosition value");
+}
+
+void CodeEmitter::emitCO2Layout(raw_ostream& os, ascendc::CO2Layout layout)
+{
+    if (layout == ascendc::CO2Layout::NZ)
+        os << ascNamespace << "::CO2Layout::NZ";
+    else if (layout == ascendc::CO2Layout::ROW_MAJOR)
+        os << ascNamespace << "::CO2Layout::ROW_MAJOR";
+    else if (layout == ascendc::CO2Layout::COLUMN_MAJOR)
+        os << ascNamespace << "::CO2Layout::COLUMN_MAJOR";
+    else
+        llvm_unreachable("unexpected ascendc::CO2Layout value");
 }
 
 void CodeEmitter::emitCubeFormat(raw_ostream& os, ascendc::CubeFormat format)
@@ -149,6 +163,9 @@ void CodeEmitter::createTypeEmitMapper()
     emitTypeMapper[TypeID::get<ascendc::FixpipeParamsType>()] = [this](Location loc, Type type, bool flag) {
         return this->emitAscFixpipeParamsType(loc, type, flag);
     };
+    emitTypeMapper[TypeID::get<ascendc::FixpipeParamsC310Type>()] = [this](Location loc, Type type, bool flag) {
+        return this->emitAscFixpipeParamsC310Type(loc, type, flag);
+    };
     emitTypeMapper[TypeID::get<ascendc::GlobalTensorType>()] = [this](Location loc, Type type, bool flag) {
         return this->emitAscGlobalTensorType(loc, type, flag);
     };
@@ -161,6 +178,12 @@ void CodeEmitter::createTypeEmitMapper()
     emitTypeMapper[TypeID::get<ascendc::LocalTensorType>()] = [this](Location loc, Type type, bool flag) {
         return this->emitAscLocalTensorType(loc, type, flag);
     };
+    emitTypeMapper[TypeID::get<ascendc::RegTensorType>()] = [this](Location loc, Type type, bool flag) {
+        return this->emitAscRegTensorType(loc, type, flag);
+    };
+    emitTypeMapper[TypeID::get<ascendc::MaskRegType>()] = [this](Location loc, Type type, bool flag) {
+        return this->emitAscMaskRegType(loc, type, flag);
+    };
     emitTypeMapper[TypeID::get<emitasc::PyStructType>()] = [this](Location loc, Type type, bool flag) {
         return this->emitAscPyStructType(loc, type, flag);
     };
@@ -169,6 +192,9 @@ void CodeEmitter::createTypeEmitMapper()
     };
     emitTypeMapper[TypeID::get<ascendc::MrgSortSrcListType>()] = [this](Location loc, Type type, bool flag) {
         return this->emitAscMrgSortSrcListType(loc, type, flag);
+    };
+    emitTypeMapper[TypeID::get<ascendc::NdDmaParamsType>()] = [this](Location loc, Type type, bool flag) {
+        return this->emitAscNdDmaParams(loc, type, flag);
     };
 }
 
@@ -294,6 +320,9 @@ void CodeEmitter::printFloat(const APFloat& value)
         switch (llvm::APFloatBase::SemanticsToEnum(value.getSemantics())) {
             case llvm::APFloatBase::S_IEEEsingle:
                 os << "(float)";
+                break;
+            case llvm::APFloatBase::S_BFloat:
+                // bisheng compiler doesn't support explicit cast to bf16
                 break;
             case llvm::APFloatBase::S_IEEEdouble:
                 os << "(double)";
@@ -491,6 +520,15 @@ LogicalResult CodeEmitter::emitAscFixpipeParamsType(Location loc, Type type, boo
     return success();
 }
 
+LogicalResult CodeEmitter::emitAscFixpipeParamsC310Type(Location /*loc*/, Type type, bool /*emitAsUnsigned*/)
+{
+    auto fpType = dyn_cast<ascendc::FixpipeParamsC310Type>(type);
+    os << ascNamespace << "::FixpipeParamsC310<";
+    emitCO2Layout(os, fpType.getCO2Layout());
+    os << '>';
+    return success();
+}
+
 LogicalResult CodeEmitter::emitAscGlobalTensorType(Location loc, Type type, bool /*emitAsUnsigned*/)
 {
     auto pType = dyn_cast<ascendc::GlobalTensorType>(type);
@@ -539,6 +577,23 @@ LogicalResult CodeEmitter::emitAscLocalTensorType(Location loc, Type type, bool 
     if (failed(emitType(loc, elemTy)))
         return failure();
     os << ">";
+    return success();
+}
+
+LogicalResult CodeEmitter::emitAscRegTensorType(Location loc, Type type, bool /*emitAsUnsigned*/)
+{
+    auto rType = dyn_cast<ascendc::RegTensorType>(type);
+    auto elemTy = rType.getElementType();
+    os << ascNamespace << "::Reg::RegTensor<";
+    if (failed(emitType(loc, elemTy)))
+        return failure();
+    os << ">";
+    return success();
+}
+
+LogicalResult CodeEmitter::emitAscMaskRegType(Location /*loc*/, Type /*type*/, bool /*emitAsUnsigned*/)
+{
+    os << ascNamespace << "::Reg::MaskReg";
     return success();
 }
 
@@ -803,18 +858,26 @@ LogicalResult CodeEmitter::emitIntegerType(IntegerType& iType, Location loc, Typ
     }
 }
 
-LogicalResult CodeEmitter::emitFloatType(FloatType& fType, Location loc, Type type, bool /*emitAsUnsigned*/)
+LogicalResult CodeEmitter::emitFloatType(FloatType& fType, Location loc, Type /*type*/, bool /*emitAsUnsigned*/)
 {
-    switch (fType.getWidth()) {
-        case dtypeBitWidth16:
-            return (os << "half"), success();
-        case dtypeBitWidth32:
-            return (os << "float"), success();
-        case dtypeBitWidth64:
-            return (os << "double"), success();
-        default:
-            return emitError(loc, "cannot emit float type ") << type;
-    }
+    return llvm::TypeSwitch<FloatType, LogicalResult>(fType)
+        .Case([this](Float16Type) {
+            os << "half";
+            return success();
+        })
+        .Case([this](BFloat16Type) {
+            os << "bfloat16_t";
+            return success();
+        })
+        .Case([this](Float32Type) {
+            os << "float";
+            return success();
+        })
+        .Case([this](Float64Type) {
+            os << "double";
+            return success();
+        })
+        .Default([loc](FloatType type) { return emitError(loc, "cannot emit float type ") << type; });
 }
 
 LogicalResult CodeEmitter::emitBaseMemRefType(BaseMemRefType& pType, Location loc, Type /*type*/, bool emitAsUnsigned)
@@ -877,6 +940,15 @@ LogicalResult CodeEmitter::emitAscMrgSortSrcListType(Location loc, Type type, bo
     if (failed(emitType(loc, ldType.getElementType())))
         return failure();
     os << '>';
+    return success();
+}
+
+LogicalResult CodeEmitter::emitAscNdDmaParams(Location loc, Type type, bool /*emitAsUnsigned*/)
+{
+    auto ldType = dyn_cast<ascendc::NdDmaParamsType>(type);
+    os << ascNamespace << "::NdDmaParams<";
+    FAIL_OR(emitType(loc, ldType.getType()));
+    os << ',' << ldType.getDims() << '>';
     return success();
 }
 

@@ -17,7 +17,7 @@
 
 namespace mlir {
 namespace ascendc {
-#define GEN_PASS_DEF_HOISTUBALLOCATION
+#define GEN_PASS_DEF_HOISTTENSORALLOCATION
 #include "ascir/Dialect/Asc/Transforms/Passes.h.inc"
 } // namespace ascendc
 } // namespace mlir
@@ -26,18 +26,26 @@ using namespace mlir;
 
 namespace {
 
-struct HoistTensor : ascendc::HoistOpPattern<ascendc::LocalTensorAutoOp> {
+using HoistTensor = ascendc::HoistOpPattern<ascendc::LocalTensorAutoOp>;
+
+struct HoistTensorExceptInOut : HoistTensor {
     using HoistOpPattern::HoistOpPattern;
 
     bool hoistable(ascendc::LocalTensorAutoOp op) const override { return !op.getInput() && !op.getOutput(); }
 };
 
-struct HoistUBAllocationPass : public ascendc::impl::HoistUBAllocationBase<HoistUBAllocationPass> {
+struct HoistTensorAllocationPass : public ascendc::impl::HoistTensorAllocationBase<HoistTensorAllocationPass> {
+    HoistTensorAllocationPass(const ascendc::HoistTensorAllocationOptions& opt) : HoistTensorAllocationBase(opt) {}
+
     void runOnOperation() override
     {
         MLIRContext* context = &getContext();
         RewritePatternSet patterns(context);
-        patterns.add<HoistTensor>(context);
+        if (excludeInOut) {
+            patterns.add<HoistTensorExceptInOut>(context);
+        } else {
+            patterns.add<HoistTensor>(context);
+        }
         if (applyPatternsAndFoldGreedily(getOperation(), std::move(patterns)).failed()) {
             signalPassFailure();
         }
@@ -46,8 +54,9 @@ struct HoistUBAllocationPass : public ascendc::impl::HoistUBAllocationBase<Hoist
 
 } // namespace
 
-namespace mlir {
-namespace ascendc {
-std::unique_ptr<Pass> createHoistUBAllocationPass() { return std::make_unique<HoistUBAllocationPass>(); }
-} // namespace ascendc
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascendc::createHoistTensorAllocationPass(bool excludeInOut)
+{
+    HoistTensorAllocationOptions options;
+    options.excludeInOut = excludeInOut;
+    return std::make_unique<HoistTensorAllocationPass>(options);
+}

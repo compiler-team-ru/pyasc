@@ -102,10 +102,10 @@ def test_mmad(mock_launcher_run):
 
     @asc.jit
     def kernel_mmad():
-        dst = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.VECOUT, addr=0, tile_size=1024)
-        fm = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.VECIN, addr=0, tile_size=1024)
-        filter = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.VECIN, addr=0, tile_size=1024)
-        bias = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.VECIN, addr=0, tile_size=1024)
+        dst = asc.LocalTensor(dtype=asc.float32, pos=asc.TPosition.CO1, addr=0, tile_size=1024)
+        fm = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.A2, addr=0, tile_size=1024)
+        filter = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.B2, addr=0, tile_size=1024)
+        bias = asc.LocalTensor(dtype=asc.float16, pos=asc.TPosition.C2, addr=0, tile_size=1024)
         params = asc.MmadParams(4, 4, 4)
 
         asc.mmad(dst, fm, filter, params)

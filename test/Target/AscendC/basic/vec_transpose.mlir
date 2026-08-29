@@ -34,8 +34,13 @@ func.func @emit_transpose(%dst: !ascendc.local_tensor<1024xf32>, %src: !ascendc.
 // CHECK-NEXT:   uint64_t v2_dst_list[] = {v7, v7, v7, v7, v7, v7, v7, v7, v7, v7, v7, v7, v7, v7, v7, v7};
 // CHECK-NEXT:   uint64_t v2_src_list[] = {v7, v7, v7, v7, v7, v7, v7, v7, v7, v7, v7, v7, v7, v7, v7, v7};
 // CHECK-NEXT:   AscendC::TransDataTo5HD<float>(v2_dst_list, v2_src_list, v2);
-// CHECK-NEXT:   return;
-// CHECK-NEXT: }
+// CHECK: uint64_t [[ADDR1:.*]]=[[VAR1:.*]].GetPhyAddr()
+// CHECK: uint64_t [[ADDR2:.*]]=[[VAR2:.*]].GetPhyAddr()
+// CHECK: uint64_t [[LIST1:.*]][] = {[[ADDR1]]+0, [[ADDR1]]+1, [[ADDR1]]+2, [[ADDR1]]+3, [[ADDR1]]+4, [[ADDR1]]+5, [[ADDR1]]+6, [[ADDR1]]+7, [[ADDR1]]+8, [[ADDR1]]+9, [[ADDR1]]+10, [[ADDR1]]+11, [[ADDR1]]+12, [[ADDR1]]+13, [[ADDR1]]+14, [[ADDR1]]+15};
+// CHECK: uint64_t [[LIST2:.*]][] = {[[ADDR2]]+0, [[ADDR2]]+1, [[ADDR2]]+2, [[ADDR2]]+3, [[ADDR2]]+4, [[ADDR2]]+5, [[ADDR2]]+6, [[ADDR2]]+7, [[ADDR2]]+8, [[ADDR2]]+9, [[ADDR2]]+10, [[ADDR2]]+11, [[ADDR2]]+12, [[ADDR2]]+13, [[ADDR2]]+14, [[ADDR2]]+15};
+// CHECK: AscendC::TransDataTo5HD<uint64_t>([[LIST2]], [[LIST1]], [[PARAM:.*]]);
+// CHECK:   return;
+// CHECK: }
 func.func @emit_trans_data_to_5hd(%tensor: !ascendc.local_tensor<1024xf32>, %params: !ascendc.trans_data_to_5hd_params, %arg: ui32) {
   %idx = arith.constant 0 : i32
   %dst = ascendc.local_tensor : !ascendc.local_tensor<1024xui64>
@@ -47,5 +52,6 @@ func.func @emit_trans_data_to_5hd(%tensor: !ascendc.local_tensor<1024xf32>, %par
   ascendc.trans_data_to_5hd %dst, %src, %params : !ascendc.local_tensor<1024xui64>, !ascendc.local_tensor<1024xui64>, !ascendc.trans_data_to_5hd_params
   ascendc.trans_data_to_5hd_tensor_list %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %subidx, %params {operandSegmentSizes = array<i32: 16, 16, 1>} : !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.trans_data_to_5hd_params
   ascendc.trans_data_to_5hd_uint_list %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %addr, %params {operandSegmentSizes = array<i32: 16, 16, 1>} : ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, ui64, !ascendc.trans_data_to_5hd_params
+  ascendc.trans_data_to_5hd_tensor %dst, %src, %params {dstOffsets = array<i32: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15>, srcOffsets = array<i32: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15>} : !ascendc.local_tensor<1024xui64>, !ascendc.local_tensor<1024xui64>, !ascendc.trans_data_to_5hd_params
   return
 }

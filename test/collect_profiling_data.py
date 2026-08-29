@@ -20,14 +20,10 @@ for file_name in csv_files:
     if 'Task Duration(us)' in df.columns:
         durations = df['Task Duration(us)'].tolist()
 
-    temp_df = pd.DataFrame({
-        'File Name': [file_name] * len(durations),
-        'Task Duration(us)': durations
-    })
+    temp_df = pd.DataFrame({'File Name': [file_name] * len(durations), 'Task Duration(us)': durations})
 
     result_df = pd.concat([result_df, temp_df], ignore_index=True)
 
 result_df.to_csv('./all_task_durations.csv', index=False)
 
 print("Save result to all_task_durations.csv.")
-

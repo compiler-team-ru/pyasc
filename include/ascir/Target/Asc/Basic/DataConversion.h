@@ -26,6 +26,8 @@ LogicalResult printOperation(CodeEmitter& emitter, ascendc::TransDataTo5HDUintLi
 
 LogicalResult printOperation(CodeEmitter& emitter, ascendc::TransDataTo5HDOp op);
 
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::TransDataTo5HDTensorOp op);
+
 } // namespace ascendc
 } // namespace mlir
 

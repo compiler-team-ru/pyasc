@@ -29,7 +29,7 @@ class PointerArgType(BaseArgType):
         self.dtype = dtype
 
     def to_ir(self) -> ir.Type:
-        return ir.get_memref_type(self.dtype.to_ir(), ir.dynshape, ir.AddressSpace.gm)
+        return ir.get_unranked_memref_type(self.dtype.to_ir(), ir.AddressSpace.gm)
 
 
 class PlainArgType(BaseArgType):

@@ -17,6 +17,7 @@ namespace mlir {
 namespace ascendc {
 
 LogicalResult printOperation(CodeEmitter& emitter, ascendc::RmsNormOp op);
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::LayerNormOp op);
 
 } // namespace ascendc
 } // namespace mlir

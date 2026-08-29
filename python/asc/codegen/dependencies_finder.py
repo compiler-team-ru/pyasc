@@ -13,7 +13,8 @@ import itertools
 import ast
 from typing import Any, Dict, Tuple
 
-from asc.language.core.constexpr import ConstExpr
+from ..language.core.constexpr import ConstExpr
+from ..language.core.utils import jit_allowed
 from .name_scope import NameScope
 from .function import Function
 
@@ -42,7 +43,7 @@ class DependenciesFinder(ast.NodeVisitor):
         self.nonlocals = nonlocals_
 
         # Python builtins that can be accessed from pyasc kernels.
-        self.supported_python_builtins = set(NameScope.builtins)
+        self.supported_python_builtins = set(NameScope.default_builtins)
 
         self.supported_modules = {
             PYASC_MODULE,
@@ -77,9 +78,9 @@ class DependenciesFinder(ast.NodeVisitor):
             v1, _ = self.used_global_vals[k]
             v2, _ = func.used_global_vals[k]
             if v1 != v2:
-                raise RuntimeError(f"Global variable {var_name} has value {v1} when compiling {self.name}, \
-                    but inner kernel {func.__name__} has conflicting value {v2} from when it was first compiled. \
-                      This is not allowed.")
+                raise RuntimeError(
+                    f"Global variable {var_name} has value {v1} when compiling {self.name}, but inner kernel "
+                    f"{func.__name__} has conflicting value {v2} from when it was first compiled. This is not allowed.")
         self.used_global_vals.update(func.used_global_vals)
         # update hash
         func_key = func.cache_key
@@ -90,7 +91,7 @@ class DependenciesFinder(ast.NodeVisitor):
         # Only keep track of "interesting" global variables, that non-evil users
         # might change.  Don't consider functions, modules, builtins, etc.  This
         # helps keep the list of vars we have to check small.
-        if val is None or isinstance(val, types.ModuleType):
+        if val is None or isinstance(val, types.ModuleType) or jit_allowed(val):
             return
 
         module = getattr(val, "__module__", "")

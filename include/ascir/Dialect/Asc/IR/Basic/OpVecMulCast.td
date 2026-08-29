@@ -20,6 +20,6 @@ include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/OpBase.td"
 
-defm MulCast : BinaryL012Op<"mul_cast", "MulCast">;
+defm MulCast : BinaryCastL012Op<"mul_cast", "MulCast">;
 
 #endif //ASC_BASIC_OP_MULCAST_TD

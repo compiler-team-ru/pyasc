@@ -66,13 +66,9 @@ func.func @test_types_with_position(
 func.func @test_create_pipe() -> !ascendc.pipe {
   // CHECK: %[[PIPE:[0-9]+]] = ascendc.pipe
   %pipe = "ascendc.pipe"() : () -> !ascendc.pipe
-  // CHECK: return %[[PIPE]] : !ascendc.pipe 
+  // CHECK: return %[[PIPE]] : !ascendc.pipe
   return %pipe : !ascendc.pipe
 }
-
-
-
-
 
 // CHECK-LABEL: func @test_create_buffer
 func.func @test_create_buffer() -> !ascendc.tbuf<gm> {

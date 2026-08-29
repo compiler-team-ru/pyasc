@@ -33,9 +33,9 @@ def patch_passes():
         "asc._C.passes.ascendc.add_privatize_func",
         "asc._C.passes.ascendc.add_erase_sync",
         "asc._C.passes.ascendc.add_hoist_que_bind",
-        "asc._C.passes.ascendc.add_hoist_ub_allocation",
+        "asc._C.passes.ascendc.add_hoist_tensor_allocation",
         "asc._C.passes.ascendc.add_input_output_tensor",
-        "asc._C.passes.ascendc.add_insert_sync",
+        "asc._C.passes.ascendc.add_insert_que_sync",
         "asc._C.passes.ascendc.add_materialize_tensor",
         "asc._C.passes.ascendc.add_unify_pipe",
         "asc._C.passes.ascendc.add_verify_sync",
@@ -71,6 +71,7 @@ def mock_popen():
     with \
     patch("asc._C.passes.PassManager", return_value=mock_pass_manager), \
     patch_passes(), \
+    patch("asc._C.ir.Builder"), \
     patch("asc._C.ir.get_kernel_arg_attrs", return_value=None), \
     patch("asc._C.translation.ir_to_ascendc", return_value="mock_translation"), \
     patch("pathlib.Path.read_bytes", return_value=None), \
@@ -97,7 +98,7 @@ def test_kernel_type_mix(mock_ir_module, mock_popen):
     compiler = Compiler(options)
     ret = compiler.run(mock_ir_module, "test_func")
     assert mock_popen.call_count == 3
-    assert ret.core_type == CoreType.AiCore
+    assert ret.meta.core_type == CoreType.AiCore
 
 
 def test_kernel_type_hard_sync(mock_ir_module, mock_popen):
@@ -105,7 +106,7 @@ def test_kernel_type_hard_sync(mock_ir_module, mock_popen):
     compiler = Compiler(options)
     ret = compiler.run(mock_ir_module, "test_func")
     assert mock_popen.call_count == 2
-    assert ret.core_type == CoreType.VectorCore
+    assert ret.meta.core_type == CoreType.VectorCore
 
 
 def test_kernel_type_aic_only(mock_ir_module, mock_popen):
@@ -113,7 +114,7 @@ def test_kernel_type_aic_only(mock_ir_module, mock_popen):
     compiler = Compiler(options)
     ret = compiler.run(mock_ir_module, "test_func")
     assert mock_popen.call_count == 2
-    assert ret.core_type == CoreType.CubeCore
+    assert ret.meta.core_type == CoreType.CubeCore
 
 
 def test_kernel_type_cmd_exec_failed(mock_ir_module, mock_popen):

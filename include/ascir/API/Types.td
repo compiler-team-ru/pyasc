@@ -159,14 +159,14 @@ def DataFormat : APIType<"DataFormat"> {
   let apiName = "AscendC::DataFormat";
 }
 
-def MatrixOffset : APIType<"MatrixOffset"> {
-  let mnemonic = "matrix_offset";
-  let apiName = "MatrixOffset";
-}
-
 def DeqScale : APIType<"DeqScale"> {
   let mnemonic = "deq_scale";
   let apiName = "AscendC::DeqScale";
+}
+
+def Dn2NzParams : APIType<"Dn2NzParams"> {
+  let mnemonic = "dn2nz_params";
+  let apiName = "AscendC::Dn2NzParams";
 }
 
 def FixpipeConfig : APIType<"FixpipeConfig"> {
@@ -229,6 +229,21 @@ def KfcServer : APIType<"KfcServer"> {
   let apiName = "AscendC::KfcServer";
 }
 
+def LayerNormTiling : APIType<"LayerNormTiling"> {
+  let mnemonic = "layer_norm_tiling";
+  let apiName = "LayerNormTiling";
+}
+
+def LayerNormPara : APIType<"LayerNormPara"> {
+  let mnemonic = "layer_norm_para";
+  let apiName = "AscendC::LayerNormPara";
+}
+
+def LayerNormSeparateTiling : APIType<"LayerNormSeparateTiling"> {
+  let mnemonic = "layer_norm_separate_tiling";
+  let apiName = "LayerNormSeparateTiling";
+}
+
 def ListTensorDesc : APIType<"ListTensorDesc"> {
   let mnemonic = "list_tensor_desc";
   let apiName = "AscendC::ListTensorDesc";
@@ -289,6 +304,11 @@ def LocalTensor : APIType {
   let apiName = "AscendC::LocalTensor";
 }
 
+def LoopModeParams : APIType<"LoopModeParams"> {
+  let mnemonic = "loop_mode_params";
+  let apiName = "AscendC::LoopModeParams";
+}
+
 def MaskMode : APIType<"MaskMode"> {
   let mnemonic = "mask_mode";
   let apiName = "AscendC::MaskMode";
@@ -307,6 +327,11 @@ def MatmulApiStaticTiling : APIType<"MatmulApiStaticTiling"> {
 def MatmulConfig : APIType<"MatmulConfig"> {
   let mnemonic = "matmul_config";
   let apiName = "MatmulConfig";
+}
+
+def MatrixOffset : APIType<"MatrixOffset"> {
+  let mnemonic = "matrix_offset";
+  let apiName = "MatrixOffset";
 }
 
 def MmadParams : APIType<"MmadParams"> {
@@ -448,4 +473,5 @@ def VdeqInfo : APIType<"VdeqInfo"> {
   let mnemonic = "vdeq_info";
   let apiName = "AscendC::VdeqInfo";
 }
+
 #endif // API_TYPES_TD

@@ -12,11 +12,13 @@
 #define ASC_OPS_TD
 
 include "Adv/Activation.td"
+include "Adv/Broadcast.td"
 include "Adv/Kfc.td"
 include "Adv/Math.td"
 include "Adv/Matmul.td"
 include "Adv/Normalization.td"
 include "Adv/Quantization.td"
+include "Adv/Reduction.td"
 include "Adv/Sort.td"
 include "Base.td"
 include "Basic/Common.td"
@@ -37,6 +39,7 @@ include "Basic/OpLimits.td"
 include "Basic/OpListTensor.td"
 include "Basic/OpMm.td"
 include "Basic/OpProposal.td"
+include "Basic/OpReg.td"
 include "Basic/OpScalar.td"
 include "Basic/OpSetAtomic.td"
 include "Basic/OpSwapMem.td"
@@ -111,12 +114,37 @@ def AscendC_AscendIsAIVOp : APIOp<"ascend_is_aiv", "AscendIsAIV"> {
   let assemblyFormat = "attr-dict `:` type($result)";
 }
 
+def AscendC_YieldOp : AscendC_Op<"yield", [Terminator]> {
+  let summary = "Terminator for operations with region";
+  let arguments = (ins Variadic<AnyType>:$operands);
+  let assemblyFormat = "($operands^ `:` type($operands))? attr-dict";
+  let builders = [OpBuilder<(ins), "/* empty yield */">];
+}
+
+def AscendC_IfAICOp : AscendC_Op<"if_aic", [SingleBlockImplicitTerminator<"YieldOp">]> {
+  let summary = "Conditional execution block targeting AIC (AI Cube) compute unit";
+  let arguments = (ins Variadic<AnyType>:$srcTensors);
+  let results = (outs Variadic<AnyType>:$results);
+  let regions = (region SizedRegion<1>:$region);
+  let assemblyFormat = "(`(` $srcTensors^ `:` type($srcTensors) `)`)? (`->` type($results)^)? $region attr-dict";
+  let hasCanonicalizer = 1;
+}
+
+def AscendC_IfAIVOp : AscendC_Op<"if_aiv", [SingleBlockImplicitTerminator<"YieldOp">]> {
+  let summary = "Conditional execution block targeting AIV (AI Vector) compute unit";
+  let arguments = (ins Variadic<AnyType>:$srcTensors);
+  let results = (outs Variadic<AnyType>:$results);
+  let regions = (region SizedRegion<1>:$region);
+  let assemblyFormat = "(`(` $srcTensors^ `:` type($srcTensors) `)`)? (`->` type($results)^)? $region attr-dict";
+  let hasCanonicalizer = 1;
+}
+
 def AscendC_FftsCrossCoreSyncOp : APIOp<"ffts_cross_core_sync", "FftsCrossCoreSync"> {
   let arguments = (ins AscendC_PipeAttr:$pipe, AnyType:$config);
 }
 
 def AscendC_SetFftsBaseAddrOp : APIOp<"set_ffts_base_addr", "SetFftsBaseAddr"> {
-  let arguments = (ins AnyMemRef);
+  let arguments = (ins AnyRankedOrUnrankedMemRef);
 }
 
 def AscendC_PopStackBufferOp : APIOp<"pop_stack_buffer", "PopStackBuffer"> {
@@ -126,17 +154,19 @@ def AscendC_PopStackBufferOp : APIOp<"pop_stack_buffer", "PopStackBuffer"> {
 
 def AscendC_LocalTensorAutoOp : APIOp<"local_tensor_auto", "LocalTensorAuto"> {
   let summary = "Create virtual tensor with automatic allocation semantic";
-  let arguments = (ins UnitAttr:$input, UnitAttr:$output, Variadic<I64>:$dynamicShape);
+  let arguments = (ins UnitAttr:$input, UnitAttr:$output, Variadic<I64>:$dynamicShape,
+                   DefaultValuedAttr<AscendC_TPositionAttr, "TPosition::VECCALC">:$position);
   let results = (outs AscendC_LocalTensor:$result);
   let assemblyFormat = [{
-    `(` $dynamicShape `)` (`input` $input^)? (`output` $output^)? attr-dict `:`
+    $position `(` $dynamicShape `)` (`input` $input^)? (`output` $output^)? attr-dict `:`
     type($result)
   }];
   let builders = [
-    OpBuilder<(ins "Type":$result), [{
-      build($_builder, $_state, result, false, false, ValueRange{});
+    OpBuilder<(ins "Type":$result, CArg<"TPosition", "TPosition::VECCALC">:$position), [{
+      build($_builder, $_state, result, false, false, ValueRange{}, position);
     }]>,
   ];
+  let hasCanonicalizeMethod = 1;
 }
 
 #endif // ASC_OPS_TD

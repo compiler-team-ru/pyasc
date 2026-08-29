@@ -12,6 +12,7 @@
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace mlir;
 
@@ -73,7 +74,10 @@ std::string EmitNameStack::getNameForEmission(Value val)
         if (auto fpAttr = dyn_cast_or_null<FloatAttr>(attr)) {
             SmallVector<char> number;
             fpAttr.getValue().toString(number);
-            return replaceUnsupportedChars(formatv("c{0}_f{1}", number, defConstOp.getType().getIntOrFloatBitWidth()));
+            std::string typeAbbrev;
+            llvm::raw_string_ostream os(typeAbbrev);
+            defConstOp.getType().print(os);
+            return replaceUnsupportedChars(formatv("c{0}_{1}", number, typeAbbrev));
         }
     }
     return getDefaultName();

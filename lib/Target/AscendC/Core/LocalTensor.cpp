@@ -32,6 +32,16 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::Local
     return success();
 }
 
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::LocalTensorV3Op op)
+{
+    FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
+    auto& os = emitter.ostream();
+    os << "{";
+    emitter.emitTPosition(os, op.getPos());
+    os << ", " << op.getAddr() << ", " << op.getTileSize() << "}";
+    return success();
+}
+
 LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::LocalTensorReinterpretCastOp op)
 {
     FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
@@ -56,5 +66,15 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::Local
     FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
     auto& os = emitter.ostream();
     os << " = " << emitter.getOrCreateName(op.getTensor()) << "(" << emitter.getOrCreateName(op.getIndex()) << ")";
+    return success();
+}
+
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::LocalTensorGetPhyAddrV2Op op)
+{
+    FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
+    auto& os = emitter.ostream();
+    os << " = reinterpret_cast<";
+    FAIL_OR(emitter.emitType(op.getLoc(), op.getType()));
+    os << ">(" << emitter.getOrCreateName(op.getTensor()) << "." << op.getAPIName() << "())";
     return success();
 }

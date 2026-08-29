@@ -47,8 +47,4 @@ public:
 
 } // namespace
 
-namespace mlir {
-namespace ascendc {
-std::unique_ptr<Pass> createHoistQueBindPass() { return std::make_unique<HoistQueBindPass>(); }
-} // namespace ascendc
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascendc::createHoistQueBindPass() { return std::make_unique<HoistQueBindPass>(); }

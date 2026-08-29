@@ -19,7 +19,7 @@
 // CHECK-NEXT:   AscendC::Min<float, 0>(v1, v2, v3, v4, v4, v5);
 // CHECK-NEXT:   AscendC::Mul<float, 0>(v1, v2, v3, v4, v4, v5);
 // CHECK-NEXT:   AscendC::MulAddDst<float, float, 0>(v1, v2, v3, v4, v4, v5);
-// CHECK-NEXT:   AscendC::MulCast(v1, v2, v3, v4, v4, v5);
+// CHECK-NEXT:   AscendC::MulCast<float, float, 0>(v1, v2, v3, v4, v4, v5);
 // CHECK-NEXT:   AscendC::Or<float, 0>(v1, v2, v3, v4, v4, v5);
 // CHECK-NEXT:   AscendC::Sub<float, 0>(v1, v2, v3, v4, v4, v5);
 // CHECK-NEXT:   AscendC::SubRelu<float, 0>(v1, v2, v3, v4, v4, v5);
@@ -65,7 +65,7 @@ func.func @emit_vector_binary_l0_ops(%dst: !ascendc.local_tensor<1024xf32>, %src
 // CHECK-NEXT:   uint64_t v1_mask_list0[] = {v6, v7};
 // CHECK-NEXT:   AscendC::MulAddDst<float, float, 0>(v1, v2, v3, v1_mask_list0, v4, v5);
 // CHECK-NEXT:   uint64_t v1_mask_list0[] = {v6, v7};
-// CHECK-NEXT:   AscendC::MulCast(v1, v2, v3, v1_mask_list0, v4, v5);
+// CHECK-NEXT:   AscendC::MulCast<float, float, 0>(v1, v2, v3, v1_mask_list0, v4, v5);
 // CHECK-NEXT:   uint64_t v1_mask_list0[] = {v6, v7};
 // CHECK-NEXT:   AscendC::Or<float, 0>(v1, v2, v3, v1_mask_list0, v4, v5);
 // CHECK-NEXT:   uint64_t v1_mask_list0[] = {v6, v7};

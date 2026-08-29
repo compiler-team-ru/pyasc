@@ -17,6 +17,7 @@ using namespace mlir::ascendc;
 namespace {
 
 constexpr std::uint64_t ui64BitWidth = 64;
+constexpr size_t transDataBlockSize = 16;
 
 mlir::Type inferElementTypeFromTensorList(ValueRange tensorList)
 {
@@ -151,6 +152,35 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::Trans
     }
 
     os << ">(" << dstName << ", " << srcName << ", " << emitter.getOrCreateName(op.getParams()) << ")";
+    return success();
+}
+
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::TransDataTo5HDTensorOp op)
+{
+    auto& os = emitter.ostream();
+    assert(op.getSrcOffsets().size() == transDataBlockSize && op.getDstOffsets().size() == transDataBlockSize);
+    auto srcAddrName = emitter.getOrCreateName(op.getParams()).str() + "_src_addr";
+    auto dstAddrName = emitter.getOrCreateName(op.getParams()).str() + "_dst_addr";
+    auto dstName = emitter.getOrCreateName(op.getParams()).str() + "_dst_list";
+    auto srcName = emitter.getOrCreateName(op.getParams()).str() + "_src_list";
+
+    os << "{\n";
+    os.indent();
+    os << "uint64_t " << srcAddrName << "=" << emitter.getOrCreateName(op.getSrc()) << ".GetPhyAddr();\n";
+    os << "uint64_t " << dstAddrName << "=" << emitter.getOrCreateName(op.getDst()) << ".GetPhyAddr();\n";
+    os << "uint64_t " << srcName << "[] = {";
+    llvm::interleaveComma(op.getSrcOffsets(), os, [&](int32_t offset) { os << srcAddrName << "+" << offset; });
+    os << "};\n";
+    os << "uint64_t " << dstName << "[] = {";
+    llvm::interleaveComma(op.getDstOffsets(), os, [&](int32_t offset) { os << dstAddrName << "+" << offset; });
+    os << "};\n";
+
+    os << ascNamespace << "::" << op.getAPIName() << "<";
+    auto elementType = dyn_cast<ascendc::LocalTensorType>(op.getDst().getType()).getElementType();
+    FAIL_OR(emitter.emitType(op.getLoc(), elementType));
+    os << ">(" << dstName << ", " << srcName << ", " << emitter.getOrCreateName(op.getParams()) << ");\n";
+    os.unindent();
+    os << "}\n";
     return success();
 }
 

@@ -17,10 +17,6 @@
 namespace mlir {
 namespace emitasc {
 
-//===----------------------------------------------------------------------===//
-// EmitAsc operations
-//===----------------------------------------------------------------------===//
-
 LogicalResult printOperation(CodeEmitter& emitter, emitasc::CallOpaqueOp op);
 
 LogicalResult printOperation(CodeEmitter& emitter, emitasc::CopyStructOp op);
@@ -28,6 +24,10 @@ LogicalResult printOperation(CodeEmitter& emitter, emitasc::CopyStructOp op);
 LogicalResult printOperation(CodeEmitter& emitter, emitasc::DeclarePyStructOp op);
 
 LogicalResult printOperation(CodeEmitter& emitter, emitasc::DereferenceOp op);
+
+LogicalResult printOperation(CodeEmitter& emitter, emitasc::InitStructOp op);
+
+LogicalResult printOperation(CodeEmitter& emitter, emitasc::MaskOp op);
 
 LogicalResult printOperation(CodeEmitter& emitter, emitasc::MemberOp op);
 

@@ -21,3 +21,14 @@ func.func @test_variable(%arg0: i32, %arg1: memref<?xf16>) {
   %dynamic_memref = emitasc.variable %arg1 : memref<?xf16>, memref<1xmemref<?xf16>>
   return
 }
+
+// CHECK-LABEL: func.func @test_init_struct(%arg0: i32, %arg1: memref<?xf16>)
+// CHECK-NEXT: emitasc.init_struct !emitc.opaque<"NoFields">()
+// CHECK-NEXT: emitasc.init_struct !emitc.opaque<"OneField">("first_field" = %arg0 : i32)
+// CHECK-NEXT: emitasc.init_struct !emitc.opaque<"ManyFields">("first_field" = %arg0 : i32, "second_field" = %arg1 : memref<?xf16>)
+func.func @test_init_struct(%arg0: i32, %arg1: memref<?xf16>) {
+  %no_fields = emitasc.init_struct !emitc.opaque<"NoFields">()
+  %one_field = emitasc.init_struct !emitc.opaque<"OneField">("first_field" = %arg0 : i32)
+  %many_fields = emitasc.init_struct !emitc.opaque<"ManyFields">("first_field" = %arg0 : i32, "second_field" = %arg1 : memref<?xf16>)
+  return
+}

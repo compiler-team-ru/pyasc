@@ -46,25 +46,6 @@ auto printBinaryL2Params(CodeEmitter& emitter, BinaryOp op)
        << emitter.getOrCreateName(op.getSrc1()) << ", " << emitter.getOrCreateName(op.getCalCount()) << ")";
 }
 
-template <typename BinaryL0Op>
-auto printOperation(CodeEmitter& emitter, BinaryL0Op op) -> LogicalResultForT<BinaryL0Op, ascendc::MulCastL0Op>
-{
-    auto& os = emitter.ostream();
-    os << ascNamespace << "::" << op.getAPIName();
-    printBinaryL0Params(emitter, op);
-    return success();
-}
-
-template <typename BinaryL1Op>
-auto printOperation(CodeEmitter& emitter, BinaryL1Op op) -> LogicalResultForT<BinaryL1Op, ascendc::MulCastL1Op>
-{
-    auto& os = emitter.ostream();
-    auto maskName = printMask(emitter, op);
-    os << ascNamespace << "::" << op.getAPIName();
-    printBinaryL1Params(emitter, op, maskName);
-    return success();
-}
-
 template <typename BinaryL2Op>
 auto printOperation(CodeEmitter& emitter, BinaryL2Op op) -> LogicalResultForT<
     BinaryL2Op, ascendc::AddL2Op, ascendc::AddDeqReluL2Op, ascendc::AddReluL2Op, ascendc::AddReluCastL2Op,
@@ -106,7 +87,8 @@ auto printOperation(CodeEmitter& emitter, BinaryTemplateL1Op op) -> LogicalResul
 
 template <typename BinaryCastL0Op>
 auto printOperation(CodeEmitter& emitter, BinaryCastL0Op op) -> LogicalResultForT<
-    BinaryCastL0Op, ascendc::AddDeqReluL0Op, ascendc::AddReluCastL0Op, ascendc::SubReluCastL0Op, ascendc::MulAddDstL0Op>
+    BinaryCastL0Op, ascendc::AddDeqReluL0Op, ascendc::AddReluCastL0Op, ascendc::SubReluCastL0Op, ascendc::MulAddDstL0Op,
+    ascendc::MulCastL0Op>
 {
     auto& os = emitter.ostream();
     FAIL_OR(printIsSetMaskCastTemplate(emitter, op));
@@ -116,7 +98,8 @@ auto printOperation(CodeEmitter& emitter, BinaryCastL0Op op) -> LogicalResultFor
 
 template <typename BinaryCastL1Op>
 auto printOperation(CodeEmitter& emitter, BinaryCastL1Op op) -> LogicalResultForT<
-    BinaryCastL1Op, ascendc::AddDeqReluL1Op, ascendc::AddReluCastL1Op, ascendc::SubReluCastL1Op, ascendc::MulAddDstL1Op>
+    BinaryCastL1Op, ascendc::AddDeqReluL1Op, ascendc::AddReluCastL1Op, ascendc::SubReluCastL1Op, ascendc::MulAddDstL1Op,
+    ascendc::MulCastL1Op>
 {
     auto& os = emitter.ostream();
     auto maskName = printMask(emitter, op);

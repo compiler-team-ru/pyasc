@@ -26,6 +26,7 @@ def _lazy_init(need_device=True, need_stream=True) -> None:
     if state.lib is None:
         state.load_lib()
         atexit.register(reset_device, None)
+        atexit.register(free_mem)
         signal.signal(signal.SIGINT, _sigint_handler)
     if not need_device:
         return
@@ -243,12 +244,16 @@ def register_device_binary_kernel(kernel_binary: bytes, core_type_id: int) -> su
 
 
 def unregister_device_binary_kernel(kernel_handle: support.Kernel):
-    _lazy_init()
+    _lazy_init(need_stream=False)
     state.lib.call(
         "DevBinaryUnRegisterWrapper",
         kernel_handle,
     )
     del state.kernels[kernel_handle.value]
+
+
+def is_device_binary_registered(kernel_handle: support.Kernel) -> bool:
+    return kernel_handle.value in state.kernels
 
 
 def register_function(kernel_handle: support.Kernel, fn_name: str, mode: int) -> support.Function:
@@ -352,7 +357,7 @@ def synchronize(stream_handle: Optional[support.Stream] = None, timeout: int = 0
 
 
 def free(mem_handle: support.Memory):
-    _lazy_init()
+    _lazy_init(need_stream=False)
     mem_ptr = ctypes.c_void_p(state.allocs[mem_handle.value])
     state.lib.call(
         "FreeWrapper",

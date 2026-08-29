@@ -76,7 +76,7 @@ mlir_check_all_link_libraries(${ASCIR_OPT_NAME})
 
 set_target_properties(${ASCIR_OPT_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
-# ascir-translate 
+# ascir-translate
 
 set(ASCIR_TRANSLATE_NAME ascir-translate)
 

@@ -31,6 +31,8 @@ struct CodeEmitter {
 
     static void emitTPosition(raw_ostream& os, ascendc::TPosition pos);
 
+    static void emitCO2Layout(raw_ostream& os, ascendc::CO2Layout layout);
+
     static void emitLayoutMode(raw_ostream& os, ascendc::LayoutMode layout);
 
     explicit CodeEmitter(raw_ostream& os);
@@ -165,6 +167,12 @@ private:
 
     LogicalResult emitAscLocalTensorType(Location loc, Type type, bool emitAsUnsigned);
 
+    LogicalResult emitAscFixpipeParamsC310Type(Location loc, Type type, bool emitAsUnsigned);
+
+    LogicalResult emitAscRegTensorType(Location loc, Type type, bool emitAsUnsigned);
+
+    LogicalResult emitAscMaskRegType(Location loc, Type type, bool emitAsUnsigned);
+
     LogicalResult emitAscLocalMemAllocatorType(Location loc, Type type, bool emitAsUnsigned);
 
     LogicalResult emitAscPyStructType(Location loc, Type type, bool emitAsUnsigned);
@@ -188,6 +196,8 @@ private:
     LogicalResult emitSymbolRefAttr(Location loc, Attribute attr);
 
     LogicalResult emitTypeAttr(Location loc, Attribute attr);
+
+    LogicalResult emitAscNdDmaParams(Location loc, Type type, bool emitAsUnsigned);
 
     void printInt(const APInt& value, bool isUnsigned);
 

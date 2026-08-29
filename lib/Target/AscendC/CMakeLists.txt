@@ -25,5 +25,4 @@ LINK_LIBS PUBLIC
   MLIRTranslateLib
 )
 
-add_dependencies(MLIRTargetAsc
-  AscendCOpEmitsGen)
+add_dependencies(MLIRTargetAsc AscendCOpEmitsGen)

@@ -99,7 +99,7 @@ func.func @emit_select_slice_scalar_op(
     : !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<32xui16>, !ascendc.local_tensor<1024xf32>, f32, ui64, ui64, ui8, !ascendc.binary_repeat_params
   ascendc.select_scalar_l0 %dst, %cond, %src0, %f0, %m0_ui64, %c0_ui8, %params {selMode = 1 : i32, isSetMask}
     : !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<32xui16>, !ascendc.local_tensor<1024xf32>, f32, ui64, ui8, !ascendc.binary_repeat_params
-  ascendc.select_scalar_reg %dst, %cond, %src0, %c0_ui8, %params
+  ascendc.select_scalar_regmask %dst, %cond, %src0, %c0_ui8, %params
     : !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<32xui16>, !ascendc.local_tensor<1024xf32>, ui8, !ascendc.binary_repeat_params
   return
 }
@@ -124,7 +124,7 @@ func.func @emit_select_slice_tensor_op(
     : !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<32xui16>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, ui64, ui64, ui8, !ascendc.binary_repeat_params
   ascendc.select_l0 %dst, %cond, %src0, %src1, %m0_ui64, %c0_ui8, %params {selMode = 0 : i32, isSetMask}
     : !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<32xui16>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, ui64, ui8, !ascendc.binary_repeat_params
-  ascendc.select_reg %dst, %src0, %src1, %c0_ui8, %params {selMode = 0 : i32}
+  ascendc.select_regmask %dst, %src0, %src1, %c0_ui8, %params {selMode = 0 : i32}
     : !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, ui8, !ascendc.binary_repeat_params
   return
 }

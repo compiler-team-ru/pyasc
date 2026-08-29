@@ -157,8 +157,4 @@ struct VerifySyncPass : public ascendc::impl::VerifySyncBase<VerifySyncPass> {
 
 } // namespace
 
-namespace mlir {
-namespace ascendc {
-std::unique_ptr<Pass> createVerifySyncPass() { return std::make_unique<VerifySyncPass>(); }
-} // namespace ascendc
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascendc::createVerifySyncPass() { return std::make_unique<VerifySyncPass>(); }

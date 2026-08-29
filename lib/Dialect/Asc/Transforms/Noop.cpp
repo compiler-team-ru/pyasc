@@ -32,8 +32,4 @@ struct NoopPass : public ascendc::impl::NoopBase<NoopPass> {
 
 } // namespace
 
-namespace mlir {
-namespace ascendc {
-std::unique_ptr<Pass> createNoopPass() { return std::make_unique<NoopPass>(); }
-} // namespace ascendc
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascendc::createNoopPass() { return std::make_unique<NoopPass>(); }

@@ -84,3 +84,33 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::CopyL
 
     return success();
 }
+
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::NdDmaParamsOp op)
+{
+    auto& os = emitter.ostream();
+    FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
+    os << "=";
+    os << mlir::ascNamespace << "::NdDmaParams<";
+    auto type = op.getPadValue().getType();
+    FAIL_OR(emitter.emitType(op.getLoc(), type));
+    os << "," << op.getDim() << ">";
+    os << "{{{";
+    for (const auto& val : op.getSrcStride()) {
+        os << "static_cast<uint64_t>(" << emitter.getOrCreateName(val) << "),";
+    }
+    os << "},{";
+    llvm::interleaveComma(
+        op.getDstStride(), os, [&](Attribute attr) { (void)emitter.emitAttribute(op.getLoc(), attr); });
+    os << "},{";
+    for (const auto& val : op.getSize()) {
+        os << "static_cast<uint32_t>(" << emitter.getOrCreateName(val) << "),";
+    }
+    os << "},{";
+    llvm::interleaveComma(op.getPadLeft(), os, [&](Attribute attr) { (void)emitter.emitAttribute(op.getLoc(), attr); });
+    os << "},{";
+    llvm::interleaveComma(
+        op.getPadRight(), os, [&](Attribute attr) { (void)emitter.emitAttribute(op.getLoc(), attr); });
+    os << "}},";
+    os << emitter.getOrCreateName(op.getPadValue()) << "}";
+    return success();
+}

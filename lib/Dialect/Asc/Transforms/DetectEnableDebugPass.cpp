@@ -24,7 +24,6 @@ namespace ascendc {
 } // namespace mlir
 
 using namespace mlir;
-using namespace mlir::ascendc;
 
 namespace {
 
@@ -34,10 +33,10 @@ public:
     {
         ModuleOp op = getOperation();
         if (op.walk([](ascendc::PrintfOp) { return WalkResult::interrupt(); }).wasInterrupted()) {
-            op->setAttr(attr::enable_debug, UnitAttr::get(op->getContext()));
+            op->setAttr(ascendc::attr::enableDebug, UnitAttr::get(op->getContext()));
         }
         if (op.walk([](ascendc::DumpTensorOp) { return WalkResult::interrupt(); }).wasInterrupted()) {
-            op->setAttr(attr::enable_debug, UnitAttr::get(op->getContext()));
+            op->setAttr(ascendc::attr::enableDebug, UnitAttr::get(op->getContext()));
         }
     }
 };

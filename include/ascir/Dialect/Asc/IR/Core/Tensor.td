@@ -69,7 +69,7 @@ def AscendC_GlobalTensorGetPhyAddrOp : APIOp<"global_tensor.get_phy_addr", "GetP
   let arguments = (ins AscendC_GlobalTensor:$tensor, Optional<UI64>:$offset);
   let results = (outs AnyRankedOrUnrankedMemRef:$result);
   let assemblyFormat = [{
-    $tensor attr-dict (`,` $offset^)? `:` qualified(type($tensor)) 
+    $tensor attr-dict (`,` $offset^)? `:` qualified(type($tensor))
     `,` qualified(type($result)) (`,` type($offset)^)?
   }];
 }
@@ -109,7 +109,7 @@ def AscendC_GlobalTensorSetL2CacheHintOp : APIOp<"global_tensor.set_l2_cache_hin
 def AscendC_GlobalTensorSetShapeInfoOp : APIOp<"global_tensor.set_shape_info", "SetShapeInfo", [AscMemberFunc]> {
   let summary = "Call `AscendC::GlobalTensor::SetShapeInfo` method";
   let arguments = (ins AscendC_GlobalTensor:$tensor, AscendC_ShapeInfo:$shapeInfo);
-} 
+}
 
 def AscendC_GlobalTensorSetShapeInfoV2Op : APIOp<"global_tensor.set_shape_info_v2", "SetShapeInfo"> {
   let summary = "Call `AscendC::GlobalTensor::SetShapeInfo` method";
@@ -134,6 +134,7 @@ def AscendC_GlobalTensorSubIndexOp
     $tensor `[` $index `]`  attr-dict `:` qualified(type($tensor)) `,`
     type($index) `,` qualified(type($result))
   }];
+  let hasFolder = 1;
 }
 
 def AscendC_GlobalTensorSetGlobalBufferOp : APIOp<"global_tensor.set_global_buffer", "SetGlobalBuffer", [AscMemberFunc]> {
@@ -165,6 +166,13 @@ def AscendC_LocalTensorV2Op : AscendC_Op<"local_tensor_v2"> {
   let assemblyFormat = "$pos `,` $addr `,` $tileSize attr-dict `:` qualified(type($result))";
 }
 
+def AscendC_LocalTensorV3Op : AscendC_Op<"local_tensor_v3"> {
+  let summary = "Instantiate local tensor";
+  let arguments = (ins AscendC_TPositionAttr:$pos, I32Attr:$addr, I32Attr:$tileSize);
+  let results = (outs AscendC_LocalTensor:$result);
+  let assemblyFormat = "$pos `,` $addr `,` $tileSize attr-dict `:` qualified(type($result))";
+}
+
 def AscendC_LocalTensorBracketOp
     : AscendC_Op<"local_tensor.bracket", [Pure]> {
   let summary = "Call `AscendC::LocalTensor::operator()` method";
@@ -190,8 +198,18 @@ def AscendC_LocalTensorGetPhyAddrOp : APIOp<"local_tensor.get_phy_addr", "GetPhy
   let arguments = (ins AscendC_LocalTensor:$tensor, Optional<UI32>:$offset);
   let results = (outs AnyType:$result);
   let assemblyFormat = [{
-    $tensor attr-dict (`,` $offset^)? `:` qualified(type($tensor)) 
+    $tensor attr-dict (`,` $offset^)? `:` qualified(type($tensor))
     `,` qualified(type($result)) (`,` type($offset)^)?
+  }];
+}
+
+def AscendC_LocalTensorGetPhyAddrV2Op : APIOp<"local_tensor.get_phy_addr_v2", "GetPhyAddr"> {
+  let summary = "Call `AscendC::LocalTensor::GetPhyAddr` method";
+  let arguments = (ins AscendC_LocalTensor:$tensor);
+  let results = (outs AnyRankedOrUnrankedMemRef:$result);
+  let assemblyFormat = [{
+    $tensor attr-dict `:` qualified(type($tensor))
+    `,` qualified(type($result))
   }];
 }
 
@@ -231,13 +249,16 @@ def AscendC_LocalTensorGetUserTagOp : APIOp<"local_tensor.get_user_tag", "GetUse
   }];
 }
 
-def AscendC_LocalTensorGetValueOp : APIOp<"local_tensor.get_value", "GetValue", [AscMemberFunc]> {
+def AscendC_LocalTensorGetValueOp : APIOp<"local_tensor.get_value", "GetValue", [AscMemberFunc, OpWithSrcInterface]> {
   let summary = "Call `AscendC::LocalTensor::GetValue` method";
   let arguments = (ins AscendC_LocalTensor:$tensor, AnyType:$index);
   let results = (outs AnyType:$value);
   let assemblyFormat = [{
     $tensor `,` $index attr-dict `:` qualified(type($tensor)) `,`
     qualified(type($index)) `,` qualified(type($value))
+  }];
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getTensor()}; }
   }];
 }
 
@@ -285,12 +306,15 @@ def AscendC_LocalTensorSetUserTagOp : APIOp<"local_tensor.set_user_tag", "SetUse
   let arguments = (ins AscendC_LocalTensor:$tensor, I32:$tag);
 }
 
-def AscendC_LocalTensorSetValueOp : APIOp<"local_tensor.set_value", "SetValue", [AscMemberFunc]> {
+def AscendC_LocalTensorSetValueOp : APIOp<"local_tensor.set_value", "SetValue", [AscMemberFunc, OpWithSrcInterface]> {
   let summary = "Call `AscendC::LocalTensor::SetValue` method";
   let arguments = (ins AscendC_LocalTensor:$tensor, AnyType:$index, AnyType:$value);
   let assemblyFormat = [{
     $tensor `,` $index `,` $value attr-dict `:` qualified(type($tensor)) `,`
     type($index) `,` type($value)
+  }];
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getTensor()}; }
   }];
 }
 
@@ -303,6 +327,7 @@ def AscendC_LocalTensorSubIndexOp
     $tensor `[` $index `]`  attr-dict `:` qualified(type($tensor)) `,`
     type($index) `,` qualified(type($result))
   }];
+  let hasFolder = 1;
 }
 
 def AscendC_LocalTensorToFileOp

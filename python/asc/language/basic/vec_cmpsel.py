@@ -213,7 +213,7 @@ def select(dst: LocalTensor, *args, **kwargs) -> None:
         builder._select_mask_list_cache = {}
     if (len(args) == 2 and "repeat_times" in kwargs and "repeat_params" in kwargs and "sel_mode" in kwargs):
         src0, src1 = args
-        builder.create_asc_SelectRegOp(
+        builder.create_asc_SelectRegMaskOp(
             dst.to_ir(),
             src0.to_ir(),
             src1.to_ir(),
@@ -296,7 +296,7 @@ def select(dst: LocalTensor, *args, **kwargs) -> None:
 
     @dispatcher.register(repeat_times=RuntimeInt, repeat_params=BinaryRepeatParams)
     def _(repeat_times, repeat_params):
-        builder.create_asc_SelectScalarRegOp(
+        builder.create_asc_SelectScalarRegMaskOp(
             dst.to_ir(),
             sel_mask.to_ir(),
             src0.to_ir(),

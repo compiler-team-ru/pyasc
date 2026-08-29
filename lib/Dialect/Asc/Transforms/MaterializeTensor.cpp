@@ -8,10 +8,9 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include <climits>
-
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
+#include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -32,7 +31,9 @@ using namespace mlir;
 namespace {
 
 struct MaterializeLocalTensor : OpRewritePattern<ascendc::LocalTensorAutoOp> {
-    using OpRewritePattern::OpRewritePattern;
+    bool alwaysBuf;
+
+    MaterializeLocalTensor(MLIRContext* context, bool alwaysBuf) : alwaysBuf(alwaysBuf), OpRewritePattern(context) {}
 
     static ascendc::TPosition getPosition(ascendc::LocalTensorAutoOp op)
     {
@@ -49,18 +50,29 @@ struct MaterializeLocalTensor : OpRewritePattern<ascendc::LocalTensorAutoOp> {
         auto loc = op.getLoc();
         ascir::ConstantOpBuilder consts(rewriter);
         Value length;
+        auto position = op.getPosition();
         if (type.hasStaticShape()) {
-            length = consts.i64(type.getNumElements() * type.getElementTypeBitWidth() / CHAR_BIT);
+            if (position == ascendc::TPosition::A1 || position == ascendc::TPosition::B1 ||
+                position == ascendc::TPosition::A2 || position == ascendc::TPosition::B2)
+                length = consts.i64(ascendc::getTypeSizeCubeBlockAlign(type, position));
+            else
+                length = consts.i64(ascendc::getTypeSize(type));
         } else {
             assert(op->getNumOperands() != 0 && "must have operands for dynamic shape");
-            length = consts.i64(type.getElementTypeBitWidth() / CHAR_BIT);
+            auto elementTypeSize = ascendc::getElementTypeSize(type);
+            length = consts.i64(elementTypeSize);
+            auto align = consts.i64(ascendc::ubBlockSize / elementTypeSize);
             for (auto dim : op.getDynamicShape()) {
+                if (position == ascendc::TPosition::A1) {
+                    auto ceilDim = rewriter.create<arith::CeilDivSIOp>(loc, dim, align);
+                    dim = rewriter.create<arith::MulIOp>(loc, ceilDim, align);
+                }
                 length = rewriter.create<arith::MulIOp>(loc, length, dim);
             }
         }
         Value pipe = rewriter.create<ascendc::PipeOp>(loc);
-        if (!op.getInput() && !op.getOutput()) {
-            auto bufferTy = ascendc::TBufType::get(op.getContext(), ascendc::TPosition::VECCALC);
+        if (alwaysBuf || !op.getInput() && !op.getOutput()) {
+            auto bufferTy = ascendc::TBufType::get(op.getContext(), op.getPosition());
             Value buffer = rewriter.create<ascendc::TBufOp>(loc, bufferTy);
             rewriter.create<ascendc::TPipeInitBufferOp>(loc, pipe, buffer, length);
             rewriter.replaceOpWithNewOp<ascendc::TBufGetTensorOp>(op, type, buffer);
@@ -77,7 +89,9 @@ struct MaterializeLocalTensor : OpRewritePattern<ascendc::LocalTensorAutoOp> {
     }
 };
 
-class MaterializeTensorPass : public ascendc::impl::MaterializeTensorBase<MaterializeTensorPass> {
+struct MaterializeTensorPass : public ascendc::impl::MaterializeTensorBase<MaterializeTensorPass> {
+    MaterializeTensorPass(const ascendc::MaterializeTensorOptions& options) : MaterializeTensorBase(options) {}
+
     void runOnOperation() override
     {
         func::FuncOp funcOp = getOperation();
@@ -86,7 +100,7 @@ class MaterializeTensorPass : public ascendc::impl::MaterializeTensorBase<Materi
         }
         MLIRContext* context = &getContext();
         RewritePatternSet patterns(context);
-        patterns.add<MaterializeLocalTensor>(context);
+        patterns.add<MaterializeLocalTensor>(context, alwaysBuf);
         if (applyPatternsAndFoldGreedily(funcOp, std::move(patterns)).failed()) {
             signalPassFailure();
         }
@@ -94,8 +108,9 @@ class MaterializeTensorPass : public ascendc::impl::MaterializeTensorBase<Materi
 };
 } // namespace
 
-namespace mlir {
-namespace ascendc {
-std::unique_ptr<Pass> createMaterializeTensorPass() { return std::make_unique<MaterializeTensorPass>(); }
-} // namespace ascendc
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascendc::createMaterializeTensorPass(bool alwaysBuf)
+{
+    MaterializeTensorOptions options;
+    options.alwaysBuf = alwaysBuf;
+    return std::make_unique<MaterializeTensorPass>(options);
+}

@@ -11,10 +11,11 @@
         </policylist>
         <filefilterlist>
             <filefilter name="defaultPolicyFilter" desc="Filters for compatibility,license header policies">
-                <filteritem type="filename" name="OAT.xml" desc="Describe commite owner"/> 
+                <filteritem type="filename" name="OAT.xml" desc="Describe commite owner"/>
                 <filteritem type="filename" name=".gitmodules" desc="git submodule "/>
                 <filteritem type="filename" name="pyproject.toml" desc="python config "/>
                 <filteritem type="filename" name="classify_rule.yaml" desc="test filter"/>
+                <filteritem type="filename" name=".pre-commit-config.yaml" desc="pre-commit tool configuration"/>
             </filefilter>
             <filefilter name="copyrightPolicyFilter" desc="Filters for copyright header policies">
                 <filteritem type="filename" name=".gitmodules" desc="git submodule "/>

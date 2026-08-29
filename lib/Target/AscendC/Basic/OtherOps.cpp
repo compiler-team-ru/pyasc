@@ -291,3 +291,51 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GetSt
 
     return success();
 }
+
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::IfAICOp op)
+{
+    auto& os = emitter.ostream();
+    for (OpResult result : op.getResults()) {
+        if (failed(emitter.emitVariableDeclaration(result, /*trailingSemicolon=*/true))) {
+            return failure();
+        }
+    }
+    os << "if ASCEND_IS_AIC {\n";
+    os.indent();
+    for (auto& operation : op.getRegion().front()) {
+        FAIL_OR(emitOperation(emitter, operation, needsSemicolon(operation)));
+    }
+    os.unindent() << "}";
+    return success();
+}
+
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::IfAIVOp op)
+{
+    auto& os = emitter.ostream();
+    for (OpResult result : op.getResults()) {
+        if (failed(emitter.emitVariableDeclaration(result, /*trailingSemicolon=*/true))) {
+            return failure();
+        }
+    }
+    os << "if ASCEND_IS_AIV {\n";
+    os.indent();
+    for (auto& operation : op.getRegion().front()) {
+        FAIL_OR(emitOperation(emitter, operation, needsSemicolon(operation)));
+    }
+    os.unindent() << "}";
+    return success();
+}
+
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::YieldOp yieldOp)
+{
+    auto& os = emitter.ostream();
+    Operation* parentOp = yieldOp->getParentOp();
+    llvm::interleave(
+        llvm::zip(parentOp->getResults(), yieldOp.getOperands()),
+        [&](auto pair) {
+            auto& [result, operand] = pair;
+            os << emitter.getOrCreateName(result) << " = " << emitter.getOrCreateName(operand) << ";";
+        },
+        [&] { os << "\n"; });
+    return success();
+}

@@ -24,8 +24,9 @@ template <typename UnaryMathOp>
 auto printOperation(CodeEmitter& emitter, UnaryMathOp op) -> LogicalResultForT<
     UnaryMathOp, ascendc::AcoshOp, ascendc::AcosOp, ascendc::AsinhOp, ascendc::AsinOp, ascendc::AtanhOp,
     ascendc::AtanOp, ascendc::CeilOp, ascendc::CoshOp, ascendc::CosOp, ascendc::DigammaOp, ascendc::ErfcOp,
-    ascendc::ErfOp, ascendc::FloorOp, ascendc::FracOp, ascendc::LgammaOp, ascendc::LogOp, ascendc::RoundOp,
-    ascendc::SignOp, ascendc::SinhOp, ascendc::SinOp, ascendc::TanhOp, ascendc::TanOp, ascendc::TruncOp>
+    ascendc::ErfOp, ascendc::FloorOp, ascendc::FracOp, ascendc::LgammaOp, ascendc::LogOp, ascendc::Log2Op,
+    ascendc::RoundOp, ascendc::SignOp, ascendc::SinhOp, ascendc::SinOp, ascendc::TanhOp, ascendc::TanOp,
+    ascendc::TruncOp>
 {
     auto& os = emitter.ostream();
     os << ascNamespace << "::" << op.getAPIName();

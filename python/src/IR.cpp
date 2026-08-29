@@ -20,14 +20,17 @@
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
 #include "mlir/Dialect/Func/Extensions/AllExtensions.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/DialectRegistry.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/MLIRContext.h"
@@ -85,11 +88,32 @@ std::optional<SmallVector<emitasc::KernelArgument>> getKernelArgAttrs(ModuleOp o
     return kernelArgs;
 }
 
+ShapedType cloneShapedType(Type type, std::optional<Type> elemType, const std::optional<std::vector<int64_t>>& shape)
+{
+    auto shapedType = llvm::dyn_cast_if_present<ShapedType>(type);
+    if (!shapedType)
+        throw std::runtime_error("clone_shaped_type(): must be shaped type");
+    Type useElemType = elemType.has_value() ? *elemType : shapedType.getElementType();
+    return shapedType.cloneWith(shape, useElemType);
+}
+
+void bindAttrs(py::module& m)
+{
+    m.attr("dynshape") = py::int_(ShapedType::kDynamic);
+    m.attr("ub_block_size") = py::int_(ascendc::ubBlockSize);
+
+    auto modAttr = m.def_submodule("attr");
+    modAttr.attr("compilation_arch") = py::str(ascendc::attr::compilationArch);
+    modAttr.attr("enable_debug") = py::str(ascendc::attr::enableDebug);
+    modAttr.attr("kernel_type") = py::str(ascendc::attr::kernelType);
+    modAttr.attr("memory_consumed") = py::str(ascendc::attr::memoryConsumed);
+    modAttr.attr("soc_version") = py::str(ascendc::attr::socVersion);
+    modAttr.attr("vf_vec_len") = py::str(ascendc::attr::vfVecLen);
+}
+
 void bindEnums(py::module& m)
 {
     using ret = py::return_value_policy;
-
-    m.attr("dynshape") = py::int_(ShapedType::kDynamic);
 
     py::enum_<ascendc::AddressSpace>(m, "AddressSpace", py::module_local())
         .value("ca", ascendc::AddressSpace::ca)
@@ -194,7 +218,7 @@ void bindContextAndDialect(py::module& m)
         registry.insert<
             //
             arith::ArithDialect, ascendc::AscendCDialect, emitasc::EmitAscDialect, emitc::EmitCDialect,
-            func::FuncDialect, memref::MemRefDialect, scf::SCFDialect, vector::VectorDialect
+            func::FuncDialect, math::MathDialect, memref::MemRefDialect, scf::SCFDialect, vector::VectorDialect
             //
             >();
         ascendc::registerExternalModels(registry);
@@ -209,6 +233,7 @@ void bindContextAndDialect(py::module& m)
 void bindType(py::module& m)
 {
     py::class_<Type>(m, "Type", py::module_local())
+        .def("dump", &Type::dump)
         .def("is_integer", [](Type& self) -> bool { return self.isInteger(); })
         .def("is_index", &Type::isIndex)
         .def(
@@ -231,7 +256,9 @@ void bindType(py::module& m)
                     name += std::to_string(self.getIntOrFloatBitWidth());
                     return name;
                 }
-                if (isa<FloatType>(self)) {
+                if (isa<BFloat16Type>(self))
+                    return "bfloat16";
+                if (isa<Float16Type, Float32Type, Float64Type>(self)) {
                     std::string name = "float";
                     name += std::to_string(self.getIntOrFloatBitWidth());
                     return name;
@@ -265,6 +292,19 @@ void bindMemref(py::module& m)
             throw std::runtime_error("get_shape(): must be shaped type");
         return type.getShape().vec();
     });
+
+    m.def(
+        "clone_shaped_type",
+        [](Type shapedType, const std::vector<int64_t>& shape) -> Type {
+            return cloneShapedType(shapedType, std::nullopt, shape);
+        },
+        "shaped_type"_a, "shape"_a);
+    m.def(
+        "clone_shaped_type",
+        [](Type shapedType, Type elementType, const std::optional<std::vector<int64_t>>& shape) -> Type {
+            return cloneShapedType(shapedType, elementType, shape);
+        },
+        "shaped_type"_a, "element_type"_a, "shape"_a = py::none());
 
     m.def("get_vector_type", [](Type& elementType, std::vector<int64_t>& shape) -> Type {
         return VectorType::get(shape, elementType);
@@ -456,7 +496,16 @@ void bindAttritube(py::module& m)
 
     py::class_<ArrayAttr, Attribute>(m, "ArrayAttr", py::module_local());
 
+    py::class_<TypedAttr>(m, "TypedAttr", py::module_local()).def("get_type", &TypedAttr::getType);
+
     m.def("get_type_attr", [](const Type& type) -> Attribute { return TypeAttr::get(type); });
+
+    m.def("get_splat_attr", [](const Type& type, const Attribute& element) -> TypedAttr {
+        auto shaped = dyn_cast<ShapedType>(type);
+        if (!shaped)
+            throw std::runtime_error("get_splat_attr(): type must be ShapedType");
+        return SplatElementsAttr::get(shaped, element);
+    });
 }
 
 void bindOperation(py::module& m)
@@ -502,6 +551,20 @@ void bindOperation(py::module& m)
                 if (!ret)
                     return py::none();
                 return py::int_(ret.getValue().getSExtValue());
+            })
+        .def(
+            "get_dict_of_int_attr",
+            [](Operation& self, const std::string& name) -> py::object {
+                auto attr = self.getAttrOfType<DictionaryAttr>(name);
+                if (!attr)
+                    return py::none();
+                py::dict result;
+                for (auto entry : attr) {
+                    py::str key(entry.getName().str());
+                    py::int_ value(cast<IntegerAttr>(entry.getValue()).getValue().getSExtValue());
+                    result[key] = value;
+                }
+                return result;
             })
         .def("get_flat_symbol_ref_attr", [](Operation& self, const std::string& name) -> py::object {
             auto ret = self.getAttrOfType<FlatSymbolRefAttr>(name);
@@ -662,6 +725,7 @@ namespace pybind11 {
 namespace asc {
 void initIRModule(py::module&& m)
 {
+    bindAttrs(m);
     bindEnums(m);
     bindContextAndDialect(m);
     bindType(m);

@@ -17,12 +17,14 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinAttributeInterfaces.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -57,6 +59,7 @@ class PyOpBuilder {
 
 public:
     explicit PyOpBuilder(MLIRContext* context) : builder(context), loc(builder.getUnknownLoc()) {}
+    explicit PyOpBuilder(Operation* op) : builder(op), loc(op->getLoc()) {}
     ~PyOpBuilder() = default;
 
     void setLoc(Location newLoc) { loc = newLoc; }
@@ -185,6 +188,7 @@ void bindInit(py::class_<PyOpBuilder>& clss)
     using namespace pybind11::literals;
 
     clss.def(py::init<MLIRContext*>());
+    clss.def(py::init<Operation*>());
 }
 
 void bindLocations(py::class_<PyOpBuilder>& clss)
@@ -262,6 +266,7 @@ void bindGetBasicType(py::class_<PyOpBuilder>& clss)
                 throw std::runtime_error("Unsupported width for FloatType");
             })
         .def("get_f16_type", [](PyOpBuilder& self) -> Type { return self->getF16Type(); })
+        .def("get_bf16_type", [](PyOpBuilder& self) -> Type { return self->getBF16Type(); })
         .def("get_f32_type", [](PyOpBuilder& self) -> Type { return self->getF32Type(); })
         .def("get_f64_type", [](PyOpBuilder& self) -> Type { return self->getF64Type(); });
 }
@@ -418,12 +423,23 @@ void bindGetAttributes(py::class_<PyOpBuilder>& clss)
     using namespace pybind11::literals;
 
     clss.def("get_index_attr", [](PyOpBuilder& self, int64_t value) -> Attribute { return self->getIndexAttr(value); })
+        .def("get_bool_attr", [](PyOpBuilder& self, bool value) -> Attribute { return self->getBoolAttr(value); })
+        .def("get_i8_attr", [](PyOpBuilder& self, int8_t value) -> Attribute { return self->getI8IntegerAttr(value); })
         .def(
-            "get_i64_attr",
-            [](PyOpBuilder& self, int64_t value) -> Attribute { return self->getI64IntegerAttr(value); })
+            "get_i16_attr",
+            [](PyOpBuilder& self, int16_t val) -> Attribute { return self->getIntegerAttr(self->getI16Type(), val); })
         .def(
             "get_i32_attr",
             [](PyOpBuilder& self, int32_t value) -> Attribute { return self->getI32IntegerAttr(value); })
+        .def(
+            "get_i64_attr",
+            [](PyOpBuilder& self, int64_t value) -> Attribute { return self->getI64IntegerAttr(value); })
+        .def("get_f16_attr", [](PyOpBuilder& self, float value) -> Attribute { return self->getF16FloatAttr(value); })
+        .def(
+            "get_bf16_attr",
+            [](PyOpBuilder& self, float value) -> Attribute { return self->getFloatAttr(self->getBF16Type(), value); })
+        .def("get_f32_attr", [](PyOpBuilder& self, float value) -> Attribute { return self->getF32FloatAttr(value); })
+        .def("get_f64_attr", [](PyOpBuilder& self, double value) -> Attribute { return self->getF64FloatAttr(value); })
         .def(
             "get_str_attr",
             [](PyOpBuilder& self, const std::string& value) -> Attribute { return self->getStringAttr(value); })
@@ -432,6 +448,17 @@ void bindGetAttributes(py::class_<PyOpBuilder>& clss)
             "get_type_array_attr",
             [](PyOpBuilder& self, const std::vector<Type>& types) -> ArrayAttr {
                 return self->getTypeArrayAttr(types);
+            })
+        .def(
+            "get_i32_array_attr",
+            [](PyOpBuilder& self, const std::vector<int32_t>& values) -> ArrayAttr {
+                return self->getI32ArrayAttr(values);
+            })
+        .def(
+            "get_bool_array_attr",
+            [](PyOpBuilder& self, const std::vector<bool>& values) -> ArrayAttr {
+                llvm::SmallVector<bool> temp{values.begin(), values.end()};
+                return self->getBoolArrayAttr(temp);
             })
         .def(
             "get_opaque_attr",
@@ -570,6 +597,11 @@ void bindCreateFloatConstants(py::class_<PyOpBuilder>& clss)
                 return self.create<arith::ConstantOp>(self->getF16FloatAttr(v));
             })
         .def(
+            "get_bf16",
+            [](PyOpBuilder& self, float v) -> Value {
+                return self.create<arith::ConstantOp>(self->getFloatAttr(self->getBF16Type(), v));
+            })
+        .def(
             "get_f32",
             [](PyOpBuilder& self, float v) -> Value {
                 return self.create<arith::ConstantOp>(self->getF32FloatAttr(v));
@@ -585,6 +617,9 @@ void bindCreateAirthBasicOperations(py::class_<PyOpBuilder>& clss)
     using namespace pybind11::literals;
 
     clss.def(
+            "create_arith_ConstantOp",
+            [](PyOpBuilder& self, TypedAttr attr) -> Value { return self.create<arith::ConstantOp>(attr); })
+        .def(
             "create_arith_AddIOp",
             [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::AddIOp>(lhs, rhs); })
         .def(
@@ -605,8 +640,26 @@ void bindCreateAirthBasicOperations(py::class_<PyOpBuilder>& clss)
         .def(
             "create_arith_DivSIOp",
             [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::DivSIOp>(lhs, rhs); })
-        .def("create_arith_DivFOp", [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value {
-            return self.create<arith::DivFOp>(lhs, rhs);
+        .def(
+            "create_arith_DivFOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::DivFOp>(lhs, rhs); })
+        .def(
+            "create_arith_MaxSIOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::MaxSIOp>(lhs, rhs); })
+        .def(
+            "create_arith_MaximumFOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::MaximumFOp>(lhs, rhs); })
+        .def(
+            "create_arith_MinSIOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::MinSIOp>(lhs, rhs); })
+        .def(
+            "create_arith_MinimumFOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::MinimumFOp>(lhs, rhs); })
+        .def(
+            "create_arith_ShLIOp",
+            [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value { return self.create<arith::ShLIOp>(lhs, rhs); })
+        .def("create_arith_ShRSIOp", [](PyOpBuilder& self, Value& lhs, Value& rhs) -> Value {
+            return self.create<arith::ShRSIOp>(lhs, rhs);
         });
 }
 
@@ -653,8 +706,13 @@ void bindCreateAirthComparisonOperations(py::class_<PyOpBuilder>& clss)
             [](PyOpBuilder& self, arith::CmpIPredicate pred, Value& lhs, Value& rhs) -> Value {
                 return self.create<arith::CmpIOp>(pred, lhs, rhs);
             })
-        .def("create_arith_CmpFOp", [](PyOpBuilder& self, arith::CmpFPredicate pred, Value& lhs, Value& rhs) -> Value {
-            return self.create<arith::CmpFOp>(pred, lhs, rhs);
+        .def(
+            "create_arith_CmpFOp",
+            [](PyOpBuilder& self, arith::CmpFPredicate pred, Value& lhs, Value& rhs) -> Value {
+                return self.create<arith::CmpFOp>(pred, lhs, rhs);
+            })
+        .def("create_arith_SelectOp", [](PyOpBuilder& self, Value cond, Value lhs, Value rhs) -> Value {
+            return self.create<arith::SelectOp>(cond, lhs, rhs);
         });
 }
 
@@ -688,6 +746,63 @@ void bindCreateAirthExtendedOperations(py::class_<PyOpBuilder>& clss)
             [](PyOpBuilder& self, Value& in, Type& out) -> Value { return self.create<arith::ExtSIOp>(out, in); })
         .def("create_arith_ExtFOp", [](PyOpBuilder& self, Value& in, Type& out) -> Value {
             return self.create<arith::ExtFOp>(out, in);
+        });
+}
+
+void bindCreateMathOperations(py::class_<PyOpBuilder>& clss)
+{
+    using ret = py::return_value_policy;
+    using namespace pybind11::literals;
+    clss.def(
+            "create_math_CosOp",
+            [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::CosOp>(value); })
+        .def(
+            "create_math_SinOp",
+            [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::SinOp>(value); })
+        .def(
+            "create_math_TanOp",
+            [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::TanOp>(value); })
+        .def(
+            "create_math_SinhOp",
+            [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::SinhOp>(value); })
+        .def(
+            "create_math_CoshOp",
+            [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::CoshOp>(value); })
+        .def(
+            "create_math_TanhOp",
+            [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::TanhOp>(value); })
+        .def(
+            "create_math_ExpOp",
+            [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::ExpOp>(value); })
+        .def(
+            "create_math_Exp2Op",
+            [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::Exp2Op>(value); })
+        .def(
+            "create_math_LogOp",
+            [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::LogOp>(value); })
+        .def(
+            "create_math_Log2Op",
+            [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::Log2Op>(value); })
+        .def(
+            "create_math_FloorOp",
+            [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::FloorOp>(value); })
+        .def(
+            "create_math_CeilOp",
+            [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::CeilOp>(value); })
+        .def(
+            "create_math_AbsFOp",
+            [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::AbsFOp>(value); })
+        .def(
+            "create_math_AbsIOp",
+            [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::AbsIOp>(value); })
+        .def(
+            "create_math_ErfOp",
+            [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::ErfOp>(value); })
+        .def(
+            "create_math_RsqrtOp",
+            [](PyOpBuilder& self, Value& value) -> Value { return self.create<math::RsqrtOp>(value); })
+        .def("create_math_SqrtOp", [](PyOpBuilder& self, Value& value) -> Value {
+            return self.create<math::SqrtOp>(value);
         });
 }
 
@@ -1026,6 +1141,7 @@ void initBuilderInIRModule(py::module& m)
     bindCreateAirthSpecialOperations(clss);
     bindCreateAirthComparisonOperations(clss);
     bindCreateAirthExtendedOperations(clss);
+    bindCreateMathOperations(clss);
     bindCreateScfOperations(clss);
     bindCreateMemrefOperations(clss);
     bindCreateVectorOperations(clss);

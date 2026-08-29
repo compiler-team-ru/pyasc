@@ -21,7 +21,7 @@
 
 namespace mlir {
 namespace ascendc {
-#define GEN_PASS_DEF_INSERTSYNC
+#define GEN_PASS_DEF_INSERTQUESYNC
 #include "ascir/Dialect/Asc/Transforms/Passes.h.inc"
 } // namespace ascendc
 } // namespace mlir
@@ -171,7 +171,7 @@ void canonicalizeBarriers(func::FuncOp funcOp)
     (void)applyPatternsAndFoldGreedily(funcOp, std::move(patterns));
 }
 
-struct InsertSyncPass : public ascendc::impl::InsertSyncBase<InsertSyncPass> {
+struct InsertQueSyncPass : public ascendc::impl::InsertQueSyncBase<InsertQueSyncPass> {
 public:
     void runOnOperation() override
     {
@@ -192,8 +192,4 @@ public:
 
 } // namespace
 
-namespace mlir {
-namespace ascendc {
-std::unique_ptr<Pass> createInsertSyncPass() { return std::make_unique<InsertSyncPass>(); }
-} // namespace ascendc
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascendc::createInsertQueSyncPass() { return std::make_unique<InsertQueSyncPass>(); }

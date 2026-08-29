@@ -15,8 +15,10 @@ include "Dialect.td"
 include "Types.td"
 
 include "mlir/Interfaces/CastInterfaces.td"
+include "mlir/Interfaces/LoopLikeInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Interfaces/ViewLikeInterface.td"
+include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 
 class EmitAsc_Op<string mnemonic, list<Trait> traits = []>
@@ -40,7 +42,7 @@ def EmitAsc_CallOpaqueOp : EmitAsc_Op<"call_opaque"> {
 
 def EmitAsc_CopyStructOp : EmitAsc_Op<"copy_struct"> {
   let summary = "Create local structure and perform memcpy from another one";
-  let arguments = (ins AnyMemRef:$base);
+  let arguments = (ins AnyRankedOrUnrankedMemRef:$base);
   let results = (outs AnyType:$result);
   let assemblyFormat = "$base attr-dict `:` type($base) `,` type($result)";
 }
@@ -53,9 +55,43 @@ def EmitAsc_DeclarePyStructOp : EmitAsc_Op<"declare_py_struct", [Pure]> {
 
 def EmitAsc_DereferenceOp : EmitAsc_Op<"dereference", [Pure]> {
   let summary = "Dereference pointer to underlying object (unary `operator*`)";
-  let arguments = (ins AnyMemRef:$base);
+  let arguments = (ins AnyRankedOrUnrankedMemRef:$base);
   let results = (outs AnyType:$result);
   let assemblyFormat = "$base attr-dict `:` type($base) `,` type($result)";
+}
+
+def EmitAsc_InitStructOp : EmitAsc_Op<"init_struct", [Pure]> {
+  let summary = "Create a struct instance and initialize its fields";
+  let arguments = (ins StrArrayAttr:$fieldNames, Variadic<AnyType>:$fieldValues);
+  let results = (outs AnyType:$result);
+  let builders = [
+    OpBuilder<(ins "Type":$result), [{
+      build($_builder, $_state, result, $_builder.getArrayAttr(std::nullopt),
+            ValueRange{});
+    }]>,
+  ];
+  let hasCustomAssemblyFormat = 1;
+  let hasVerifier = 1;
+  let extraClassDeclaration = [{
+    size_t getNumFields();
+    bool hasField(::llvm::StringRef name);
+    Value getField(::llvm::StringRef name);
+    std::optional<size_t> getFieldOperandIndex(::llvm::StringRef name);
+    void setField(::llvm::StringRef name, Value value);
+    void addField(::llvm::StringRef name, Value value);
+  }];
+}
+
+def EmitAsc_MaskOp : EmitAsc_Op<"mask", [Pure]> {
+  let summary = "Creates a mask in bit-by-bit mode (pair of 64-bit integers)";
+  let arguments = (ins I64 : $maskH, I64 : $maskL);
+  let results = (outs EmitAsc_Mask : $mask);
+  let assemblyFormat = "$maskH `,` $maskL attr-dict";
+  let builders = [
+    OpBuilder<(ins "Value":$maskH, "Value":$maskL), [{
+      build($_builder, $_state, MaskType::get($_builder.getContext()), maskH, maskL);
+    }]>,
+  ];
 }
 
 def EmitAsc_MemberOp : EmitAsc_Op<"member"> {
@@ -76,8 +112,8 @@ def EmitAsc_MemberPtrOp : EmitAsc_Op<"member_ptr", [Pure]> {
     auto *result = (ResultT *)&base->member;
     ```
   }];
-  let arguments = (ins AnyMemRef:$base, IndexAttr:$index, OptionalAttr<StrAttr>:$field);
-  let results = (outs AnyMemRef:$result);
+  let arguments = (ins AnyRankedOrUnrankedMemRef:$base, IndexAttr:$index, OptionalAttr<StrAttr>:$field);
+  let results = (outs AnyRankedOrUnrankedMemRef:$result);
   let assemblyFormat = [{
     $base `[` $index `]` ($field^)? attr-dict `:` type($base) `,` type($result)
   }];
@@ -93,7 +129,7 @@ def EmitAsc_MemberRefOp : EmitAsc_Op<"member_ref", [Pure]> {
     ResultT &result = base->member;
     ```
   }];
-  let arguments = (ins AnyMemRef:$base, IndexAttr:$index, OptionalAttr<StrAttr>:$field);
+  let arguments = (ins AnyRankedOrUnrankedMemRef:$base, IndexAttr:$index, OptionalAttr<StrAttr>:$field);
   let results = (outs AnyType:$result);
   let assemblyFormat = [{
     $base `[` $index `]` ($field^)? attr-dict `:` type($base) `,` type($result)
@@ -111,9 +147,9 @@ def EmitAsc_PtrOffsetOp : EmitAsc_Op<"ptr_offset", [
   Pure, DeclareOpInterfaceMethods<ViewLikeOpInterface>
 ]> {
   let summary = "Apply `operator+` between pointer and offset";
-  let arguments = (ins AnyMemRef:$base, OptionalAttr<IndexAttr>:$staticOffset,
+  let arguments = (ins AnyRankedOrUnrankedMemRef:$base, OptionalAttr<IndexAttr>:$staticOffset,
                        Optional<Index>:$dynamicOffset);
-  let results = (outs AnyMemRef:$result);
+  let results = (outs AnyRankedOrUnrankedMemRef:$result);
   let assemblyFormat = [{
     $base `[` ($dynamicOffset^):($staticOffset ` `)? `]` attr-dict `:`
     type($base) `,` type($result)
@@ -130,7 +166,7 @@ def EmitAsc_ReinterpretCastOp : EmitAsc_Op<"reinterpret_cast", [
   let assemblyFormat = "$source attr-dict `:` type($source) `to` type($result)";
 }
 
-def EmitAsc_VariableOp : EmitAsc_Op<"variable", [Pure]> {
+def EmitAsc_VariableOp : EmitAsc_Op<"variable"> {
   let summary = "Define a mutable variable";
   let description = [{
     This operation combines an allocation and storing a value to `memref<1x...>`.
@@ -162,6 +198,7 @@ def EmitAsc_VariableOp : EmitAsc_Op<"variable", [Pure]> {
     bool isStatic();
     OpFoldResult getInit(bool fold = true);
   }];
+  let hasCanonicalizeMethod = 1;
 }
 
 def EmitAsc_VerbatimOp : EmitAsc_Op<"verbatim"> {

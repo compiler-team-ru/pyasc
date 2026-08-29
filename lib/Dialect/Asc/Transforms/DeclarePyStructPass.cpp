@@ -28,7 +28,6 @@ namespace ascendc {
 } // namespace mlir
 
 using namespace mlir;
-using namespace mlir::ascendc;
 
 namespace {
 
@@ -92,8 +91,4 @@ public:
 
 } // namespace
 
-namespace mlir {
-namespace ascendc {
-std::unique_ptr<Pass> createDeclarePyStructPass() { return std::make_unique<DeclarePyStructPass>(); }
-} // namespace ascendc
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascendc::createDeclarePyStructPass() { return std::make_unique<DeclarePyStructPass>(); }

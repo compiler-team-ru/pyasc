@@ -379,7 +379,7 @@ def get_shape_size(shape_info: ShapeInfo) -> RuntimeInt:
     **对应的Ascend C函数原型**
 
     .. code-block:: c++
-        
+
         __aicore__ inline int GetShapeSize(const ShapeInfo& shapeInfo)
 
     **参数说明**
@@ -1809,7 +1809,8 @@ class FixpipeConfig(IRValue):
             return
         builder = global_builder.get_ir_builder()
         self.handle = builder.create_asc_ConstructOp(builder.get_asc_FixpipeConfigType(), [_mat(layout).to_ir()],
-                                                     builder.get_type_array_attr([builder.get_asc_CO2LayoutType()]))
+                                                     builder.get_type_array_attr([builder.get_asc_CO2LayoutType()]),
+                                                     isConstexpr=True, isStatic=True)
 
     @classmethod
     @require_jit

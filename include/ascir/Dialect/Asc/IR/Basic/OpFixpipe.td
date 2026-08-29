@@ -20,11 +20,14 @@ include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/OpBase.td"
 
-def AscendC_FixpipeOp : APIOp<"fixpipe", "Fixpipe"> {
+def AscendC_FixpipeOp : DataCopyOp<"fixpipe", "Fixpipe", [OpWithDstInterface, OpWithSrcInterface]> {
   let summary = "Call `AscendC::Fixpipe` function without cbufWorkspace";
-  let arguments = (ins AscendC_GlobalTensor:$dst, AscendC_LocalTensor:$src, 
-                    AscendC_FixpipeParamsV220:$intriParams,
+  let arguments = (ins AscendC_BaseTensorTypeInterface:$dst, AscendC_LocalTensor:$src,
+                    AnyTypeOf<[AscendC_FixpipeParamsV220, AscendC_FixpipeParamsC310]>:$intriParams,
                     AscendC_FixpipeConfig:$fixpipeConfig);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+  }];
 }
 
 def AscendC_FixpipeWithWorkspaceOp : APIOp<"fixpipe_with_workspace", "Fixpipe"> {

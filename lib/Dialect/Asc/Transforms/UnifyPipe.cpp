@@ -10,7 +10,6 @@
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
-#include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Builders.h"
@@ -30,7 +29,7 @@ void unifyPipe(func::FuncOp root)
 {
     SmallVector<ascendc::PipeOp> pipes;
     root.walk([&pipes](ascendc::PipeOp op) { pipes.push_back(op); });
-    if (pipes.size() <= 1) {
+    if (pipes.size() == 1) {
         return;
     }
     auto builder = OpBuilder::atBlockBegin(&root.getBody().front());
@@ -47,8 +46,4 @@ class UnifyPipePass : public ascendc::impl::UnifyPipeBase<UnifyPipePass> {
 
 } // namespace
 
-namespace mlir {
-namespace ascendc {
-std::unique_ptr<Pass> createUnifyPipePass() { return std::make_unique<UnifyPipePass>(); }
-} // namespace ascendc
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascendc::createUnifyPipePass() { return std::make_unique<UnifyPipePass>(); }

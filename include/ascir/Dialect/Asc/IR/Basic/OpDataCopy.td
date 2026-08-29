@@ -73,18 +73,24 @@ def AscendC_DataCopySliceOp : DataCopyOp<"data_copy_slice", "DataCopy", [AttrSiz
                        Optional<UI32>:$dimValue);
 }
 
-def AscendC_DataCopyL0Op : DataCopyOp<"data_copy_l0", "DataCopy", [AscFunc]> {
+def AscendC_DataCopyL0Op : CopyToL0Op<"data_copy_l0", "DataCopy", [AscFunc]> {
   let description = "Perform copying between tensors (L0 API)";
   let arguments = (ins AscendC_BaseTensorTypeInterface:$dst,
                        AscendC_BaseTensorTypeInterface:$src,
                        AscendC_DataCopyParams:$repeatParams);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+  }];
 }
 
-def AscendC_DataCopyL2Op : DataCopyOp<"data_copy_l2", "DataCopy", [AscFunc]> {
+def AscendC_DataCopyL2Op : DataCopyOp<"data_copy_l2", "DataCopy", [AscFunc, OpWithSrcInterface]> {
   let description = "Perform copying between tensors (L2 API)";
   let arguments = (ins AscendC_BaseTensorTypeInterface:$dst,
                        AscendC_BaseTensorTypeInterface:$src,
                        AnyType:$calCount);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+  }];
 }
 
 def AscendC_DataCopyPadExtParamsOp : AscendC_Op<"data_copy_pad_ext_params", [AscConstructor]> {
@@ -139,12 +145,34 @@ def AscendC_DataCopyPadNd2NzOp : DataCopyOp<"data_copy_pad_nd2nz", "DataCopyPad"
                        AscendC_Nd2NzParams:$nd2nzParams);
 }
 
+def AscendC_NdDmaParamsOp: AscendC_Op<"nd_dma_params", [AttrSizedOperandSegments]> {
+  let summary = "Create NdDmaParams";
+  let results = (outs AscendC_NdDmaParams:$params);
+  let arguments = (ins I32Attr:$dim, AnyType:$padValue, Variadic<I32>:$size,
+                       Variadic<I32>:$srcStride, I32ArrayAttr:$dstStride,
+                       I32ArrayAttr:$padLeft, I32ArrayAttr:$padRight);
+  let assemblyFormat = [{
+    $dim `,` $padValue `:` type($padValue) `,` $size `,` $srcStride `,`
+    $dstStride `,` $padLeft `,` $padRight `,` attr-dict `:` type($params)
+  }];
+}
+
+def AscendC_DataCopyNdDmaOp : DataCopyOp<"data_copy_nd_dma", "DataCopy", [
+  AscFunc, OpWithSrcInterface
+]> {
+  let description = "DataCopy with NdDmaParams arguments";
+  let arguments = (ins AscendC_BaseTensorTypeInterface:$dst,
+                       AscendC_BaseTensorTypeInterface:$src,
+                       AscendC_NdDmaParams:$params, I32Attr:$dims);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+  }];
+}
+
 def AscendC_LoadImageToLocalOp : APIOp<"load_image_to_local", "LoadImageToLocal", [AscFunc]> {
   let description = "Load image data from Global Memory to LocalTensor (supports TPosition A1/B1). ";
-  let arguments = (ins 
-    AscendC_LocalTensor:$dst,  
-    AscendC_LoadImageToLocalParams:$loadDataParams 
-  );
+  let arguments = (ins AscendC_LocalTensor:$dst,
+                       AscendC_LoadImageToLocalParams:$loadDataParams);
 }
 
 def AscendC_SetPadValueOp : APIOp<"set_pad_value", "SetPadValue", [AscFunc]> {
@@ -152,5 +180,18 @@ def AscendC_SetPadValueOp : APIOp<"set_pad_value", "SetPadValue", [AscFunc]> {
   let arguments = (ins AnyType:$paddingValue,
                    AscendC_TPositionAttr:$pos);
   let paramTypeLists = [1, 3];
+}
+
+def AscendC_SetLoopModeParaOp: APIOp<"set_loop_mode_para", "SetLoopModePara", [AscFunc]> {
+    let description = "Set loop mode params for DataCopyPad";
+    let arguments = (ins AscendC_LoopModeParams:$params,
+                         AscendC_DataCopyMVTypeAttr:$mvType);
+    let paramTypeLists = [0, -1];
+}
+
+def AscendC_ResetLoopModeParaOp: APIOp<"reset_loop_mode_para", "ResetLoopModePara", [AscFunc]> {
+    let description = "Reset loop mode params for DataCopyPad";
+    let arguments = (ins AscendC_DataCopyMVTypeAttr:$mvType);
+    let paramTypeLists = [-1];
 }
 #endif // ASC_BASIC_OP_DATACOPY_TD

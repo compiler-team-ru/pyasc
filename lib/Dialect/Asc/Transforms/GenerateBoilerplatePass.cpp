@@ -24,7 +24,6 @@ namespace ascendc {
 } // namespace mlir
 
 using namespace mlir;
-using namespace mlir::ascendc;
 
 namespace {
 
@@ -55,8 +54,7 @@ public:
 
 } // namespace
 
-namespace mlir {
-namespace ascendc {
-std::unique_ptr<Pass> createGenerateBoilerplatePass() { return std::make_unique<GenerateBoilerplatePass>(); }
-} // namespace ascendc
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascendc::createGenerateBoilerplatePass()
+{
+    return std::make_unique<GenerateBoilerplatePass>();
+}

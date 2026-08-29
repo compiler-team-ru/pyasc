@@ -40,8 +40,4 @@ struct PrivatizeFuncPass : public ascendc::impl::PrivatizeFuncBase<PrivatizeFunc
 
 } // namespace
 
-namespace mlir {
-namespace ascendc {
-std::unique_ptr<Pass> createPrivatizeFuncPass() { return std::make_unique<PrivatizeFuncPass>(); }
-} // namespace ascendc
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascendc::createPrivatizeFuncPass() { return std::make_unique<PrivatizeFuncPass>(); }

@@ -11,11 +11,13 @@
 #include "ascir/Target/Asc/Translation.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Target/Asc/Adv/Activation.h"
+#include "ascir/Target/Asc/Adv/Broadcast.h"
 #include "ascir/Target/Asc/Adv/Kfc.h"
 #include "ascir/Target/Asc/Adv/Math.h"
 #include "ascir/Target/Asc/Adv/Matmul.h"
 #include "ascir/Target/Asc/Adv/Normalization.h"
 #include "ascir/Target/Asc/Adv/Quantization.h"
+#include "ascir/Target/Asc/Adv/Reduction.h"
 #include "ascir/Target/Asc/Basic/Aipp.h"
 #include "ascir/Target/Asc/Basic/BlockSync.h"
 #include "ascir/Target/Asc/Basic/DataConversion.h"
@@ -23,6 +25,7 @@
 #include "ascir/Target/Asc/Basic/DumpTensor.h"
 #include "ascir/Target/Asc/Basic/ListTensor.h"
 #include "ascir/Target/Asc/Basic/OtherOps.h"
+#include "ascir/Target/Asc/Basic/Reg.h"
 #include "ascir/Target/Asc/Basic/Scalar.h"
 #include "ascir/Target/Asc/Basic/SwapMem.h"
 #include "ascir/Target/Asc/Basic/SysVar.h"
@@ -70,6 +73,20 @@ LogicalResult printOperation(CodeEmitter& emitter, ModuleOp moduleOp)
 LogicalResult printOperation(CodeEmitter&, ascendc::NoOp) { return success(); }
 
 using PrintableOpTypes = std::tuple<
+    // Common register API operations
+    ascendc::CreateMaskOp, ascendc::ReduceMaxRegOp, ascendc::ReduceMinRegOp, ascendc::ReduceSumRegOp,
+    ascendc::DuplicateRegOp, ascendc::DataCopyStoreOp, ascendc::DataCopyLoadOp, ascendc::UpdateMaskOp,
+    ascendc::RegTensorOp, ascendc::LocalMemBarOp, ascendc::DuplicateScalarRegOp, ascendc::SelectRegOp,
+    // Binary register API operations
+    ascendc::AddRegOp, ascendc::AndRegOp, ascendc::DivRegOp, ascendc::FusedAbsSubRegOp, ascendc::FusedExpSubRegOp,
+    ascendc::FusedMulDstAddRegOp, ascendc::SubRegOp, ascendc::MaxRegOp, ascendc::MinRegOp, ascendc::MulRegOp,
+    ascendc::MulAddDstRegOp, ascendc::OrRegOp, ascendc::PreluRegOp, ascendc::XorRegOp,
+    // Unary register API operations
+    ascendc::AbsRegOp, ascendc::ExpRegOp, ascendc::LnRegOp, ascendc::LogRegOp, ascendc::Log10RegOp,
+    ascendc::MaskNotRegOp, ascendc::NegRegOp, ascendc::NotRegOp, ascendc::ReluRegOp, ascendc::SqrtRegOp,
+    // VecScalar register API operations
+    ascendc::AddsRegOp, ascendc::MulsRegOp, ascendc::MaxsRegOp, ascendc::MinsRegOp, ascendc::LeakyReluRegOp,
+    ascendc::ShiftLeftsRegOp, ascendc::ShiftRightsRegOp,
     // Builtin ops
     ModuleOp,
     // EmitC ops
@@ -87,14 +104,14 @@ using PrintableOpTypes = std::tuple<
     arith::MinSIOp, arith::MaxSIOp, arith::MulFOp, arith::SubFOp, arith::ExtUIOp, arith::ExtSIOp, arith::ExtFOp,
     arith::TruncIOp, arith::TruncFOp, arith::FPToSIOp, arith::FPToUIOp, arith::SIToFPOp, arith::UIToFPOp,
     arith::BitcastOp, arith::ShRUIOp, arith::OrIOp, arith::XOrIOp, arith::DivUIOp, arith::MulUIExtendedOp,
+    arith::NegFOp,
     // Math ops
     math::AbsFOp, math::CopySignOp, math::SqrtOp, math::Atan2Op, math::ExpOp, math::LogOp, math::Log2Op, math::ErfOp,
     math::CosOp, math::SinOp, math::CeilOp, math::FloorOp, math::RsqrtOp, math::Exp2Op, math::FmaOp, math::RoundOp,
     // EmitAsc operations
-    emitasc::CallOpaqueOp, emitasc::DeclarePyStructOp, emitasc::DereferenceOp, emitasc::MemberOp, emitasc::MemberPtrOp,
-    emitasc::MemberRefOp, emitasc::PtrOffsetOp, emitasc::ReinterpretCastOp, emitasc::SetMemberOp, emitasc::VariableOp,
-    emitasc::VerbatimOp, emitasc::CopyStructOp,
-
+    emitasc::CallOpaqueOp, emitasc::DeclarePyStructOp, emitasc::DereferenceOp, emitasc::MaskOp, emitasc::MemberOp,
+    emitasc::MemberPtrOp, emitasc::MemberRefOp, emitasc::PtrOffsetOp, emitasc::ReinterpretCastOp, emitasc::SetMemberOp,
+    emitasc::VariableOp, emitasc::VerbatimOp, emitasc::CopyStructOp, emitasc::InitStructOp,
     // Adv
     // Activation operations
     ascendc::SimpleSoftMaxOp, ascendc::SoftMaxOp, ascendc::SwiGLUOp,
@@ -104,8 +121,9 @@ using PrintableOpTypes = std::tuple<
     // UnaryMathOp
     ascendc::AcoshOp, ascendc::AcosOp, ascendc::AsinhOp, ascendc::AsinOp, ascendc::AtanhOp, ascendc::AtanOp,
     ascendc::CeilOp, ascendc::CoshOp, ascendc::CosOp, ascendc::DigammaOp, ascendc::ErfcOp, ascendc::ErfOp,
-    ascendc::ExpOp, ascendc::FloorOp, ascendc::FracOp, ascendc::LgammaOp, ascendc::LogOp, ascendc::RoundOp,
-    ascendc::SignOp, ascendc::SinhOp, ascendc::SinOp, ascendc::TanhOp, ascendc::TanOp, ascendc::TruncOp,
+    ascendc::ExpOp, ascendc::FloorOp, ascendc::FracOp, ascendc::LgammaOp, ascendc::LogOp, ascendc::Log2Op,
+    ascendc::RoundOp, ascendc::SignOp, ascendc::SinhOp, ascendc::SinOp, ascendc::TanhOp, ascendc::TanOp,
+    ascendc::TruncOp,
     // BinaryMathOp
     ascendc::PowerOp, ascendc::XorOp,
     // Other math
@@ -113,20 +131,25 @@ using PrintableOpTypes = std::tuple<
     // Matmul operations
     ascendc::MatmulInitOp, ascendc::MatmulEndOp, ascendc::MatmulGetMatmulApiTilingOp, ascendc::RegistMatmulObjOp,
     // Normalization
-    ascendc::RmsNormOp,
+    ascendc::RmsNormOp, ascendc::LayerNormOp,
     // Quantization
     ascendc::QuantOp,
+    // Broadcast
+    ascendc::BroadcastOp,
+    // Reduction
+    ascendc::ReduceOp,
     // Basic
     // AIPP operations
     ascendc::SetAippFunctionsOp,
     // Block synchronization operations
     ascendc::PipeBarrierOp, ascendc::WaitFlagOp, ascendc::CrossCoreSetFlagOp, ascendc::CrossCoreWaitFlagOp,
+    ascendc::GetBufOp, ascendc::RlsBufOp,
     // DataConversion operations
     ascendc::TransposeOp, ascendc::TransposeExtOp, ascendc::TransDataTo5HDTensorListOp,
-    ascendc::TransDataTo5HDUintListOp, ascendc::TransDataTo5HDOp,
+    ascendc::TransDataTo5HDUintListOp, ascendc::TransDataTo5HDOp, ascendc::TransDataTo5HDTensorOp,
     // Data copy operations
     ascendc::CopyL0Op, ascendc::CopyL1Op, ascendc::DataCopyL0Op, ascendc::DataCopyL2Op, ascendc::DataCopyNd2NzOp,
-    ascendc::DataCopyNz2NdOp, ascendc::DataCopySliceOp, ascendc::DataCopyCO12DstOp,
+    ascendc::DataCopyNz2NdOp, ascendc::DataCopySliceOp, ascendc::DataCopyCO12DstOp, ascendc::NdDmaParamsOp,
     // Dump tensor operations
     ascendc::PrintfOp,
     // TensorDesc operations
@@ -134,15 +157,16 @@ using PrintableOpTypes = std::tuple<
     // ListTensorDesc operations
     ascendc::ListTensorDescV2Op, ascendc::ListTensorDescGetDataPtrOp,
     // Other operations
-    ascendc::ConstructOp, ascendc::AscendIsAICOp, ascendc::AscendIsAIVOp, LLVM::UndefOp, ascendc::FftsCrossCoreSyncOp,
-    ascendc::SetFftsBaseAddrOp, ascendc::PopStackBufferOp, ascendc::GetMrgSortResultOp, ascendc::MrgSortOp,
-    ascendc::SortOp, ascendc::FixpipeOp, ascendc::FixpipeWithWorkspaceOp, ascendc::GetStoreAtomicConfigOp,
+    ascendc::ConstructOp, ascendc::AscendIsAICOp, ascendc::AscendIsAIVOp, ascendc::IfAICOp, ascendc::IfAIVOp,
+    ascendc::YieldOp, LLVM::UndefOp, ascendc::FftsCrossCoreSyncOp, ascendc::SetFftsBaseAddrOp,
+    ascendc::PopStackBufferOp, ascendc::MrgSortOp, ascendc::SortOp, ascendc::FixpipeOp, ascendc::FixpipeWithWorkspaceOp,
+    ascendc::GetMrgSortResultOp, ascendc::GetStoreAtomicConfigOp,
     // Scalar operations
     ascendc::ScalarCastOp,
     // Swap and workspace operations
     ascendc::GetSysWorkspacePtrOp, ascendc::SetSysWorkspaceOp,
     // System variable operations
-    ascendc::GetBlockIdxOp, ascendc::GetBlockNumOp,
+    ascendc::GetBlockIdxOp, ascendc::GetBlockNumOp, ascendc::GetVecLenOp,
     // Vector bilinear interpolation
     ascendc::BilinearInterpolationL0Op, ascendc::BilinearInterpolationL1Op,
     // Vector binary operations
@@ -171,14 +195,14 @@ using PrintableOpTypes = std::tuple<
     ascendc::GatherbL0Op, ascendc::GatherL0Op, ascendc::GatherL1Op, ascendc::GatherL2Op,
     ascendc::BilinearInterpolationL0Op, ascendc::BilinearInterpolationL1Op,
     // VecScalarL0Op
-    ascendc::AddsL0Op, ascendc::LeakyReluL0Op, ascendc::MaxsL0Op, ascendc::MinsL0Op, ascendc::MulsL0Op,
-    ascendc::ShiftLeftL0Op, ascendc::ShiftRightL0Op,
+    ascendc::AddsL0Op, ascendc::SubsL0Op, ascendc::LeakyReluL0Op, ascendc::MaxsL0Op, ascendc::MinsL0Op,
+    ascendc::MulsL0Op, ascendc::DivsL0Op, ascendc::ShiftLeftL0Op, ascendc::ShiftRightL0Op,
     // VecScalarL1Op
-    ascendc::AddsL1Op, ascendc::LeakyReluL1Op, ascendc::MaxsL1Op, ascendc::MinsL1Op, ascendc::MulsL1Op,
-    ascendc::ShiftLeftL1Op, ascendc::ShiftRightL1Op,
+    ascendc::AddsL1Op, ascendc::SubsL1Op, ascendc::LeakyReluL1Op, ascendc::MaxsL1Op, ascendc::MinsL1Op,
+    ascendc::MulsL1Op, ascendc::DivsL1Op, ascendc::ShiftLeftL1Op, ascendc::ShiftRightL1Op,
     // VecScalarL2Op
-    ascendc::AddsL2Op, ascendc::LeakyReluL2Op, ascendc::MaxsL2Op, ascendc::MinsL2Op, ascendc::MulsL2Op,
-    ascendc::ShiftLeftL2Op, ascendc::ShiftRightL2Op,
+    ascendc::AddsL2Op, ascendc::SubsL2Op, ascendc::LeakyReluL2Op, ascendc::MaxsL2Op, ascendc::MinsL2Op,
+    ascendc::MulsL2Op, ascendc::DivsL2Op, ascendc::ShiftLeftL2Op, ascendc::ShiftRightL2Op,
     // VectorTernaryScalarL0Op
     ascendc::AxpyL0Op,
     // VectorTernaryScalarL1Op
@@ -219,8 +243,8 @@ using PrintableOpTypes = std::tuple<
     // GlobalTensor operations
     ascendc::GlobalTensorSubIndexOp, ascendc::GlobalTensorBracketOp,
     // LocalTensor operations
-    ascendc::LocalTensorV2Op, ascendc::LocalTensorBracketOp, ascendc::LocalTensorReinterpretCastOp,
-    ascendc::LocalTensorSubIndexOp,
+    ascendc::LocalTensorV2Op, ascendc::LocalTensorV3Op, ascendc::LocalTensorBracketOp,
+    ascendc::LocalTensorReinterpretCastOp, ascendc::LocalTensorSubIndexOp, ascendc::LocalTensorGetPhyAddrV2Op,
     // ShapeInfo
     ascendc::ShapeInfoShapeOp, ascendc::ShapeInfoOriginalShapeOp,
 

@@ -20,10 +20,41 @@ include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/OpBase.td"
 
-def AscendC_RmsNormOp : APIOp<"rmsnorm", "RmsNorm"> {
+def AscendC_RmsNormOp : VectorOp<"rms_norm", "RmsNorm", [
+  OpWithDstInterface, OpWithSrcInterface
+]> {
   let arguments = (ins UnitAttr:$basicBlock, AscendC_LocalTensor:$dst,
                    AscendC_LocalTensor:$src, AscendC_LocalTensor:$gamma,
                    AnyType:$epsilon, AscendC_RmsNormTiling:$tiling,
                    Optional<AscendC_LocalTensor>:$sharedTmpBuffer);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getDstTensors()
+    {
+        SmallVector<Value> dstTensors{getDst()};
+        if (auto tensor = getSharedTmpBuffer())
+            dstTensors.emplace_back(tensor);
+        return dstTensors;
+    }
+    SmallVector<Value> getSrcTensors() { return {getSrc(), getGamma()}; }
+  }];
+}
+
+def AscendC_LayerNormOp : VectorOp<"layer_norm", "LayerNorm", [
+  OpWithDstInterface, OpWithSrcInterface
+]> {
+  let arguments = (ins AscendC_LocalTensor:$dst,
+                   AscendC_LocalTensor:$dstMean, AscendC_LocalTensor:$dstVarRstd,
+                   AscendC_LocalTensor:$src, AscendC_LocalTensor:$gamma,
+                   AscendC_LocalTensor:$beta, AnyType:$epsilon,
+                   AscendC_LayerNormSeparateTiling:$separateTiling,
+                   AscendC_LayerNormPara:$para,
+                   AscendC_LocalTensor:$sharedTmpBuffer,
+                   UnitAttr:$outputRstd);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getSrcTensors() { return {getSrc(), getGamma(), getBeta()}; }
+    SmallVector<Value> getDstTensors() {
+      return {getDst(), getDstMean(), getDstVarRstd(), getSharedTmpBuffer()};
+    }
+  }];
 }
 #endif //ASC_ADV_NORMALIZATION_TD

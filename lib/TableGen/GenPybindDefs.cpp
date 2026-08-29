@@ -46,7 +46,7 @@ void printMethod(raw_indented_ostream& os, const Record* def)
     auto name = mlir::asc::fetchOpClass(def->getName());
     std::vector<mlir::asc::VirtualArg> args;
     mlir::asc::fetchResults(def->getValueAsDag("results"), args);
-    bool retVal = args.size() == 1;
+    bool hasSingleResult = args.size() == 1 && args[0].cppType == "::mlir::Type";
     mlir::asc::fetchArguments(def->getValueAsDag("arguments"), args);
     os << ".def(\"create_";
     auto dialectName = def->getValueAsDef("opDialect")->getValueAsString("name");
@@ -60,18 +60,21 @@ void printMethod(raw_indented_ostream& os, const Record* def)
         os << ", const " << arg.cppType << " &" << arg.name;
     }
     os << ") ";
-    if (retVal) {
+    if (hasSingleResult) {
         os << "-> Value ";
+    } else {
+        os << "-> Operation* ";
     }
     os << "{\n";
     os.indent();
-    if (retVal) {
-        os << "return ";
-    }
+    os << "return ";
     os << "self.create<" << def->getValueAsString("cppNamespace") << "::" << name << ">(";
     interleaveComma(args, os, [&os](const auto& arg) { os << arg.substitution; });
     os << ");\n";
     os.unindent() << "}";
+    if (!hasSingleResult) {
+        os << ", py::return_value_policy::reference";
+    }
     auto lastRequired =
         std::find_if(args.rbegin(), args.rend(), [](const mlir::asc::VirtualArg& arg) { return !arg.optional; });
     std::for_each(lastRequired, args.rend(), [](auto& a) { a.optional = false; });

@@ -13,9 +13,9 @@ add_mlir_dialect_library(MLIRAscTransforms
   EraseSync.cpp
   GenerateBoilerplatePass.cpp
   HoistQueBind.cpp
-  HoistUBAllocation.cpp
+  HoistTensorAllocation.cpp
   InputOutputTensor.cpp
-  InsertSync.cpp
+  InsertQueSync.cpp
   LegalizeKernelArgs.cpp
   MaterializeTensor.cpp
   Noop.cpp

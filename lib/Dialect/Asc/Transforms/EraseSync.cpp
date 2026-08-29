@@ -60,8 +60,4 @@ struct EraseSyncPass : public ascendc::impl::EraseSyncBase<EraseSyncPass> {
 
 } // namespace
 
-namespace mlir {
-namespace ascendc {
-std::unique_ptr<Pass> createEraseSyncPass() { return std::make_unique<EraseSyncPass>(); }
-} // namespace ascendc
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascendc::createEraseSyncPass() { return std::make_unique<EraseSyncPass>(); }

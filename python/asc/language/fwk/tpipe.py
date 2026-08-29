@@ -244,7 +244,7 @@ class TBuf(TQueBind):
         builder = global_builder.get_ir_builder()
         tensor_type = ir.get_local_tensor_type(dtype.to_ir())
 
-        if len:
+        if len is not None:
             handle = builder.create_asc_TBufGetTensorOp(tensor_type, self.to_ir(), _mat(len, KnownTypes.uint32).to_ir())
         else:
             handle = builder.create_asc_TBufGetTensorOp(tensor_type, self.to_ir())
@@ -316,14 +316,14 @@ class TBufPool(IRValue):
         return self.handle
 
     @overload
-    def init_buf_pool(self, buf_pool: TBufPool, len: int = 0, share_buf: TBufPool = None) -> None:
+    def init_buf_pool(self, buf_pool: TBufPool, len: int = 0, share_buf: Optional[TBufPool] = None) -> None:
         ...
 
     @require_jit
     @set_tpipe_docstring(pipe_name="TBufPool", api_name="init_buf_pool")
-    def init_buf_pool(self, buf_pool: TBufPool, len: RuntimeInt = 0, share_buf: TBufPool = None) -> None:
+    def init_buf_pool(self, buf_pool: TBufPool, len: RuntimeInt = 0, share_buf: Optional[TBufPool] = None) -> None:
         builder = global_builder.get_ir_builder()
-        if share_buf:
+        if share_buf is not None:
             builder.create_asc_TBufPoolInitBufPoolOp(builder.get_i1_type(), self.to_ir(), buf_pool.to_ir(),
                                                      _mat(len, KnownTypes.uint32).to_ir(), share_buf.to_ir())
         else:
@@ -364,8 +364,8 @@ class TBufPool(IRValue):
 
 class TPipe(IRValue):
     """
-    TPipe用于统一管理Device端内存等资源，一个Kernel函数必须且只能初始化一个TPipe对象。其主要功能包括：  
-    
+    TPipe用于统一管理Device端内存等资源，一个Kernel函数必须且只能初始化一个TPipe对象。其主要功能包括：
+
     - 内存资源管理：通过TPipe的init_buffer接口，可以为TQue和TBuf分配内存，分别用于队列的内存初始化和临时变量内存的初始化。
     - 同步事件管理：通过TPipe的alloc_event_id、release_event_id等接口，可以申请和释放事件ID，用于同步控制。
     """
@@ -438,14 +438,14 @@ class TPipe(IRValue):
         global_builder.get_ir_builder().create_asc_TPipeInitOp(self.to_ir())
 
     @overload
-    def init_buf_pool(self, buf_pool: TBufPool, len: int = 0, share_buf: TBufPool = None) -> None:
+    def init_buf_pool(self, buf_pool: TBufPool, len: int = 0, share_buf: Optional[TBufPool] = None) -> None:
         ...
 
     @require_jit
     @set_tpipe_docstring(pipe_name="TPipe", api_name="init_buf_pool")
-    def init_buf_pool(self, buf_pool: TBufPool, len: RuntimeInt = 0, share_buf: TBufPool = None) -> None:
+    def init_buf_pool(self, buf_pool: TBufPool, len: RuntimeInt = 0, share_buf: Optional[TBufPool] = None) -> None:
         builder = global_builder.get_ir_builder()
-        if share_buf:
+        if share_buf is not None:
             builder.create_asc_TPipeInitBufPoolOp(builder.get_i1_type(), self.to_ir(), buf_pool.to_ir(),
                                                   _mat(len, KnownTypes.uint32).to_ir(), share_buf.to_ir())
         else:

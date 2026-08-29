@@ -9,10 +9,11 @@
  */
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
+#include "ascir/Dialect/Utils/CVGroupCanonicalization.h"
 
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/Matchers.h"
 #include "mlir/IR/OpImplementation.h"
-#include "mlir/IR/PatternMatch.h"
 
 #define GET_OP_CLASSES
 #include "ascir/Dialect/Asc/IR/AscendCOps.cpp.inc"
@@ -43,12 +44,56 @@ LogicalResult GlobalTensorOp::canonicalize(GlobalTensorOp op, PatternRewriter& r
 }
 
 //===----------------------------------------------------------------------===//
+// IfAICOp
+//===----------------------------------------------------------------------===//
+
+void IfAICOp::getCanonicalizationPatterns(RewritePatternSet& results, MLIRContext* context)
+{
+    results.add<
+        ascir::EraseEmptyGroup<IfAICOp, YieldOp>, ascir::EraseUnusedOperands<IfAICOp, YieldOp>,
+        ascir::EraseUnusedResults<IfAICOp, YieldOp>>(context);
+}
+
+//===----------------------------------------------------------------------===//
+// IfAIVOp
+//===----------------------------------------------------------------------===//
+
+void IfAIVOp::getCanonicalizationPatterns(RewritePatternSet& results, MLIRContext* context)
+{
+    results.add<
+        ascir::EraseEmptyGroup<IfAIVOp, YieldOp>, ascir::EraseUnusedOperands<IfAIVOp, YieldOp>,
+        ascir::EraseUnusedResults<IfAIVOp, YieldOp>>(context);
+}
+
+//===----------------------------------------------------------------------===//
+// GlobalTensorSubIndexOp
+//===----------------------------------------------------------------------===//
+
+OpFoldResult GlobalTensorSubIndexOp::fold([[maybe_unused]] FoldAdaptor adaptor)
+{
+    if (matchPattern(getIndex(), m_Zero()) && getType() == getTensor().getType())
+        return getTensor();
+    return {};
+}
+
+//===----------------------------------------------------------------------===//
 // LocalTensorOp
 //===----------------------------------------------------------------------===//
 
 LogicalResult LocalTensorOp::canonicalize(LocalTensorOp op, PatternRewriter& rewriter)
 {
     return eraseUnusedOp(op, rewriter);
+}
+
+//===----------------------------------------------------------------------===//
+// LocalTensorSubIndexOp
+//===----------------------------------------------------------------------===//
+
+OpFoldResult LocalTensorSubIndexOp::fold([[maybe_unused]] FoldAdaptor adaptor)
+{
+    if (matchPattern(getIndex(), m_Zero()) && getType() == getTensor().getType())
+        return getTensor();
+    return {};
 }
 
 //===----------------------------------------------------------------------===//
@@ -75,7 +120,7 @@ LogicalResult PipeBarrierOp::canonicalize(PipeBarrierOp op, PatternRewriter& rew
 }
 
 //===----------------------------------------------------------------------===//
-// ReinterpretCastOp
+// LocalTensorReinterpretCastOp
 //===----------------------------------------------------------------------===//
 
 bool LocalTensorReinterpretCastOp::areCastCompatible(TypeRange inputs, TypeRange outputs)
@@ -87,7 +132,35 @@ bool LocalTensorReinterpretCastOp::areCastCompatible(TypeRange inputs, TypeRange
 OpFoldResult LocalTensorReinterpretCastOp::fold([[maybe_unused]] FoldAdaptor adaptor)
 {
     Value in = getIn();
-    return in.getType() == getType() ? in : nullptr;
+    Type resultType = getResult().getType();
+    if (in.getType() == resultType)
+        return in;
+    if (auto defOp = in.getDefiningOp<LocalTensorReinterpretCastOp>()) {
+        Value defIn = defOp.getIn();
+        if (resultType == defIn.getType())
+            return defIn;
+        setOperand(defIn);
+        return getResult();
+    }
+    return {};
+}
+
+//===----------------------------------------------------------------------===//
+// LocalTensorAutoOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult LocalTensorAutoOp::canonicalize(LocalTensorAutoOp op, PatternRewriter& rewriter)
+{
+    return eraseUnusedOp(op, rewriter);
+}
+
+//===----------------------------------------------------------------------===//
+// RegTensorOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult RegTensorOp::canonicalize(RegTensorOp op, PatternRewriter& rewriter)
+{
+    return eraseUnusedOp(op, rewriter);
 }
 
 //===----------------------------------------------------------------------===//

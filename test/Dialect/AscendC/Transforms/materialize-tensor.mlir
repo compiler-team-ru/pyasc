@@ -35,10 +35,10 @@ func.func @materialize_tensor_static(%arg0 : !ascendc.global_tensor<*xf32>, %arg
     %c64_i32 = arith.constant 64 : i32
     %c128_i32 = arith.constant 128 : i32
     %c32_i64 = arith.constant 32 : i64
-    %0 = ascendc.local_tensor_auto() input : <64xf32>
-    %1 = ascendc.local_tensor_auto(%c4_i64, %c32_i64) input : <4x32xf32>
-    %2 = ascendc.local_tensor_auto() output : <64xf32>
-    %3 = ascendc.local_tensor_auto(%c4_i64, %c32_i64) output : <4x32xf32>
+    %0 = ascendc.local_tensor_auto vecin() input : <64xf32>
+    %1 = ascendc.local_tensor_auto vecin(%c4_i64, %c32_i64) input : <4x32xf32>
+    %2 = ascendc.local_tensor_auto vecout() output : <64xf32>
+    %3 = ascendc.local_tensor_auto vecout(%c4_i64, %c32_i64) output : <4x32xf32>
     return %0, %1, %2, %3 : !ascendc.local_tensor<64xf32>, !ascendc.local_tensor<4x32xf32>, !ascendc.local_tensor<64xf32>, !ascendc.local_tensor<4x32xf32>
 }
 
@@ -59,8 +59,8 @@ func.func @materialize_tensor_static(%arg0 : !ascendc.global_tensor<*xf32>, %arg
 func.func @materialize_tensor_dynamic(%arg0 : !ascendc.global_tensor<*xf32>, %arg1 : !ascendc.global_tensor<*xf32>, %arg2 : !ascendc.global_tensor<*xf32>, %arg3 : i64) -> (!ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>) {
     %c4_i64 = arith.constant 4 : i64
     %c64_i32 = arith.constant 64 : i32
-    %0 = ascendc.local_tensor_auto(%c4_i64, %arg3) input : <*xf32>
-    %1 = ascendc.local_tensor_auto(%c4_i64, %arg3) output : <*xf32>
+    %0 = ascendc.local_tensor_auto vecin(%c4_i64, %arg3) input : <*xf32>
+    %1 = ascendc.local_tensor_auto vecout(%c4_i64, %arg3) output : <*xf32>
     return %0, %1 : !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>
 }
 
@@ -71,6 +71,6 @@ func.func @materialize_tensor_dynamic(%arg0 : !ascendc.global_tensor<*xf32>, %ar
 // CHECK-NEXT: %2 = ascendc.tbuf.get_tensor %1 : !ascendc.tbuf<veccalc>, !ascendc.local_tensor<64xf32>
 // CHECK-NEXT: return %2 : !ascendc.local_tensor<64xf32>
 func.func @materialize_tensor_vec_calc() -> (!ascendc.local_tensor<64xf32>) {
-    %0 = ascendc.local_tensor_auto() : <64xf32>
+    %0 = ascendc.local_tensor_auto veccalc() : <64xf32>
     return %0 : !ascendc.local_tensor<64xf32>
 }

@@ -229,7 +229,7 @@ def test_func_visit_arguments(filecheck):
 
     @asc.jit
     def func_visit_arguments(data: asc.GlobalAddress, threshold: int, flag: bool) -> None:
-        # CHECK: %arg0: memref<?xi32, 22>
+        # CHECK: %arg0: memref<*xi32, 22>
         # CHECK: %arg1: i32
         # CHECK: %arg2: i8
         pass

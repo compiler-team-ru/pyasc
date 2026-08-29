@@ -90,13 +90,16 @@ class Function(Generic[P, T]):
     def get_function_node(fn: Callable) -> ast.FunctionDef:
         source = inspect.getsource(fn)
         source = textwrap.dedent("".join(source))
-        source = source[re.search(r"^def\s+\w+\s*\(", source, re.MULTILINE).start():]
+        def_match = re.search(r"^def\s+\w+\s*\(", source, re.MULTILINE)
+        decorator_line_offset = source[:def_match.start()].count('\n')
+        source = source[def_match.start():]
         node = ast.parse(source)
         if not isinstance(node, ast.Module) or len(node.body) != 1:
             raise RuntimeError("Unexpected function definition, must be ast.Module node with a single child")
         def_node = node.body[0]
         if not isinstance(def_node, ast.FunctionDef):
             raise TypeError(f"JIT compilation is applicable to functions only, got {def_node.__class__.__name__}")
+        ast.increment_lineno(def_node, decorator_line_offset)
         return def_node
 
     @staticmethod
@@ -122,7 +125,9 @@ class Function(Generic[P, T]):
         constexprs: Dict[str, ConstExpr] = {}
         for name, value in args.items():
             ann_type = annotations.get(name, object)
-            if issubclass(get_origin(ann_type) or ann_type, ConstExpr):
+            if isinstance(value, ConstExpr):
+                constexprs[name] = value
+            elif issubclass(get_origin(ann_type) or ann_type, ConstExpr):
                 ann_args = get_args(ann_type)
                 if len(ann_args) != 0:
                     require_constexpr(value, *ann_args, arg_name=name)
@@ -130,6 +135,16 @@ class Function(Generic[P, T]):
             else:
                 runtime_args[name] = value
         return runtime_args, constexprs
+
+    def compute_globals(self) -> Dict[str, Any]:
+        globals = self.fn.__globals__
+        closure = self.fn.__closure__
+        if closure is None:
+            return globals
+        globals = globals.copy()
+        for name, cell in zip(self.fn.__code__.co_freevars, closure):
+            globals[name] = cell.cell_contents
+        return globals
 
     # we do not parse `src` in the constructor because
     # the user might want to monkey-patch self.src dynamically.

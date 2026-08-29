@@ -6,7 +6,7 @@
 // INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 // See LICENSE in the root of the software repository for the full text of the License.
 
-// RUN: ascir-opt -ascendc-insert-sync %s | FileCheck %s
+// RUN: ascir-opt -ascendc-insert-que-sync %s | FileCheck %s
 
 // CHECK-LABEL: func.func @get_set_value
 // CHECK:       %0 = ascendc.pipe

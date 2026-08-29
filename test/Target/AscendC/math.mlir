@@ -49,3 +49,27 @@ func.func @emit_ternary_ops(%arg0: f32, %arg1: f32, %arg2: f32) {
   %0 = math.fma %arg0, %arg1, %arg2 : f32
   return
 }
+
+// CHECK-LABEL:void emit_unary_math_scalar(float v1) {
+// CHECK-NEXT:  float v2 = sqrt(v1);
+// CHECK-NEXT:  float v3 = AscendC::Exp(v1);
+// CHECK-NEXT:  float v4 = AscendC::Log(v1);
+// CHECK-NEXT:  float v5 = AscendC::Erf(v1);
+// CHECK-NEXT:  return;
+// CHECK-NEXT:}
+func.func @emit_unary_math_scalar(%arg0: f32) {
+  %0 = math.sqrt %arg0 : f32
+  %1 = math.exp %arg0 : f32
+  %2 = math.log %arg0 : f32
+  %3 = math.erf %arg0 : f32
+  return
+}
+
+// CHECK-LABEL:void emit_atan2(float v1, float v2) {
+// CHECK-NEXT:  float v3 = AscendC::Atan2(v1, v2);
+// CHECK-NEXT:  return;
+// CHECK-NEXT:}
+func.func @emit_atan2(%arg0: f32, %arg1: f32) {
+  %0 = math.atan2 %arg0, %arg1 : f32
+  return
+}

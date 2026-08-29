@@ -161,7 +161,7 @@ class GlobalTensor(BaseTensor):
         self.dtype = dtype
         self.handle = handle
 
-        if buffer_size:
+        if buffer_size is not None:
             builder.create_asc_GlobalTensorSetGlobalBufferOp(self.to_ir(), buffer.to_ir(), _mat(buffer_size).to_ir())
         else:
             builder.create_asc_GlobalTensorSetGlobalBufferOp(self.to_ir(), buffer.to_ir())
@@ -478,7 +478,8 @@ class LocalTensorAuto(LocalTensor):
                 return
             new_shape = [_mat(dim, KnownTypes.int64).to_ir() for dim in shape]
             handle = global_builder.get_ir_builder().create_asc_LocalTensorAutoOp(
-                ir.get_local_tensor_type(dtype.to_ir()), False, False, new_shape)
+                ir.get_local_tensor_type(dtype.to_ir()), False, False, new_shape,
+                ir.TPosition.symbolize(TPosition.VECCALC))
             super(LocalTensorAuto, self).__init__(handle, dtype, None)
 
         dispatcher(*args, **kwargs)

@@ -49,6 +49,15 @@ def AscendC_FixpipeParams : AscendC_Type<"FixpipeParams", "fixpipe_params"> {
   let assemblyFormat = "`<`  $type `>`";
 }
 
+def AscendC_FixpipeParamsC310 : AscendC_Type<"FixpipeParamsC310", "fixpipe_params_c310"> {
+  let description = "Represents AscendC::FixpipeParamsC310";
+  let parameters = (ins "CO2LayoutAttr":$cO2LayoutAttr);
+  let assemblyFormat = "`<`  $cO2LayoutAttr `>`";
+  let extraClassDeclaration = [{
+    CO2Layout getCO2Layout() { return getCO2LayoutAttr().getValue(); }
+  }];
+}
+
 def AscendC_GlobalTensor : AscendC_BaseTensorType<"GlobalTensor", "global_tensor"> {
   let summary = "Global tensor from GM (OUT)";
 }
@@ -65,6 +74,10 @@ def AscendC_LocalTensor : AscendC_BaseTensorType<"LocalTensor", "local_tensor"> 
 
 def AscendC_Mask : AscendC_Type<"Mask", "mask"> {
   let summary = "Represents vector mask (bit mode)";
+}
+
+def AscendC_MaskReg : AscendC_Type<"MaskReg", "mask_reg"> {
+  let description = "Represents AscendC::Reg::MaskReg";
 }
 
 def AscendC_Matmul : AscendC_Type<"Matmul", "matmul"> {
@@ -170,6 +183,13 @@ def AscendC_Queue : AscendC_BaseQueueType<"Queue", "queue"> {
   }];
 }
 
+def AscendC_RegTensor : AscendC_Type<"RegTensor", "reg_tensor"> {
+  let summary = "Reg tensor from UB";
+  let description = "Represents AscendC::Reg::RegTensor";
+  let parameters = (ins "Type":$elementType);
+  let assemblyFormat = "`<` $elementType `>`";
+}
+
 def AscendC_TBufPool : AscendC_Type<"TBufPool", "tbuf_pool"> {
   let description = "Represents AscendC::TBufPool";
   let parameters = (ins "TPositionAttr":$tPositionAttr, "uint32_t": $bufIDSize);
@@ -182,6 +202,12 @@ def AscendC_TBufPool : AscendC_Type<"TBufPool", "tbuf_pool"> {
   let extraClassDeclaration = [{
     TPosition getTPosition() { return getTPositionAttr().getValue(); }
   }];
+}
+
+def AscendC_NdDmaParams : AscendC_Type<"NdDmaParams","nd_dma_params"> {
+  let description = "Represents AscendC::NdDmaParams";
+  let parameters = (ins "Type":$type, "int32_t":$dims);
+  let assemblyFormat = "`<` $type `,` $dims `>`";
 }
 
 include "ascir/API/Types.td.inc"

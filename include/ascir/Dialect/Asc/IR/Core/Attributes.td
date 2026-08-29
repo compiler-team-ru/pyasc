@@ -133,17 +133,6 @@ def AscendC_CacheLineAttr : I32EnumAttr<"CacheLine", "", [
   let underlyingType = "uint8_t";
 }
 
-def AscendC_CopyDirectionAttr : I32EnumAttr<"CopyDirection", "", [
-  I32EnumAttrCase<"Unknown", 0>,
-  I32EnumAttrCase<"gm_ubuf", 1>,
-  I32EnumAttrCase<"ubuf_gm", 2>,
-  I32EnumAttrCase<"ubuf_ubuf", 3>,
-  I32EnumAttrCase<"gm_gm", 4>,
-]> {
-  let cppNamespace = "::mlir::ascendc";
-  let description = "Copy direction";
-}
-
 def AscendC_CubeFormatAttr : I32EnumAttr<"CubeFormat", "matmul tensor format", [
   I32EnumAttrCase<"ND", 0, "nd">,
   I32EnumAttrCase<"NZ", 1, "nz">,
@@ -343,6 +332,27 @@ def AscendC_MatmulConfigAttr : AscendC_Attr<"MatmulConfig", "matmul_config">{
   let assemblyFormat = "`<` struct(params) `>`";
 }
 
+def AscendC_MaskPattern : I32EnumAttr<"MaskPattern", "", [
+  I32EnumAttrCase<"ALL", 0>,
+  I32EnumAttrCase<"VL1", 1>,
+  I32EnumAttrCase<"VL2", 2>,
+  I32EnumAttrCase<"VL3", 3>,
+  I32EnumAttrCase<"VL4", 4>,
+  I32EnumAttrCase<"VL8", 5>,
+  I32EnumAttrCase<"VL16", 6>,
+  I32EnumAttrCase<"VL32", 7>,
+  I32EnumAttrCase<"VL64", 8>,
+  I32EnumAttrCase<"VL128", 9>,
+  I32EnumAttrCase<"M3", 10>,
+  I32EnumAttrCase<"M4", 11>,
+  I32EnumAttrCase<"H", 12>,
+  I32EnumAttrCase<"Q", 13>,
+  I32EnumAttrCase<"ALLF", 15>,
+]>{
+  let cppNamespace = "::mlir::ascendc";
+  let description = "Represents AscendC::Reg::MaskPattern";
+  let underlyingType = "uint8_t";
+}
 
 def AscendC_MatmulPolicyAttr : I32EnumAttr<"MatmulPolicy", "", [
   I32EnumAttrCase<"MatmulPolicy", 0>,
@@ -352,6 +362,19 @@ def AscendC_MatmulPolicyAttr : I32EnumAttr<"MatmulPolicy", "", [
 ]>{
   let cppNamespace = "::Detail::Impl::AscendC";
   let description = "Represents AscendC::MatmulPolicy";
+  let underlyingType = "uint8_t";
+}
+
+def AscendC_MemType : I32EnumAttr<"MemType", "", [
+  I32EnumAttrCase<"VEC_STORE", 0>,
+  I32EnumAttrCase<"VEC_LOAD", 1>,
+  I32EnumAttrCase<"SCALAR_STORE", 2>,
+  I32EnumAttrCase<"SCALAR_LOAD", 3>,
+  I32EnumAttrCase<"VEC_ALL", 4>,
+  I32EnumAttrCase<"SCALAR_ALL", 5>,
+]>{
+  let cppNamespace = "::mlir::ascendc";
+  let description = "Represents AscendC::Reg::MemType";
   let underlyingType = "uint8_t";
 }
 
@@ -537,6 +560,43 @@ def AscendC_AtomicOpAttr : I32EnumAttr<"AtomicOp", "", [
   let cppNamespace = "::mlir::ascendc";
   let description = "Represents AscendC::AtomicOp";
   let underlyingType = "uint8_t";
+}
+
+def AscendC_ReducePatternAttr : I32EnumAttr<"ReducePattern", "", [
+  I32EnumAttrCase<"R", 0>,
+  I32EnumAttrCase<"AR", 1>,
+  I32EnumAttrCase<"RA", 2>,
+  I32EnumAttrCase<"ARA", 3>,
+  I32EnumAttrCase<"ARAR", 4>,
+  I32EnumAttrCase<"ARARA", 5>,
+  I32EnumAttrCase<"ARARAR", 6>,
+  I32EnumAttrCase<"ARARARA", 7>,
+  I32EnumAttrCase<"ARARARAR", 8>,
+  I32EnumAttrCase<"ARARARARA", 9>,
+  I32EnumAttrCase<"RAR", 10>,
+  I32EnumAttrCase<"RARA", 11>,
+  I32EnumAttrCase<"RARAR", 12>,
+  I32EnumAttrCase<"RARARA", 13>,
+  I32EnumAttrCase<"RARARAR", 14>,
+  I32EnumAttrCase<"RARARARA", 15>,
+]>{
+  let cppNamespace = "::mlir::ascendc";
+  let description = "Describes reduction pattern from reduce_common.h";
+  let underlyingType = "uint8_t";
+}
+
+def AscendC_DataCopyMVTypeAttr: I32EnumAttr<"DataCopyMVType", "", [
+    I32EnumAttrCase<"UB_TO_OUT", 0>,
+    I32EnumAttrCase<"OUT_TO_UB", 1>,
+]>{
+  let cppNamespace = "::mlir::ascendc";
+  let description = "Used in SetLoopModePara/ResetLoopModePara";
+  let underlyingType = "uint8_t";
+}
+
+def AscendC_CopyDirectionAttr : AscendC_Attr<"CopyDirection", "copy_direction"> {
+  let parameters = (ins "TPosition":$src, "TPosition":$dst);
+  let assemblyFormat = "`<` $src `,` $dst `>`";
 }
 
 #endif // ASC_CORE_ATTRIBUTES_TD

@@ -209,3 +209,53 @@ func.func @index_switch_multiple_results(%arg0: index, %arg1: i64) {
   }
   return
 }
+
+// CHECK-LABEL: void emit_for_op(int32_t v1) {
+// CHECK-NEXT:  constexpr uint32_t c0_idx = 0;
+// CHECK-NEXT:  constexpr uint32_t c10_idx = 10;
+// CHECK-NEXT:  constexpr uint32_t c1_idx = 1;
+// CHECK-NEXT:  int32_t v2;
+// CHECK-NEXT:  int32_t v3 = v1;
+// CHECK-NEXT:  for (uint32_t v4 = c0_idx; v4 < c10_idx; v4 += c1_idx) {
+// CHECK-NEXT:    int32_t v5 = static_cast<int32_t>(v4);
+// CHECK-NEXT:    int32_t v6 = v3 + v5;
+// CHECK-NEXT:    v3 = v6;
+// CHECK-NEXT:  }
+// CHECK-NEXT:  v2 = v3;
+// CHECK-NEXT:  return;
+// CHECK-NEXT:}
+func.func @emit_for_op(%init: i32) {
+  %lb = arith.constant 0 : index
+  %ub = arith.constant 10 : index
+  %step = arith.constant 1 : index
+  %result = scf.for %iv = %lb to %ub step %step iter_args(%iter = %init) -> (i32) {
+    %iv_i32 = arith.index_cast %iv : index to i32
+    %sum = arith.addi %iter, %iv_i32 : i32
+    scf.yield %sum : i32
+  }
+  return
+}
+
+// CHECK-LABEL: void emit_if_op(int32_t v1, int32_t v2) {
+// CHECK-NEXT:  bool v3 = v1 == v2;
+// CHECK-NEXT:  int32_t v4;
+// CHECK-NEXT:  if (v3) {
+// CHECK-NEXT:    constexpr int32_t c1_i32 = 1;
+// CHECK-NEXT:    v4 = c1_i32;
+// CHECK-NEXT:  } else {
+// CHECK-NEXT:    constexpr int32_t c0_i32 = 0;
+// CHECK-NEXT:    v4 = c0_i32;
+// CHECK-NEXT:  }
+// CHECK-NEXT:  return;
+// CHECK-NEXT:}
+func.func @emit_if_op(%arg0: i32, %arg1: i32) {
+  %cond = arith.cmpi eq, %arg0, %arg1 : i32
+  %result = scf.if %cond -> (i32) {
+    %c1 = arith.constant 1 : i32
+    scf.yield %c1 : i32
+  } else {
+    %c0 = arith.constant 0 : i32
+    scf.yield %c0 : i32
+  }
+  return
+}

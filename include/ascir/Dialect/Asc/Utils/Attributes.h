@@ -17,12 +17,19 @@ namespace ascendc {
 
 namespace attr {
 LITERAL aicore = "ascendc.aicore";
-LITERAL api = "ascendc.api";
-LITERAL compile_mix = "asc.compile_mix";
+LITERAL compilationArch = "asc.compilation_arch";
 LITERAL emitAsUnsigned = "ascendc.emit_as_unsigned";
 LITERAL global = "ascendc.global";
-LITERAL enable_debug = "asc.enable_debug";
+LITERAL enableDebug = "asc.enable_debug";
+LITERAL kernelType = "asc.kernel_type";
 LITERAL matmulCubeOnly = "asc.matmul_cube_only";
+LITERAL memoryConsumed = "asc.memory_consumed";
+LITERAL socVersion = "asc.soc_version";
+LITERAL vfVecLen = "asc.vf_vec_len";
+
+LITERAL kernelCube = "cube";
+LITERAL kernelMixed = "mixed";
+LITERAL kernelVector = "vector";
 } // namespace attr
 
 } // namespace ascendc

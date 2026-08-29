@@ -24,19 +24,45 @@ from ..common.compat import get_annotations, merge_dict
 from ..language.core.constexpr import ConstExpr
 from ..language.core.dtype import KnownTypes
 from ..language.core.ir_value import GlobalAddress, IRHandle, IRValue, PlainValue, materialize_ir_value
-from ..language.core.range import range as _range, static_range
+from ..language.core.range import BaseRange, static_range
 from ..language.core.struct import BaseField, Struct
-from ..language.core.tensor import BaseTensor
 from ..language.core.utils import static_assert, global_builder
 
 T = TypeVar("T")
 P = ParamSpec("P")
 
 
+class CustomBuiltins(Dict[str, Any]):
+    """dict-like class with fixed __str__ and __repr__ methods to store callable objects"""
+
+    def __str__(self) -> str:
+        return f"{__class__.__name__}(...)"
+
+    def __repr__(self) -> str:
+        return str(self)
+
+    def dict_repr(self) -> str:
+        return super().__repr__()
+
+
 @dataclass
 class CodegenOptions:
+    """Code generation and AST traversal options"""
+
     capture_exceptions: bool = True
+    """
+    Capture all exceptions raised by functions called by code generator internally and show the corresponding location
+    in the user function code being traversed that caused an exception instead.
+    Usually, it must always be enabled, but may be disabled for the language debugging purposes.
+    """
+
     ir_multithreading: bool = True
+    """
+    Enable parallel processing for the current IR context if possible.
+    Usually, it must always be enabled, but may be disabled for the IR debugging purposes.
+    """
+
+    custom_builtins: CustomBuiltins = field(default_factory=dict)
 
 
 @dataclass
@@ -66,6 +92,7 @@ class BlockInOut:
 
 
 class FunctionVisitor(ast.NodeVisitor):
+    options_cls: Type[CodegenOptions] = CodegenOptions
 
     def __init__(
         self,
@@ -81,7 +108,7 @@ class FunctionVisitor(ast.NodeVisitor):
         self.src = source_lines
         self.ir_function: Optional[ir.FuncOp] = None
         self.spec = spec
-        self.scope = NameScope(merge_dict(global_vars, spec.constexprs))
+        self.scope = NameScope(merge_dict(global_vars, spec.constexprs), custom_builtins=options.custom_builtins)
         self.location = location
         global_builder.get_ir_builder().set_insertion_point_to_start(global_builder.get_ir_module().get_body())
         global_builder.get_ir_builder().set_loc(self.location.filename, self.location.line_offset, 0)
@@ -106,11 +133,23 @@ class FunctionVisitor(ast.NodeVisitor):
             ast.BitAnd: '__and__',
             ast.BitOr: '__or__',
             ast.BitXor: '__xor__',
+            ast.MatMult: '__matmul__',
         }
         name = names.get(op_class)
         if name:
             return name
         raise NotImplementedError(f"Method for {op_class.__class__.__name__} is not implemented")
+
+    @staticmethod
+    def get_bool_constexpr_op(op_class: Type[ast.boolop]) -> Callable[[bool, bool], bool]:
+        operators: Dict[Type[ast.boolop], Callable[[bool, bool], bool]] = {
+            ast.And: (lambda lhs, rhs: lhs and rhs),
+            ast.Or: (lambda lhs, rhs: lhs or rhs),
+        }
+        op = operators.get(op_class)
+        if op:
+            return op
+        raise NotImplementedError(f"Method for {op_class.__name__} is not implemented")
 
     @staticmethod
     def get_bool_method_name(op_class: Type[ast.boolop]) -> str:
@@ -128,7 +167,7 @@ class FunctionVisitor(ast.NodeVisitor):
         names: Dict[Type[ast.unaryop], str] = {
             ast.USub: '__neg__',
             ast.UAdd: '__pos__',
-            ast.Not: '__not__',
+            ast.Not: 'logical_not',
             ast.Invert: '__invert__',
         }
         name = names.get(op_class)
@@ -153,7 +192,7 @@ class FunctionVisitor(ast.NodeVisitor):
 
     @staticmethod
     def has_builder_support(value) -> bool:
-        return isinstance(value, (BaseTensor, GlobalAddress, PlainValue))
+        return isinstance(value, IRValue)
 
     def raise_unsupported(self, node: ast.AST, message: Optional[str] = None, context: bool = False) -> NoReturn:
         error = UnsupportedSyntaxError(node, self.src, message)
@@ -211,14 +250,15 @@ class FunctionVisitor(ast.NodeVisitor):
         return return_values
 
     def compute_inout(self, node: ast.AST, stmts: List[ast.stmt], ind_var: Optional[Tuple[str, ir.Type]] = None,
-                      make_args: bool = False) -> BlockInOut:
-        with self.visit_region() as (outer_scope, _):
+                      make_args: bool = False, init_handles: Optional[Dict[str, IRHandle]] = None) -> BlockInOut:
+        with self.visit_region() as (outer_scope, insert_point):
             block = ir.Block()
             if ind_var is not None:
                 name, ir_type = ind_var
                 arg = block.add_argument(ir_type)
                 self.scope.save(name, PlainValue(arg))
-            global_builder.get_ir_builder().set_insertion_point_to_start(block)
+            builder = global_builder.get_ir_builder()
+            builder.set_insertion_point_to_start(block)
             self.visit_statements(stmts)
             for name in self.scope.redefined:
                 old_value = outer_scope.lookup(name)
@@ -227,15 +267,25 @@ class FunctionVisitor(ast.NodeVisitor):
                     self.raise_unsupported(
                         node, f"'{name}' was re-assigned to an object with different type: "
                         f"initial type is {old_value.__class__.__name__}, new type is {new_value.__class__.__name__}")
-            _, init_handles = self.mat_ir_values(outer_scope.lookup(name) for name in self.scope.redefined)
+            # Initial values for numeric block arguments should be defined outside of the block
+            builder.restore_insertion_point(insert_point)
+            current_init_handles = []
+            for name in self.scope.redefined:
+                handle = None
+                if init_handles is not None:
+                    handle = init_handles.get(name)
+                if handle is None:
+                    handle = materialize_ir_value(outer_scope.lookup(name)).to_ir()
+                current_init_handles.append(handle)
             if make_args:
-                for handle in init_handles:
+                for handle in current_init_handles:
                     arg = block.add_argument(handle.get_type())
                     handle.replace_uses_in_block(block, arg)
+            builder.set_insertion_point_to_end(block)
             yield_values, yield_handles = self.mat_ir_values(self.scope.lookup(name) for name in self.scope.redefined)
             return BlockInOut(
                 block=block,
-                init_handles=dict(zip(self.scope.redefined, init_handles)),
+                init_handles=dict(zip(self.scope.redefined, current_init_handles)),
                 yield_values=dict(zip(self.scope.redefined, yield_values)),
                 yield_handles=dict(zip(self.scope.redefined, yield_handles)),
             )
@@ -432,14 +482,25 @@ class FunctionVisitor(ast.NodeVisitor):
             self.raise_unsupported(node, "Chained boolean operators are not supported, group pairs with parentheses")
         lhs = self.visit(node.values[0])
         rhs = self.visit(node.values[1])
-        method_name = self.get_bool_method_name(type(node.op))
-        return self.apply_binary_method(method_name, lhs, rhs)
+        try:
+            lhs = bool(lhs)
+            rhs = bool(rhs)
+            op = self.get_bool_constexpr_op(type(node.op))
+            return op(lhs, rhs)
+        except TypeError:
+            method_name = self.get_bool_method_name(type(node.op))
+            return self.apply_binary_method(method_name, lhs, rhs)
 
     def visit_Call(self, node: ast.Call) -> Optional[Any]:
         fn = self.visit(node.func)
         if not callable(fn):
             self.raise_unsupported(node, f"{fn.__class__.__name__} instance is not callable")
-        args = [self.visit(arg) for arg in node.args]
+        args = []
+        for arg in node.args:
+            if isinstance(arg, ast.Starred):
+                args.extend(self.visit(arg.value))
+            else:
+                args.append(self.visit(arg))
         kwargs = dict(self.visit(keyword) for keyword in node.keywords)
         if isinstance(fn, Function):
             return self.call_jit_function(fn, args, kwargs)
@@ -470,11 +531,12 @@ class FunctionVisitor(ast.NodeVisitor):
         kwargs = dict(self.visit(keyword) for keyword in node.iter.keywords)
         return func, args, kwargs
 
-    def handle_static_range(self, node: ast.For, args, kwargs, target):
-        range_obj = static_range(*args, **kwargs)
+    def handle_static_range(self, range_cls: Type[static_range], args: tuple, kwargs: Dict[str, Any], target: str,
+                            body: List[ast.stmt]) -> None:
+        range_obj = range_cls(*args, **kwargs)
         for i in range(range_obj.start, range_obj.stop, range_obj.step):
             self.scope.save(target, i)
-            self.visit_statements(node.body)
+            self.visit_statements(body)
 
     def visit_For(self, node: ast.For) -> None:
         if len(node.orelse) != 0:
@@ -484,11 +546,11 @@ class FunctionVisitor(ast.NodeVisitor):
             self.raise_unsupported(node, f"For-loop target must be an identifier, got {target.__class__.__name__}")
         func, args, kwargs = self.parse_iterator(node)
         iter_args = None, None, None
-        if func is static_range:
-            self.handle_static_range(node, args, kwargs, target)
+        if inspect.isclass(func) and issubclass(func, static_range):
+            self.handle_static_range(func, args, kwargs, target, node.body)
             return
-        elif func is range or func is _range:
-            range_obj = _range(*args, **kwargs)
+        elif inspect.isclass(func) and issubclass(func, (range, BaseRange)):
+            range_obj = func(*args, **kwargs)
             iter_args = range_obj.start, range_obj.stop, range_obj.step
         else:
             self.raise_unsupported(
@@ -504,6 +566,7 @@ class FunctionVisitor(ast.NodeVisitor):
             block_inout = self.compute_inout(node, node.body, (target, start.to_ir().get_type()), make_args=True)
             op = builder.create_scf_ForOp(start.to_ir(), stop.to_ir(), step.to_ir(),
                                           list(block_inout.init_handles.values()))
+            range_obj.handle_op(op)
             self.scope.save(target, PlainValue(op.get_induction_var()))
             body = op.get_body()
             body.clear()
@@ -562,7 +625,7 @@ class FunctionVisitor(ast.NodeVisitor):
         yields = {}
         with self.visit_region():
             then_inout = self.compute_inout(node, node.body)
-            else_inout = self.compute_inout(node, node.orelse)
+            else_inout = self.compute_inout(node, node.orelse, init_handles=then_inout.init_handles)
 
             def merge_sorted(dict1: Dict[str, T], dict2: Dict[str, T]) -> Dict[str, T]:
                 dicts = merge_dict(dict1, dict2)
@@ -596,7 +659,9 @@ class FunctionVisitor(ast.NodeVisitor):
             self.scope.save(name, value)
 
     def visit_IfExp(self, node: ast.IfExp) -> Any:
-        cond = self.ensure_bool_value(node.test, require_ir=True)
+        cond = self.ensure_bool_value(node.test)
+        if isinstance(cond, bool):  # condition is known at compile-time
+            return self.visit(node.body) if cond else self.visit(node.orelse)
         with self.visit_region() as (_, insert_point):
             then_block = ir.Block()
             builder = global_builder.get_ir_builder()
@@ -674,6 +739,8 @@ class FunctionVisitor(ast.NodeVisitor):
 
     def visit_UnaryOp(self, node: ast.UnaryOp) -> Any:
         operand = self.visit(node.operand)
+        if isinstance(node.op, ast.Not) and not isinstance(operand, IRValue):
+            return not operand
         method_name = self.get_unary_method_name(type(node.op))
         return getattr(operand, method_name)()
 

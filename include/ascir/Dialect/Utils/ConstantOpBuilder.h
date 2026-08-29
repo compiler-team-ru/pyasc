@@ -39,11 +39,13 @@ struct ConstantOpBuilder {
 
     Value i64(int64_t value) { return create(builder.getI64Type(), value); }
 
-    Value i32(int32_t value) { return create(builder.getI32Type(), value); }
+    Value i32(int64_t value) { return create(builder.getI32Type(), value); }
 
-    Value i16(int16_t value) { return create(builder.getI16Type(), value); }
+    Value i16(int64_t value) { return create(builder.getI16Type(), value); }
 
-    Value i8(int8_t value) { return create(builder.getI8Type(), value); }
+    Value i8(int64_t value) { return create(builder.getI8Type(), value); }
+
+    Value i1(bool value) { return create(builder.getI1Type(), value); }
 
     Value f64(double value) { return create(builder.getF64Type(), value); }
 

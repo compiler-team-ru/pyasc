@@ -26,6 +26,8 @@ LogicalResult printOperation(CodeEmitter& emitter, ascendc::CopyL0Op op);
 
 LogicalResult printOperation(CodeEmitter& emitter, ascendc::CopyL1Op op);
 
+LogicalResult printOperation(CodeEmitter& emitter, ascendc::NdDmaParamsOp op);
+
 } // namespace ascendc
 } // namespace mlir
 

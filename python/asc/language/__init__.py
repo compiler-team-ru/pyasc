@@ -189,6 +189,7 @@ from .core.dtype import (
     int16,
     int32,
     int64,
+    bfloat16,
     float16,
     float32,
     float64,

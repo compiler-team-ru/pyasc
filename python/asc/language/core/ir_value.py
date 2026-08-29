@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import abc
+from numbers import Real
 from typing import Any, NoReturn, Optional, Union
 from typing_extensions import Self, TypeAlias
 
@@ -21,6 +22,9 @@ IRHandle: TypeAlias = ir.Value
 
 
 class IRValue(abc.ABC):
+
+    def __bool__(self) -> NoReturn:
+        raise TypeError(f"{self.__class__.__name__} is IRValue and cannot be used in boolean context")
 
     @classmethod
     @abc.abstractmethod
@@ -233,10 +237,6 @@ class PlainValue(IRValue):
         return self
 
     @require_jit
-    def __not__(self) -> PlainValue:
-        return self.__eq__(0)
-
-    @require_jit
     def __invert__(self) -> PlainValue:
         raise NotImplementedError("Inversion operator is not implemented for PlainValue")
 
@@ -321,6 +321,14 @@ class PlainValue(IRValue):
     def ceildiv(self, other) -> PlainValue:
         return self.apply_binary_op(self, other, "CeilDivSI", None)
 
+    @require_jit
+    def max(self, other) -> PlainValue:
+        return self.apply_binary_op(self, other, "MaxSI", "MaximumF")
+
+    @require_jit
+    def min(self, other) -> PlainValue:
+        return self.apply_binary_op(self, other, "MinSI", "MinimumF")
+
     # Logical (bool) operations
 
     @require_jit
@@ -330,6 +338,10 @@ class PlainValue(IRValue):
     @require_jit
     def logical_or(self, other) -> PlainValue:
         return self.apply_bool_op(self, other, "OrI")
+
+    @require_jit
+    def logical_not(self) -> PlainValue:
+        return self == 0
 
     def to_ir(self) -> IRHandle:
         return self.handle
@@ -346,54 +358,51 @@ def materialize_ir_value(value: RuntimeNumeric, required_type: Optional[DataType
         return value if required_type is None else value.cast(required_type)
     if isinstance(value, IRValue):
         if required_type is not None:
-            raise ValueError("Required type cannot be specified for IRValue which is not PlainValue")
+            raise ValueError(f"{required_type} cannot be specified for {value} which is not PlainValue")
         return value
     if isinstance(value, ConstExpr):
         return materialize_ir_value(value.value, required_type)
-    if not isinstance(value, (int, float)):
+    if not isinstance(value, Real):
         raise TypeError(f"Unsupported value type for materialization: {value.__class__.__name__}")
-    if required_type is not None:
-        if required_type == KT.bit:
-            value = bool(value)
-        if required_type.is_int():
-            value = int(value)
-        elif required_type.is_float():
-            value = float(value)
-
+    if required_type is None:
+        if isinstance(value, bool):
+            required_type = KT.int1
+        elif isinstance(value, int):
+            required_type = KT.int_
+        elif isinstance(value, float):
+            required_type = KT.float_
+        else:
+            raise TypeError(f"Unable to infer dtype for {value!r}")
+    if required_type == KT.int1:
+        value = bool(value)
+    elif required_type.is_int():
+        value = int(value)
+    elif required_type.is_float():
+        value = float(value)
     return convert_value(value, required_type)
 
 
-def convert_value(value: Any, required_type: Optional[DataType] = None) -> PlainValue:
+def convert_value(value: Real, required_type: DataType) -> PlainValue:
     builder = global_builder.get_ir_builder()
-
     type_to_builder = {
-        bool: {"bit": builder.get_i1}, int: {
-            "int1": builder.get_i1, "int8": builder.get_i8, "int16": builder.get_i16, "int32": builder.get_i32, "int64":
-            builder.get_i64, "uint8": builder.get_ui8, "uint16": builder.get_ui16, "uint32": builder.get_ui32, "uint64":
-            builder.get_ui64
-        }, float: {"float16": builder.get_f16, "float32": builder.get_f32, "float64": builder.get_f64}
+        "int1": builder.get_i1,
+        "int8": builder.get_i8,
+        "int16": builder.get_i16,
+        "int32": builder.get_i32,
+        "int64": builder.get_i64,
+        "uint8": builder.get_ui8,
+        "uint16": builder.get_ui16,
+        "uint32": builder.get_ui32,
+        "uint64": builder.get_ui64,
+        "float16": builder.get_f16,
+        "bfloat16": builder.get_bf16,
+        "float32": builder.get_f32,
+        "float64": builder.get_f64,
     }
-
-    if isinstance(value, bool):
-        if required_type is not None and required_type != KT.bit:
-            raise ValueError("Required type must be None or KT.bit")
-        return PlainValue(builder.get_i1(value))
-
-    if isinstance(value, int):
-        if required_type is None:
-            required_type = KT.int_
-        if str(required_type) not in type_to_builder[int]:
-            raise ValueError(f"Unsupported DataType for materialization: {required_type}")
-        factory = type_to_builder[int][str(required_type)]
-
-    if isinstance(value, float):
-        if required_type is None:
-            required_type = KT.float_
-        if str(required_type) not in type_to_builder[float]:
-            raise ValueError(f"Unsupported DataType for materialization: {required_type}")
-        factory = type_to_builder[float][str(required_type)]
-
-    return PlainValue(factory(value), required_type)
+    if required_type.name not in type_to_builder:
+        raise RuntimeError(f"Unsupported dtype for materialization: {required_type}")
+    factory = type_to_builder[required_type.name]
+    return PlainValue(factory(value))
 
 
 def cast_to_index(value: Union[RuntimeNumeric, IRHandle]) -> IRHandle:

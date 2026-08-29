@@ -32,16 +32,33 @@ class DetectKernelTypePass : public ascendc::impl::DetectKernelTypeBase<DetectKe
 public:
     void runOnOperation() override
     {
-        ModuleOp op = getOperation();
-        if (op.walk([](ascendc::RegistMatmulObjOp) { return WalkResult::interrupt(); }).wasInterrupted())
-            op->setAttr(attr::compile_mix, UnitAttr::get(op->getContext()));
+        auto moduleOp = getOperation();
+        if (moduleOp->hasAttr(attr::kernelType))
+            return;
+        auto hasVectorOps = false;
+        auto hasCubeOps = false;
+        moduleOp.walk([&hasVectorOps, &hasCubeOps](Operation* op) {
+            if (!hasVectorOps && isa<VectorOp>(op))
+                hasVectorOps = true;
+            if (!hasCubeOps && isa<MmadOp, MmadWithBiasOp>(op))
+                hasCubeOps = true;
+            if (isa<RegistMatmulObjOp>(op))
+                hasVectorOps = hasCubeOps = true;
+            if (hasVectorOps && hasCubeOps)
+                return WalkResult::interrupt();
+            return WalkResult::advance();
+        });
+        StringRef kernelType;
+        if (hasVectorOps && hasCubeOps)
+            kernelType = attr::kernelMixed;
+        else if (hasCubeOps)
+            kernelType = attr::kernelCube;
+        else
+            kernelType = attr::kernelVector;
+        moduleOp->setAttr(attr::kernelType, StringAttr::get(moduleOp.getContext(), kernelType));
     }
 };
 
 } // namespace
 
-namespace mlir {
-namespace ascendc {
-std::unique_ptr<Pass> createDetectKernelTypePass() { return std::make_unique<DetectKernelTypePass>(); }
-} // namespace ascendc
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascendc::createDetectKernelTypePass() { return std::make_unique<DetectKernelTypePass>(); }

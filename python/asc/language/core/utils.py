@@ -193,6 +193,17 @@ def check_type(name: str, value: Any, constraint: Type) -> None:
     raise TypeError(f"'{name}' argument must be {get_type_name(constraint)}, got {value.__class__.__name__}")
 
 
+def allow_jit(fn: T) -> T:
+    if not callable(fn):
+        raise TypeError(f"{fn} must be a callable object in order to be allowed in JIT context")
+    setattr(fn, JIT_INTERNAL, True)
+    return fn
+
+
+def jit_allowed(obj: Any) -> bool:
+    return getattr(obj, JIT_INTERNAL, False)
+
+
 def require_jit(fn: Callable[P, T]) -> Callable[P, T]:
     if not callable(fn):
         raise TypeError(f"{fn} must be a callable function to require jit")
@@ -204,7 +215,7 @@ def require_jit(fn: Callable[P, T]) -> Callable[P, T]:
             raise RuntimeError(f"'{caller_name}' cannot be called without initialization of global builder")
         return fn(*args, **kwargs)
 
-    return wrapper
+    return allow_jit(wrapper)
 
 
 def static_assert(test: bool, message: Optional[str] = None) -> None:
@@ -276,7 +287,7 @@ class GlobalTensorDocstring:
         .. code-block:: c++
 
             __aicore__ inline const __gm__ PrimType* GetPhyAddr() const
-            
+
         .. code-block:: c++
 
             __aicore__ inline __gm__ PrimType* GetPhyAddr(const uint64_t offset) const
@@ -641,7 +652,7 @@ class LocalTensorDocstring:
             num = 100
             for i in range(src_len):
                 input_local.set_value(i, num)   # 对input_local中第i个位置进行赋值为num
-                
+
         """
 
         return [func_introduction, cpp_signature, param_list, "", constraint_list, py_example]
@@ -683,7 +694,7 @@ class LocalTensorDocstring:
                 num = 100
                 for i in range(src_len):
                     element = input_local.get_value(i)  # 获取input_local中第i个位置的数值
-                
+
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, "", py_example]
@@ -717,7 +728,7 @@ class LocalTensorDocstring:
             # 将申请的Tensor长度修改为256(单位为元素)
             tmp_buffer = temp_queue.alloc_tensor(asc.float)
             tmp_buffer.set_size(256)
-                
+
         """
 
         return [func_introduction, cpp_signature, param_list, "", "", py_example]
@@ -755,7 +766,7 @@ class LocalTensorDocstring:
         .. code-block:: python
 
             size = input_local.get_size()
-                
+
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, "", py_example]
@@ -788,7 +799,7 @@ class LocalTensorDocstring:
 
             tag = 10
             size = input_local.get_size(tag)
-                
+
         """
 
         return [func_introduction, cpp_signature, param_list, "", "", py_example]
@@ -849,7 +860,7 @@ class LocalTensorDocstring:
 
         .. code-block:: c++
 
-            template <typename CAST_T> 
+            template <typename CAST_T>
             __aicore__ inline LocalTensor<CAST_T> ReinterpretCast() const
 
         """
@@ -873,7 +884,7 @@ class LocalTensorDocstring:
 
             # 调用ReinterpretCast将input_local重解释为int16_t类型
             interpre_tensor = input_local.reinterpret_cast(asc.int16)
-                    
+
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, "", py_example]
@@ -912,7 +923,7 @@ class LocalTensorDocstring:
         .. code-block:: python
 
             real_addr = input_local.get_phy_addr()
-                    
+
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, "", py_example]
@@ -956,7 +967,7 @@ class LocalTensorDocstring:
                 # 处理逻辑2
             else:
                 # 处理逻辑3
-                    
+
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, "", py_example]
@@ -995,7 +1006,7 @@ class LocalTensorDocstring:
 
             # 获取localTensor的长度(单位为Byte)
             len = input_local.get_length()
-                    
+
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, "", py_example]
@@ -1029,7 +1040,7 @@ class LocalTensorDocstring:
             max_ub = softmax_max_buf.get(asc.float)
             shape_array = [16, 1024]
             max_ub = set_shape_info(asc.ShapeInfo(2, shape_array, asc.DataFormat.ND))
-                    
+
         """
 
         return [func_introduction, cpp_signature, param_list, "", "", py_example]
@@ -1067,7 +1078,7 @@ class LocalTensorDocstring:
         .. code-block:: python
 
             max_shape_info = max_ub.get_shape_info()
-                    
+
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, "", py_example]
@@ -1104,7 +1115,7 @@ class LocalTensorDocstring:
             # 需要注意，偏移的长度为旧Tensor的元素个数
             tmp_buffer = temp_queue.alloc_tensor(asc.float)
             tmp_half_buffer.set_addr_with_offset(tmp_buffer, calc_size * 2)
-                    
+
         """
 
         return [func_introduction, cpp_signature, param_list, "", "", py_example]
@@ -1138,7 +1149,7 @@ class LocalTensorDocstring:
             # 将申请的Tensor长度修改为1024(单位为字节)
             tmp_buffer = temp_queue.alloc_tensor(asc.float)
             tmp_buffer.set_buffer_len(1024)
-                    
+
         """
 
         return [func_introduction, cpp_signature, param_list, "", "", py_example]
@@ -1177,7 +1188,7 @@ class LocalTensorDocstring:
 
             # 只限于CPU调试，将LocalTensor数据Dump到文件中，用于精度调试，文件保存在执行目录
             tmp_tensor.to_file("tmpTensor.bin")
-                    
+
         """
 
         return [func_introduction, cpp_signature, param_list, return_list, "", py_example]
@@ -1213,7 +1224,7 @@ class LocalTensorDocstring:
             for i in range(16):
                 input_local.set_value(i, i) # 对input_local中第i个位置进行赋值为i
             input_local.print()
-                    
+
         """
 
         return [func_introduction, cpp_signature, param_list, "", "", py_example]
@@ -1223,7 +1234,8 @@ CLASS_DOC_HANDLERS = {
     "LocalMemAllocator": {
         "get_cur_addr": LocalMemAllocatorDocstring.get_cur_addr_docstring,
         "alloc": LocalMemAllocatorDocstring.alloc_docstring,
-    }, "ShapeInfo": {}
+    },
+    "ShapeInfo": {},
 }
 
 TENSOR_DOC_HANDLERS = {
@@ -1236,7 +1248,8 @@ TENSOR_DOC_HANDLERS = {
         "set_shape_info": GlobalTensorDocstring.set_shape_info_docstring,
         "get_shape_info": GlobalTensorDocstring.get_shape_info_docstring,
         "set_l2_cache_hint": GlobalTensorDocstring.set_l2_cache_hint_docstring,
-    }, "LocalTensor": {
+    },
+    "LocalTensor": {
         "set_value": LocalTensorDocstring.set_value_docstring,
         "get_value": LocalTensorDocstring.get_value_docstring,
         "set_size": LocalTensorDocstring.set_size_docstring,
@@ -1253,7 +1266,7 @@ TENSOR_DOC_HANDLERS = {
         "set_buffer_len": LocalTensorDocstring.set_buffer_len_docstring,
         "to_file": LocalTensorDocstring.to_file_docstring,
         "print": LocalTensorDocstring.print_docstring,
-    }
+    },
 }
 
 

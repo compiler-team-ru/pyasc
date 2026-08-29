@@ -91,23 +91,36 @@ void defineCommonPasses(py::module& mod)
 void defineAscendCPasses(py::module& mod)
 {
     using namespace ascendc;
+    using namespace pybind11::literals;
     auto m = mod.def_submodule("ascendc");
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_noop_pass", createNoopPass);
     DEFINE_ADD_PASS("add_detect_kernel_type", createDetectKernelTypePass);
     DEFINE_ADD_PASS("add_declare_py_struct", createDeclarePyStructPass);
     DEFINE_ADD_PASS("add_define_cube_only", createDefineCubeOnlyPass);
+    DEFINE_ADD_PASS("add_detect_enable_debug", createDetectEnableDebugPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_erase_sync", createEraseSyncPass);
     DEFINE_ADD_PASS("add_generate_boilerplate", createGenerateBoilerplatePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_hoist_que_bind", createHoistQueBindPass);
-    DEFINE_ADD_PASS_ON(func::FuncOp, "add_hoist_ub_allocation", createHoistUBAllocationPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_input_output_tensor", createInputOutputTensorPass);
-    DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_sync", createInsertSyncPass);
-    DEFINE_ADD_PASS_ON(func::FuncOp, "add_materialize_tensor", createMaterializeTensorPass);
-    DEFINE_ADD_PASS("add_legalize_kernel_args", createLegalizeKernelArgsPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_que_sync", createInsertQueSyncPass);
     DEFINE_ADD_PASS("add_privatize_func", createPrivatizeFuncPass);
-    DEFINE_ADD_PASS("add_detect_enable_debug", createDetectEnableDebugPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_unify_pipe", createUnifyPipePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_verify_sync", createVerifySyncPass);
+
+    m.def(
+        "add_hoist_tensor_allocation",
+        [](PassManager& pm, bool excludeInOut) {
+            pm.addNestedPass<func::FuncOp>(createHoistTensorAllocationPass(excludeInOut));
+        },
+        "pm"_a, "exclude_in_out"_a = false);
+    m.def(
+        "add_legalize_kernel_args",
+        [](PassManager& pm, bool setFftsAddr) { pm.addPass(createLegalizeKernelArgsPass(setFftsAddr)); }, "pm"_a,
+        "set_ffts_addr"_a = false);
+    m.def(
+        "add_materialize_tensor",
+        [](PassManager& pm, bool alwaysBuf) { pm.addNestedPass<func::FuncOp>(createMaterializeTensorPass(alwaysBuf)); },
+        "pm"_a, "always_buf"_a = false);
 }
 
 } // namespace

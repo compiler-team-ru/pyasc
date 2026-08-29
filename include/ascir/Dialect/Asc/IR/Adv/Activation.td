@@ -20,8 +20,9 @@ include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/OpBase.td"
 
-def AscendC_SimpleSoftMaxOp
-    : APIOp<"simple_softmax", "SimpleSoftMax", [AttrSizedOperandSegments, OpWithDstInterface]> {
+def AscendC_SimpleSoftMaxOp : VectorOp<"simple_softmax", "SimpleSoftMax", [
+  AttrSizedOperandSegments, OpWithDstInterface, OpWithSrcInterface
+]> {
   let arguments = (ins UnitAttr:$reuseSource, UnitAttr:$basicBlock,
                    UnitAttr:$dataFormatNZ, AscendC_LocalTensor:$dst,
                    AscendC_LocalTensor:$sumTensor,
@@ -30,17 +31,46 @@ def AscendC_SimpleSoftMaxOp
                    Optional<AscendC_LocalTensor>:$sharedTmpBuffer,
                    AscendC_SoftMaxTiling:$tiling,
                    Optional<AnyType>:$softmaxShapeInfo);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getDstTensors()
+    {
+        SmallVector<Value> dstTensors{getDst()};
+        if (auto tensor = getSharedTmpBuffer())
+            dstTensors.emplace_back(tensor);
+        return dstTensors;
+    }
+    SmallVector<Value> getSrcTensors()
+    {
+        return {getSumTensor(), getMaxTensor(), getSrc()};
+    }
+  }];
 }
 
-def AscendC_SoftMaxOp : APIOp<"softmax", "SoftMax", [AttrSizedOperandSegments, OpWithDstInterface]> {
+def AscendC_SoftMaxOp : VectorOp<"softmax", "SoftMax", [
+  AttrSizedOperandSegments, OpWithDstInterface, OpWithSrcInterface
+]> {
   let arguments = (ins UnitAttr:$reuseSource, UnitAttr:$basicBlock,
                    UnitAttr:$dataFormatNZ, AscendC_LocalTensor:$dst,
-                   AscendC_LocalTensor:$sumTensor,
-                   AscendC_LocalTensor:$maxTensor,
+                   Optional<AscendC_LocalTensor>:$sumTensor,
+                   Optional<AscendC_LocalTensor>:$maxTensor,
                    AscendC_LocalTensor:$src,
                    Optional<AscendC_LocalTensor>:$sharedTmpBuffer,
                    AscendC_SoftMaxTiling:$tiling,
                    Optional<AnyType>:$softmaxShapeInfo);
+  let extraClassDeclaration = extraClassDeclarationBase # [{
+    SmallVector<Value> getDstTensors()
+    {
+        SmallVector<Value> dstTensors{getDst()};
+        if (auto tensor = getSumTensor())
+            dstTensors.emplace_back(tensor);
+        if (auto tensor = getMaxTensor())
+            dstTensors.emplace_back(tensor);
+        if (auto tensor = getSharedTmpBuffer())
+            dstTensors.emplace_back(tensor);
+        return dstTensors;
+    }
+    SmallVector<Value> getSrcTensors() { return {getSrc()}; }
+  }];
 }
 def AscendC_SwiGLUOp : APIOp<"swiglu", "SwiGLU", [AttrSizedOperandSegments, OpWithDstInterface]> {
   let arguments = (ins AscendC_LocalTensor:$dst,
@@ -50,4 +80,4 @@ def AscendC_SwiGLUOp : APIOp<"swiglu", "SwiGLU", [AttrSizedOperandSegments, OpWi
                    Optional<AscendC_LocalTensor>:$sharedTmpBuffer,
                    Optional<AnyType>:$calCount);
 }
-#endif //ASC_ADV_ACTIVATION_TD
+#endif // ASC_ADV_ACTIVATION_TD

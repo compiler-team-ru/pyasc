@@ -86,7 +86,7 @@ def AscendC_MatmulSetSparseIndexOp
 
 def AscendC_MatmulSetUserDefInfoOp
     : APIOp<"matmul.set_user_def_info", "SetUserDefInfo", [AscMemberFunc]> {
-  let arguments = (ins AscendC_Matmul:$matmul, AnyMemRef:$tilingPtr);
+  let arguments = (ins AscendC_Matmul:$matmul, AnyRankedOrUnrankedMemRef:$tilingPtr);
   let paramTypeLists = [0, -2];
 }
 
@@ -186,7 +186,7 @@ def AscendC_MatmulIterateBatchCubeOnlyOp
   let paramTypeLists = [0, 0, 0, 0, 0, 0, 0, 0];
 }
 
-def AscendC_MatmulWaitIterateBatchOp 
+def AscendC_MatmulWaitIterateBatchOp
   : APIOp<"matmul.wait_iterate_batch", "WaitIterateBatch", [AscMemberFunc]> {
   let arguments = (ins AscendC_Matmul:$matmul);
 }
@@ -300,7 +300,7 @@ def AscendC_MatmulSetQuantVectorOp : APIOp<"matmul.set_quant_vector", "SetQuantV
   let summary = "Call `AscendC::Matmul::SetQuantVector` method";
   let arguments = (ins AscendC_Matmul:$matmul,
                     AscendC_GlobalTensor:$quantvector);
-  
+
 }
 
 def AscendC_MatmulSetOrgShapeOp : APIOp<"matmul.set_org_shape", "SetOrgShape", [AscMemberFunc, AttrSizedOperandSegments]> {

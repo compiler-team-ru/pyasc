@@ -38,7 +38,8 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::ListT
 {
     FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
     auto& os = emitter.ostream();
-    os << " = " << "AscendC::ListTensorDesc(" << emitter.getOrCreateName(op.getData()) << ", "
+    os << " = "
+       << "AscendC::ListTensorDesc(" << emitter.getOrCreateName(op.getData()) << ", "
        << emitter.getOrCreateName(op.getLength()) << ", " << emitter.getOrCreateName(op.getShapeSize()) << ")";
     return success();
 }

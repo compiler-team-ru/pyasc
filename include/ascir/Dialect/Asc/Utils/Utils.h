@@ -11,6 +11,7 @@
 #ifndef ASCIR_DIALECT_ASC_UTILS_UTILS_H
 #define ASCIR_DIALECT_ASC_UTILS_UTILS_H
 
+#include "ascir/Dialect/Asc/IR/Asc.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/DialectRegistry.h"
 #include "mlir/IR/Dominance.h"
@@ -19,6 +20,12 @@
 
 namespace mlir {
 namespace ascendc {
+
+constexpr unsigned cubeBlockSize = 16;            // In elements
+constexpr unsigned ubBlockSize = 32;              // In bytes
+constexpr unsigned cubeKBlockBytes = ubBlockSize; // In bytes
+constexpr unsigned repeatBlockSize = 256;         // In bytes
+constexpr unsigned bitmaskSize = 64;
 
 template <typename OpT>
 struct HoistOpPattern : public OpRewritePattern<OpT> {
@@ -44,11 +51,33 @@ struct HoistOpPattern : public OpRewritePattern<OpT> {
     }
 };
 
+int64_t getTypeSize(Type type);
+
+int64_t getTypeSizeCubeBlockAlign(ShapedType type, TPosition position);
+
+int64_t getElementTypeSize(ShapedType type);
+
 bool opPrecedes(Operation* lhs, Operation* rhs);
 
 bool opPrecedes(Operation* lhs, Operation* rhs, DominanceInfo& di);
 
 void registerInlinerInterfaces(DialectRegistry& registry);
+
+ModuleOp getModule(Operation* op);
+
+StringRef getCompilationArch(Operation* op);
+
+StringRef getSocVersion(Operation* op);
+
+std::optional<int64_t> getVecLen(Operation* op);
+
+bool isTargetArchC310(Operation* op);
+
+SmallVector<Operation*> collectAllUsers(ascendc::LocalTensorAutoOp tensorOp);
+
+ascendc::LocalTensorAutoOp getAllocationRoot(Value v);
+
+Pipe getOpPipe(Operation* op, Pipe defaultPipe = Pipe::PIPE_S);
 
 } // namespace ascendc
 } // namespace mlir

@@ -25,7 +25,6 @@ namespace ascendc {
 } // namespace mlir
 
 using namespace mlir;
-using namespace mlir::ascendc;
 
 namespace {
 
@@ -42,8 +41,4 @@ public:
 
 } // namespace
 
-namespace mlir {
-namespace ascendc {
-std::unique_ptr<Pass> createDefineCubeOnlyPass() { return std::make_unique<DefineCubeOnlyPass>(); }
-} // namespace ascendc
-} // namespace mlir
+std::unique_ptr<Pass> mlir::ascendc::createDefineCubeOnlyPass() { return std::make_unique<DefineCubeOnlyPass>(); }
