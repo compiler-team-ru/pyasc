@@ -100,7 +100,7 @@ __all__ = [
     "npu_utils",
     "msprof_task_type",
     "get_soc_version",
-    "free_mem"
+    "free_mem",
     # from .support
     "Stream",
     "Memory",
