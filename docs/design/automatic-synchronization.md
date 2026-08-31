@@ -47,7 +47,7 @@ The `insert_sync` parameter triggers different synchronization passes based on t
 
 1. `add_erase_sync` - Remove existing sync instructions
 2. `add_hoist_que_bind` - Hoist queue binding operations
-3. `add_insert_sync` - Insert standard synchronization instructions
+3. `add_insert_que_sync` - Insert standard synchronization instructions
 4. `add_unify_pipe` - Unify pipe operations
 5. `add_canonicalizer` - Canonicalize IR
 
@@ -75,23 +75,23 @@ When `insert_sync=True`, the following pipeline is executed:
 if self.options.insert_sync:
     passes.ascendc.add_erase_sync(pm)         # Remove existing sync
     passes.ascendc.add_hoist_que_bind(pm)     # Hoist queue binds
-    
+
     if self.arch != CompilationArch.C310:
         # Standard sync insertion
-        passes.ascendc.add_insert_sync(pm)
+        passes.ascendc.add_insert_que_sync(pm)
     else:
         # Buffer ID-based sync insertion
         passes.ascendc.add_insert_bufid_sync(pm)
         passes.common.add_canonicalizer(pm)
         passes.ascendc.add_fuse_bufid_sync(pm)
-    
+
     passes.ascendc.add_unify_pipe(pm)         # Unify pipes
     passes.common.add_canonicalizer(pm)       # Canonicalize IR
 ```
 
-### InsertSync Pass Implementation
+### InsertQueSync Pass Implementation
 
-The `InsertSync` pass (for C220 architecture platforms) uses Enque/Deque API.
+The `InsertQueSync` pass (for C220 architecture platforms) uses Enque/Deque API.
 
 For every operation producing LocalTensor object check if it is used within the same pipe:
 
@@ -173,7 +173,7 @@ def debug_kernel(...):
 
 ### C220 architecture (Ascend910B, Ascend910_93)
 
-- Uses standard `InsertSync` pass
+- Uses `InsertQueSync` pass
 - Flag-based synchronization
 - Pipe barrier operations
 

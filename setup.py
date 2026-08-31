@@ -7,9 +7,6 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 from dataclasses import dataclass
-import os
-from pathlib import Path
-
 from distutils.command.clean import clean
 import functools
 import os
@@ -25,12 +22,6 @@ import pybind11
 import setuptools
 import setuptools_scm
 from setuptools.command import bdist_wheel, build_ext, build_py, egg_info, install
-import shlex
-import shutil
-import subprocess
-import sys
-import sysconfig
-from typing import Optional, Tuple
 
 DEFAULT_VERSION = "1.1.1"
 
@@ -202,74 +193,6 @@ class LocalBuildExt(build_ext.build_ext):
     def run(self):
         for ext in self.extensions:
             self.build_extension(ext)
-
-    def build_extension(self, ext: LocalExtension):
-        cmake, ninja = require_tools("cmake", "ninja")
-        if not os.path.exists(self.build_temp):
-            os.makedirs(self.build_temp)
-        cmake_dir = str(get_cmake_dir())
-        python_include_dir = sysconfig.get_path("platinclude")
-        extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
-        build_config = os.environ.get("PYASC_SETUP_CONFIG", "Release")
-        configure_args = [
-            cmake,
-            "-S",
-            str(get_base_dir()),
-            "-B",
-            cmake_dir,
-            "-G",
-            "Ninja",
-            "-DCMAKE_MAKE_PROGRAM=" + ninja,
-            "-DCMAKE_BUILD_TYPE=" + build_config,
-            "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
-            "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=" + extdir,
-            "-DPython3_EXECUTABLE:FILEPATH=" + sys.executable,
-            "-DPython3_INCLUDE_DIR=" + python_include_dir,
-            "-Dpybind11_INCLUDE_DIR=" + pybind11.get_include(),
-            "-Dpybind11_DIR=" + pybind11.get_cmake_dir(),
-        ]
-        if check_env_bool("PYASC_SETUP_CCACHE"):
-            configure_args.append("-DASCIR_CCACHE=ON")
-        compiler = os.environ.get("PYASC_SETUP_COMPILER", None)
-        linker = os.environ.get("PYASC_SETUP_LINKER", None)
-        if check_env_bool("PYASC_SETUP_CLANG_LLD"):
-            compiler = compiler or "clang++"
-            linker = linker or "lld"
-        if compiler is not None:
-            configure_args.append(f"-DCMAKE_CXX_COMPILER={compiler}")
-        if linker is not None:
-            configure_args += [
-                f"-DCMAKE_LINKER={linker}",
-                f"-DCMAKE_EXE_LINKER_FLAGS=-fuse-ld={linker}",
-                f"-DCMAKE_MODULE_LINKER_FLAGS=-fuse-ld={linker}",
-                f"-DCMAKE_SHARED_LINKER_FLAGS=-fuse-ld={linker}",
-            ]
-        if check_env_bool("PYASC_SETUP_COVERAGE"):
-            configure_args.append("-DASCIR_COVERAGE=ON")
-        if check_env_bool("PYASC_SETUP_ASAN"):
-            configure_args.append("-DASCIR_ASAN=ON")
-        llvm_dir = get_llvm_install_prefix()
-        if llvm_dir is not None:
-            configure_args.append("-DLLVM_PREFIX_PATH=" + str(llvm_dir))
-        cmake_append = os.environ.get("PYASC_SETUP_CMAKE_APPEND", "").strip()
-        if cmake_append:
-            configure_args += shlex.split(cmake_append)
-        subprocess.check_call(configure_args)
-        targets = ["libpyasc", *get_requested_devtools()]
-        if check_env_bool("PYASC_SETUP_DOCS"):
-            targets.append("mlir-doc")
-        build_args = [
-            cmake,
-            "--build",
-            cmake_dir,
-            "--target",
-            *targets,
-            "--parallel",
-        ]
-        build_jobs = os.environ.get("PYASC_SETUP_JOBS")
-        if build_jobs:
-            build_args.append(build_jobs)
-        subprocess.check_call(build_args)
 
 
 class LocalBdistWheel(bdist_wheel.bdist_wheel):

@@ -106,8 +106,6 @@ class Compiler:
         self.soc_version = get_soc_version()
         if not self._check_compile_options():
             raise RuntimeError("Please check input compile option")
-        if self.options.reuse_alloc not in (0, 1, 2):
-            raise RuntimeError("'reuse_alloc' is only allowed to be 0, 1, 2")
         self.arch = platform_to_arch(self.soc_version)
         if self.options.vf_vec_len is not None and self.arch != CompilationArch.C310:
             raise RuntimeError(f"The vector register length option is not supported for the {self.arch} architecture")
@@ -156,7 +154,7 @@ class Compiler:
         if self.options.insert_sync:
             passes.ascendc.add_erase_sync(pm)
             passes.ascendc.add_hoist_que_bind(pm)
-            passes.ascendc.add_insert_sync(pm)
+            passes.ascendc.add_insert_que_sync(pm)
             passes.ascendc.add_unify_pipe(pm)
             passes.common.add_canonicalizer(pm)
 
@@ -195,7 +193,7 @@ class Compiler:
                 self.options.kernel_type = KernelType.AIV_ONLY
             elif kernel_type == "cube":
                 self.options.kernel_type = KernelType.AIC_ONLY
-        self.enable_debug = (mod.op.has_unit_attr("asc.enable_debug")
+        self.enable_debug = (mod.op.has_unit_attr(ir.attr.enable_debug)
                              and str(os.environ.get("ASCENDC_DUMP", "True")).lower() == "true")
 
     def run(self, mod: ir.ModuleOp, func_name: str) -> CompiledKernel:
@@ -242,11 +240,18 @@ class Compiler:
                 core_type = CoreType.CubeCore
             return CompiledKernel(dst.read_bytes(), KernelMeta(core_type, kernel_args, **compiled_kernel_args))
 
+    def schedule_passes(self, pm: passes.PassManager) -> None:
+        self._schedule_lowering(pm)
+        self._schedule_optimizing(pm)
+        self._schedule_postprocessing(pm)
+
     def _check_compile_options(self) -> bool:
-        is_soc_version_valid = self.soc_version.value.startswith("Ascend910B") or \
-            self.soc_version.value.startswith("Ascend910_93") or self.soc_version.value.startswith("Ascend950PR_95")
-        is_core_type_valid = self.options.kernel_type is None or (isinstance(self.options.kernel_type, KernelType) and \
-            self.options.kernel_type.value <= 7 and self.options.kernel_type.value >= 0)
+        is_soc_version_valid = (self.soc_version.value.startswith("Ascend910B")
+                                or self.soc_version.value.startswith("Ascend910_93")
+                                or self.soc_version.value.startswith("Ascend950PR_95"))
+        is_core_type_valid = (self.options.kernel_type is None
+                              or (isinstance(self.options.kernel_type, KernelType)
+                                  and self.options.kernel_type.value <= 7 and self.options.kernel_type.value >= 0))
         is_opt_level_valid = self.options.opt_level in [1, 2, 3]
         return is_soc_version_valid and is_core_type_valid and is_opt_level_valid
 
@@ -262,11 +267,6 @@ class Compiler:
             passes.ascendc.add_verify_sync(pm)
         if self.options.strip_loc:
             passes.common.add_strip_debug_info(pm)
-
-    def schedule_passes(self, pm: passes.PassManager) -> None:
-        self._schedule_lowering(pm)
-        self._schedule_optimizing(pm)
-        self._schedule_postprocessing(pm)
 
     def _gen_init_dump_code(self, source: str, func_name: str) -> str:
         dump_code = ""

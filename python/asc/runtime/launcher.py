@@ -58,7 +58,7 @@ class LaunchOptions:
 
     .. code-block:: python
 
-        @asc2.jit
+        @asc.jit
         def kernel(x_ptr, y_ptr):
             ...
 
@@ -128,7 +128,29 @@ class Launcher:
             if isinstance(value, torch.Tensor):
                 return bytes(value.view(value.numel()).view(torch.uint8))
         except ModuleNotFoundError:
-            return None
+            pass
+        return None
+
+    @staticmethod
+    def get_core_num() -> int:
+        return rt.device_info(rt.DeviceModuleType.RT_MODULE_TYPE_AICORE, rt.DeviceInfoType.INFO_TYPE_CORE_NUM)
+
+    @staticmethod
+    def check_memory_overflow(memory_consumed: Dict[str, int]) -> None:
+        platform_info = get_platform_info(rt.get_soc_version())
+        key_to_attr = (
+            ("UB", "ub_size"),
+            ("L1", "l1_size"),
+            ("L0A", "l0a_size"),
+            ("L0B", "l0b_size"),
+            ("L0C", "l0c_size"),
+            ("BT", "bt_size"),
+        )
+        for key, attr in key_to_attr:
+            consumed = memory_consumed.get(key, 0)
+            capacity = getattr(platform_info, attr)
+            if consumed > capacity:
+                raise RuntimeError(f"{key} overflow: {capacity} bytes are available, {consumed} bytes are used.")
 
     @classmethod
     def expand_kernel_args(cls, args: Iterable[Any]) -> List[Union[np.generic, MemoryHandle]]:
@@ -147,10 +169,6 @@ class Launcher:
             else:
                 kernel_args.append(resolve_memory_handle(arg))
         return kernel_args
-
-    @staticmethod
-    def get_core_num() -> int:
-        return rt.device_info(rt.DeviceModuleType.RT_MODULE_TYPE_AICORE, rt.DeviceInfoType.INFO_TYPE_CORE_NUM)
 
     def launch_kernel(self, function: rt.Function, kernel_args: List[Union[np.generic, MemoryHandle]],
                       enable_debug: bool, func_name: str) -> None:
@@ -193,23 +211,6 @@ class Launcher:
                     arg.copy_from_device()
             finally:
                 arg.release_memory()
-
-    @classmethod
-    def check_memory_overflow(cls, memory_consumed: Dict[str, int]) -> None:
-        platform_info = get_platform_info(rt.get_soc_version())
-        key_to_attr = (
-            ("UB", "ub_size"),
-            ("L1", "l1_size"),
-            ("L0A", "l0a_size"),
-            ("L0B", "l0b_size"),
-            ("L0C", "l0c_size"),
-            ("BT", "bt_size"),
-        )
-        for key, attr in key_to_attr:
-            consumed = memory_consumed.get(key, 0)
-            capacity = getattr(platform_info, attr)
-            if consumed > capacity:
-                raise RuntimeError(f"{key} overflow: {capacity} bytes are available, {consumed} bytes are used.")
 
     def run(self, kernel: CompiledKernel, function_name: str, user_args: Tuple[Any], discard_handles: bool = True,
             kernel_callback: Optional[KernelCallback] = None) -> None:

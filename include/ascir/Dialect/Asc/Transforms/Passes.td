@@ -330,31 +330,9 @@ def InsertCrossCoreSync : Pass<"ascendc-insert-cross-core-sync", "func::FuncOp">
   }];
 }
 
-def InsertSubBlockGuard : Pass<"ascendc-insert-subblock-guard", "func::FuncOp"> {
-  let summary = "Insert early return guard for non-zero sub-block indices in mixed kernel functions";
-  let constructor = "mlir::ascendc::createInsertSubBlockGuardPass()";
-  let dependentDialects = ["emitc::EmitCDialect"];
-  let description = [{
-    Inserts a guard at the beginning of kernel functions that returns early if the current sub-block
-    index is not zero. This is useful for multi-core kernels where only sub-block 0 should execute
-    the main kernel logic.
-
-    The pass only operates on functions within modules that have `asc.kernel_type = "mixed"` attribute.
-    For other kernel types (vector, cube) or modules without the attribute, the pass is a no-op.
-
-    The pass inserts the following C++ code at the function entry:
-    ```cpp
-    if (AscendC::GetSubBlockIdx() != 0) return;
-    ```
-
-    This ensures that only sub-block 0 executes the kernel body, while other sub-blocks return immediately.
-    The pass is idempotent and skips functions that already have the guard inserted.
-  }];
-}
-
-def InsertSync : Pass<"ascendc-insert-sync", "func::FuncOp"> {
+def InsertQueSync : Pass<"ascendc-insert-que-sync", "func::FuncOp"> {
   let summary = "Insert TQueBind enqueue/dequeue synchronization and scalar get/set_value barriers";
-  let constructor = "mlir::ascendc::createInsertSyncPass()";
+  let constructor = "mlir::ascendc::createInsertQueSyncPass()";
   let dependentDialects = ["ascendc::AscendCDialect"];
   let description = [{
     Inserts intra-core synchronization for TQueBind-managed tensors and scalar operations:
@@ -393,6 +371,28 @@ def InsertSync : Pass<"ascendc-insert-sync", "func::FuncOp"> {
     ascendc.set_flag s_v, %event2
     ascendc.wait_flag s_v, %event2
     ```
+  }];
+}
+
+def InsertSubBlockGuard : Pass<"ascendc-insert-subblock-guard", "func::FuncOp"> {
+  let summary = "Insert early return guard for non-zero sub-block indices in mixed kernel functions";
+  let constructor = "mlir::ascendc::createInsertSubBlockGuardPass()";
+  let dependentDialects = ["emitc::EmitCDialect"];
+  let description = [{
+    Inserts a guard at the beginning of kernel functions that returns early if the current sub-block
+    index is not zero. This is useful for multi-core kernels where only sub-block 0 should execute
+    the main kernel logic.
+
+    The pass only operates on functions within modules that have `asc.kernel_type = "mixed"` attribute.
+    For other kernel types (vector, cube) or modules without the attribute, the pass is a no-op.
+
+    The pass inserts the following C++ code at the function entry:
+    ```cpp
+    if (AscendC::GetSubBlockIdx() != 0) return;
+    ```
+
+    This ensures that only sub-block 0 executes the kernel body, while other sub-blocks return immediately.
+    The pass is idempotent and skips functions that already have the guard inserted.
   }];
 }
 

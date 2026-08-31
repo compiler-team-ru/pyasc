@@ -354,11 +354,6 @@ def Nd2NzParams : APIType<"Nd2NzParams"> {
   let apiName = "AscendC::Nd2NzParams";
 }
 
-def Dn2NzParams : APIType<"Dn2NzParams"> {
-  let mnemonic = "dn2nz_params";
-  let apiName = "AscendC::Dn2NzParams";
-}
-
 def Nz2NdParams : APIType<"Nz2NdParams"> {
   let mnemonic = "nz2nd_params";
   let apiName = "AscendC::Nz2NdParams";
@@ -392,21 +387,6 @@ def ReduceOrder : APIType<"ReduceOrder"> {
 def RmsNormTiling : APIType<"RmsNormTiling"> {
   let mnemonic = "rmsnorm_tiling";
   let apiName = "RmsNormTiling";
-}
-
-def LayerNormTiling : APIType<"LayerNormTiling"> {
-  let mnemonic = "layer_norm_tiling";
-  let apiName = "LayerNormTiling";
-}
-
-def LayerNormSeparateTiling : APIType<"LayerNormSeparateTiling"> {
-  let mnemonic = "layer_norm_separate_tiling";
-  let apiName = "LayerNormSeparateTiling";
-}
-
-def LayerNormPara : APIType<"LayerNormPara"> {
-  let mnemonic = "layer_norm_para";
-  let apiName = "AscendC::LayerNormPara";
 }
 
 def ScheduleType : APIType<"ScheduleType"> {
@@ -494,8 +474,4 @@ def VdeqInfo : APIType<"VdeqInfo"> {
   let apiName = "AscendC::VdeqInfo";
 }
 
-def LoopModeParams : APIType<"LoopModeParams"> {
-    let mnemonic = "loop_mode_params";
-    let apiName = "AscendC::LoopModeParams";
-}
 #endif // API_TYPES_TD

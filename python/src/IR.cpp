@@ -108,6 +108,7 @@ void bindAttrs(py::module& m)
 
     auto modAttr = m.def_submodule("attr");
     modAttr.attr("compilation_arch") = py::str(ascendc::attr::compilationArch);
+    modAttr.attr("enable_debug") = py::str(ascendc::attr::enableDebug);
     modAttr.attr("gm_barrier") = py::str(asctile::attr::gmBarrier);
     modAttr.attr("kernel_type") = py::str(ascendc::attr::kernelType);
     modAttr.attr("memory_consumed") = py::str(ascendc::attr::memoryConsumed);

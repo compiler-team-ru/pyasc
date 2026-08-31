@@ -255,63 +255,30 @@ func.func @emit_swiglu(%arg0: memref<?xui64, 22>){
   return
 }
 
-// CHECK-LABEL: void emit_reduce_sum
-// CHECK-NEXT: constexpr int32_t [[W:.*]] = 32;
-// CHECK-NEXT: constexpr int32_t [[H:.*]] = 32;
-// CHECK-NEXT: {
-// CHECK-NEXT: const uint32_t shape[2] = {[[W]], [[H]]};
-// CHECK-NEXT: AscendC::ReduceSum<float,AscendC::Pattern::Reduce::AR,false>([[V1:.*]],[[V2:.*]],[[V3:.*]],shape,false);
-// CHECK-NEXT: }
-// CHECK-NEXT: return;
-func.func @emit_reduce_sum(%dst: !ascendc.local_tensor<1xf32>, %src: !ascendc.local_tensor<1024xf32>, %tmp: !ascendc.local_tensor<8192xui8>){
-    %0 = "emitc.constant"() <{value = 32 : i32}> : () -> i32
-    %1 = "emitc.constant"() <{value = 32 : i32}> : () -> i32
-    ascendc.reduce_sum %dst, %src, %tmp, %0, %1 {asc.reuse_source, pattern = 1 : i32} : !ascendc.local_tensor<1xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<8192xui8>, i32, i32
-    return
-}
-
-// CHECK-LABEL: void emit_reduce_max
-// CHECK-NEXT: constexpr int32_t [[W:.*]] = 32;
-// CHECK-NEXT: constexpr int32_t [[H:.*]] = 32;
-// CHECK-NEXT: {
-// CHECK-NEXT: const uint32_t shape[2] = {[[W]], [[H]]};
-// CHECK-NEXT: AscendC::ReduceMax<float,AscendC::Pattern::Reduce::AR,false>([[V1:.*]],[[V2:.*]],[[V3:.*]],shape,false);
-// CHECK-NEXT: }
-// CHECK-NEXT: return;
-func.func @emit_reduce_max(%dst: !ascendc.local_tensor<1xf32>, %src: !ascendc.local_tensor<1024xf32>, %tmp: !ascendc.local_tensor<8192xui8>){
-    %0 = "emitc.constant"() <{value = 32 : i32}> : () -> i32
-    %1 = "emitc.constant"() <{value = 32 : i32}> : () -> i32
-    ascendc.reduce_max %dst, %src, %tmp, %0, %1 {asc.reuse_source, pattern = 1 : i32} : !ascendc.local_tensor<1xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<8192xui8>, i32, i32
-    return
-}
-
-// CHECK-LABEL: void emit_reduce_min
-// CHECK-NEXT: constexpr int32_t [[W:.*]] = 32;
-// CHECK-NEXT: constexpr int32_t [[H:.*]] = 32;
-// CHECK-NEXT: {
-// CHECK-NEXT: const uint32_t shape[2] = {[[W]], [[H]]};
-// CHECK-NEXT: AscendC::ReduceMin<float,AscendC::Pattern::Reduce::AR,false>([[V1:.*]],[[V2:.*]],[[V3:.*]],shape,false);
-// CHECK-NEXT: }
-// CHECK-NEXT: return;
-func.func @emit_reduce_min(%dst: !ascendc.local_tensor<1xf32>, %src: !ascendc.local_tensor<1024xf32>, %tmp: !ascendc.local_tensor<8192xui8>){
-    %0 = "emitc.constant"() <{value = 32 : i32}> : () -> i32
-    %1 = "emitc.constant"() <{value = 32 : i32}> : () -> i32
-    ascendc.reduce_min %dst, %src, %tmp, %0, %1 {asc.reuse_source, pattern = 1 : i32} : !ascendc.local_tensor<1xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<8192xui8>, i32, i32
-    return
-}
-
-// CHECK-LABEL: void emit_reduce_prod
-// CHECK-NEXT: constexpr int32_t [[W:.*]] = 32;
-// CHECK-NEXT: constexpr int32_t [[H:.*]] = 32;
-// CHECK-NEXT: {
-// CHECK-NEXT: const uint32_t shape[2] = {[[W]], [[H]]};
-// CHECK-NEXT: AscendC::ReduceProd<float,AscendC::Pattern::Reduce::AR,false>([[V1:.*]],[[V2:.*]],[[V3:.*]],shape,false);
-// CHECK-NEXT: }
-// CHECK-NEXT: return;
-func.func @emit_reduce_prod(%dst: !ascendc.local_tensor<1xf32>, %src: !ascendc.local_tensor<1024xf32>, %tmp: !ascendc.local_tensor<8192xui8>){
-    %0 = "emitc.constant"() <{value = 32 : i32}> : () -> i32
-    %1 = "emitc.constant"() <{value = 32 : i32}> : () -> i32
-    ascendc.reduce_prod %dst, %src, %tmp, %0, %1 {asc.reuse_source, pattern = 1 : i32} : !ascendc.local_tensor<1xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<8192xui8>, i32, i32
+// CHECK-LABEL: void emit_reduce_sum(AscendC::LocalTensor<float> v1, AscendC::LocalTensor<float> v2, AscendC::LocalTensor<uint8_t> v3, int32_t v4, int32_t v5) {
+// CHECK-NEXT:  {
+// CHECK-NEXT:    const uint32_t shape[2] = {v4, v5};
+// CHECK-NEXT:    AscendC::ReduceSum<float, AscendC::Pattern::Reduce::AR, true>(v1, v2, v3, shape, false);
+// CHECK-NEXT:  }
+// CHECK-NEXT:  {
+// CHECK-NEXT:    const uint32_t shape[2] = {v4, v5};
+// CHECK-NEXT:    AscendC::ReduceMax<float, AscendC::Pattern::Reduce::AR, false>(v1, v2, v3, shape, false);
+// CHECK-NEXT:  }
+// CHECK-NEXT:  {
+// CHECK-NEXT:    const uint32_t shape[2] = {v4, v5};
+// CHECK-NEXT:    AscendC::ReduceMin<float, AscendC::Pattern::Reduce::AR, true>(v1, v2, v3, shape, false);
+// CHECK-NEXT:  }
+// CHECK-NEXT:  {
+// CHECK-NEXT:    const uint32_t shape[2] = {v4, v5};
+// CHECK-NEXT:    AscendC::ReduceProd<float, AscendC::Pattern::Reduce::AR, false>(v1, v2, v3, shape, false);
+// CHECK-NEXT:  }
+// CHECK-NEXT:  return;
+// CHECK-NEXT:}
+func.func @emit_reduce_sum(%dst: !ascendc.local_tensor<1xf32>, %src: !ascendc.local_tensor<1024xf32>, %tmp: !ascendc.local_tensor<8192xui8>, %0: i32, %1: i32) {
+    ascendc.reduce_sum %dst, %src, %tmp, %0, %1 {isReuseSource, pattern = 1 : i32} : !ascendc.local_tensor<1xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<8192xui8>, i32, i32
+    ascendc.reduce_max %dst, %src, %tmp, %0, %1 {pattern = 1 : i32} : !ascendc.local_tensor<1xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<8192xui8>, i32, i32
+    ascendc.reduce_min %dst, %src, %tmp, %0, %1 {isReuseSource, pattern = 1 : i32} : !ascendc.local_tensor<1xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<8192xui8>, i32, i32
+    ascendc.reduce_prod %dst, %src, %tmp, %0, %1 {pattern = 1 : i32} : !ascendc.local_tensor<1xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<8192xui8>, i32, i32
     return
 }
 

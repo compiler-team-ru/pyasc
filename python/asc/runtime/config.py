@@ -95,9 +95,9 @@ def set_platform(
         RuntimeError: If check is True and the runtime library is not available.
 
     Example:
-        >>> asc2.set_platform(asc2.Backend.Model, asc2.Platform.Ascend910B1)
-        >>> asc2.set_platform("NPU", device_id=0)
-        >>> asc2.set_platform(asc2.Backend.Model, "Ascend910B3", check=False)
+        >>> set_platform(Backend.Model, Platform.Ascend910B1)
+        >>> set_platform("NPU", device_id=0)
+        >>> set_platform(Backend.Model, "Ascend910B3", check=False)
     """
 
     backend = Backend(backend)

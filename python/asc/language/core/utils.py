@@ -1231,7 +1231,8 @@ CLASS_DOC_HANDLERS = {
     "LocalMemAllocator": {
         "get_cur_addr": LocalMemAllocatorDocstring.get_cur_addr_docstring,
         "alloc": LocalMemAllocatorDocstring.alloc_docstring,
-    }, "ShapeInfo": {}
+    },
+    "ShapeInfo": {},
 }
 
 TENSOR_DOC_HANDLERS = {
@@ -1244,7 +1245,8 @@ TENSOR_DOC_HANDLERS = {
         "set_shape_info": GlobalTensorDocstring.set_shape_info_docstring,
         "get_shape_info": GlobalTensorDocstring.get_shape_info_docstring,
         "set_l2_cache_hint": GlobalTensorDocstring.set_l2_cache_hint_docstring,
-    }, "LocalTensor": {
+    },
+    "LocalTensor": {
         "set_value": LocalTensorDocstring.set_value_docstring,
         "get_value": LocalTensorDocstring.get_value_docstring,
         "set_size": LocalTensorDocstring.set_size_docstring,
