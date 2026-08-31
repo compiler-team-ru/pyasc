@@ -12,8 +12,7 @@ import asc2
 import pytest
 import torch
 
-STATIC = "static"
-DYNAMIC = "dynamic"
+from .helpers import parametrize_is_static
 
 
 @asc2.jit(reuse_alloc=2)
@@ -66,7 +65,7 @@ def reduce_none(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, i
 
 
 # yapf: disable
-@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
+@parametrize_is_static()
 @pytest.mark.parametrize("test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes, compile_params, runtime_params, tiling_key, tiling_params", [
 # PYASC_TESTS_BEGIN
     ("reduce_sum_test_1", 1, ([61], ), (torch.int32, ), ([1], ), (torch.int32, ), (True, ), (2, [0], True), 5143, (1, 1, 1, 1, 1, 1, 1, 1, 58880, 768, 72, 0, 0.016393441706895828, [1, 61, 0, 0, 0, 0, 0, 0, 0], [61, 1, 0, 0, 0, 0, 0, 0, 0], [1, 1, 0, 0, 0, 0, 0, 0, 0], [1, 1, 0, 0, 0, 0, 0, 0, 0], [1, 61, 0, 0, 0, 0, 0, 0, 0], [61, 1, 0, 0, 0, 0, 0, 0, 0])),
@@ -122,7 +121,7 @@ def reduce_none(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, i
 # PYASC_TESTS_END
 ])
 # yapf: enable
-def test_reduce_sum(profiler, runs, kernel_type, test_name, block_num, input_shapes, input_dtypes, output_shapes,
+def test_reduce_sum(profiler, runs, is_static, test_name, block_num, input_shapes, input_dtypes, output_shapes,
                     output_dtypes, compile_params, runtime_params, tiling_key, tiling_params):
     input_shape = input_shapes[0]
     output_shape = output_shapes[0]
@@ -172,7 +171,7 @@ def test_reduce_sum(profiler, runs, kernel_type, test_name, block_num, input_sha
     out_tensor = torch.zeros(output_shape_1d, dtype=dtype)
 
     params = [in_tensor, out_tensor]
-    if kernel_type == STATIC:
+    if is_static:
         params.extend(
             [asc2.ConstExpr(input_shape_2d[0]),
              asc2.ConstExpr(input_shape_2d[1]),

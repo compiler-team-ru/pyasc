@@ -10,8 +10,7 @@ import asc2
 import pytest
 import torch
 
-STATIC = "static"
-DYNAMIC = "dynamic"
+from .helpers import parametrize_is_static
 
 
 @asc2.jit(reuse_alloc=1)
@@ -48,7 +47,7 @@ def split_v(input_ptr: asc2.GlobalAddress, output0_ptr: asc2.GlobalAddress, outp
 
 
 # yapf: disable
-@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
+@parametrize_is_static()
 @pytest.mark.parametrize("test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes, compile_params, runtime_params, tiling_key, tiling_params", [
 # PYASC_TESTS_BEGIN
     ("split_v_test_1", 9, ([1034, 16], ), (torch.float32, ), ([1024, 16], [10, 16]), (torch.float32, torch.float32), (2, ), (2, 2, [1024, 10], 0), 103, (253952, 0, 16, 1, 1, 1, 1, 0, 0, 2, 0, 1839, 1840, 1838, 1840, 2, 9, 9, 0, 0, 16544, 16544, 1, -1, 0, 1, 1, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [1, 1, 1, 1, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384], [16544, 16544, 16544, 16544, 16544, 16544, 16544, 16544, 16544, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384, 16384])),
@@ -81,7 +80,7 @@ def split_v(input_ptr: asc2.GlobalAddress, output0_ptr: asc2.GlobalAddress, outp
 # PYASC_TESTS_END
 ])
 # yapf: enable
-def test_split_2d(profiler, runs, kernel_type, test_name, block_num, input_shapes, input_dtypes, output_shapes,
+def test_split_2d(profiler, runs, is_static, test_name, block_num, input_shapes, input_dtypes, output_shapes,
                   output_dtypes, compile_params, runtime_params, tiling_key, tiling_params):
     input_shape = input_shapes[0]
     dtype = input_dtypes[0]
@@ -101,7 +100,7 @@ def test_split_2d(profiler, runs, kernel_type, test_name, block_num, input_shape
     output1 = torch.empty(split_sizes[1], dim1, dtype=dtype)
 
     params = [input_tensor, output0, output1]
-    if kernel_type == STATIC:
+    if is_static:
         params.extend([asc2.ConstExpr(input_length), asc2.ConstExpr(split_boundary), asc2.ConstExpr(tile_length)])
     else:
         params.extend([input_length, split_boundary, tile_length])

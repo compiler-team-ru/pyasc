@@ -12,8 +12,7 @@ import asc2
 import pytest
 import torch
 
-STATIC = "static"
-DYNAMIC = "dynamic"
+from .helpers import parametrize_is_static
 
 
 @asc2.jit(reuse_alloc=1)
@@ -36,7 +35,7 @@ def add(input_x_ptr: asc2.GlobalAddress, input_y_ptr: asc2.GlobalAddress, output
 
 
 # yapf: disable
-@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
+@parametrize_is_static()
 @pytest.mark.parametrize("test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes, compile_params, runtime_params, tiling_key, tiling_params", [
 # PYASC_TESTS_BEGIN
     ("vadd_test_1", 43, ([128, 2, 1, 128], [128, 2, 1, 128]), (torch.float16, torch.float16), ([128, 2, 1, 128], ), (torch.float16, ), None, (2, ), 8, (32768, 384, 43, 0)),
@@ -96,8 +95,8 @@ def add(input_x_ptr: asc2.GlobalAddress, input_y_ptr: asc2.GlobalAddress, output
 # PYASC_TESTS_END
 ])
 # yapf: enable
-def test_add(profiler, runs, kernel_type, test_name, block_num, input_shapes, input_dtypes, output_shapes,
-             output_dtypes, compile_params, runtime_params, tiling_key, tiling_params):
+def test_add(profiler, runs, is_static, test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes,
+             compile_params, runtime_params, tiling_key, tiling_params):
     input_shape = input_shapes[0]
     dtype = input_dtypes[0]
     tile_length = tiling_params[1]
@@ -109,7 +108,7 @@ def test_add(profiler, runs, kernel_type, test_name, block_num, input_shapes, in
     out_tensor = torch.zeros(input_shape_1d, dtype=dtype)
 
     params = [in_tensor_x, in_tensor_y, out_tensor]
-    if kernel_type == STATIC:
+    if is_static:
         params.append(asc2.ConstExpr(input_shape_1d[0]))
     else:
         params.append(input_shape_1d[0])

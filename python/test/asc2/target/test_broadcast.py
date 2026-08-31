@@ -12,8 +12,7 @@ import asc2
 import pytest
 import torch
 
-STATIC = "static"
-DYNAMIC = "dynamic"
+from .helpers import parametrize_is_static
 
 
 @asc2.jit(reuse_alloc=1)
@@ -85,7 +84,7 @@ def get_broadcast_axes(input_shape, output_shape):
 
 
 # yapf: disable
-@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
+@parametrize_is_static()
 @pytest.mark.parametrize("test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes, compile_params, runtime_params, tiling_key, tiling_params", [
 # PYASC_TESTS_BEGIN
     ("broadcast_test_1", 4, ([1, 5, 5], ), (torch.int32, ), ([8, 5, 5], ), (torch.int32, ), None, ([8, 5, 5], ), 11001, (11001, 1, 0, 2, 1, 2, 64, 4, 1, 1, 1, 1, 2, 2, 1, 2, 25, 25, 0, 0, 0, 0, [0, 1, 0, 0, 0], [25, 1, 0, 0, 0], [2, 25, 1, 1, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
@@ -130,7 +129,7 @@ def get_broadcast_axes(input_shape, output_shape):
 # PYASC_TESTS_END
 ])
 # yapf: enable
-def test_broadcast(profiler, runs, kernel_type, test_name, block_num, input_shapes, input_dtypes, output_shapes,
+def test_broadcast(profiler, runs, is_static, test_name, block_num, input_shapes, input_dtypes, output_shapes,
                    output_dtypes, compile_params, runtime_params, tiling_key, tiling_params):
     input_shape = input_shapes[0]
     output_shape = output_shapes[0]
@@ -179,7 +178,7 @@ def test_broadcast(profiler, runs, kernel_type, test_name, block_num, input_shap
         out_tensor = torch.ones(output_shape_2d, dtype=dtype)
 
         params = [in_tensor, out_tensor]
-        if kernel_type == STATIC:
+        if is_static:
             params.extend([asc2.ConstExpr(1), asc2.ConstExpr(output_shape_2d[0]), asc2.ConstExpr(output_shape_2d[1])])
         else:
             params.extend([1, output_shape_2d[0], output_shape_2d[1]])
@@ -199,7 +198,7 @@ def test_broadcast(profiler, runs, kernel_type, test_name, block_num, input_shap
         out_tensor = torch.ones(output_shape_2d, dtype=dtype)
 
         params = [in_tensor, out_tensor]
-        if kernel_type == STATIC:
+        if is_static:
             params.extend(
                 [asc2.ConstExpr(input_length),
                  asc2.ConstExpr(output_shape_2d[0]),

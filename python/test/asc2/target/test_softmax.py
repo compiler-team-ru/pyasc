@@ -10,8 +10,7 @@ import asc2
 import pytest
 import torch
 
-STATIC = "static"
-DYNAMIC = "dynamic"
+from .helpers import parametrize_is_static
 
 
 @asc2.jit(reuse_alloc=2)
@@ -65,7 +64,7 @@ op_name = ["softmax_v2"]
 
 
 # yapf: disable
-@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
+@parametrize_is_static()
 @pytest.mark.parametrize("test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes, compile_params, runtime_params, tiling_key, tiling_params", [
 # PYASC_TESTS_BEGIN
     ("softmax_test_1", 1, ([128, 1, 4], ), (torch.float32, ), ([128, 1, 4], ), (torch.float32, ), ([-1], ), (2, [-1]), 500, (128, 4, 1, 1, 128, 128, 8, 8)),
@@ -111,7 +110,7 @@ op_name = ["softmax_v2"]
 # PYASC_TESTS_END
 ])
 # yapf: enable
-def test_softmax(profiler, runs, kernel_type, test_name, block_num, input_shapes, input_dtypes, output_shapes,
+def test_softmax(profiler, runs, is_static, test_name, block_num, input_shapes, input_dtypes, output_shapes,
                  output_dtypes, compile_params, runtime_params, tiling_key, tiling_params):
     unroll_factor = runtime_params[0]
     input_shape, input_dtype = input_shapes[0], input_dtypes[0]
@@ -136,11 +135,10 @@ def test_softmax(profiler, runs, kernel_type, test_name, block_num, input_shapes
         assert tile_shape[1] % ALIGNMENT_ELEMENTS == 0
         with profiler.profile():
             for _ in range(runs):
-                softmax_small_row[block_num](
-                    in_tensor, out_tensor,
-                    asc2.ConstExpr(input_shape_2d[0]) if kernel_type == STATIC else input_shape_2d[0],
-                    asc2.ConstExpr(input_shape_2d[1]) if kernel_type == STATIC else input_shape_2d[1], tile_shape,
-                    ub_loop, unroll_factor)
+                softmax_small_row[block_num](in_tensor, out_tensor,
+                                             asc2.ConstExpr(input_shape_2d[0]) if is_static else input_shape_2d[0],
+                                             asc2.ConstExpr(input_shape_2d[1]) if is_static else input_shape_2d[1],
+                                             tile_shape, ub_loop, unroll_factor)
     else:
         ALIGNMENT_ELEMENTS = 32 // input_dtype.itemsize
         rows_per_iter, rows_per_core = None, None
@@ -153,11 +151,10 @@ def test_softmax(profiler, runs, kernel_type, test_name, block_num, input_shapes
         tile_shape = [rows_per_iter, asc2.ceildiv(num_cols, ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS]
         with profiler.profile():
             for _ in range(runs):
-                softmax_fused[block_num](
-                    in_tensor, out_tensor,
-                    asc2.ConstExpr(input_shape_2d[0]) if kernel_type == STATIC else input_shape_2d[0],
-                    asc2.ConstExpr(input_shape_2d[1]) if kernel_type == STATIC else input_shape_2d[1], tile_shape,
-                    rows_per_core, unroll_factor)
+                softmax_fused[block_num](in_tensor, out_tensor,
+                                         asc2.ConstExpr(input_shape_2d[0]) if is_static else input_shape_2d[0],
+                                         asc2.ConstExpr(input_shape_2d[1]) if is_static else input_shape_2d[1],
+                                         tile_shape, rows_per_core, unroll_factor)
 
     expected = torch.softmax(in_tensor, dim=1)
     torch.testing.assert_close(out_tensor, expected, atol=1e-3, rtol=1e-3)

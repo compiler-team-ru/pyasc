@@ -12,8 +12,7 @@ import asc2
 import pytest
 import torch
 
-STATIC = "static"
-DYNAMIC = "dynamic"
+from .helpers import parametrize_is_static
 
 
 @asc2.jit(reuse_alloc=1, vf_fusion=True)
@@ -49,7 +48,7 @@ def kl_div(input_x_ptr: asc2.GlobalAddress, input_target_ptr: asc2.GlobalAddress
     asc2.copy_out(final_result, output_gm, [0])
 
 
-@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
+@parametrize_is_static()
 @pytest.mark.parametrize("unroll_factor, input_shape, input_dtype, tile_length", [
     (2, [1, 427], torch.float16, 427),
     (2, [427, 2], torch.float16, 854),
@@ -64,7 +63,7 @@ def kl_div(input_x_ptr: asc2.GlobalAddress, input_target_ptr: asc2.GlobalAddress
     (2, [8689, 1000, 32], torch.float32, 3328),
     (2, [1000, 997, 1000, 2, 1], torch.float32, 3328),
 ])
-def test_kl_div(profiler, runs, kernel_type, unroll_factor, input_shape, input_dtype, tile_length):
+def test_kl_div(profiler, runs, is_static, unroll_factor, input_shape, input_dtype, tile_length):
     input_shape_1d = [math.prod(input_shape)]
 
     in_tensor_x = torch.rand(input_shape_1d, dtype=input_dtype)
@@ -72,7 +71,7 @@ def test_kl_div(profiler, runs, kernel_type, unroll_factor, input_shape, input_d
     out_tensor = torch.empty(1, dtype=in_tensor_x.dtype)
 
     params = [in_tensor_x, in_tensor_target, out_tensor]
-    if kernel_type == STATIC:
+    if is_static:
         params.append(asc2.ConstExpr(input_shape_1d[0]))
     else:
         params.append(input_shape_1d[0])
