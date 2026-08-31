@@ -14,7 +14,7 @@ BUILD_PATH="${BASE_PATH}/build"
 CORE_NUMS=$(nproc 2>/dev/null || echo 8)
 if [ ${CORE_NUMS} -gt 8 ]; then CORE_NUMS=8; fi
 
-if [ "$1" = "--make_clean" ]; then
+if [ "${1:-}" = "--make_clean" ]; then
   rm -rf "${BUILD_PATH}"
   echo "[INFO] Build directory cleaned."
   exit 0

@@ -18,7 +18,12 @@ except ModuleNotFoundError:
 
 import asc.runtime.config as config
 import asc.lib.runtime as rt
-from rmsnorm import rmsnorm_kernel, compute_rmsnorm_launch_params
+from rmsnorm import (
+    _rows_per_call,
+    can_use_basic_block,
+    compute_rmsnorm_launch_params,
+    rmsnorm_kernel,
+)
 
 ASCENDC_DEMO = Path(__file__).resolve().parent / "ascendc" / "build" / "demo"
 
@@ -31,13 +36,12 @@ def run_pyasc(shape, warmup, iters):
     x_pad = torch.empty(padded, dtype=torch.float32, device="npu")
     y_pad = torch.empty(padded, dtype=torch.float32, device="npu")
     gamma = torch.empty(hidden, dtype=torch.float32, device="npu")
-    total_rows = total // hidden
-    rms_pad = torch.empty(total_rows, dtype=torch.float32, device="npu")
     eps = 1e-6
-    max_rows = 8 if hidden <= 512 else (4 if hidden <= 1024 else 2)
+    max_rows = _rows_per_call(hidden)
+    use_basic_block = can_use_basic_block(hidden, max_rows)
     for _ in range(warmup + iters):
-        rmsnorm_kernel[cores, rt.current_stream()](x_pad, y_pad, rms_pad, gamma, block_len, hidden, eps, rows_per_core,
-                                                   max_rows)
+        rmsnorm_kernel[cores, rt.current_stream()](x_pad, y_pad, gamma, block_len, hidden, eps, rows_per_core, max_rows,
+                                                   use_basic_block)
     torch.npu.synchronize()
 
 
@@ -57,7 +61,7 @@ def run_torch_npu(shape, warmup, iters):
     x = torch.empty(shape, dtype=torch.float32, device="npu")
     gamma = torch.empty(shape[-1], dtype=torch.float32, device="npu")
     for _ in range(warmup + iters):
-        torch_npu.npu_rms_norm(x, gamma)
+        torch_npu.npu_rms_norm(x, gamma, epsilon=1e-6)[0]
     torch.npu.synchronize()
 
 
