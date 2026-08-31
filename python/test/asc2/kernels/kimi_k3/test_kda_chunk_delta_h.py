@@ -1,0 +1,347 @@
+# Copyright (c) 2026 Huawei Technologies Co., Ltd.
+# This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+# CANN Open Software License Agreement Version 2.0 (the "License").
+# Please refer to the License for details. You may not use this file except in compliance with the License.
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+# See LICENSE in the root of the software repository for the full text of the License.
+
+import asc2
+import pytest
+import torch
+
+
+@asc2.jit(always_compile=True)
+def kda_chunk_delta_h_kernel(k_ptr: asc2.GlobalAddress, v_ptr: asc2.GlobalAddress, w_ptr: asc2.GlobalAddress,
+                             v_new_ptr: asc2.GlobalAddress, g_ptr: asc2.GlobalAddress, gk_ptr: asc2.GlobalAddress,
+                             h_ptr: asc2.GlobalAddress, state_ptr: asc2.GlobalAddress,
+                             cu_seqlens_ptr: asc2.GlobalAddress, chunk_offsets_ptr: asc2.GlobalAddress,
+                             shapes: asc2.ConstExpr, bt: asc2.ConstExpr, bv: asc2.ConstExpr, base_k: asc2.ConstExpr,
+                             unroll_factor_k: asc2.ConstExpr, use_g: asc2.ConstExpr, use_gk: asc2.ConstExpr,
+                             use_initial_state: asc2.ConstExpr, save_new_value: asc2.ConstExpr,
+                             is_varlen: asc2.ConstExpr, use_exp2: asc2.ConstExpr, quant_type: asc2.ConstExpr):
+    """
+    KDA Chunk Delta H: computes recurrent states for Kernel Delta Attention
+    Algorithm: for each chunk, save state, compute delta = v - w@state,
+    apply gating (decay), update state += k^T @ delta
+    Supports: scalar gating (use_g), per-channel gating (use_gk),
+    initial state loading, variable-length sequences, and delta output.
+    """
+    b, t_max, h, hg, k, v = shapes
+    block_idx = asc2.block_idx()
+    sub_block_num = asc2.sub_block_num()
+    start_index = block_idx / sub_block_num
+    i_v = start_index / (b * h)
+    nh_idx = start_index % (b * h)
+    i_n = nh_idx / h
+    i_h = nh_idx % h
+    i_hg = i_h / (h / hg)
+    bos_v = (i_n * h * t_max) + (i_h * t_max)
+    bos_k = (i_n * hg * t_max) + (i_hg * t_max)
+    nt_max = asc2.ceildiv(t_max, bt)
+    if is_varlen:
+        cu_seqlens_gm = asc2.global_tensor(cu_seqlens_ptr, [b + 1])
+        bos_seq = asc2.copy_in(cu_seqlens_gm, [i_n])
+        eos_seq = asc2.copy_in(cu_seqlens_gm, [i_n + 1])
+        t = eos_seq - bos_seq
+        nt = asc2.ceildiv(t, bt)
+        chunk_offsets_gm = asc2.global_tensor(chunk_offsets_ptr, [b + 1])
+        boh = asc2.copy_in(chunk_offsets_gm, [i_n])
+    else:
+        t = t_max
+        nt = nt_max
+        boh = i_n * nt_max
+    k_gm = asc2.global_tensor(k_ptr, [b * hg * t_max, k])
+    v_gm = asc2.global_tensor(v_ptr, [b * h * t_max, v])
+    w_gm = asc2.global_tensor(w_ptr, [b * h * t_max, k])
+    h_gm = asc2.global_tensor(h_ptr, [b * h * nt_max * k, v])
+    state_gm = asc2.global_tensor(state_ptr, [b * h * k, v])
+    if use_g:
+        g_gm = asc2.global_tensor(g_ptr, [b * h * t_max])
+    if use_gk:
+        gk_gm = asc2.global_tensor(gk_ptr, [b * h * t_max, k])
+    if save_new_value:
+        v_new_gm = asc2.global_tensor(v_new_ptr, [b * h * t_max, v])
+    k1 = min(k, 64)
+    k2 = k - k1
+    b_h1 = asc2.zeros([k1, bv], dtype=asc2.float32)
+    if k2 > 0:
+        b_h2 = asc2.zeros([k2, bv], dtype=asc2.float32)
+    if use_initial_state:
+        state_row_offset = (i_n * h * k) + (i_h * k)
+        b_h1 = b_h1 + asc2.copy_in(state_gm, [state_row_offset, i_v * bv], [k1, bv]).to(asc2.float32)
+        if k2 > 0:
+            b_h2 = b_h2 + asc2.copy_in(state_gm, [state_row_offset + k1, i_v * bv], [k2, bv]).to(asc2.float32)
+    for i_t in asc2.range(nt):
+        h_row_offset = (boh * h * k) + (i_h * k) + (i_t * k)
+        asc2.copy_out(b_h1.to(quant_type), h_gm, [h_row_offset, i_v * bv])
+        if k2 > 0:
+            asc2.copy_out(b_h2.to(quant_type), h_gm, [h_row_offset + k1, i_v * bv])
+        v_row_offset = bos_v + (i_t * bt)
+        v_chunk = asc2.copy_in(v_gm, [v_row_offset, i_v * bv], [bt, bv])
+        b_h1_compute = b_h1.to(quant_type)
+        acc1 = asc2.zeros_acc([bt, bv], dtype=asc2.float32)
+        w_row_offset = bos_v + (i_t * bt)
+        for k_step in asc2.range(asc2.ceildiv(k1, base_k), unroll_factor=unroll_factor_k):
+            k_off = k_step * base_k
+            w_l0 = asc2.copy_in(w_gm, [w_row_offset, k_off], [bt, base_k], asc2.TensorLocation.L0A)
+            h_l1 = asc2.copy(b_h1_compute, [k_off, 0], [base_k, bv], asc2.TensorLocation.L1)
+            asc2.matmul_acc(acc1, w_l0, h_l1)
+        if k2 > 0:
+            b_h2_compute = b_h2.to(quant_type)
+            for k_step in asc2.range(asc2.ceildiv(k2, base_k), unroll_factor=unroll_factor_k):
+                k_off = k1 + k_step * base_k
+                w_l0 = asc2.copy_in(w_gm, [w_row_offset, k_off], [bt, base_k], asc2.TensorLocation.L0A)
+                h_l1 = asc2.copy(b_h2_compute, [k_step * base_k, 0], [base_k, bv], asc2.TensorLocation.L1)
+                asc2.matmul_acc(acc1, w_l0, h_l1)
+        b_v = v_chunk - acc1.to(quant_type)
+        if save_new_value:
+            v_new_row_offset = bos_v + (i_t * bt)
+            asc2.copy_out(b_v.to(quant_type), v_new_gm, [v_new_row_offset, i_v * bv])
+        if use_g:
+            last_idx = min((i_t + 1) * bt, t) - 1
+            g_last_offset = bos_v + last_idx
+            g_last_tensor = asc2.copy_in(g_gm, [g_last_offset], [1])
+            g_chunk_offset = bos_v + (i_t * bt)
+            g_chunk = asc2.copy_in(g_gm, [g_chunk_offset], [bt])
+            g_diff = g_last_tensor - g_chunk
+            g_diff_safe = asc2.where(g_diff <= 0, g_diff, asc2.full([bt], float('-inf'), dtype=asc2.float32))
+            g_safe_exp = asc2.exp(g_diff_safe)
+            g_safe_exp_col = g_safe_exp.expand_dims(1)
+            b_v = b_v * g_safe_exp_col
+            g_last_exp = asc2.exp(g_last_tensor)
+            b_h1 = b_h1 * g_last_exp
+            if k2 > 0:
+                b_h2 = b_h2 * g_last_exp
+        if use_gk:
+            last_idx = min((i_t + 1) * bt, t) - 1
+            gk_row_offset = bos_v + last_idx
+            gk_last1 = asc2.copy_in(gk_gm, [gk_row_offset, 0], [k1])
+            if use_exp2:
+                gk_exp1 = asc2.exp2(gk_last1)
+            else:
+                gk_exp1 = asc2.exp(gk_last1)
+            gk_exp1_col = gk_exp1.expand_dims(1)
+            b_h1 = b_h1 * gk_exp1_col
+            if k2 > 0:
+                gk_last2 = asc2.copy_in(gk_gm, [gk_row_offset, k1], [k2])
+                if use_exp2:
+                    gk_exp2 = asc2.exp2(gk_last2)
+                else:
+                    gk_exp2 = asc2.exp(gk_last2)
+                gk_exp2_col = gk_exp2.expand_dims(1)
+                b_h2 = b_h2 * gk_exp2_col
+        b_v_compute = b_v.to(quant_type)
+        k_row_offset = bos_k + (i_t * bt)
+        acc2 = asc2.zeros_acc([k1, bv], dtype=asc2.float32)
+        for bt_step in asc2.range(asc2.ceildiv(bt, base_k), unroll_factor=unroll_factor_k):
+            bt_off = bt_step * base_k
+            k_l0 = asc2.copy_in(k_gm, [k_row_offset + bt_off, 0], [base_k, k1], asc2.TensorLocation.L0A).T
+            v_l1 = asc2.copy(b_v_compute, [bt_off, 0], [base_k, bv], asc2.TensorLocation.L1)
+            asc2.matmul_acc(acc2, k_l0, v_l1)
+        b_h1 = b_h1 + acc2
+        if k2 > 0:
+            acc3 = asc2.zeros_acc([k2, bv], dtype=asc2.float32)
+            for bt_step in asc2.range(asc2.ceildiv(bt, base_k), unroll_factor=unroll_factor_k):
+                bt_off = bt_step * base_k
+                k_l0 = asc2.copy_in(k_gm, [k_row_offset + bt_off, k1], [base_k, k2], asc2.TensorLocation.L0A).T
+                v_l1 = asc2.copy(b_v_compute, [bt_off, 0], [base_k, bv], asc2.TensorLocation.L1)
+                asc2.matmul_acc(acc3, k_l0, v_l1)
+            b_h2 = b_h2 + acc3
+    state_row_offset = (i_n * h * k) + (i_h * k)
+    asc2.copy_out(b_h1.to(quant_type), state_gm, [state_row_offset, i_v * bv])
+    if k2 > 0:
+        asc2.copy_out(b_h2.to(quant_type), state_gm, [state_row_offset + k1, i_v * bv])
+
+
+def chunk_delta_h_ref(k, v, w, g=None, gk=None, initial_state=None, cu_seqlens=None, bt=64, use_exp2=False,
+                      save_new_value=False):
+    if cu_seqlens is None:
+        b, hg, t, k_dim = k.shape
+        h = v.shape[1]
+        v_dim = v.shape[3]
+        nt = (t + bt - 1) // bt
+        h_out = torch.zeros(b, h, nt, k_dim, v_dim, dtype=torch.float32)
+        state = torch.zeros(b, h, k_dim, v_dim, dtype=torch.float32)
+        v_new = torch.zeros(b, h, t, v_dim, dtype=torch.float32) if save_new_value else None
+        if initial_state is not None:
+            state = initial_state.clone().float()
+        for bi in range(b):
+            for head in range(h):
+                hg_idx = head // (h // hg)
+                for t_idx in range(nt):
+                    h_out[bi, head, t_idx] = state[bi, head].clone()
+                    t_start = t_idx * bt
+                    t_end = min(t_start + bt, t)
+                    w_chunk = w[bi, head, t_start:t_end, :].float()
+                    v_chunk = v[bi, head, t_start:t_end, :].float()
+                    k_chunk = k[bi, hg_idx, t_start:t_end, :].float()
+                    b_v = v_chunk - w_chunk @ state[bi, head]
+                    if g is not None:
+                        last_idx = t_end - 1
+                        g_last = g[bi, head, last_idx].float()
+                        g_chunk = g[bi, head, t_start:t_end].float()
+                        g_diff = g_last - g_chunk
+                        g_safe = torch.where(g_diff <= 0, g_diff, torch.tensor(float('-inf')))
+                        b_v = b_v * torch.exp(g_safe).unsqueeze(-1)
+                        state[bi, head] = state[bi, head] * torch.exp(g_last)
+                    if gk is not None:
+                        last_idx = t_end - 1
+                        gk_last = gk[bi, head, last_idx, :].float()
+                        if use_exp2:
+                            decay = torch.exp2(gk_last)
+                        else:
+                            decay = torch.exp(gk_last)
+                        state[bi, head] = state[bi, head] * decay.unsqueeze(-1)
+                    if save_new_value:
+                        v_new[bi, head, t_start:t_end, :] = b_v
+                    state[bi, head] += k_chunk.t() @ b_v
+        return h_out, state, v_new
+    else:
+        b = len(cu_seqlens) - 1
+        h = v.shape[1]
+        v_dim = v.shape[3]
+        hg = k.shape[1]
+        k_dim = k.shape[3]
+        t_max = v.shape[2]
+        chunk_counts = []
+        chunk_offsets_list = [0]
+        for bi in range(b):
+            seq_len = cu_seqlens[bi + 1] - cu_seqlens[bi]
+            n_chunks = (seq_len + bt - 1) // bt
+            chunk_counts.append(n_chunks)
+            chunk_offsets_list.append(chunk_offsets_list[-1] + n_chunks)
+        total_chunks = chunk_offsets_list[-1]
+        h_out = torch.zeros(total_chunks, h, k_dim, v_dim, dtype=torch.float32)
+        state = torch.zeros(b, h, k_dim, v_dim, dtype=torch.float32)
+        v_new = torch.zeros(b, h, t_max, v_dim, dtype=torch.float32) if save_new_value else None
+        if initial_state is not None:
+            state = initial_state.clone().float()
+        for bi in range(b):
+            bos = cu_seqlens[bi]
+            eos = cu_seqlens[bi + 1]
+            seq_len = eos - bos
+            boh = chunk_offsets_list[bi]
+            for head in range(h):
+                hg_idx = head // (h // hg)
+                for t_idx in range(chunk_counts[bi]):
+                    h_out[boh + t_idx, head] = state[bi, head].clone()
+                    t_start = t_idx * bt
+                    t_end = min(t_start + bt, seq_len)
+                    w_chunk = w[bi, head, t_start:t_end, :].float()
+                    v_chunk = v[bi, head, t_start:t_end, :].float()
+                    k_chunk = k[bi, hg_idx, t_start:t_end, :].float()
+                    b_v = v_chunk - w_chunk @ state[bi, head]
+                    if g is not None:
+                        last_idx = t_end - 1
+                        g_last = g[bi, head, last_idx].float()
+                        g_chunk = g[bi, head, t_start:t_end].float()
+                        g_diff = g_last - g_chunk
+                        g_safe = torch.where(g_diff <= 0, g_diff, torch.tensor(float('-inf')))
+                        b_v = b_v * torch.exp(g_safe).unsqueeze(-1)
+                        state[bi, head] = state[bi, head] * torch.exp(g_last)
+                    if gk is not None:
+                        last_idx = t_end - 1
+                        gk_last = gk[bi, head, last_idx, :].float()
+                        if use_exp2:
+                            decay = torch.exp2(gk_last)
+                        else:
+                            decay = torch.exp(gk_last)
+                        state[bi, head] = state[bi, head] * decay.unsqueeze(-1)
+                    if save_new_value:
+                        v_new[bi, head, t_start:t_end, :] = b_v
+                    state[bi, head] += k_chunk.t() @ b_v
+        return h_out, state, v_new
+
+
+@pytest.mark.parametrize(
+    "b, t, h, hg, k, v, bt, bv, dtype, use_g, use_gk, use_initial_state, save_new_value, is_varlen, use_exp2, "
+    "base_k, unroll_factor_k", [
+        (1, 64, 1, 1, 64, 32, 64, 32, torch.float16, False, True, False, False, False, False, 64, 1),
+        (1, 64, 1, 1, 64, 32, 64, 32, torch.float16, True, False, False, False, False, False, 64, 1),
+        (1, 64, 1, 1, 64, 32, 64, 32, torch.float16, True, True, False, False, False, False, 64, 1),
+        (1, 64, 1, 1, 64, 32, 64, 32, torch.float16, False, True, True, False, False, False, 64, 1),
+        (1, 64, 1, 1, 64, 32, 64, 32, torch.float16, False, True, False, True, False, False, 64, 1),
+        (1, 64, 1, 1, 64, 32, 64, 32, torch.float16, False, True, False, False, False, True, 64, 1),
+        (1, 64, 1, 1, 128, 32, 64, 32, torch.float16, False, True, False, False, False, False, 64, 1),
+        (1, 128, 1, 1, 64, 32, 64, 32, torch.float16, True, True, False, False, False, False, 64, 1),
+        (1, 96, 1, 1, 64, 32, 64, 32, torch.float16, False, True, False, False, True, False, 64, 1),
+        (4, 64, 1, 1, 64, 32, 64, 32, torch.float16, False, True, False, False, False, False, 64, 1),
+        (1, 64, 8, 1, 64, 32, 64, 32, torch.float16, True, False, False, False, False, False, 64, 1),
+        (1, 64, 1, 1, 64, 32, 64, 32, torch.float16, False, True, False, False, False, False, 16, 4),
+        # --- pypto-gym target shapes (HV=4, K=V=BT=128) ---
+        # (1, 8192, 4, 4, 128, 128, 128, 128, torch.float16, False, True, False, False, False, False, 64, 1),
+        # (1, 4117, 4, 4, 128, 128, 128, 128, torch.float16, False, True, False, False, False, False, 64, 1),
+        # (1, 1024, 4, 4, 128, 128, 128, 128, torch.float16, False, True, False, False, True, False, 64, 1),
+        # (1, 3118, 4, 4, 128, 128, 128, 128, torch.float16, False, True, False, False, True, False, 64, 1),
+        # (1, 768, 4, 4, 128, 128, 128, 128, torch.float16, False, True, False, False, True, False, 64, 1),
+        # (1, 156, 4, 4, 128, 128, 128, 128, torch.float16, False, True, False, False, True, False, 64, 1),
+        # --- sgl-kernel-npu target shapes (D=K=V=128, BT=64, BV=32) ---
+        # (1, 6, 8, 8, 128, 128, 64, 32, torch.float16, True, False, False, True, True, False, 64, 1),
+        # (1, 64, 8, 8, 128, 128, 64, 32, torch.float16, True, False, False, True, True, False, 64, 1),
+        # (1, 127, 8, 8, 128, 128, 64, 32, torch.float16, True, False, False, True, True, False, 64, 1),
+        # (1, 7168, 8, 8, 128, 128, 64, 32, torch.float16, True, False, False, True, True, False, 64, 1),
+        # (1, 2000, 8, 8, 128, 128, 64, 32, torch.float16, True, False, False, True, True, False, 64, 1),
+        # (1, 129, 16, 4, 128, 128, 64, 32, torch.float16, True, False, False, True, False, False, 64, 1),
+        # (1, 1333, 16, 4, 128, 128, 64, 32, torch.float16, True, False, True, True, True, False, 64, 1),
+        # (1, 1333, 64, 16, 128, 128, 64, 32, torch.float16, True, False, True, True, True, False, 64, 1),
+    ])
+def test_kda_chunk_delta_h(profiler, runs, b, t, h, hg, k, v, bt, bv, dtype, use_g, use_gk, use_initial_state,
+                           save_new_value, is_varlen, use_exp2, base_k, unroll_factor_k):
+    assert k <= 128, f"k must be <= 128, got {k}"
+    quant_type = asc2.float16
+    if dtype == torch.bfloat16:
+        quant_type = asc2.bfloat16
+    elif dtype == torch.float32:
+        quant_type = asc2.float32
+    t_max = t
+    k_tensor = torch.randn(b, hg, t_max, k, dtype=dtype) * 0.1
+    v_tensor = torch.randn(b, h, t_max, v, dtype=dtype) * 0.1
+    w_tensor = torch.randn(b, h, t_max, k, dtype=dtype) * 0.1
+    g_tensor = torch.randn(b, h, t_max, dtype=torch.float32) * 0.01 if use_g else None
+    gk_tensor = torch.randn(b, h, t_max, k, dtype=torch.float32) * 0.01 if use_gk else None
+    initial_state = torch.randn(b, h, k, v, dtype=torch.float32) * 0.1 if use_initial_state else None
+    if is_varlen:
+        seq_lens = [t_max]
+        cu_seqlens = torch.tensor([0] + [sum(seq_lens[:i + 1]) for i in range(b)], dtype=torch.int32)
+        chunk_offsets = [0]
+        for seq_len in seq_lens:
+            n_chunks = (seq_len + bt - 1) // bt
+            chunk_offsets.append(chunk_offsets[-1] + n_chunks)
+        chunk_offsets = torch.tensor(chunk_offsets, dtype=torch.int32)
+        total_chunks = chunk_offsets[-1].item()
+    else:
+        cu_seqlens = None
+        chunk_offsets = None
+        total_chunks = b * ((t_max + bt - 1) // bt)
+    nt = (t_max + bt - 1) // bt
+    h_out = torch.zeros(total_chunks, h, k, v, dtype=dtype)
+    state = torch.zeros(b, h, k, v, dtype=dtype)
+    v_new = torch.zeros(b, h, t_max, v, dtype=dtype) if save_new_value else None
+    v_tiles = (v + bv - 1) // bv
+    block_num = v_tiles * b * h
+    g_arg = g_tensor if use_g else torch.zeros(1)
+    gk_arg = gk_tensor if use_gk else torch.zeros(1)
+    v_new_arg = v_new if save_new_value else torch.zeros(1)
+    cu_seqlens_arg = cu_seqlens if is_varlen else torch.zeros(1)
+    chunk_offsets_arg = chunk_offsets if is_varlen else torch.zeros(1)
+    shapes = (b, t_max, h, hg, k, v)
+    if use_initial_state:
+        state = initial_state.clone().to(dtype)
+    with profiler.profile():
+        for _ in range(runs):
+            kda_chunk_delta_h_kernel[block_num](k_tensor, v_tensor, w_tensor, v_new_arg, g_arg, gk_arg, h_out, state,
+                                                cu_seqlens_arg, chunk_offsets_arg, shapes, bt, bv, base_k,
+                                                unroll_factor_k, use_g, use_gk, use_initial_state, save_new_value,
+                                                is_varlen, use_exp2, quant_type)
+    h_ref, state_ref, v_new_ref = chunk_delta_h_ref(k_tensor, v_tensor, w_tensor, g=g_tensor, gk=gk_tensor,
+                                                    initial_state=initial_state, cu_seqlens=cu_seqlens, bt=bt,
+                                                    use_exp2=use_exp2, save_new_value=save_new_value)
+    if is_varlen:
+        torch.testing.assert_close(h_out.float(), h_ref, atol=5e-2, rtol=5e-2)
+    else:
+        h_compare = h_out.view(b, nt, h, k, v).permute(0, 2, 1, 3, 4)
+        torch.testing.assert_close(h_compare.float(), h_ref, atol=5e-2, rtol=5e-2)
+    torch.testing.assert_close(state.float(), state_ref, atol=5e-2, rtol=5e-2)
+    if save_new_value:
+        torch.testing.assert_close(v_new.float(), v_new_ref, atol=5e-2, rtol=5e-2)
