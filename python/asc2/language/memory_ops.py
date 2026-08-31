@@ -319,164 +319,158 @@ def copy_out(src: Union[LocalTensor, RuntimeNumeric], dst: GlobalTensor, offsets
 
 
 @require_jit
-def gather(src: GlobalTensor, offsets: Iterable[RuntimeInt], index: LocalTensor, dim: int, check_bounds: bool = True,
-           real_shape: Optional[RuntimeInt] = None, pad_value: Optional[RuntimeNumeric] = None) -> LocalTensor:
+def gather(src: GlobalTensor, offsets: Iterable[RuntimeInt], dim: int, index: LocalTensor, check_bounds: bool = True,
+           num_indices: Optional[RuntimeInt] = None, pad_value: Optional[RuntimeNumeric] = None) -> LocalTensor:
     """
-    Gather individual elements from global tensor
+    Gather subtensors from a global tensor at positions given by an index tensor.
+
+    For each index value ``index[i]``, the subtensor of ``src`` located at
+    ``[offsets[0], ..., offsets[dim-1], offsets[dim] + index[i]]`` is copied to ``result[i]``. The copied subtensor
+    spans dimensions ``dim+1, ..., src.rank-1`` of ``src``.
+
+    The ``index`` tensor must have an integer dtype (``int8``, ``int16``, ``int32``, ``int64``).
 
     Args:
-        src: Source global tensor
-        offsets: Offsets in ``src`` tensor for dimensions 0..dim
-        index: Tensor stores indexes, should have rank 1 and integer dtype
-        dim: Dimension of ``src`` used for indexing
-        check_bounds: When set to True fill with ``pad_value`` elements with invalid index. When set to False no bound checking will
-            be performed. By default set to True
-        real_shape: How many elements in index are processed, if not specified process all elements in ``index``
-        pad_value: Value to pad invalid indexes or innermost dimension to 32 byte border. When not specified 0 is used
+        src: The source global tensor to gather from.
+        offsets: The offsets into ``src`` for dimensions ``0..dim``. Must contain ``dim + 1`` values.
+        dim: The dimension of ``src`` used for indexing.
+        index: The index tensor. Must be a rank-1 tensor in ``UB`` with an integer dtype.
+        check_bounds: If True, out-of-bounds indices produce ``pad_value`` elements. If False, no bounds checking is
+            performed and the caller must guarantee all indices are valid. Default is True.
+        num_indices: The number of indices in ``index`` to process. If None, all elements of ``index`` are processed.
+        pad_value: The value used to pad out-of-bounds indices and to align the last dimension of the result to 32
+            bytes. If not specified, 0 is used.
 
     Returns:
-        A Local tensor with shape ``[index.shape[0], src.shape[dim+1], ... src.shape[src.rank-1]]``, dtype same as src, last dimension is aligned to 32 bytes
-
-    Notes:
-        Gather take individual elements from specified dimension by index: result[i] = src[offsets[0],...offsets[dim-1], offsets[dim]+index[i]].
-        When dim is the last dimension of src, copy individual elements, otherwise copy tensor of size len(src)-dim-1 for
-        each element in index.
-        Dimensions dim-1,...src.rank-1 of ``src`` should be static. Last dimension of result will be aligned to 32 bytes and padded by pad value
+        LocalTensor: A tensor with shape ``[index.shape[0], src.shape[dim+1], ..., src.shape[src.rank-1]]`` and the
+            same dtype as ``src``, located in ``UB``. The last dimension is aligned to 32 bytes and padded with
+            ``pad_value``.
 
     Raises:
-        ValueError: offsets rank mismatch, dim out of range of src rank
-        TypeError: If ``src`` is not a GlobalTensor, ``src`` have dynamic dimension after ``dim``, ``index`` not a LocalTensor, ``index`` have floating point type
+        TypeError: If ``src`` is not a GlobalTensor or ``index`` is not a LocalTensor
+        RuntimeError: If ``index`` does not have an integer dtype or is not located in ``UB``
+        ValueError: If ``offsets`` does not contain ``dim + 1`` values, ``dim`` is out of range for ``src.rank``,
+            ``index`` is not rank 1, or ``src`` has a dynamic dimension after ``dim``
+        NotImplementedError: If ``dim`` is the last dimension of ``src``
+
+    Note:
+        Dimensions ``dim+1, ..., src.rank-1`` of ``src`` must be static.
 
     Examples:
+        Read full rows by outermost dimension. ``src`` has shape [1024, 128] and ``tile`` has shape [256, 128]: ::
 
-        Reads by outermost dimension. ``src`` shape is [1024, 128], ``tile`` have shape [256, 128]: ::
+            index = asc2.copy_in(index_gm, [0], [256])
+            tile = asc2.gather(src, [0], 0, index)
 
-            index = asc2.copy_in(index, [0], [256])
-            tile = asc2.gather(src, [0], index, dim=0)
-
-        Read individual elements from specified row of global tensor, ``tile`` have shape [256]: ::
-
-            index = asc2.copy_in(index, [0], [256])
-            tile = asc2.gather(src, [row, 0], index, dim=1)
-
-        Read even rows from tensor: ::
+        Read every other row. If the inputs have the following contents: ::
 
             src = [[0, 1, 2, 3, 4, 5, 6, 7],
                    [8, 9, 10, 11, 12, 13, 14, 15],
                    [16, 17, 18, 19, 20, 21, 22, 23],
                    [24, 25, 26, 27, 28, 29, 30, 31],
-                   ....
-                   [248, 249, 250, 251, 252, 253, 254, 255] # shape is [32, 8]
+                   ...,
+                   [248, 249, 250, 251, 252, 253, 254, 255]]  # shape [32, 8]
             index = [0, 2, 4, 6, ..., 30]
-            ...
-            index = asc2.copy_in(index, [0], [16])   # shape is [16]
-            tile = asc2.gather(src, [0], index, dim=0) # result is [16, 8]
+
+        Then ``tile = asc2.gather(src, [0], 0, index)`` results in: ::
 
             tile = [[0, 1, 2, 3, 4, 5, 6, 7],
-                   [16, 17, 18, 19, 20, 21, 22, 23],
-                   ...,
-                   [240, 241, 242, 243, 244, 245, 246, 247]]
-
-
+                    [16, 17, 18, 19, 20, 21, 22, 23],
+                    ...,
+                    [240, 241, 242, 243, 244, 245, 246, 247]]  # shape [16, 8]
     """
     check_type("src", src, GlobalTensor)
     offsets = to_ir_list(verify_runtime_ints(offsets, "offsets", dim + 1))
     check_type("index", index, LocalTensor)
     check_dtype("index", index, (KT.int8, KT.int16, KT.int32, KT.int64))
-    if len(index.shape) > 1:
-        raise TypeError(f"'index' tensor have rank {index.rank}, supports only rank 1")
-    verify_location(index.location, "index", allow=TensorLocation.UB)
+    if index.rank != 1:
+        raise ValueError(f"'index' tensor must have rank 1, got {index.rank}")
     if dim < 0 or dim >= src.rank:
         raise ValueError(f"'dim' of value {dim} is not valid for tensor 'src' of rank {src.rank}")
-    if dim == len(src.shape) - 1:
-        raise NotImplementedError("Gather for last dimension not implemented")
-    if real_shape is not None:
-        check_runtime_int("real_shape", real_shape)
-        real_shape = _mat(real_shape, KT.int32).to_ir()
+    if dim == src.rank - 1:
+        raise NotImplementedError("Gather along the last dimension is not implemented")
+    if num_indices is not None:
+        check_runtime_int("num_indices", num_indices)
+        num_indices = _mat(num_indices, KT.int32).to_ir()
     if pad_value is not None:
         pad_value = _mat(pad_value, src.dtype).to_ir()
     target_shape = list(index.shape)
     for i in range(dim + 1, src.rank):
         if src.shape.is_dynamic_dim(i):
-            raise ValueError(f"All dimensions {dim+1}..{src.rank-1} of 'src' tensor should have static size")
-        else:
-            target_shape += [src.shape[i]]
-    dtype_size = src.dtype.sizeof()
-    elements_in_block = ir.ub_block_size // dtype_size
+            raise ValueError(f"All dimensions {dim+1}..{src.rank-1} of 'src' tensor must have static size")
+        target_shape.append(src.shape[i])
+    elements_in_block = ir.ub_block_size // src.dtype.sizeof()
     target_shape[-1] = (target_shape[-1] + (elements_in_block - 1)) // elements_in_block * elements_in_block
     ir_type = ir.get_asctile_LocalTensorType(target_shape, src.dtype.to_ir(), TensorLocation.UB)
     index = cast_loc(index, TensorLocation.UB)
-    handle = global_builder.get_ir_builder().create_asctile_GatherOp(ir_type, src.to_ir(), offsets, index.to_ir(),
-                                                                     real_shape, dim, check_bounds, pad_value)
+    handle = global_builder.get_ir_builder().create_asctile_GatherOp(ir_type, src.to_ir(), offsets, dim, index.to_ir(),
+                                                                     check_bounds, num_indices, pad_value)
     return cast_loc(LocalTensor(handle))
 
 
 @require_jit
-def scatter(index: LocalTensor, src: LocalTensor, dst: GlobalTensor, offsets: Iterable[RuntimeInt], dim: int,
-            check_bounds: bool = True, real_shape: Optional[RuntimeInt] = None) -> None:
+def scatter(src: LocalTensor, dim: int, index: LocalTensor, dst: GlobalTensor, offsets: Iterable[RuntimeInt],
+            check_bounds: bool = True, num_indices: Optional[RuntimeInt] = None) -> None:
     """
-    Modify individual elements or subtensors of global tensor ``dst`` specified by ``index`` with values from ``src``:
+    Scatter subtensors from a local tensor into a global tensor at positions given by an index tensor.
+
+    For each index value ``index[i]``, the subtensor ``src[i]`` is written to ``dst`` at position
+    ``[offsets[0], ..., offsets[dim-1], offsets[dim] + index[i]]``. The written subtensor spans dimensions
+    ``dim+1, ..., dst.rank-1`` of ``dst``.
+
+    The ``index`` tensor must have an integer dtype (``int8``, ``int16``, ``int32``, ``int64``).
+    ``src`` and ``dst`` must have the same dtype.
 
     Args:
-        index: Local tensor stores indexes
-        src: Local tensor stores modified data
-        dst: Global tensor to store data
-        offsets: Offsets in ``dst`` tensor for 0..dim dimensions
-        dim: Dimension of ``dst`` used for indexing
-        check_bounds: If True there will be checking of invalid indexes on writes, when set to False, user must be sure
-            that there is not invalid indexes present in ``index``. Default value is True
-        real_shape: How many elements in index are processed, if not specified process all elements in ``index``
-
-    Note:
-        This operation equal to ``dst[offsets[0],...offsets[dim-1],offsets[dim]+index[i]] = src[i]``, for each value from index.
-        If ``dim`` is last dimension of ``dst`` single element copied, otherwise entire subtensor
-        of shape ``[1,...,1,src.shape[1],...src.shape[n]]`` modified.
-        ``index`` should have rank 1 and integer dtype. Last dimensions of ``dst`` after dim should be static.
-        Also ``dst`` and ``src`` should have same dtype
+        src: The source local tensor with the data to write.
+        dim: The dimension of ``dst`` used for indexing.
+        index: The index tensor. Must be a rank-1 tensor with an integer dtype.
+        dst: The destination global tensor.
+        offsets: The offsets into ``dst`` for dimensions ``0..dim``. Must contain ``dim + 1`` values.
+        check_bounds: If True, out-of-bounds indices are skipped during writes. If False, no bounds checking is
+            performed and the caller must guarantee all indices are valid. Default is True.
+        num_indices: The number of indices in ``index`` to process. If None, all elements of ``index`` are processed.
 
     Raises:
-        ValueError: offsets rank mismatch, dim out of range of src rank
-        TypeError: wrong type of shape of input arguments
+        TypeError: If ``src`` is not a LocalTensor, ``index`` is not a LocalTensor, or ``dst`` is not a GlobalTensor
+        RuntimeError: If ``index`` does not have an integer dtype
+        ValueError: If ``offsets`` does not contain ``dim + 1`` values; ``dim`` is out of range for ``dst.rank``;
+            ``src`` has an unexpected rank; ``index`` is not rank 1; ``src`` and ``dst`` have different dtypes;
+            ``src`` and ``dst`` shapes are incompatible; or ``dst`` has a dynamic dimension after ``dim``
+        NotImplementedError: If ``dim`` is the last dimension of ``dst``
+
+    Note:
+        Dimensions ``dim+1, ..., dst.rank-1`` of ``dst`` must be static.
 
     Examples:
+        Update full rows by the outermost dimension. ``result_gm`` has shape [1024, 128]: ::
 
-        Updates ``result_tensor`` by outermost dimension. ``result_gm`` shape is [1024, 128]: ::
+            index = asc2.copy_in(index_gm, [0], [256])
+            data = asc2.copy_in(changes_gm, [0, 0], [256, 128])
+            asc2.scatter(data, 0, index, result_gm, [0])
 
-            index = asc2.copy_in(index_tensor, [0], [256])
-            data = asc2.copy_in(changes_tensor, [0, 0], [256, 128])
-            asc2.scatter(index, data, result_gm, [0], dim=0)
+        Write every other row. If the inputs have the following contents: ::
 
-        Updates individual elements in row ``row`` of ``result_gm``. ``result_gm`` shape is [1024, 128]: ::
+            dst = [[0, 1, 2, 3, 4, 5, 6, 7],
+                   [8, 9, 10, 11, 12, 13, 14, 15],
+                   [16, 17, 18, 19, 20, 21, 22, 23],
+                   [24, 25, 26, 27, 28, 29, 30, 31],
+                   ...,
+                   [248, 249, 250, 251, 252, 253, 254, 255]]  # shape [32, 8]
+            index = [0, 2, 4, 6, ..., 30]
+            src = [[0, 0, 0, 0, 0, 0, 0, 0],
+                   [1, 1, 1, 1, 1, 1, 1, 1],
+                   ...,
+                   [15, 15, 15, 15, 15, 15, 15, 15]]  # shape [16, 8]
 
-            index = asc2.copy_in(index_tensor, [0], [256])
-            data = asc2.copy_in(changes_tensor, [0], [256])
-            asc2.scatter(index, data, result_gm, [row, 0], dim=1)
+        Then ``asc2.scatter(src, 0, index, dst, [0])`` modifies ``dst`` to: ::
 
-        Read even rows from tensor: ::
-
-            result_gm = [[0, 1, 2, 3, 4, 5, 6, 7],
-                         [8, 9, 10, 11, 12, 13, 14, 15],
-                         [16, 17, 18, 19, 20, 21, 22, 23],
-                         [24, 25, 26, 27, 28, 29, 30, 31],
-                         ....
-                         [248, 249, 250, 251, 252, 253, 254, 255] # shape is [32, 8]
-            index_gm = [0, 2, 4, 6, ..., 30]
-            data_dm = [[0, 0, 0, 0, 0, 0, 0, 0],
-                       [1, 1, 1, 1, 1, 1, 1, 1],
-                       ...
-                       [15, 15, 15, 15, 15, 15, 15, 15]]
-
-            index = asc2.copy_in(index_gm, [0], [16])
-            data = asc2.copy_in(data_gm, [0], [16, 8])
-            asc2.scatter(index, data, result_gm, [row, 0], dim=1)
-
-            result_gm = [[0, 0, 0, 0, 0, 0, 0, 0],
-                         [16, 17, 18, 19, 20, 21, 22, 23],
-                         [1, 1, 1, 1, 1, 1, 1, 1],
-                         ...,
-                         [240, 241, 242, 243, 244, 245, 246, 247]]
-
-
+            dst = [[0, 0, 0, 0, 0, 0, 0, 0],
+                   [8, 9, 10, 11, 12, 13, 14, 15],
+                   [1, 1, 1, 1, 1, 1, 1, 1],
+                   ...,
+                   [15, 15, 15, 15, 15, 15, 15, 15],
+                   [248, 249, 250, 251, 252, 253, 254, 255]]  # shape [32, 8]
     """
     check_type("dst", dst, GlobalTensor)
     check_type("index", index, LocalTensor)
@@ -486,23 +480,23 @@ def scatter(index: LocalTensor, src: LocalTensor, dst: GlobalTensor, offsets: It
     if dim < 0 or dim >= dst.rank:
         raise ValueError(f"'dim' value {dim} out of tensor 'dst' rank {dst.rank}")
     if dim == dst.rank - 1:
-        raise NotImplementedError("Scatter on last dimension not implemented")
+        raise NotImplementedError("Scatter along the last dimension is not implemented")
     if dst.rank != src.rank + dim:
-        raise TypeError(f"Tensor 'src' should have rank {dst.rank - dim}")
-    if index.rank > 1:
-        raise TypeError(f"'index' tensor have rank {dst.rank}, supports only rank 1")
+        raise ValueError(f"'src' tensor must have rank {dst.rank - dim}, got {src.rank}")
+    if index.rank != 1:
+        raise ValueError(f"'index' tensor must have rank 1, got {index.rank}")
     if dst.dtype != src.dtype:
-        raise TypeError(f"'src' and 'dst' have different element types: {src.dtype} and {dst.dtype}")
+        raise ValueError(f"'src' and 'dst' have different data types: {src.dtype} and {dst.dtype}")
     for i in range(dim + 1, len(dst.shape)):
         if dst.shape.is_dynamic_dim(i):
-            raise ValueError(f"All dimensions {dim}..{dst.rank-1} of 'dst' tensor should have static size")
+            raise ValueError(f"All dimensions {dim}..{dst.rank-1} of 'dst' tensor must have static size")
         if i != dst.rank - 1 and dst.shape[i] != src.shape[i - dim]:
-            raise TypeError(f"Tensor 'src' dimension {i-dim} with size {src.shape[i-dim]} and tensor 'dst'"
-                            f"dimension {i} with size {dst.shape[i]} are different")
-    if real_shape is not None:
-        check_runtime_int("real_shape", real_shape)
-        real_shape = _mat(real_shape, KT.int32).to_ir()
+            raise ValueError(f"'src' tensor dimension {i-dim} with size {src.shape[i-dim]} and 'dst' tensor dimension "
+                             f"{i} with size {dst.shape[i]} are different")
+    if num_indices is not None:
+        check_runtime_int("num_indices", num_indices)
+        num_indices = _mat(num_indices, KT.int32).to_ir()
     src = cast_loc(src, TensorLocation.UB)
     index = cast_loc(index, TensorLocation.UB)
-    global_builder.get_ir_builder().create_asctile_ScatterOp(src.to_ir(), index.to_ir(), dst.to_ir(), offsets,
-                                                             real_shape, dim, check_bounds)
+    global_builder.get_ir_builder().create_asctile_ScatterOp(src.to_ir(), dim, index.to_ir(), dst.to_ir(), offsets,
+                                                             check_bounds, num_indices)

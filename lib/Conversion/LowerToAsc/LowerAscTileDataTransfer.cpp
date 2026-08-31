@@ -1096,8 +1096,8 @@ struct ConvertGather : ConvertOp<asctile::GatherOp> {
     LogicalResult matchAndRewrite(asctile::GatherOp op, ConvertRewriter& rewriter) const override
     {
         auto loc = op.getLoc();
-        auto operand = op.getOperand();
-        auto operandShape = operand.getType().getShape();
+        auto src = op.getSrc();
+        auto srcShape = src.getType().getShape();
         auto indexShape = op.getIndex().getType().getShape();
         auto resultShape = op.getType().getShape();
         auto i32Type = rewriter.getIntegerType(32);
@@ -1106,13 +1106,13 @@ struct ConvertGather : ConvertOp<asctile::GatherOp> {
         auto const0 = consts.i32(0);
         auto const1 = consts.i32(1);
         size_t dim = static_cast<size_t>(op.getDim());
-        size_t elementsPerBlock = ascendc::ubBlockSize / ascendc::getElementTypeSize(operand.getType());
+        size_t elementsPerBlock = ascendc::ubBlockSize / ascendc::getElementTypeSize(src.getType());
         auto elementSize = ascendc::getElementTypeSize(op.getType());
-        auto elementType = operand.getType().getElementType();
+        auto elementType = src.getType().getElementType();
         auto indexType = op.getIndex().getType().getElementType();
 
-        if (dim >= operandShape.size())
-            return op.emitError("'dim' out of 'operand' rank");
+        if (dim >= srcShape.size())
+            return op.emitOpError("has 'dim' is incompatible with 'src' tensor rank");
         if (indexShape.size() != 1)
             return op.emitError("'index' have rank != 1");
         if (resultShape.back() * elementSize % ascendc::ubBlockSize != 0)
@@ -1121,21 +1121,21 @@ struct ConvertGather : ConvertOp<asctile::GatherOp> {
         auto elementsCount = op.getType().getNumElements();
         auto result = createTensorOp(rewriter, loc, elementsCount, elementType).getResult();
         auto indexTensor = rewriter.getRemappedValue(op.getIndex());
-        auto srcTensor = rewriter.getRemappedValue(operand);
+        auto srcTensor = rewriter.getRemappedValue(src);
 
         SmallVector<Value> offsets{op.getOffsets()};
-        offsets.insert(offsets.end(), operandShape.size() - offsets.size(), const0);
-        auto srcInfo = prepareTensorInfo(rewriter, loc, operand, offsets);
+        offsets.insert(offsets.end(), srcShape.size() - offsets.size(), const0);
+        auto srcInfo = prepareTensorInfo(rewriter, loc, src, offsets);
 
         auto ubStrides = getStrides(resultShape);
-        auto gmStrides = getStrides(operandShape.drop_front(dim));
+        auto gmStrides = getStrides(srcShape.drop_front(dim));
 
         Value dstStride = consts.i32(ubStrides.front()); // Stride in elements between writes to ub
         Value srcStride = consts.i32(gmStrides.front()); // Stride in elements between reads from gm
 
-        int64_t blockLen = operandShape.back() * elementSize;         // Size of last dimension in bytes
-        int64_t blockCount = gmStrides.front() / operandShape.back(); // Size of dimensions from dim+1 except last
-        size_t padElements = (elementsPerBlock - operandShape.back() % elementsPerBlock) % elementsPerBlock;
+        int64_t blockLen = srcShape.back() * elementSize;         // Size of last dimension in bytes
+        int64_t blockCount = gmStrides.front() / srcShape.back(); // Size of dimensions from dim+1 except last
+        size_t padElements = (elementsPerBlock - srcShape.back() % elementsPerBlock) % elementsPerBlock;
         Value padValue;
         if (op.getPadValue()) {
             padValue = rewriter.getRemappedValue(op.getPadValue());
@@ -1149,9 +1149,9 @@ struct ConvertGather : ConvertOp<asctile::GatherOp> {
             }
         }
         assert((blockLen + padElements * elementSize) % ascendc::ubBlockSize == 0);
-        Value repeatsCount = op.getRealShape() ? rewriter.create<arith::MinSIOp>(
-                                                     loc, op.getRealShape(), consts.i32(indexShape.front())) :
-                                                 consts.i32(indexShape.front());
+        Value repeatsCount = op.getNumIndices() ? rewriter.create<arith::MinSIOp>(
+                                                      loc, op.getNumIndices(), consts.i32(indexShape.front())) :
+                                                  consts.i32(indexShape.front());
         Value maxIndex = rewriter.create<arith::SubIOp>(loc, srcInfo.shape[dim], op.getOffsets().back());
         auto forOp = rewriter.create<scf::ForOp>(loc, const0, repeatsCount, const1);
         {
@@ -1215,7 +1215,8 @@ struct ConvertScatter : ConvertOp<asctile::ScatterOp> {
     LogicalResult matchAndRewrite(asctile::ScatterOp op, ConvertRewriter& rewriter) const override
     {
         auto loc = op.getLoc();
-        auto baseShape = op.getBase().getType().getShape();
+        auto dstType = op.getDst().getType();
+        auto dstShape = dstType.getShape();
         auto indexShape = op.getIndex().getType().getShape();
         auto srcShape = op.getSrc().getType().getShape();
         auto i32Type = rewriter.getIntegerType(32);
@@ -1224,20 +1225,20 @@ struct ConvertScatter : ConvertOp<asctile::ScatterOp> {
         auto const0 = consts.i32(0);
         auto const1 = consts.i32(1);
         size_t dim = static_cast<size_t>(op.getDim());
-        size_t elementsPerBlock = ascendc::ubBlockSize / ascendc::getElementTypeSize(op.getBase().getType());
-        auto elementSize = ascendc::getElementTypeSize(op.getBase().getType());
-        auto elementType = op.getBase().getType().getElementType();
+        size_t elementsPerBlock = ascendc::ubBlockSize / ascendc::getElementTypeSize(dstType);
+        auto elementSize = ascendc::getElementTypeSize(dstType);
+        auto elementType = dstType.getElementType();
         auto indexType = op.getIndex().getType().getElementType();
 
-        if (dim >= baseShape.size())
+        if (dim >= dstShape.size())
             return op.emitError("'dim' out of 'operand' rank");
         if (indexShape.size() != 1)
             return op.emitError("'index' have rank != 1");
-        if (srcShape.size() != baseShape.size() - dim)
-            return op.emitError("'src' have rank of ") << srcShape.size() << " should be " << baseShape.size() - dim;
-        if (op.getSrc().getType().getElementType() != op.getBase().getType().getElementType())
+        if (srcShape.size() != dstShape.size() - dim)
+            return op.emitError("'src' have rank of ") << srcShape.size() << " should be " << dstShape.size() - dim;
+        if (op.getSrc().getType().getElementType() != dstType.getElementType())
             return op.emitError("'base' and 'src' mismatch types: ")
-                   << op.getSrc().getType().getElementType() << " and " << op.getBase().getType().getElementType();
+                   << op.getSrc().getType().getElementType() << " and " << dstType.getElementType();
         if (indexShape.front() > srcShape.front())
             return op.emitError("'src' and 'index' shape mismatch");
 
@@ -1245,21 +1246,21 @@ struct ConvertScatter : ConvertOp<asctile::ScatterOp> {
         auto srcTensor = rewriter.getRemappedValue(op.getSrc());
 
         SmallVector<Value> offsets{op.getOffsets()};
-        offsets.insert(offsets.end(), baseShape.size() - offsets.size(), const0);
-        auto dstInfo = prepareTensorInfo(rewriter, loc, op.getBase(), offsets);
+        offsets.insert(offsets.end(), dstShape.size() - offsets.size(), const0);
+        auto dstInfo = prepareTensorInfo(rewriter, loc, op.getDst(), offsets);
 
         auto ubStrides = getStrides(srcShape);
-        auto gmStrides = getStrides(baseShape.drop_front(dim));
+        auto gmStrides = getStrides(dstShape.drop_front(dim));
 
         Value srcStride = consts.i32(ubStrides.front()); // Stride in elements between writes to ub
         Value dstStride = consts.i32(gmStrides.front()); // Stride in elements between reads from gm
 
-        int64_t blockLen = std::min(baseShape.back(), srcShape.back()) * elementSize; // Size of last dimension in bytes
-        int64_t blockCount = gmStrides.front() / baseShape.back(); // Size of dimensions from dim+1 except last
+        int64_t blockLen = std::min(dstShape.back(), srcShape.back()) * elementSize; // Size of last dimension in bytes
+        int64_t blockCount = gmStrides.front() / dstShape.back(); // Size of dimensions from dim+1 except last
 
-        Value repeatsCount = op.getRealShape() ? rewriter.create<arith::MinSIOp>(
-                                                     loc, op.getRealShape(), consts.i32(indexShape.front())) :
-                                                 consts.i32(indexShape.front());
+        Value repeatsCount = op.getNumIndices() ? rewriter.create<arith::MinSIOp>(
+                                                      loc, op.getNumIndices(), consts.i32(indexShape.front())) :
+                                                  consts.i32(indexShape.front());
         Value maxIndex = rewriter.create<arith::SubIOp>(loc, dstInfo.shape[dim], op.getOffsets().back());
         auto forOp = rewriter.create<scf::ForOp>(loc, const0, repeatsCount, const1);
         {

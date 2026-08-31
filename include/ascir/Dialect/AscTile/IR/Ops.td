@@ -312,27 +312,27 @@ def BitwiseNotOp : AscTile_Op<"bitwise_not", [Pure, AllTypesMatch<["operand", "r
   let assemblyFormat = "$operand attr-dict `:` type($operand)";
 }
 
-def GatherOp : AscTile_Op<"gather", [AllElementTypesMatch<["operand", "result"]>, AttrSizedOperandSegments,
+def GatherOp : AscTile_Op<"gather", [AllElementTypesMatch<["src", "result"]>, AttrSizedOperandSegments,
   OptionalShapedMatchElemType<"result", "padValue">, MemoryEffectsOpInterface]> {
   let summary = "Load elements from a global tensor by index";
-  let arguments = (ins Arg<GlobalTensor, "tensor to read from", [MemRead]>:$operand, Variadic<I32>:$offsets,
-                   LocalTensorOfRankAndType<[1], [I8, I16, I32, I64]>:$index, Optional<I32>:$realShape,
-                   I32Attr:$dim, UnitAttr:$checkBounds, Optional<AscTile_Numeric>:$padValue);
+  let arguments = (ins Arg<GlobalTensor, "tensor to read from", [MemRead]>:$src, Variadic<I32>:$offsets,
+                   I32Attr:$dim, LocalTensorOfRankAndType<[1], [I8, I16, I32, I64]>:$index, UnitAttr:$checkBounds,
+                   Optional<I32>:$numIndices, Optional<AscTile_Numeric>:$padValue);
   let results = (outs NumericLocalTensor:$result);
   let assemblyFormat = [{
-    $operand `[` $offsets `]` `,` $index (`,` $realShape^ )? `,` $dim (`,` $padValue^ )? attr-dict `:` type($result) `,`
-    type($operand) `,` type($index)
+    $src `[` $offsets `]` `,` $index (`,` $numIndices^ )? `,` $dim (`,` $padValue^ )? attr-dict `:` type($src) `,`
+    type($index) `,` type($result)
   }];
 }
 
-def ScatterOp : AscTile_Op<"scatter", [AllElementTypesMatch<["base", "src"]>, AttrSizedOperandSegments,
+def ScatterOp : AscTile_Op<"scatter", [AllElementTypesMatch<["dst", "src"]>, AttrSizedOperandSegments,
   MemoryEffectsOpInterface]> {
   let summary = "Store elements by index to a global tensor";
-  let arguments = (ins NumericLocalTensor:$src, LocalTensorOfRankAndType<[1], [I8, I16, I32, I64]>:$index,
-                   Arg<GlobalTensor, "tensor to store to", [MemWrite]>:$base, Variadic<I32>:$offsets,
-                   Optional<I32>:$realShape, I32Attr:$dim, UnitAttr:$checkBounds);
+  let arguments = (ins NumericLocalTensor:$src, I32Attr:$dim, LocalTensorOfRankAndType<[1], [I8, I16, I32, I64]>:$index,
+                   Arg<GlobalTensor, "tensor to store to", [MemWrite]>:$dst, Variadic<I32>:$offsets,
+                   UnitAttr:$checkBounds, Optional<I32>:$numIndices);
   let assemblyFormat = [{
-    $base `[` $offsets `]` `,` $index `,` $src ( `,` $realShape^ )? `,` $dim attr-dict `:` type($base) `,` type($index)
+    $dst `[` $offsets `]` `,` $index `,` $src ( `,` $numIndices^ )? `,` $dim attr-dict `:` type($dst) `,` type($index)
     `,` type($src)
   }];
 }

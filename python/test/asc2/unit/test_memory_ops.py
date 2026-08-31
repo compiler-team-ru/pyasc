@@ -342,7 +342,7 @@ class TestGather:
         def kernel(x_ptr: asc2.GlobalAddress, check_bounds: asc2.ConstExpr):
             x_gm = asc2.global_tensor(x_ptr, [64, 128])
             index = asc2.full([64], 0, index_dtype)
-            asc2.gather(x_gm, [0], index, 0, check_bounds=check_bounds)
+            asc2.gather(x_gm, [0], 0, index, check_bounds=check_bounds)
 
         kernel[1](MockTensor(dtype), check_bounds)
         assert mock_launch.call_count == 1
@@ -353,9 +353,9 @@ class TestGather:
         def kernel(x_ptr: asc2.GlobalAddress):
             x_gm = asc2.global_tensor(x_ptr, [64, 128])
             index = asc2.full([2, 64], 0, asc2.int32)
-            asc2.gather(x_gm, [0], index, 0, check_bounds=True)
+            asc2.gather(x_gm, [0], 0, index, check_bounds=True)
 
-        with pytest.raises(TypeError, match="index"):
+        with pytest.raises(ValueError, match="index"):
             kernel[1](MockTensor(asc2.int32))
 
     def test_gather_wrong_dim1(self, jit_test):
@@ -364,7 +364,7 @@ class TestGather:
         def kernel(x_ptr: asc2.GlobalAddress):
             x_gm = asc2.global_tensor(x_ptr, [64, 128])
             index = asc2.full([64], 0, asc2.int32)
-            asc2.gather(x_gm, [0, 0, 0], index, 2, check_bounds=True)
+            asc2.gather(x_gm, [0, 0, 0], 2, index, check_bounds=True)
 
         with pytest.raises(ValueError, match="dim"):
             kernel[1](MockTensor(asc2.int32))
@@ -375,10 +375,32 @@ class TestGather:
         def kernel(x_ptr: asc2.GlobalAddress, size):
             x_gm = asc2.global_tensor(x_ptr, [64, size])
             index = asc2.full([64], 0, asc2.int32)
-            asc2.gather(x_gm, [0], index, 0, check_bounds=True)
+            asc2.gather(x_gm, [0], 0, index, check_bounds=True)
 
         with pytest.raises(ValueError, match="src"):
             kernel[1](MockTensor(asc2.int32), 128)
+
+    def test_gather_last_dim(self, jit_test):
+
+        @jit_test
+        def kernel(x_ptr: asc2.GlobalAddress):
+            x_gm = asc2.global_tensor(x_ptr, [64, 128])
+            index = asc2.full([64], 0, asc2.int32)
+            asc2.gather(x_gm, [0, 0], 1, index, check_bounds=True)
+
+        with pytest.raises(NotImplementedError, match="not implemented"):
+            kernel[1](MockTensor(asc2.int32))
+
+    def test_gather_with_options(self, jit_test, mock_launch):
+
+        @jit_test
+        def kernel(x_ptr: asc2.GlobalAddress):
+            x_gm = asc2.global_tensor(x_ptr, [64, 128])
+            index = asc2.full([64], 0, asc2.int32)
+            asc2.gather(x_gm, [0], 0, index, num_indices=32, pad_value=0.0, check_bounds=True)
+
+        kernel[1](MockTensor(asc2.float32))
+        assert mock_launch.call_count == 1
 
 
 class TestScatter:
@@ -393,7 +415,7 @@ class TestScatter:
             x_gm = asc2.global_tensor(x_ptr, [64, 128])
             index = asc2.full([64], 0, index_dtype)
             data = asc2.full([64, 128], 0, dtype)
-            asc2.scatter(index, data, x_gm, [0], 0, check_bounds=check_bounds)
+            asc2.scatter(data, 0, index, x_gm, [0], check_bounds=check_bounds)
 
         kernel[1](MockTensor(dtype), check_bounds)
         assert mock_launch.call_count == 1
@@ -405,7 +427,7 @@ class TestScatter:
             x_gm = asc2.global_tensor(x_ptr, [64, size])
             index = asc2.full([64], 0, asc2.int32)
             data = asc2.full([64, 128], 0, asc2.float32)
-            asc2.scatter(index, data, x_gm, [0], 0, check_bounds=True)
+            asc2.scatter(data, 0, index, x_gm, [0], check_bounds=True)
 
         with pytest.raises(ValueError, match="dst"):
             kernel[1](MockTensor(asc2.float32), 128)
@@ -417,9 +439,9 @@ class TestScatter:
             x_gm = asc2.global_tensor(x_ptr, [64, 128])
             index = asc2.full([64], 0, asc2.int32)
             data = asc2.full([64, 128], 0, asc2.float16)
-            asc2.scatter(index, data, x_gm, [0], 0, check_bounds=True)
+            asc2.scatter(data, 0, index, x_gm, [0], check_bounds=True)
 
-        with pytest.raises(TypeError, match="element types"):
+        with pytest.raises(ValueError, match="data types"):
             kernel[1](MockTensor(asc2.float32))
 
     def test_scatter_shape_mismatch(self, jit_test):
@@ -429,7 +451,67 @@ class TestScatter:
             x_gm = asc2.global_tensor(x_ptr, [64, 64, 128])
             index = asc2.full([64], 0, asc2.int32)
             data = asc2.full([32, 128], 0, asc2.float32)
-            asc2.scatter(index, data, x_gm, [0], 0, check_bounds=True)
+            asc2.scatter(data, 0, index, x_gm, [0], check_bounds=True)
 
-        with pytest.raises(TypeError, match="src"):
+        with pytest.raises(ValueError, match="src"):
             kernel[1](MockTensor(asc2.float32))
+
+    def test_scatter_wrong_dim(self, jit_test):
+
+        @jit_test
+        def kernel(x_ptr: asc2.GlobalAddress):
+            x_gm = asc2.global_tensor(x_ptr, [64, 128])
+            index = asc2.full([64], 0, asc2.int32)
+            data = asc2.full([64, 128], 0, asc2.float32)
+            asc2.scatter(data, 2, index, x_gm, [0, 0, 0], check_bounds=True)
+
+        with pytest.raises(ValueError, match="dim"):
+            kernel[1](MockTensor(asc2.float32))
+
+    def test_scatter_last_dim(self, jit_test):
+
+        @jit_test
+        def kernel(x_ptr: asc2.GlobalAddress):
+            x_gm = asc2.global_tensor(x_ptr, [64, 128])
+            index = asc2.full([64], 0, asc2.int32)
+            data = asc2.full([128], 0, asc2.float32)
+            asc2.scatter(data, 1, index, x_gm, [0, 0], check_bounds=True)
+
+        with pytest.raises(NotImplementedError, match="not implemented"):
+            kernel[1](MockTensor(asc2.float32))
+
+    def test_scatter_wrong_index(self, jit_test):
+
+        @jit_test
+        def kernel(x_ptr: asc2.GlobalAddress):
+            x_gm = asc2.global_tensor(x_ptr, [64, 128])
+            index = asc2.full([2, 64], 0, asc2.int32)
+            data = asc2.full([64, 128], 0, asc2.float32)
+            asc2.scatter(data, 0, index, x_gm, [0], check_bounds=True)
+
+        with pytest.raises(ValueError, match="index"):
+            kernel[1](MockTensor(asc2.float32))
+
+    def test_scatter_dim_size_mismatch(self, jit_test):
+
+        @jit_test
+        def kernel(x_ptr: asc2.GlobalAddress):
+            x_gm = asc2.global_tensor(x_ptr, [64, 64, 128])
+            index = asc2.full([64], 0, asc2.int32)
+            data = asc2.full([64, 32, 128], 0, asc2.float32)
+            asc2.scatter(data, 0, index, x_gm, [0], check_bounds=True)
+
+        with pytest.raises(ValueError, match="src"):
+            kernel[1](MockTensor(asc2.float32))
+
+    def test_scatter_num_indices(self, jit_test, mock_launch):
+
+        @jit_test
+        def kernel(x_ptr: asc2.GlobalAddress):
+            x_gm = asc2.global_tensor(x_ptr, [64, 128])
+            index = asc2.full([64], 0, asc2.int32)
+            data = asc2.full([64, 128], 0, asc2.float32)
+            asc2.scatter(data, 0, index, x_gm, [0], num_indices=32, check_bounds=True)
+
+        kernel[1](MockTensor(asc2.float32))
+        assert mock_launch.call_count == 1
