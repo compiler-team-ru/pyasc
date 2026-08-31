@@ -25,7 +25,7 @@ def gather_simple(input_ptr, index_ptr, result_ptr, row_length: asc2.ConstExpr, 
     for i in range(asc2.block_idx(), repeats, asc2.block_num(), unroll_factor=unroll_factor):
         read_count = min(step, index_size - i * step)
         index = asc2.copy_in(index_tensor, [i * step], [step])
-        data = asc2.gather(input_tensor, [0], index, 0, check_bounds=False, real_shape=read_count)
+        data = asc2.gather(input_tensor, [0], 0, index, check_bounds=False, num_indices=read_count)
         asc2.copy_out(data, result_tensor, [i * step, 0])
 
 
