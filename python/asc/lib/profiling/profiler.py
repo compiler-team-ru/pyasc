@@ -35,6 +35,13 @@ class Profiler:
         self.auto_remove = result_path is None
         self.results: Dict[str, ProfilingResult] = {}
 
+    @property
+    def last_result(self) -> ProfilingResult:
+        if not self.results:
+            raise RuntimeError("No results were stored, maybe profilng was never finished")
+        last_id = next(reversed(self.results.keys()))
+        return self.results[last_id]
+
     @classmethod
     def populate_tasks(cls, filename: str, col_id: str, col_name: str, col_type: str, col_duration: str,
                        tasks: List[ProfilingTask]) -> None:
@@ -48,13 +55,6 @@ class Profiler:
                     duration=float(row[col_duration]),
                 )
                 tasks.append(task)
-
-    @property
-    def last_result(self) -> ProfilingResult:
-        if not self.results:
-            raise RuntimeError("No results were stored, maybe profilng was never finished")
-        last_id = next(reversed(self.results.keys()))
-        return self.results[last_id]
 
     def start(self, device_id: Optional[int] = None) -> None:
         if device_id is None:

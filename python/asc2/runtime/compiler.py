@@ -155,7 +155,7 @@ class Compiler(CompilerBase):
                 passes.common.add_canonicalizer(pm)
                 passes.ascendc.add_fuse_bufid_sync(pm)
             else:
-                passes.ascendc.add_insert_sync(pm)
+                passes.ascendc.add_insert_que_sync(pm)
             passes.ascendc.add_unify_pipe(pm)
             passes.common.add_canonicalizer(pm)
         passes.ascendc.add_declare_py_struct(pm)

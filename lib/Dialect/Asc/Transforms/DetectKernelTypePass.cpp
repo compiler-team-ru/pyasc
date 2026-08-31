@@ -11,7 +11,6 @@
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
-#include "ascir/Dialect/AscTile/Utils/Attributes.h"
 
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -41,8 +40,10 @@ public:
         moduleOp.walk([&hasVectorOps, &hasCubeOps](Operation* op) {
             if (!hasVectorOps && isa<VectorOp>(op))
                 hasVectorOps = true;
-            if (!hasCubeOps && isa<MmadOp, MmadWithBiasOp, RegistMatmulObjOp>(op))
+            if (!hasCubeOps && isa<MmadOp, MmadWithBiasOp>(op))
                 hasCubeOps = true;
+            if (isa<RegistMatmulObjOp>(op))
+                hasVectorOps = hasCubeOps = true;
             if (hasVectorOps && hasCubeOps)
                 return WalkResult::interrupt();
             return WalkResult::advance();

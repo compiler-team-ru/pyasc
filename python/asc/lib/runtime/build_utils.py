@@ -60,12 +60,13 @@ def build_npu_ext(obj_name: str, is_model: bool, soc: config.Platform, src_path:
     if Path(pkg_include_path).exists() and Path(profiling_include_path).exists()  \
         and Path(runtime_include_path).exists():
         include_path = [
-            f"-I{pkg_include_path}", f"-I{profiling_include_path}", f"-I{runtime_include_path}",
-            "-DSEPARATE_PKG_ARCH"]
+            f"-I{pkg_include_path}", f"-I{profiling_include_path}", f"-I{runtime_include_path}", "-DSEPARATE_PKG_ARCH"
+        ]
     else:
         include_path = [
             f"-I{os.path.join(asc_path, 'include/experiment')}",
-            f"-I{os.path.join(asc_path, 'include/experiment/msprof')}"]
+            f"-I{os.path.join(asc_path, 'include/experiment/msprof')}"
+        ]
 
     cc_cmd += [
         f"-I{os.path.join(asc_path, 'include')}", f"-I{pybind11.get_include()}", f"-L{os.path.join(asc_path, 'lib64')}"
