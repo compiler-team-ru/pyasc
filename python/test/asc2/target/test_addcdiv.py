@@ -10,7 +10,7 @@ import asc2
 import pytest
 import torch
 
-from .helpers import DYNAMIC, STATIC, select_elementwise_tile
+from .helpers import parametrize_is_static, select_elementwise_tile
 
 
 @asc2.jit(reuse_alloc=1)
@@ -36,7 +36,7 @@ def addcdiv(input_ptr: asc2.GlobalAddress, x1_ptr: asc2.GlobalAddress, x2_ptr: a
         asc2.copy_out(zt, output_gm, [current_offset])
 
 
-@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
+@parametrize_is_static()
 @pytest.mark.parametrize("test_name, input_shape, input_dtype, tiling", [
     ("addcdiv_test_1", [11734, 16], torch.float32, select_elementwise_tile([11734, 16], 4, 4)),
     ("addcdiv_test_2", [152], torch.float32, select_elementwise_tile([152], 4, 4)),
@@ -64,7 +64,7 @@ def addcdiv(input_ptr: asc2.GlobalAddress, x1_ptr: asc2.GlobalAddress, x2_ptr: a
     ("addcdiv_test_24", [1024, 1024], torch.float16, select_elementwise_tile([1024, 1024], 2, 4)),
     ("addcdiv_test_25", [98166, 128], torch.float16, select_elementwise_tile([98166, 128], 2, 4)),
 ])
-def test_addcdiv(profiler, runs, kernel_type, test_name, input_shape, input_dtype, tiling):
+def test_addcdiv(profiler, runs, is_static, test_name, input_shape, input_dtype, tiling):
     length, tile_length, block_num, unroll_factor = tiling
 
     in_tensor_input = torch.randn([length], dtype=input_dtype)
@@ -76,7 +76,7 @@ def test_addcdiv(profiler, runs, kernel_type, test_name, input_shape, input_dtyp
     out_tensor = torch.zeros([length], dtype=input_dtype)
 
     params = [in_tensor_input, in_tensor_x1, in_tensor_x2, out_tensor]
-    if kernel_type == STATIC:
+    if is_static:
         params.append(asc2.ConstExpr(length))
     else:
         params.append(length)

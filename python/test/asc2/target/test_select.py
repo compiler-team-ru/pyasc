@@ -12,8 +12,7 @@ import asc2
 import pytest
 import torch
 
-STATIC = "static"
-DYNAMIC = "dynamic"
+from .helpers import parametrize_is_static
 
 
 @asc2.jit(reuse_alloc=1)
@@ -38,7 +37,7 @@ def select(cond_ptr: asc2.GlobalAddress, input_x_ptr: asc2.GlobalAddress, input_
 
 
 # yapf: disable
-@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
+@parametrize_is_static()
 @pytest.mark.parametrize("test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes, compile_params, runtime_params, tiling_key, tiling_params", [
 # PYASC_TESTS_BEGIN
     ("select_test_1", 40, ([2048, 1, 30], [2048, 1, 30], [2048, 1, 30]), (torch.int8, torch.float32, torch.float32), ([2048, 1, 30], ), (torch.float32, ), None, (2, ), 8, (61440, 768, 40, 0)),
@@ -76,7 +75,7 @@ def select(cond_ptr: asc2.GlobalAddress, input_x_ptr: asc2.GlobalAddress, input_
 # PYASC_TESTS_END
 ])
 # yapf: enable
-def test_select(profiler, runs, kernel_type, test_name, block_num, input_shapes, input_dtypes, output_shapes,
+def test_select(profiler, runs, is_static, test_name, block_num, input_shapes, input_dtypes, output_shapes,
                 output_dtypes, compile_params, runtime_params, tiling_key, tiling_params):
     input_shape = input_shapes[1]
     dtype = input_dtypes[1]
@@ -92,7 +91,7 @@ def test_select(profiler, runs, kernel_type, test_name, block_num, input_shapes,
     out_tensor = torch.zeros(input_shape_1d, dtype=dtype)
 
     params = [in_tensor_c, in_tensor_x, in_tensor_y, out_tensor]
-    if kernel_type == STATIC:
+    if is_static:
         params.append(asc2.ConstExpr(input_shape_1d[0]))
     else:
         params.append(input_shape_1d[0])

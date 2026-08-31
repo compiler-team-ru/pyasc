@@ -12,8 +12,7 @@ import asc2
 import pytest
 import torch
 
-STATIC = "static"
-DYNAMIC = "dynamic"
+from .helpers import parametrize_is_static
 
 
 @asc2.jit(reuse_alloc=1)
@@ -50,15 +49,15 @@ def gelu_torch(x: torch.Tensor, TANH_APPROX_FACTOR, NEG_SQRT_EIGHT_OVER_PI):
 
 
 # yapf: disable
-@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
+@parametrize_is_static()
 @pytest.mark.parametrize("test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes, compile_params, runtime_params, tiling_key, tiling_params", [
 # PYASC_TESTS_BEGIN
     ("gelu_test_1", 72, ([32, 2048, 2304], ), (torch.float32, ), ([32, 2048, 2304], ), (torch.float32, ), None, (2, ), 7, (150994944, 72, 15872)),
 # PYASC_TESTS_END
 ])
 # yapf: enable
-def test_gelu(profiler, runs, kernel_type, test_name, block_num, input_shapes, input_dtypes, output_shapes,
-              output_dtypes, compile_params, runtime_params, tiling_key, tiling_params):
+def test_gelu(profiler, runs, is_static, test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes,
+              compile_params, runtime_params, tiling_key, tiling_params):
     input_shape = input_shapes[0]
     dtype = input_dtypes[0]
     tile_length = tiling_params[2]
@@ -72,7 +71,7 @@ def test_gelu(profiler, runs, kernel_type, test_name, block_num, input_shapes, i
     out_tensor = torch.zeros(input_shape_1d, dtype=dtype)
 
     params = [in_tensor, out_tensor]
-    if kernel_type == STATIC:
+    if is_static:
         params.append(asc2.ConstExpr(input_shape_1d[0]))
     else:
         params.append(input_shape_1d[0])

@@ -12,9 +12,6 @@ import asc2
 import pytest
 import torch
 
-STATIC = "static"
-DYNAMIC = "dynamic"
-
 
 # Reads (h,w) sub tile
 @asc2.jit(reuse_alloc=1)
@@ -351,7 +348,6 @@ def simplify_shape(input, permute):
 
 
 # yapf: disable
-@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
 @pytest.mark.parametrize("test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes, compile_params, runtime_params, tiling_key, tiling_params", [
 # PYASC_TESTS_BEGIN
     ("transpose_test_1", 72, ([92, 256, 80], ), (torch.float32, ), ([256, 92, 80], ), (torch.float32, ), None, (2, [1, 0, 2]), 10004, (3, 0, 0, 1, 0, 0, 0, 72, 1, 20, 253952, 1, 0, 0, 0, 0, 0, 0, 0, [92, 256, 80, 0, 0, 0, 0, 0], [256, 92, 80, 0, 0, 0, 0, 0], [1, 0, 2, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [-1, 0, 0, 0, 0], [0, 1, 3, 2, 4], [1, 1, 92, 256, 80], [1, 1, 256, 92, 80], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0])),
@@ -370,8 +366,8 @@ def simplify_shape(input, permute):
 # PYASC_TESTS_END
 ])
 # yapf: enable
-def test_transpose(profiler, runs, kernel_type, test_name, block_num, input_shapes, input_dtypes, output_shapes,
-                   output_dtypes, compile_params, runtime_params, tiling_key, tiling_params):
+def test_transpose(profiler, runs, test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes,
+                   compile_params, runtime_params, tiling_key, tiling_params):
     raw_input_shape = input_shapes[0]
     input_dtype = input_dtypes[0]
     in_cut_index = tiling_params[1]

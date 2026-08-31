@@ -10,7 +10,7 @@ import asc2
 import pytest
 import torch
 
-from .helpers import DYNAMIC, STATIC, select_elementwise_tile
+from .helpers import parametrize_is_static, select_elementwise_tile
 
 
 @asc2.jit(reuse_alloc=1)
@@ -30,7 +30,7 @@ def reciprocal(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, in
         asc2.copy_out(zt, z, [current_offset])
 
 
-@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
+@parametrize_is_static()
 @pytest.mark.parametrize("test_name, input_shape, input_dtype, tiling", [
     ("reciprocal_test_1", [1024], torch.float32, select_elementwise_tile([1024], 4, 2)),
     ("reciprocal_test_2", [2400], torch.float32, select_elementwise_tile([2400], 4, 2)),
@@ -55,7 +55,7 @@ def reciprocal(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, in
     ("reciprocal_test_21", [128, 2, 512], torch.float16, select_elementwise_tile([128, 2, 512], 2, 2)),
     ("reciprocal_test_22", [1024, 6144], torch.float16, select_elementwise_tile([1024, 6144], 2, 2)),
 ])
-def test_reciprocal(profiler, runs, kernel_type, test_name, input_shape, input_dtype, tiling):
+def test_reciprocal(profiler, runs, is_static, test_name, input_shape, input_dtype, tiling):
     length, tile_length, block_num, unroll_factor = tiling
 
     # For low-precision dtypes bound |x| away from zero: a near-zero x makes 1/x
@@ -68,7 +68,7 @@ def test_reciprocal(profiler, runs, kernel_type, test_name, input_shape, input_d
     out_tensor = torch.zeros([length], dtype=input_dtype)
 
     params = [in_tensor, out_tensor]
-    if kernel_type == STATIC:
+    if is_static:
         params.append(asc2.ConstExpr(length))
     else:
         params.append(length)

@@ -12,8 +12,7 @@ import asc2
 import pytest
 import torch
 
-STATIC = "static"
-DYNAMIC = "dynamic"
+from .helpers import parametrize_is_static
 
 
 @asc2.jit(reuse_alloc=1)
@@ -55,7 +54,7 @@ def cast_two(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, inpu
 
 # DYNAMIC [2, 5, 7, 42767] only supports unroll_factor = 1
 # yapf: disable
-@pytest.mark.parametrize("kernel_type", [STATIC])
+@parametrize_is_static()
 @pytest.mark.parametrize("test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes, compile_params, runtime_params, tiling_key, tiling_params", [
 # PYASC_TESTS_BEGIN
     ("cast_test_1", 8, ([128, 64], ), (torch.int32, ), ([128, 64], ), (torch.float16, ), (1, ), (2, 1), 0, (8, 21120, 1024, 1, 1, 1024, 1024, 0, 0, 0, 0, 0)),
@@ -113,8 +112,10 @@ def cast_two(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, inpu
 # PYASC_TESTS_END
 ])
 # yapf: enable
-def test_cast(profiler, runs, kernel_type, test_name, block_num, input_shapes, input_dtypes, output_shapes,
-              output_dtypes, compile_params, runtime_params, tiling_key, tiling_params):
+def test_cast(profiler, runs, is_static, test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes,
+              compile_params, runtime_params, tiling_key, tiling_params):
+    if not is_static:
+        pytest.skip("dynamic shape is not supported")
     input_shape = input_shapes[0]
     input_dtype = input_dtypes[0]
     output_dtype = output_dtypes[0]
@@ -158,7 +159,7 @@ def test_cast(profiler, runs, kernel_type, test_name, block_num, input_shapes, i
     dst_dtype = dtype_map[output_dtype]
 
     params = [in_tensor_x, out_tensor]
-    if kernel_type == STATIC:
+    if is_static:
         params.extend([
             asc2.ConstExpr(input_shape_1d[0]),
             asc2.ConstExpr(block_loop_num),

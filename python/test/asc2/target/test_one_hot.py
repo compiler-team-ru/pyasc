@@ -12,8 +12,7 @@ import asc2
 import pytest
 import torch
 
-STATIC = "static"
-DYNAMIC = "dynamic"
+from .helpers import parametrize_is_static
 
 
 @asc2.jit(reuse_alloc=1)
@@ -51,7 +50,7 @@ def one_hot(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, arang
 # `axis` is recorded for documentation; the kernel produces depth-innermost output
 # (functionally equivalent to axis=-1) regardless. Tests verify functional one-hot
 # correctness, not GM byte-layout parity with CANN.
-@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
+@parametrize_is_static()
 @pytest.mark.parametrize(
     "block_num, unroll_factor, input_shape, input_dtype, output_shape, output_dtype, axis, depth, on_value, off_value",
     [
@@ -75,7 +74,7 @@ def one_hot(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress, arang
         (56, 1, [1259, 1, 192, 2, 127], torch.int32, [1259, 1, 192, 2, 127, 3], torch.float32, -1, 3, 10.5, 30.6),
     ],
 )
-def test_one_hot(profiler, runs, kernel_type, block_num, unroll_factor, input_shape, input_dtype, output_shape,
+def test_one_hot(profiler, runs, is_static, block_num, unroll_factor, input_shape, input_dtype, output_shape,
                  output_dtype, axis, depth, on_value, off_value):
     input_total = math.prod(input_shape)
 
@@ -85,7 +84,7 @@ def test_one_hot(profiler, runs, kernel_type, block_num, unroll_factor, input_sh
     out_tensor = torch.zeros(input_total * depth, dtype=output_dtype)
 
     params = [indices_flat, out_tensor, arange_t, on_value, off_value]
-    if kernel_type == STATIC:
+    if is_static:
         params.append(asc2.ConstExpr(input_total))
     else:
         params.append(input_total)

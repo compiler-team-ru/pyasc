@@ -12,8 +12,11 @@
 
 import math
 
-STATIC = "static"
-DYNAMIC = "dynamic"
+import pytest
+
+
+def parametrize_is_static(param: str = "is_static"):
+    return pytest.mark.parametrize(param, (True, False), ids=("static", "dynamic"))
 
 
 def ub_budget_bytes(default=192 * 1024):

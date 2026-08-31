@@ -12,8 +12,7 @@ import asc2
 import pytest
 import torch
 
-STATIC = "static"
-DYNAMIC = "dynamic"
+from .helpers import parametrize_is_static
 
 
 @asc2.jit(reuse_alloc=1)
@@ -31,7 +30,7 @@ def gather_simple(input_ptr, index_ptr, result_ptr, row_length: asc2.ConstExpr, 
 
 
 # yapf: disable
-@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
+@parametrize_is_static()
 @pytest.mark.parametrize(
     "test_name, block_num, input_shapes, input_dtypes, output_shapes, output_dtypes, compile_params, runtime_params, tiling_key, tiling_params",
     [
@@ -46,7 +45,7 @@ def gather_simple(input_ptr, index_ptr, result_ptr, row_length: asc2.ConstExpr, 
 # PYASC_TESTS_END
     ])
 # yapf: enable
-def test_gather(profiler, runs, kernel_type, test_name, block_num, input_shapes, input_dtypes, output_shapes,
+def test_gather(profiler, runs, is_static, test_name, block_num, input_shapes, input_dtypes, output_shapes,
                 output_dtypes, compile_params, runtime_params, tiling_key, tiling_params):
 
     input_shape = input_shapes[0]
@@ -81,7 +80,7 @@ def test_gather(profiler, runs, kernel_type, test_name, block_num, input_shapes,
 
     with profiler.profile():
         for _ in range(runs):
-            if kernel_type == STATIC:
+            if is_static:
                 gather_simple[block_num](input, index, result, row_length, ub_row, step, asc2.ConstExpr(repeats),
                                          data_count, index_count, unroll_factor)
             else:

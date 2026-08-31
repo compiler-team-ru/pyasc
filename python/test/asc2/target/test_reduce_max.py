@@ -12,7 +12,7 @@ import asc2
 import pytest
 import torch
 
-from .helpers import CORE_NUM, DYNAMIC, STATIC, select_reduce_tile
+from .helpers import CORE_NUM, parametrize_is_static, select_reduce_tile
 
 
 @asc2.jit(reuse_alloc=1)
@@ -64,8 +64,8 @@ def reduce_max_d_middle_axis(input_ptr: asc2.GlobalAddress, output_ptr: asc2.Glo
         asc2.copy_out(reduced, out_gm, [o * inner], real_shape=[inner])
 
 
-def run_last_axis(profiler, runs, kernel_type, in_tensor, out_tensor, num_rows, num_cols, tile_rows, tile_cols,
-                  itemsize, contiguous, unroll_factor=2):
+def run_last_axis(profiler, runs, is_static, in_tensor, out_tensor, num_rows, num_cols, tile_rows, tile_cols, itemsize,
+                  contiguous, unroll_factor=2):
     align = 32 // itemsize
     # tile_rows is aligned to 32 B; for the contiguous path this also makes the
     # 1-D run tile_rows*C a 32-byte multiple.
@@ -73,7 +73,7 @@ def run_last_axis(profiler, runs, kernel_type, in_tensor, out_tensor, num_rows, 
     block_num = min(CORE_NUM, asc2.ceildiv(num_rows, tile_shape[0]))
 
     params = [in_tensor, out_tensor]
-    if kernel_type == STATIC:
+    if is_static:
         params.extend([asc2.ConstExpr(num_rows), asc2.ConstExpr(num_cols), asc2.ConstExpr(num_rows)])
     else:
         params.extend([num_rows, num_cols, num_rows])
@@ -85,7 +85,7 @@ def run_last_axis(profiler, runs, kernel_type, in_tensor, out_tensor, num_rows, 
 
 
 # Last-axis reduction cases (reduce the final dimension).
-@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
+@parametrize_is_static()
 @pytest.mark.parametrize("test_name, input_shape, input_dtype, tiling", [
     ("reduce_max_last_1", [200, 10], torch.float32, select_reduce_tile([200, 10])),
     ("reduce_max_last_2", [13, 2048, 32], torch.float32, select_reduce_tile([13, 2048, 32])),
@@ -99,28 +99,28 @@ def run_last_axis(profiler, runs, kernel_type, in_tensor, out_tensor, num_rows, 
     ("reduce_max_last_10", [4608, 115, 12], torch.float32, select_reduce_tile([4608, 115, 12])),
     ("reduce_max_last_11", [1500, 61, 61], torch.float32, select_reduce_tile([1500, 61, 61])),
 ])
-def test_reduce_max_last_axis(profiler, runs, kernel_type, test_name, input_shape, input_dtype, tiling):
+def test_reduce_max_last_axis(profiler, runs, is_static, test_name, input_shape, input_dtype, tiling):
     num_rows_flattened, num_cols, tile_rows, tile_cols, contiguous = tiling
 
     in_tensor = torch.randn([num_rows_flattened, num_cols], dtype=input_dtype)
     out_tensor = torch.zeros([num_rows_flattened], dtype=input_dtype)
 
-    run_last_axis(profiler, runs, kernel_type, in_tensor, out_tensor, num_rows_flattened, num_cols, tile_rows,
-                  tile_cols, input_dtype.itemsize, contiguous)
+    run_last_axis(profiler, runs, is_static, in_tensor, out_tensor, num_rows_flattened, num_cols, tile_rows, tile_cols,
+                  input_dtype.itemsize, contiguous)
 
     expected = torch.amax(in_tensor, dim=1)
     torch.testing.assert_close(out_tensor, expected, atol=1e-3, rtol=1e-3)
 
 
 # Middle-axis reduction cases (reduce a non-final dimension).
-@pytest.mark.parametrize("kernel_type", [STATIC, DYNAMIC])
+@parametrize_is_static()
 @pytest.mark.parametrize("test_name, input_shape, reduce_axis, input_dtype", [
     ("reduce_max_mid_1", [1, 128, 144], 1, torch.float32),
     ("reduce_max_mid_2", [1024, 100, 2, 1], 2, torch.float32),
     ("reduce_max_mid_3", [64, 32, 48], 1, torch.float32),
     ("reduce_max_mid_4", [8, 4, 2, 64], 1, torch.float32),
 ])
-def test_reduce_max_middle_axis(profiler, runs, kernel_type, test_name, input_shape, reduce_axis, input_dtype):
+def test_reduce_max_middle_axis(profiler, runs, is_static, test_name, input_shape, reduce_axis, input_dtype):
     outer = math.prod(input_shape[:reduce_axis])
     mid = input_shape[reduce_axis]
     inner = math.prod(input_shape[reduce_axis + 1:])
@@ -134,14 +134,14 @@ def test_reduce_max_middle_axis(profiler, runs, kernel_type, test_name, input_sh
         # reduce of [outer, mid]; route it to the faster grid-stride last-axis
         # kernel instead of one tiny per-outer tile.
         _, _, tile_rows, tile_cols, contiguous = select_reduce_tile([outer, mid], input_dtype.itemsize)
-        run_last_axis(profiler, runs, kernel_type, in_tensor, out_tensor, outer, mid, tile_rows, tile_cols,
+        run_last_axis(profiler, runs, is_static, in_tensor, out_tensor, outer, mid, tile_rows, tile_cols,
                       input_dtype.itemsize, contiguous)
     else:
         ALIGNMENT_ELEMENTS = 32 // input_dtype.itemsize
         tile_cols = asc2.ceildiv(inner, ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS
         block_num = min(CORE_NUM, outer)
         params = [in_tensor, out_tensor]
-        if kernel_type == STATIC:
+        if is_static:
             params.append(asc2.ConstExpr(outer))
         else:
             params.append(outer)
