@@ -518,10 +518,13 @@ struct ConvertReduce : ConvertOp<asctile::ReduceOp> {
             srcShape.push_back(consts.i32(size));
         Value dst = createTensorOp(rewriter, loc, op.getType());
         Value src = rewriter.getRemappedValue(op.getOperand());
-        Value tmpBuff = createTensorOp(rewriter, loc, srcType.getNumElements() * 4, rewriter.getIntegerType(8, false));
+        bool reuseSource = op->hasAttr(asctile::attr::reuseSource);
+        int64_t tmpBuffSize = srcType.getNumElements() * 4;
+        if (reuseSource)
+            tmpBuffSize = 0;
+        Value tmpBuff = createTensorOp(rewriter, loc, tmpBuffSize, rewriter.getIntegerType(8, false));
         auto kind = op.getKind();
         Operation* reduceOp = nullptr;
-        bool reuseSource = op->hasAttr(asctile::attr::reuseSource);
         if (kind == asctile::ReduceKind::Sum)
             reduceOp = rewriter.create<ascendc::ReduceSumOp>(loc, dst, src, tmpBuff, srcShape, *pattern, reuseSource);
         else if (kind == asctile::ReduceKind::Max)

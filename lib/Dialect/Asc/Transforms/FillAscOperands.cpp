@@ -136,8 +136,9 @@ void fillOperation(ascendc::VecScalarL0Op op)
 }
 
 template <
-    typename OpType,
-    AnyOfT<OpType, ascendc::DuplicateL2Op, ascendc::UnaryL2Op, ascendc::BinaryL2Op, ascendc::VecScalarL2Op> = true>
+    typename OpType, AnyOfT<
+                         OpType, ascendc::DuplicateL2Op, ascendc::UnaryL2Op, ascendc::BinaryL2Op,
+                         ascendc::VecScalarL2Op, ascendc::SelectL2Op> = true>
 void fillOperation(OpType op)
 {
     if (op->hasAttr(ascendc::attr::calCountSet))
@@ -158,8 +159,8 @@ struct FillAscOperandsPass : public ascendc::impl::FillAscOperandsBase<FillAscOp
                 .Case<
                     ascendc::UnaryL0Op, ascendc::CastL0Op, ascendc::CompareScalarL0Op, ascendc::DuplicateL0Op,
                     ascendc::BinaryL0Op, ascendc::VecScalarL0Op, ascendc::SelectL0Op, ascendc::CompareL0Op,
-                    ascendc::DuplicateL2Op, ascendc::UnaryL2Op, ascendc::BinaryL2Op, ascendc::VecScalarL2Op>(
-                    [](auto fillOp) { fillOperation(fillOp); })
+                    ascendc::DuplicateL2Op, ascendc::UnaryL2Op, ascendc::BinaryL2Op, ascendc::VecScalarL2Op,
+                    ascendc::SelectL2Op>([](auto fillOp) { fillOperation(fillOp); })
                 .Default([](Operation*) {});
         });
     }

@@ -308,8 +308,6 @@ def copy_out(src: Union[LocalTensor, RuntimeNumeric], dst: GlobalTensor, offsets
     offsets = to_ir_list(verify_offsets(offsets, dst.rank))
     scalar_store = not isinstance(src, LocalTensor) or src.size == 1
     if scalar_store:
-        if real_shape is not None:
-            raise ValueError("'real_shape' argument cannot be used when storing a scalar value")
         src = src.to(dst.dtype) if isinstance(src, LocalTensor) else _mat(src, dst.dtype)
         builder.create_asctile_SetValueOp(src.to_ir(), dst.to_ir(), offsets)
         return
