@@ -8,15 +8,13 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#include "ascir/Dialect/Asc/Utils/Constants.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/AscTile/Transforms/Passes.h"
 #include "ascir/Dialect/AscTile/Utils/Attributes.h"
-#include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
-#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/IR/Matchers.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
 namespace mlir {
@@ -36,7 +34,6 @@ struct VectorTransposeToLoad : OpRewritePattern<asctile::TransposeOp> {
 
     LogicalResult matchAndRewrite(TransposeOp op, PatternRewriter& rewriter) const override
     {
-        ascir::ConstantOpBuilder consts(rewriter);
         auto loadOp = op.getOperand().getDefiningOp<asctile::LoadOp>();
         if (!loadOp || op.getType().getLoc() != TensorLocation::UB || !op.getOperand().hasOneUse()) {
             return failure();
@@ -60,7 +57,6 @@ struct VectorTransposeToStore : OpRewritePattern<asctile::TransposeOp> {
 
     LogicalResult matchAndRewrite(TransposeOp op, PatternRewriter& rewriter) const override
     {
-        ascir::ConstantOpBuilder consts(rewriter);
         if (op.getType().getLoc() != TensorLocation::UB || !op.getResult().hasOneUse() ||
             op.getType().getShape().size() < 3) {
             return failure();

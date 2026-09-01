@@ -8,7 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "ascir/Dialect/Asc/Utils/Utils.h"
+#include "ascir/Dialect/Asc/Utils/Constants.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/AscTile/Utils/Attributes.h"
 #include "ascir/Dialect/Utils/CVGroupCanonicalization.h"
