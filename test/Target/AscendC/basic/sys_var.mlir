@@ -9,10 +9,10 @@
 // RUN: ascir-translate -mlir-to-ascendc %s | FileCheck %s
 
 // CHECK-LABEL:void emit_get_block_info() {
-// CHECK-NEXT:  uint32_t v1 = static_cast<uint32_t>(AscendC::GetBlockIdx());
-// CHECK-NEXT:  int64_t v2 = static_cast<int64_t>(AscendC::GetBlockIdx());
-// CHECK-NEXT:  uint32_t v3 = static_cast<uint32_t>(AscendC::GetBlockNum());
-// CHECK-NEXT:  int32_t v4 = static_cast<int32_t>(AscendC::GetBlockNum());
+// CHECK-NEXT:  uint32_t v1 = AscendC::GetBlockIdx();
+// CHECK-NEXT:  int64_t v2 = AscendC::GetBlockIdx();
+// CHECK-NEXT:  uint32_t v3 = AscendC::GetBlockNum();
+// CHECK-NEXT:  int32_t v4 = AscendC::GetBlockNum();
 // CHECK-NEXT:  return;
 // CHECK-NEXT: }
 func.func @emit_get_block_info() {
