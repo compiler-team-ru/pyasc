@@ -224,6 +224,14 @@ def minimum(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor,
                           common_support_dtypes)
 
 
+@bind_tensor_method(name="__pow__", binary_op="**")
+@require_jit
+@set_docstring("power", (KT.int8, KT.int16, KT.int32, KT.float16, KT.float32))
+def pow(input: Union[LocalTensor, RuntimeNumeric], other: Union[LocalTensor, RuntimeNumeric]) -> LocalTensor:
+    build = lambda lhs, rhs: global_builder.get_ir_builder().create_asctile_PowerOp(lhs.get_type(), lhs, rhs)
+    return op_binary_impl(input, other, build, build, (KT.int8, KT.int16, KT.int32, KT.float16, KT.float32))
+
+
 @bind_tensor_method(name="__and__", binary_op="&")
 @require_jit
 @set_docstring("AND (bitwise)", bitwise_support_dtypes)

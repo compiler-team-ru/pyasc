@@ -337,4 +337,13 @@ def ScatterOp : AscTile_Op<"scatter", [AllElementTypesMatch<["dst", "src"]>, Att
   }];
 }
 
+def PowerOp : AscTile_Op<"power", [Pure, AllTypesMatch<["lhs", "rhs", "result"]>]> {
+  let summary = "Compute one tensor to the power of other tensor";
+  let arguments = (ins NumericLocalTensor:$lhs, NumericLocalTensor:$rhs);
+  let results = (outs NumericLocalTensor:$result);
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($result)";
+  let hasCanonicalizeMethod = 1;
+  let hasFolder = 1;
+}
+
 #endif // ASCTILE_OPS_TD

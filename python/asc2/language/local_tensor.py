@@ -137,6 +137,9 @@ class LocalTensor(IRValue):
     def __xor__(self, other: Union[Self, RuntimeNumeric]) -> Self:
         ...
 
+    def __pow__(self, other: Union[Self, RuntimeNumeric]) -> Self:
+        ...
+
     def __lshift__(self, other: RuntimeInt) -> Self:
         ...
 
@@ -178,6 +181,10 @@ class LocalTensor(IRValue):
     def __rxor__(self, other: Union[Self, RuntimeNumeric]) -> Self:
         from .binary_ops import bitwise_xor
         return bitwise_xor(other, self)
+
+    def __rpow__(self, other: Union[Self, RuntimeNumeric]) -> Self:
+        from .binary_ops import pow
+        return pow(other, self)
 
     def __rmatmul__(self, other: Self) -> Self:
         from .binary_ops import matmul

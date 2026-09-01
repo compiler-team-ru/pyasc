@@ -6,7 +6,7 @@
 // INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 // See LICENSE in the root of the software repository for the full text of the License.
 
-// RUN: ascir-opt -asclower-asctile -canonicalize %s | FileCheck %s
+// RUN: ascir-opt -asclower-asctile -canonicalize -split-input-file %s | FileCheck %s
 
 // CHECK-LABEL: func.func @lower_tensor_static(%arg0: memref<*xf32, 22>) -> tensor<16x8xf32, #asctile.global> {
 // CHECK-NEXT:  %0 = ascendc.global_tensor : !ascendc.global_tensor<16x8xf32>
@@ -268,4 +268,64 @@ func.func @lower_vector_group(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tens
     asctile.yield %1 : tensor<32xf32, #asctile.local<UB>>
   } : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @lower_power_i32(%arg0: tensor<16xi32, #asctile.local<UB>>, %arg1: tensor<16xi32, #asctile.local<UB>>) -> tensor<16xi32, #asctile.local<UB>> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg1 : tensor<16xi32, #asctile.local<UB>> to !ascendc.local_tensor<16xi32>
+// CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %arg0 : tensor<16xi32, #asctile.local<UB>> to !ascendc.local_tensor<16xi32>
+// CHECK-NEXT:  %2 = ascendc.local_tensor_auto veccalc() : <16xi32>
+// CHECK-NEXT:  %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<16xi32> to tensor<16xi32, #asctile.local<UB>>
+// CHECK-NEXT:  %4 = ascendc.local_tensor_auto veccalc() : <1536xui8>
+// CHECK-NEXT:  ascendc.power %2, %1, %0, %4, %c16_i32, %false {operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 1>} : !ascendc.local_tensor<16xi32>, !ascendc.local_tensor<16xi32>, !ascendc.local_tensor<16xi32>, !ascendc.local_tensor<1536xui8>, i32, i1
+// CHECK-NEXT:  return %3 : tensor<16xi32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @lower_power_i32(%arg0: tensor<16xi32, #asctile.local<UB>>, %arg1: tensor<16xi32, #asctile.local<UB>>) -> tensor<16xi32, #asctile.local<UB>> {
+  %0 = asctile.power %arg0, %arg1 : tensor<16xi32, #asctile.local<UB>>
+  return %0 : tensor<16xi32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @lower_power_f16(%arg0: tensor<32xf16, #asctile.local<UB>>, %arg1: tensor<32xf16, #asctile.local<UB>>) -> tensor<32xf16, #asctile.local<UB>> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg1 : tensor<32xf16, #asctile.local<UB>> to !ascendc.local_tensor<32xf16>
+// CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %arg0 : tensor<32xf16, #asctile.local<UB>> to !ascendc.local_tensor<32xf16>
+// CHECK-NEXT:  %2 = ascendc.local_tensor_auto veccalc() : <32xf16>
+// CHECK-NEXT:  %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<32xf16> to tensor<32xf16, #asctile.local<UB>>
+// CHECK-NEXT:  %4 = ascendc.local_tensor_auto veccalc() : <2048xui8>
+// CHECK-NEXT:  ascendc.power %2, %1, %0, %4, %c32_i32, %false {operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 1>} : !ascendc.local_tensor<32xf16>, !ascendc.local_tensor<32xf16>, !ascendc.local_tensor<32xf16>, !ascendc.local_tensor<2048xui8>, i32, i1
+// CHECK-NEXT:  return %3 : tensor<32xf16, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @lower_power_f16(%arg0: tensor<32xf16, #asctile.local<UB>>, %arg1: tensor<32xf16, #asctile.local<UB>>) -> tensor<32xf16, #asctile.local<UB>> {
+  %0 = asctile.power %arg0, %arg1 : tensor<32xf16, #asctile.local<UB>>
+  return %0 : tensor<32xf16, #asctile.local<UB>>
+}
+
+// -----
+
+module attributes {asc.compilation_arch = "c310"} {
+// CHECK-LABEL: func.func @lower_power_i32_c310(%arg0: tensor<16xi32, #asctile.local<UB>>, %arg1: tensor<16xi32, #asctile.local<UB>>) -> tensor<16xi32, #asctile.local<UB>> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg1 : tensor<16xi32, #asctile.local<UB>> to !ascendc.local_tensor<16xi32>
+// CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %arg0 : tensor<16xi32, #asctile.local<UB>> to !ascendc.local_tensor<16xi32>
+// CHECK-NEXT:  %2 = ascendc.local_tensor_auto veccalc() : <16xi32>
+// CHECK-NEXT:  %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<16xi32> to tensor<16xi32, #asctile.local<UB>>
+// CHECK-NEXT:  %4 = ascendc.local_tensor_auto veccalc() : <0xui8>
+// CHECK-NEXT:  ascendc.power %2, %1, %0, %4, %c16_i32, %false {operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 1>} : !ascendc.local_tensor<16xi32>, !ascendc.local_tensor<16xi32>, !ascendc.local_tensor<16xi32>, !ascendc.local_tensor<0xui8>, i32, i1
+// CHECK-NEXT:  return %3 : tensor<16xi32, #asctile.local<UB>>
+// CHECK-NEXT:}
+  func.func @lower_power_i32_c310(%arg0: tensor<16xi32, #asctile.local<UB>>, %arg1: tensor<16xi32, #asctile.local<UB>>) -> tensor<16xi32, #asctile.local<UB>> {
+    %0 = asctile.power %arg0, %arg1 : tensor<16xi32, #asctile.local<UB>>
+    return %0 : tensor<16xi32, #asctile.local<UB>>
+  }
+
+// CHECK-LABEL: func.func @lower_power_f16_c310(%arg0: tensor<32xf16, #asctile.local<UB>>, %arg1: tensor<32xf16, #asctile.local<UB>>) -> tensor<32xf16, #asctile.local<UB>> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg1 : tensor<32xf16, #asctile.local<UB>> to !ascendc.local_tensor<32xf16>
+// CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %arg0 : tensor<32xf16, #asctile.local<UB>> to !ascendc.local_tensor<32xf16>
+// CHECK-NEXT:  %2 = ascendc.local_tensor_auto veccalc() : <32xf16>
+// CHECK-NEXT:  %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<32xf16> to tensor<32xf16, #asctile.local<UB>>
+// CHECK-NEXT:  %4 = ascendc.local_tensor_auto veccalc() : <384xui8>
+// CHECK-NEXT:  ascendc.power %2, %1, %0, %4, %c32_i32, %false {operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 1>} : !ascendc.local_tensor<32xf16>, !ascendc.local_tensor<32xf16>, !ascendc.local_tensor<32xf16>, !ascendc.local_tensor<384xui8>, i32, i1
+// CHECK-NEXT:  return %3 : tensor<32xf16, #asctile.local<UB>>
+// CHECK-NEXT:}
+  func.func @lower_power_f16_c310(%arg0: tensor<32xf16, #asctile.local<UB>>, %arg1: tensor<32xf16, #asctile.local<UB>>) -> tensor<32xf16, #asctile.local<UB>> {
+    %0 = asctile.power %arg0, %arg1 : tensor<32xf16, #asctile.local<UB>>
+    return %0 : tensor<32xf16, #asctile.local<UB>>
+  }
 }
