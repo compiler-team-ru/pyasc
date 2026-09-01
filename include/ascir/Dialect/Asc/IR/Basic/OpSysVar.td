@@ -20,29 +20,27 @@ include "mlir/Interfaces/CastInterfaces.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/OpBase.td"
 
-def AscendC_GetArchVersionOp : APIOp<"get_arch_version", "GetArchVersion", [AscFunc]> {
+def AscendC_GetArchVersionOp : APIOp<"get_arch_version", "GetArchVersion", [Pure, AscFunc]> {
   let description = "Obtain the architecture version";
   let arguments = (ins AnyType:$coreVersion);
   let paramTypeLists = [0];
 }
 
-def AscendC_GetBlockIdxOp : APIOp<"get_block_idx", "GetBlockIdx", [Pure]> {
+def AscendC_GetBlockIdxOp : APIOp<"get_block_idx", "GetBlockIdx", [Pure, AscFunc]> {
   let description = "Obtain an index of the current block";
   let results = (outs AnySignlessIntegerOrIndex:$value);
   let assemblyFormat = "attr-dict `:` type($value)";
 }
 
-def AscendC_GetBlockNumOp : APIOp<"get_block_num", "GetBlockNum", [Pure]> {
+def AscendC_GetBlockNumOp : APIOp<"get_block_num", "GetBlockNum", [Pure, AscFunc]> {
   let description = "Obtain the number of active blocks";
   let results = (outs AnySignlessIntegerOrIndex:$value);
   let assemblyFormat = "attr-dict `:` type($value)";
 }
 
-def AscendC_GetVecLenOp : APIOp<"get_vec_len", "GetVecLen"> {
+def AscendC_GetVecLenOp : APIOp<"get_vec_len", "GetVecLen", [Pure, AscFunc]> {
   let results = (outs AnySignlessIntegerOrIndex:$oneRepeatSize);
-  let assemblyFormat = [{
-    attr-dict `:` qualified(type($oneRepeatSize))
-  }];
+  let assemblyFormat = "attr-dict `:` type($oneRepeatSize)";
 }
 
 def AscendC_GetDataBlockSizeInBytesOp : APIOp<"get_data_block_size_in_bytes", "GetDataBlockSizeInBytes", [AscFunc]> {
@@ -57,14 +55,13 @@ def AscendC_GetProgramCounterOp : APIOp<"get_program_counter", "GetProgramCounte
   let assemblyFormat = "attr-dict `:` type($value)";
 }
 
-def AscendC_GetSubBlockIdxOp
-    : APIOp<"get_sub_block_idx", "GetSubBlockIdx", [AscFunc]> {
+def AscendC_GetSubBlockIdxOp : APIOp<"get_sub_block_idx", "GetSubBlockIdx", [Pure, AscFunc]> {
   let description = "Get the vector core ID in AI Core";
   let results = (outs AnySignlessIntegerOrIndex:$value);
   let assemblyFormat = "attr-dict `:` type($value)";
 }
 
-def AscendC_GetSubBlockNumOp : APIOp<"get_sub_block_num", "GetSubBlockNum", [AscFunc]> {
+def AscendC_GetSubBlockNumOp : APIOp<"get_sub_block_num", "GetSubBlockNum", [Pure, AscFunc]> {
   let description = "Get the num of vector core in aicore";
   let results = (outs AnySignlessIntegerOrIndex:$value);
   let assemblyFormat = "attr-dict `:` type($value)";
@@ -76,8 +73,7 @@ def AscendC_GetSystemCycleOp : APIOp<"get_system_cycle", "GetSystemCycle", [AscF
   let assemblyFormat = "attr-dict `:` type($value)";
 }
 
-def AscendC_GetTaskRatioOp
-    : APIOp<"get_task_ratio", "GetTaskRatio", [AscFunc]> {
+def AscendC_GetTaskRatioOp : APIOp<"get_task_ratio", "GetTaskRatio", [Pure, AscFunc]> {
   let description = "Get the ratio of task cores to AI Core, return 1 in coupled mode";
   let results = (outs I64:$value);
   let assemblyFormat = "attr-dict `:` type($value)";

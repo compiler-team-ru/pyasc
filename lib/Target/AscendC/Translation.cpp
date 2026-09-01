@@ -30,7 +30,6 @@
 #include "ascir/Target/Asc/Basic/Reg.h"
 #include "ascir/Target/Asc/Basic/Scalar.h"
 #include "ascir/Target/Asc/Basic/SwapMem.h"
-#include "ascir/Target/Asc/Basic/SysVar.h"
 #include "ascir/Target/Asc/Basic/VecBilinearInterpolation.h"
 #include "ascir/Target/Asc/Basic/VecBinary.h"
 #include "ascir/Target/Asc/Basic/VecBinaryScalar.h"
@@ -169,8 +168,6 @@ using PrintableOpTypes = std::tuple<
     ascendc::ScalarCastOp,
     // Swap and workspace operations
     ascendc::GetSysWorkspacePtrOp, ascendc::SetSysWorkspaceOp,
-    // System variable operations
-    ascendc::GetBlockIdxOp, ascendc::GetBlockNumOp, ascendc::GetVecLenOp,
     // Vector bilinear interpolation
     ascendc::BilinearInterpolationL0Op, ascendc::BilinearInterpolationL1Op,
     // Vector binary operations

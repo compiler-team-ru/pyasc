@@ -110,4 +110,4 @@ def trap() -> None:
 
 @require_jit
 def get_sub_block_num() -> RuntimeInt:
-    return PlainValue(global_builder.get_ir_builder().create_asc_GetSubBlockNumOp(KnownTypes.uint64.to_ir()))
+    return PlainValue(global_builder.get_ir_builder().create_asc_GetSubBlockNumOp(KnownTypes.int64.to_ir()))

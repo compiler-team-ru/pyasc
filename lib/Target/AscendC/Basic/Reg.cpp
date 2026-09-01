@@ -58,14 +58,6 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::Dupli
     return success();
 }
 
-LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GetVecLenOp op)
-{
-    FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
-    auto& os = emitter.ostream();
-    os << " = " << ascNamespace << "::" << op.getAPIName() << "()";
-    return success();
-}
-
 LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::LocalMemBarOp op)
 {
     auto& os = emitter.ostream();
