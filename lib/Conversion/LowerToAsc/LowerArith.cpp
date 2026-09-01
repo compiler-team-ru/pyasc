@@ -116,9 +116,8 @@ struct ConvertSelect : ConvertOp<arith::SelectOp> {
         auto src0 = rewriter.getRemappedValue(op.getTrueValue());
         auto src1 = rewriter.getRemappedValue(op.getFalseValue());
         auto zero = ascir::ConstantOpBuilder(rewriter).i64(0);
-        rewriter.create<ascendc::SelectL0Op>(
-            loc, dst, sel, src0, src1, ascendc::SELMODE::VSEL_TENSOR_TENSOR_MODE, zero, zero,
-            rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::BinaryRepeatParamsType>()));
+        rewriter.create<ascendc::SelectL2Op>(
+            loc, dst, sel, src0, src1, ascendc::SELMODE::VSEL_TENSOR_TENSOR_MODE, zero);
         rewriter.replaceOp(op, dst);
         return success();
     }

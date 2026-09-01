@@ -57,8 +57,7 @@ func.func @lower_negf(%arg0: tensor<16xf32, #asctile.local<UB>>) -> tensor<16xf3
 // CHECK-NEXT:  %3 = ascendc.local_tensor_auto veccalc() : <32xf32>
 // CHECK-NEXT:  %4 = builtin.unrealized_conversion_cast %3 : !ascendc.local_tensor<32xf32> to tensor<32xf32, #asctile.local<UB>>
 // CHECK-NEXT:  %5 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<4xi8> to !ascendc.local_tensor<4xui8>
-// CHECK-NEXT:  %6 = ascendc.construct !ascendc.binary_repeat_params()
-// CHECK-NEXT:  ascendc.select_l0 %3, %5, %1, %0, %c0_i64, %c0_i64, %6 {selMode = 2 : i32} : !ascendc.local_tensor<32xf32>, !ascendc.local_tensor<4xui8>, !ascendc.local_tensor<32xf32>, !ascendc.local_tensor<32xf32>, i64, i64, !ascendc.binary_repeat_params
+// CHECK-NEXT:  ascendc.select_l2 %3, %5, %1, %0, %c0_i64 {selMode = 2 : i32} : !ascendc.local_tensor<32xf32>, !ascendc.local_tensor<4xui8>, !ascendc.local_tensor<32xf32>, !ascendc.local_tensor<32xf32>, i64
 // CHECK-NEXT:  return %4 : tensor<32xf32, #asctile.local<UB>>
 // CHECK-NEXT:}
 func.func @lower_select(%arg0: tensor<32xi1, #asctile.local<UB>>, %arg1: tensor<32xf32, #asctile.local<UB>>, %arg2: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {

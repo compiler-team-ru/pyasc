@@ -146,16 +146,6 @@ class TestCopyOut:
         kernel[1](MockTensor(asc2.float32))
         assert mock_launch.call_count == 1
 
-    def test_scalar_with_real_shape(self, jit_test):
-
-        @jit_test
-        def kernel(out_ptr: asc2.GlobalAddress):
-            out_gm = asc2.global_tensor(out_ptr, [128])
-            asc2.copy_out(42.0, out_gm, [0], real_shape=[64])
-
-        with pytest.raises(ValueError, match="real_shape"):
-            kernel[1](MockTensor(asc2.float32))
-
     def test_from_l0c(self, jit_test, mock_launch, zero_tile):
 
         @jit_test

@@ -44,6 +44,15 @@ func.func @test_vecscalar_l2(%arg0: !ascendc.local_tensor<64xf32>, %arg1: !ascen
   return
 }
 
+// CHECK-LABEL: func.func @test_select_l2(%arg0: !ascendc.local_tensor<32xf32>, %arg1: !ascendc.local_tensor<4xui8>, %arg2: !ascendc.local_tensor<32xf32>, %arg3: !ascendc.local_tensor<32xf32>, %arg4: i64) {
+// CHECK:       ascendc.select_l2 %arg0, %arg1, %arg2, %arg3, %c32_i64 {selMode = 2 : i32} : !ascendc.local_tensor<32xf32>, !ascendc.local_tensor<4xui8>, !ascendc.local_tensor<32xf32>, !ascendc.local_tensor<32xf32>, i64
+// CHECK-NEXT:  return
+// CHECK-NEXT:}
+func.func @test_select_l2(%arg0: !ascendc.local_tensor<32xf32>, %arg1: !ascendc.local_tensor<4xui8>, %arg2: !ascendc.local_tensor<32xf32>, %arg3: !ascendc.local_tensor<32xf32>, %arg4: i64) {
+  ascendc.select_l2 %arg0, %arg1, %arg2, %arg3, %arg4 {selMode = 2 : i32} : !ascendc.local_tensor<32xf32>, !ascendc.local_tensor<4xui8>, !ascendc.local_tensor<32xf32>, !ascendc.local_tensor<32xf32>, i64
+  return
+}
+
 // CHECK-LABEL: func.func @test_l2_cal_count_set(%arg0: !ascendc.local_tensor<64xf32>, %arg1: f32, %arg2: i32) {
 // CHECK-NEXT:  ascendc.duplicate_l2 %arg0, %arg1, %arg2 {asc.cal_count_set} : !ascendc.local_tensor<64xf32>, f32, i32
 // CHECK-NEXT:  return
