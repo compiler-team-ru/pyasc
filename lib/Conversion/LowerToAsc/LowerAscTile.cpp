@@ -10,7 +10,6 @@
 
 #include "ascir/Conversion/LowerToAsc/Passes.h"
 #include "ascir/Dialect/Asc/IR/Asc.h"
-#include "ascir/Dialect/Asc/Utils/Attributes.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/AscTile/Utils/Attributes.h"
@@ -21,6 +20,7 @@
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "mlir/Pass/Pass.h"
 
 #include <algorithm>
@@ -601,6 +601,55 @@ struct ConvertCVGroup : ConvertOp<GroupOp> {
     }
 };
 
+struct ConvertPower : ConvertOp<asctile::PowerOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    static int64_t getMinTmpSize(ShapedType type, bool tensorScalar, bool isC310)
+    {
+        // The algorithm is based on the tiling functions for GetPowerMaxMinTmpSize:
+        // https://gitcode.com/cann/asc-devkit/blob/21b65e6b4529cfee301cade083af82df5470639c/impl/adv_api/tiling/math/power_tiling_impl.cpp
+        Type elemTy = type.getElementType();
+        if (isC310) {
+            constexpr uint32_t floatSize = 4;
+            constexpr uint32_t powTriple = 3;
+            if (isa<FloatType>(elemTy))
+                return static_cast<int64_t>(floatSize) * type.getNumElements() * powTriple;
+            return 0; // int: not allocated
+        }
+        constexpr uint32_t powerMinTmpSize = ascendc::repeatBlockSize;
+        uint32_t minTmpSize = 0;
+        if (isa<IntegerType>(elemTy)) { // intTT=6, intTS=7
+            uint32_t calcProc = tensorScalar ? 7U : 6U;
+            minTmpSize = powerMinTmpSize * calcProc;
+        } else if (isa<Float32Type>(elemTy)) { // floatTT=4, floatTS=5
+            uint32_t calcProc = tensorScalar ? 5U : 4U;
+            minTmpSize = powerMinTmpSize * calcProc + ascendc::repeatBlockSize;
+        } else if (isa<Float16Type, BFloat16Type>(elemTy)) { // halfTT = halfTS = 14
+            constexpr uint32_t powHalfCalcProc = 2;          // half = float / 2
+            constexpr uint32_t calcProc = 14U;
+            minTmpSize = (powerMinTmpSize * calcProc) / powHalfCalcProc + ascendc::repeatBlockSize;
+        }
+        return static_cast<int64_t>(minTmpSize);
+    }
+
+    LogicalResult matchAndRewrite(asctile::PowerOp op, ConvertRewriter& rewriter) const override
+    {
+        auto loc = op.getLoc();
+        auto dst = createTensorOp(rewriter, loc, op.getType());
+        Value src0 = rewriter.getRemappedValue(op.getLhs());
+        Value src1 = rewriter.getRemappedValue(op.getRhs());
+        int64_t bufferSize = getMinTmpSize(dst.getType(), false, ascendc::isTargetArchC310(op));
+        auto tmpBuffer = createTensorOp(rewriter, loc, bufferSize, rewriter.getIntegerType(8, false));
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto count = consts.i32(calCount(dst));
+        // TODO: Implement PowerAlgo::DOUBLE_FLOAT_TECH to support more types
+        rewriter.create<ascendc::PowerOp>(loc, dst, src0, src1, tmpBuffer, count, consts.i1(false));
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
 struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePass> {
     void runOnOperation() override
     {
@@ -611,7 +660,7 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         target.addIllegalOp<
             //
             asctile::TensorOp, asctile::AccumulatorOp, asctile::SoftmaxOp, asctile::ReshapeOp, asctile::BroadcastOp,
-            asctile::ReduceOp, asctile::InlineVFOp, asctile::CubeGroupOp, asctile::VectorGroupOp
+            asctile::ReduceOp, asctile::InlineVFOp, asctile::CubeGroupOp, asctile::VectorGroupOp, asctile::PowerOp
             //
             >();
         target.addLegalDialect<
@@ -622,7 +671,7 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
             //
             ConvertTensor, ConvertAccumulator, ConvertReshape, ConvertBroadcast, ConvertSoftmax, ConvertRmsNorm,
             ConvertLayerNorm, ConvertReduce, ConvertInlineVF, ConvertCVGroup<asctile::CubeGroupOp, ascendc::IfAICOp>,
-            ConvertCVGroup<asctile::VectorGroupOp, ascendc::IfAIVOp>
+            ConvertCVGroup<asctile::VectorGroupOp, ascendc::IfAIVOp>, ConvertPower
             //
             >(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())

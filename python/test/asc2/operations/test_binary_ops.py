@@ -34,6 +34,7 @@ binary_ops = [
      [torch.int16, torch.int32, torch.int64, torch.float16, torch.bfloat16, torch.float32]),
     (asc2.minimum, torch.minimum, all_formats,
      [torch.int16, torch.int32, torch.int64, torch.float16, torch.bfloat16, torch.float32]),
+    (asc2.pow, torch.pow, all_formats, [torch.int8, torch.int16, torch.int32, torch.float16, torch.float32]),
 ]
 
 
@@ -100,9 +101,12 @@ def test_binary_operations(require_c310, asc_op, torch_op, fmt, dtype, mask_type
     if any((
             dtype in (torch.bfloat16, torch.int8, torch.int64),
             asc_op is asc2.div and not dtype.is_floating_point,
+            asc_op is asc2.pow and dtype == torch.int16,
             asc_op in (asc2.bitwise_and, asc2.bitwise_or, asc2.bitwise_xor) and dtype != torch.int16,
     )):
         require_c310()
+    if asc_op is asc2.pow and mask_type != NO_MASK:
+        pytest.skip("asc2.pow doesn't support masking")
     if mask_type == COUNT_MASK and dtype in (torch.int8, torch.int64):
         pytest.skip("L0 API has incorrect assertion")
 

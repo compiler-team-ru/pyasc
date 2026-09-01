@@ -79,6 +79,7 @@ from .language.binary_ops import (
     minimum,
     mul,
     not_equal,
+    pow,
     right_shift,
     sub,
 )
@@ -191,6 +192,7 @@ __all__ += [
     "minimum",
     "mul",
     "not_equal",
+    "pow",
     "right_shift",
     "sub",
     # .language.creation_ops

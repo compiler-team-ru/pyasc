@@ -74,6 +74,8 @@ specs = (
                  operator_fn=operator.truediv, invalid_cases=common_invalid_cases),
     BinaryOpSpec(fn=asc2.maximum, operator_fn=None, invalid_cases=common_invalid_cases),
     BinaryOpSpec(fn=asc2.minimum, operator_fn=None, invalid_cases=common_invalid_cases),
+    BinaryOpSpec(fn=asc2.pow, valid_dtypes=(asc2.int8, asc2.int16, asc2.int32, asc2.float16, asc2.float32),
+                 operator_fn=operator.pow, invalid_cases=common_invalid_cases),
     BinaryOpSpec(fn=asc2.equal, valid_dtypes=compare_valid_dtypes, operator_fn=operator.eq,
                  invalid_cases=common_invalid_cases),
     BinaryOpSpec(fn=asc2.not_equal, valid_dtypes=compare_valid_dtypes, operator_fn=operator.ne,

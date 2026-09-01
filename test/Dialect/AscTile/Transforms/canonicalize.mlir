@@ -125,3 +125,114 @@ func.func @fold_broadcast_constant() -> tensor<4xf32, #asctile.local<UB>> {
   %0 = asctile.broadcast %cst : tensor<1xf32, #asctile.local<UB>> to tensor<4xf32, #asctile.local<UB>>
   return %0 : tensor<4xf32, #asctile.local<UB>>
 }
+
+// CHECK-LABEL: func.func @pow_canon_rhs_two_int(%arg0: tensor<16xi32, #asctile.local<UB>>) -> tensor<16xi32, #asctile.local<UB>> {
+// CHECK-NEXT: %0 = arith.muli %arg0, %arg0 : tensor<16xi32, #asctile.local<UB>>
+// CHECK-NEXT: return %0 : tensor<16xi32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @pow_canon_rhs_two_int(%arg0: tensor<16xi32, #asctile.local<UB>>) -> tensor<16xi32, #asctile.local<UB>> {
+  %r2 = arith.constant dense<2> : tensor<16xi32, #asctile.local<UB>>
+  %0 = asctile.power %arg0, %r2 : tensor<16xi32, #asctile.local<UB>>
+  return %0 : tensor<16xi32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @pow_canon_rhs_two_float(%arg0: tensor<16xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>> {
+// CHECK-NEXT: %0 = arith.mulf %arg0, %arg0 : tensor<16xf32, #asctile.local<UB>>
+// CHECK-NEXT: return %0 : tensor<16xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @pow_canon_rhs_two_float(%arg0: tensor<16xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>> {
+  %r2 = arith.constant dense<2.0> : tensor<16xf32, #asctile.local<UB>>
+  %0 = asctile.power %arg0, %r2 : tensor<16xf32, #asctile.local<UB>>
+  return %0 : tensor<16xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @pow_fold_rhs_zero_int(%arg0: tensor<16xi32, #asctile.local<UB>>) -> tensor<16xi32, #asctile.local<UB>> {
+// CHECK-NEXT: %cst = arith.constant dense<1> : tensor<16xi32, #asctile.local<UB>>
+// CHECK-NEXT: return %cst : tensor<16xi32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @pow_fold_rhs_zero_int(%arg0: tensor<16xi32, #asctile.local<UB>>) -> tensor<16xi32, #asctile.local<UB>> {
+  %r0 = arith.constant dense<0> : tensor<16xi32, #asctile.local<UB>>
+  %0 = asctile.power %arg0, %r0 : tensor<16xi32, #asctile.local<UB>>
+  return %0 : tensor<16xi32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @pow_fold_lhs_one_int(%arg0: tensor<16xi32, #asctile.local<UB>>) -> tensor<16xi32, #asctile.local<UB>> {
+// CHECK-NEXT: %cst = arith.constant dense<1> : tensor<16xi32, #asctile.local<UB>>
+// CHECK-NEXT: return %cst : tensor<16xi32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @pow_fold_lhs_one_int(%arg0: tensor<16xi32, #asctile.local<UB>>) -> tensor<16xi32, #asctile.local<UB>> {
+  %l1 = arith.constant dense<1> : tensor<16xi32, #asctile.local<UB>>
+  %0 = asctile.power %l1, %arg0 : tensor<16xi32, #asctile.local<UB>>
+  return %0 : tensor<16xi32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @pow_fold_rhs_zero_float(%arg0: tensor<32xf16, #asctile.local<UB>>) -> tensor<32xf16, #asctile.local<UB>> {
+// CHECK-NEXT: %cst = arith.constant dense<1.000000e+00> : tensor<32xf16, #asctile.local<UB>>
+// CHECK-NEXT: return %cst : tensor<32xf16, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @pow_fold_rhs_zero_float(%arg0: tensor<32xf16, #asctile.local<UB>>) -> tensor<32xf16, #asctile.local<UB>> {
+  %r0 = arith.constant dense<0.0> : tensor<32xf16, #asctile.local<UB>>
+  %0 = asctile.power %arg0, %r0 : tensor<32xf16, #asctile.local<UB>>
+  return %0 : tensor<32xf16, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @pow_fold_lhs_one_float(%arg0: tensor<32xf16, #asctile.local<UB>>) -> tensor<32xf16, #asctile.local<UB>> {
+// CHECK-NEXT: %cst = arith.constant dense<1.000000e+00> : tensor<32xf16, #asctile.local<UB>>
+// CHECK-NEXT: return %cst : tensor<32xf16, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @pow_fold_lhs_one_float(%arg0: tensor<32xf16, #asctile.local<UB>>) -> tensor<32xf16, #asctile.local<UB>> {
+  %l1 = arith.constant dense<1.0> : tensor<32xf16, #asctile.local<UB>>
+  %0 = asctile.power %l1, %arg0 : tensor<32xf16, #asctile.local<UB>>
+  return %0 : tensor<32xf16, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @pow_fold_rhs_one_int(%arg0: tensor<16xi32, #asctile.local<UB>>) -> tensor<16xi32, #asctile.local<UB>> {
+// CHECK-NEXT: return %arg0 : tensor<16xi32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @pow_fold_rhs_one_int(%arg0: tensor<16xi32, #asctile.local<UB>>) -> tensor<16xi32, #asctile.local<UB>> {
+  %r1 = arith.constant dense<1> : tensor<16xi32, #asctile.local<UB>>
+  %0 = asctile.power %arg0, %r1 : tensor<16xi32, #asctile.local<UB>>
+  return %0 : tensor<16xi32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @pow_fold_rhs_one_float(%arg0: tensor<32xf16, #asctile.local<UB>>) -> tensor<32xf16, #asctile.local<UB>> {
+// CHECK-NEXT: return %arg0 : tensor<32xf16, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @pow_fold_rhs_one_float(%arg0: tensor<32xf16, #asctile.local<UB>>) -> tensor<32xf16, #asctile.local<UB>> {
+  %r1 = arith.constant dense<1.0> : tensor<32xf16, #asctile.local<UB>>
+  %0 = asctile.power %arg0, %r1 : tensor<32xf16, #asctile.local<UB>>
+  return %0 : tensor<32xf16, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @pow_no_fold_rhs_three_int(%arg0: tensor<16xi32, #asctile.local<UB>>) -> tensor<16xi32, #asctile.local<UB>> {
+// CHECK-NEXT: %cst = arith.constant dense<3> : tensor<16xi32, #asctile.local<UB>>
+// CHECK-NEXT: %0 = asctile.power %arg0, %cst : tensor<16xi32, #asctile.local<UB>>
+// CHECK-NEXT: return %0 : tensor<16xi32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @pow_no_fold_rhs_three_int(%arg0: tensor<16xi32, #asctile.local<UB>>) -> tensor<16xi32, #asctile.local<UB>> {
+  %r3 = arith.constant dense<3> : tensor<16xi32, #asctile.local<UB>>
+  %0 = asctile.power %arg0, %r3 : tensor<16xi32, #asctile.local<UB>>
+  return %0 : tensor<16xi32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @pow_no_fold_rhs_three_float(%arg0: tensor<32xf16, #asctile.local<UB>>) -> tensor<32xf16, #asctile.local<UB>> {
+// CHECK-NEXT: %cst = arith.constant dense<3.000000e+00> : tensor<32xf16, #asctile.local<UB>>
+// CHECK-NEXT: %0 = asctile.power %arg0, %cst : tensor<32xf16, #asctile.local<UB>>
+// CHECK-NEXT: return %0 : tensor<32xf16, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @pow_no_fold_rhs_three_float(%arg0: tensor<32xf16, #asctile.local<UB>>) -> tensor<32xf16, #asctile.local<UB>> {
+  %r2 = arith.constant dense<3.0> : tensor<32xf16, #asctile.local<UB>>
+  %0 = asctile.power %arg0, %r2 : tensor<32xf16, #asctile.local<UB>>
+  return %0 : tensor<32xf16, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @pow_fold_constant_float() -> tensor<32xf16, #asctile.local<UB>> {
+// CHECK-NEXT:  %cst = arith.constant dense<5.000000e-01> : tensor<32xf16, #asctile.local<UB>>
+// CHECK-NEXT:  return %cst : tensor<32xf16, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @pow_fold_constant_float() -> tensor<32xf16, #asctile.local<UB>> {
+  %lhs = arith.constant dense<2.0> : tensor<32xf16, #asctile.local<UB>>
+  %rhs = arith.constant dense<-1.0> : tensor<32xf16, #asctile.local<UB>>
+  %0 = asctile.power %lhs, %rhs : tensor<32xf16, #asctile.local<UB>>
+  return %0 : tensor<32xf16, #asctile.local<UB>>
+}

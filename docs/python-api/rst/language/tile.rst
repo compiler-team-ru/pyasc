@@ -121,6 +121,7 @@ Math operations
     layer_norm
     log
     log2
+    pow
     relu
     rms_norm
     rsqrt

@@ -360,6 +360,53 @@ LogicalResult TransposeOp::verify()
 }
 
 //===----------------------------------------------------------------------===//
+// PowerOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult PowerOp::canonicalize(PowerOp op, PatternRewriter& rewriter)
+{
+    SplatElementsAttr attr;
+    if (!matchPattern(op.getRhs(), m_Constant(&attr)))
+        return failure();
+    auto elemType = op.getType().getElementType();
+    if (isa<IntegerType>(elemType)) {
+        if (attr.getSplatValue<IntegerAttr>().getValue().getSExtValue() != 2)
+            return failure();
+        rewriter.replaceOpWithNewOp<arith::MulIOp>(op, op.getLhs(), op.getLhs());
+        return success();
+    }
+    if (isa<FloatType>(elemType)) {
+        if (attr.getSplatValue<FloatAttr>().getValueAsDouble() != 2.0)
+            return failure();
+        rewriter.replaceOpWithNewOp<arith::MulFOp>(op, op.getLhs(), op.getLhs());
+        return success();
+    }
+    return failure();
+}
+
+OpFoldResult PowerOp::fold(FoldAdaptor)
+{
+    auto rhs = getRhs();
+    auto lhs = getLhs();
+    auto type = getType();
+    auto elemType = type.getElementType();
+    if (matchPattern(rhs, m_Zero()) || matchPattern(lhs, m_One()))
+        return SplatElementsAttr::get(type, IntegerAttr::get(elemType, 1L));
+    if (matchPattern(rhs, m_AnyZeroFloat()) || matchPattern(lhs, m_OneFloat()))
+        return SplatElementsAttr::get(type, FloatAttr::get(elemType, 1.0));
+    if (matchPattern(rhs, m_One()) || matchPattern(rhs, m_OneFloat()))
+        return lhs;
+    if (!isa<FloatType>(elemType))
+        return {};
+    SplatElementsAttr lhsAttr, rhsAttr;
+    if (!matchPattern(lhs, m_Constant(&lhsAttr)) || !matchPattern(rhs, m_Constant(&rhsAttr)))
+        return {};
+    double result = std::pow(
+        lhsAttr.getSplatValue<FloatAttr>().getValueAsDouble(), rhsAttr.getSplatValue<FloatAttr>().getValueAsDouble());
+    return SplatElementsAttr::get(type, FloatAttr::get(elemType, result));
+}
+
+//===----------------------------------------------------------------------===//
 // AscTileDialect
 //===----------------------------------------------------------------------===//
 
