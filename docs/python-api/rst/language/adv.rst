@@ -66,5 +66,6 @@ Activation Ops
     :nosignatures:
 
     softmax
+    softmax_flash_v2
     swiglu
 

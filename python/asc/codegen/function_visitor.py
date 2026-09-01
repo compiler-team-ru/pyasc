@@ -115,7 +115,7 @@ class FunctionVisitor(ast.NodeVisitor):
         self.state = VisitorState()
         self.options = options
         self.is_kernel = is_kernel
-        if visited_return_types:
+        if visited_return_types is not None:
             self.state.visited_return_types = visited_return_types
 
     @staticmethod

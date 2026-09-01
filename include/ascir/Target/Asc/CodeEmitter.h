@@ -18,6 +18,7 @@
 #include "mlir/IR/Value.h"
 #include "mlir/Support/IndentedOstream.h"
 #include "llvm/ADT/ScopedHashTable.h"
+#include "llvm/ADT/SmallVector.h"
 
 #include <functional>
 #include <unordered_map>
@@ -37,7 +38,7 @@ struct CodeEmitter {
 
     explicit CodeEmitter(raw_ostream& os);
 
-    static void emitMatmulConfig(raw_ostream& os, ascendc::MatmulConfigAttr config);
+    static void emitMatmulConfig(raw_ostream& os, ascendc::MatmulConfigAttr config, StringRef configName);
 
     LogicalResult emitAscMatmulSimplifiedTemplate(Location loc, Type type, bool emitAsUnsigned);
 
@@ -91,8 +92,13 @@ struct CodeEmitter {
             : valueMapperScope(emitter.valueMapper), blockMapperScope(emitter.blockMapper), emitter(emitter)
         {
             emitter.nameStack.pushScope();
+            emitter.matmulConfigCounters.push_back(0);
         }
-        ~Scope() { emitter.nameStack.popScope(); }
+        ~Scope()
+        {
+            emitter.matmulConfigCounters.pop_back();
+            emitter.nameStack.popScope();
+        }
 
     private:
         llvm::ScopedHashTableScope<Value, std::string> valueMapperScope;
@@ -136,6 +142,9 @@ private:
     EmitTypeMapper emitTypeMapper;
 
     EmitAttributeMapper emitAttributeMapper;
+
+    /// Number of Matmul configuration declarations emitted in each C++ scope.
+    SmallVector<unsigned> matmulConfigCounters;
 
     void createTypeEmitMapper();
 

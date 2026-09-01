@@ -81,6 +81,8 @@ test_examples=(
     "./examples/06_gelu/gelu.py"
     "./examples/07_swiglu/swiglu.py"
     "./examples/08_rmsnorm/rmsnorm.py"
+    "./examples/09_linear/linear.py"
+    "./examples/10_fused_infer_attention/fused_infer_attention.py"
 )
 
 test_examples_perf=(
@@ -91,7 +93,7 @@ test_examples_perf=(
 passed_examples=()
 failed_examples=()
 sed -i 's/Model/NPU/g' ./python/test/kernels/*.py
-sed -i 's/default="Model"/default="NPU"/g' ./examples/0*/*.py
+sed -i 's/default="Model"/default="NPU"/g' ./examples/{0*,1*}/*.py
 
 for example_torch in "${test_examples[@]}"; do
     if run_test "$example_torch"; then

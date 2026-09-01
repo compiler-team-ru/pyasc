@@ -6,7 +6,7 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
-from .activation import softmax, swiglu
+from .activation import softmax, softmax_flash_v2, swiglu
 
 from .math import (
     acos,
@@ -69,11 +69,14 @@ from .types import (
     MatmulQuantParams,
     MatmulShapeParams,
     QuantConfig,
+    SoftMaxShapeInfo,
+    SoftmaxConfig,
 )
 
 __all__ = [
     # .activation
     "softmax",
+    "softmax_flash_v2",
     "swiglu",
     # .math
     "acos",
@@ -134,4 +137,6 @@ __all__ = [
     "MatmulQuantParams",
     "MatmulShapeParams",
     "QuantConfig",
+    "SoftMaxShapeInfo",
+    "SoftmaxConfig",
 ]

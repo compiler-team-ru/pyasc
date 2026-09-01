@@ -135,6 +135,29 @@ def test_func_visit_pass(filecheck):
 
 
 @asc.jit
+def nested_void_leaf(value):
+    result = value + 1
+
+
+@asc.jit
+def nested_void_middle(value):
+    for _ in asc.range(1):
+        nested_void_leaf(value)
+
+
+def test_nested_void_jit_functions(filecheck):
+
+    @asc.jit
+    def nested_void_kernel(value):
+        # CHECK-DAG: func.func @nested_void_middle
+        # CHECK-DAG: call @nested_void_leaf
+        # CHECK-DAG: call @nested_void_middle
+        nested_void_middle(value)
+
+    filecheck(nested_void_kernel)(1)
+
+
+@asc.jit
 def func_visit_return(x):
     return x
 

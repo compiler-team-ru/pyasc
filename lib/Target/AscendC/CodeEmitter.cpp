@@ -597,9 +597,9 @@ LogicalResult CodeEmitter::emitAscMaskRegType(Location /*loc*/, Type /*type*/, b
     return success();
 }
 
-void CodeEmitter::emitMatmulConfig(raw_ostream& os, ascendc::MatmulConfigAttr config)
+void CodeEmitter::emitMatmulConfig(raw_ostream& os, ascendc::MatmulConfigAttr config, StringRef configName)
 {
-    os << "constexpr static MatmulConfig CFG{";
+    os << "constexpr static MatmulConfig " << configName << "{";
     os << config.getDoNorm().getValue();
     os << ",";
     os << config.getDoBasicBlock().getValue();
@@ -728,7 +728,22 @@ void CodeEmitter::emitMatmulConfig(raw_ostream& os, ascendc::MatmulConfigAttr co
 LogicalResult CodeEmitter::emitAscMatmulTypeTemplate(Location loc, Type type, bool /*emitAsUnsigned*/)
 {
     auto pType = dyn_cast<ascendc::MatmulType>(type);
-    emitMatmulConfig(os, pType.getMatmulConfig());
+    if (matmulConfigCounters.empty()) {
+        emitError(loc) << "Matmul type emitted outside a C++ scope";
+        return failure();
+    }
+    unsigned configId = matmulConfigCounters.back()++;
+    std::string configName = configId == 0 ? "CFG" : "CFG_" + std::to_string(configId);
+    std::string staticConfigName = configId == 0 ? "STATIC_CFG" : "STATIC_CFG_" + std::to_string(configId);
+    emitMatmulConfig(os, pType.getMatmulConfig(), configName);
+    auto config = pType.getMatmulConfig();
+    bool useStaticTiling = config.getSingleCoreM().getInt() > 0;
+    if (useStaticTiling) {
+        os << "constexpr static auto " << staticConfigName << " = " << ascNamespace << "::GetMatmulApiTiling";
+        if (failed(emitAscMatmulSimplifiedTemplate(loc, type, false)))
+            return failure();
+        os << "(" << configName << ");";
+    }
     os << "matmul::Matmul";
     os << "<matmul::MatmulType<";
     emitTPosition(os, pType.getSrcAPosition());
@@ -777,7 +792,7 @@ LogicalResult CodeEmitter::emitAscMatmulTypeTemplate(Location loc, Type type, bo
     if (failed(emitType(loc, pType.getTypeBias())))
         return failure();
     os << ">, ";
-    os << "CFG";
+    os << (useStaticTiling ? staticConfigName : configName);
     os << ">";
     return success();
 }

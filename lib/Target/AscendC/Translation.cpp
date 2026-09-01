@@ -114,7 +114,7 @@ using PrintableOpTypes = std::tuple<
     emitasc::VariableOp, emitasc::VerbatimOp, emitasc::CopyStructOp, emitasc::InitStructOp,
     // Adv
     // Activation operations
-    ascendc::SimpleSoftMaxOp, ascendc::SoftMaxOp, ascendc::SwiGLUOp,
+    ascendc::SimpleSoftMaxOp, ascendc::SoftMaxOp, ascendc::SoftmaxFlashV2Op, ascendc::SwiGLUOp,
     // Kfc operations
     ascendc::KfcInitOp, ascendc::KfcInitObjOp, ascendc::KfcIsRunOp, ascendc::KfcRunOp, ascendc::KfcQuitOp,
     // Math

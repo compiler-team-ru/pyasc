@@ -327,3 +327,68 @@ func.func @emit_quant(%dst: !ascendc.local_tensor<*xi8>, %src: !ascendc.local_te
   ascendc.quant %dst, %src, %scale, %offset, %calCount {operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 0, 0>} : !ascendc.local_tensor<*xi8>, !ascendc.local_tensor<*xf32>, f32, f32, i32
   return
 }
+
+// CHECK-LABEL: void emit_softmax_flash_v2(__gm__ uint64_t* v1) {
+// CHECK-NEXT:   set_ffts_base_addr(*v1);
+// CHECK-NEXT:   constexpr int32_t c8_i32 = 8;
+// CHECK-NEXT:   constexpr int32_t c512_i32 = 512;
+// CHECK-NEXT:   constexpr int32_t c4096_i32 = 4096;
+// CHECK-NEXT:   constexpr uint32_t v2 = 8;
+// CHECK-NEXT:   constexpr uint32_t v3 = 512;
+// CHECK-NEXT:   constexpr int8_t c0_i8 = 0;
+// CHECK-NEXT:   constexpr int32_t c1_i32 = 1;
+// CHECK-NEXT:   constexpr int32_t c0_i32 = 0;
+// CHECK-NEXT:   AscendC::LocalTensor<half> v4;
+// CHECK-NEXT:   AscendC::LocalTensor<half> v5;
+// CHECK-NEXT:   AscendC::LocalTensor<half> v6;
+// CHECK-NEXT:   AscendC::LocalTensor<half> v7;
+// CHECK-NEXT:   AscendC::LocalTensor<float> v8;
+// CHECK-NEXT:   AscendC::LocalTensor<half> v9;
+// CHECK-NEXT:   AscendC::LocalTensor<uint8_t> v10;
+// CHECK-NEXT:   SoftMaxTiling v11;
+// CHECK-NEXT:   v11.srcM = c8_i32;
+// CHECK-NEXT:   v11.srcK = c512_i32;
+// CHECK-NEXT:   v11.srcSize = c4096_i32;
+// CHECK-NEXT:   AscendC::SoftMaxShapeInfo v12{v2, v3, v2, v3};
+// CHECK-NEXT:   static constexpr AscendC::SoftmaxConfig v13{static_cast<bool>(c0_i8), v2, v3, static_cast<AscendC::SoftmaxMode>(c1_i32)};
+// CHECK-NEXT:   AscendC::SoftmaxFlashV2<half, 0, 0, 0, 0>(v4, v5, v5, v6, v7, v5, v5, v11, v12);
+// CHECK-NEXT:   AscendC::SoftmaxFlashV2<half, 1, 0, 0, 0, v13>(v4, v9, v5, v5, v6, v7, v5, v5, v11, v12);
+// CHECK-NEXT:   AscendC::SoftmaxFlashV2<half, 0, 0, 0, 0>(v4, v8, v8, v6, v7, v8, v8, v11, v12);
+// CHECK-NEXT:   AscendC::SoftmaxFlashV2<half, 0, 0, 0, 0>(v4, v5, v5, v6, v7, v5, v5, v10, v11, v12);
+// CHECK-NEXT:   AscendC::SoftmaxFlashV2<half, 1, 0, 0, 0, v13>(v4, v9, v5, v5, v6, v7, v5, v5, v10, v11, v12);
+// CHECK-NEXT:   static constexpr AscendC::SoftmaxConfig v14{static_cast<bool>(c0_i8), v2, v3, static_cast<AscendC::SoftmaxMode>(c0_i32)};
+// CHECK-NEXT:   AscendC::SoftmaxFlashV2<half, 0, 0, 1, 0, v14>(v4, v8, v8, v6, v7, v8, v8, v10, v11, v12);
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+func.func @emit_softmax_flash_v2(%arg0: memref<?xui64, 22>){
+  ascendc.set_ffts_base_addr %arg0 : memref<?xui64, 22>
+  %c8_i32 = arith.constant 8 : i32
+  %c512_i32 = arith.constant 512 : i32
+  %c4096_i32 = arith.constant 4096 : i32
+  %0 = "emitc.constant"() <{value = 8 : ui32}> : () -> ui32
+  %1 = "emitc.constant"() <{value = 512 : ui32}> : () -> ui32
+  %c0_i8 = arith.constant 0 : i8
+  %c1_i32 = arith.constant 1 : i32
+  %c0_i32 = arith.constant 0 : i32
+  %2 = ascendc.local_tensor : !ascendc.local_tensor<*xf16>
+  %3 = ascendc.local_tensor : !ascendc.local_tensor<*xf16>
+  %4 = ascendc.local_tensor : !ascendc.local_tensor<*xf16>
+  %5 = ascendc.local_tensor : !ascendc.local_tensor<*xf16>
+  %6 = ascendc.local_tensor : !ascendc.local_tensor<*xf32>
+  %7 = ascendc.local_tensor : !ascendc.local_tensor<*xf16>
+  %8 = ascendc.local_tensor : !ascendc.local_tensor<*xui8>
+  %9 = ascendc.construct !ascendc.softmax_tiling()
+  emitasc.set_member %9 "srcM", %c8_i32 : !ascendc.softmax_tiling, i32
+  emitasc.set_member %9 "srcK", %c512_i32 : !ascendc.softmax_tiling, i32
+  emitasc.set_member %9 "srcSize", %c4096_i32 : !ascendc.softmax_tiling, i32
+  %10 = ascendc.construct !ascendc.softmax_shape_info(%0, %1, %0, %1) [ui32, ui32, ui32, ui32] : ui32, ui32, ui32, ui32
+  %11 = ascendc.construct !ascendc.softmax_config(%c0_i8, %0, %1, %c1_i32) [i1, ui32, ui32, !ascendc.softmax_mode] constexpr static : i8, ui32, ui32, i32
+  ascendc.softmax_flash_v2 %2, %3, %3, %4, %5, %3, %3, %9, %10 {operandSegmentSizes = array<i32: 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0>} : !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.softmax_tiling, !ascendc.softmax_shape_info
+  ascendc.softmax_flash_v2 %2, %7, %3, %3, %4, %5, %3, %3, %9, %10, %11 {isUpdate, operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1>} : !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.softmax_tiling, !ascendc.softmax_shape_info, !ascendc.softmax_config
+  ascendc.softmax_flash_v2 %2, %6, %6, %4, %5, %6, %6, %9, %10 {operandSegmentSizes = array<i32: 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0>} : !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.softmax_tiling, !ascendc.softmax_shape_info
+  ascendc.softmax_flash_v2 %2, %3, %3, %4, %5, %3, %3, %8, %9, %10 {operandSegmentSizes = array<i32: 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0>} : !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xui8>, !ascendc.softmax_tiling, !ascendc.softmax_shape_info
+  ascendc.softmax_flash_v2 %2, %7, %3, %3, %4, %5, %3, %3, %8, %9, %10, %11 {isUpdate, operandSegmentSizes = array<i32: 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1>} : !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xui8>, !ascendc.softmax_tiling, !ascendc.softmax_shape_info, !ascendc.softmax_config
+  %12 = ascendc.construct !ascendc.softmax_config(%c0_i8, %0, %1, %c0_i32) [i1, ui32, ui32, !ascendc.softmax_mode] constexpr static : i8, ui32, ui32, i32
+  ascendc.softmax_flash_v2 %2, %6, %6, %4, %5, %6, %6, %8, %9, %10, %12 {basicBlock, operandSegmentSizes = array<i32: 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1>} : !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf16>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xf32>, !ascendc.local_tensor<*xui8>, !ascendc.softmax_tiling, !ascendc.softmax_shape_info, !ascendc.softmax_config
+  return
+}

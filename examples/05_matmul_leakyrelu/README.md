@@ -15,9 +15,6 @@ C = C >= 0 ? C : C * alpha
 |------|------|
 | AI 处理器 | Ascend 910B / 910C |
 | CANN 版本 | 社区版 8.5.0.alpha001 及以上 |
-| Python | 3.9 ~ 3.12 |
-| PyTorch | 2.7.1 |
-| torch_npu | 7.3.0 |
 
 注意：
 

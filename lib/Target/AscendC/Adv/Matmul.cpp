@@ -51,6 +51,13 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::Regis
        << emitter.getOrCreateName(op.getWorkspace()) << ", " << emitter.getOrCreateName(op.getMatmul());
     if (auto tiling = op.getTiling()) {
         os << ", &" << emitter.getOrCreateName(tiling);
+    } else {
+        auto matmulType = dyn_cast<ascendc::MatmulType>(op.getMatmul().getType());
+        if (!matmulType)
+            return op.emitError("expected matmul operand to have MatmulType");
+        auto config = matmulType.getMatmulConfig();
+        if (config.getSingleCoreM().getInt() > 0)
+            os << ", (TCubeTiling*)nullptr";
     }
     os << ")";
     return success();

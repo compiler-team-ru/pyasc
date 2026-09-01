@@ -47,3 +47,42 @@ def test_swiglu(mock_launcher_run):
 
     kernel_swiglu[1]()
     assert mock_launcher_run.call_count == 1
+
+
+def test_softmax_flash_v2(mock_launcher_run):
+
+    @asc.jit
+    def kernel_softmax_flash_v2() -> None:
+        dst_half = asc.LocalTensor(dtype=asc.float16)
+        state_half = asc.LocalTensor(dtype=asc.float16)
+        src_half = asc.LocalTensor(dtype=asc.float16)
+        exp_max_half = asc.LocalTensor(dtype=asc.float16)
+        state_float = asc.LocalTensor(dtype=asc.float32)
+        reduce_max = asc.LocalTensor(dtype=asc.float16)
+        shared_tmp = asc.LocalTensor(dtype=asc.uint8)
+        tiling = asc.adv.SoftmaxTiling(src_m=8, src_k=512, src_size=4096)
+        shape = asc.adv.SoftMaxShapeInfo(8, 512, 8, 512)
+        reduce_config = asc.adv.SoftmaxConfig(False, 8, 512, asc.SoftmaxMode.SOFTMAX_OUTPUT_WITHOUT_BRC)
+
+        asc.adv.softmax_flash_v2(dst_half, state_half, state_half, src_half, exp_max_half, state_half, state_half,
+                                 tiling, shape)
+        asc.adv.softmax_flash_v2(dst_half, state_half, state_half, src_half, exp_max_half, state_half, state_half,
+                                 tiling, shape, out_reduce_max=reduce_max, is_update=True, config=reduce_config)
+
+        asc.adv.softmax_flash_v2(dst_half, state_float, state_float, src_half, exp_max_half, state_float, state_float,
+                                 tiling, shape)
+
+        asc.adv.softmax_flash_v2(dst_half, state_half, state_half, src_half, exp_max_half, state_half, state_half,
+                                 tiling, shape, shared_tmp_buffer=shared_tmp)
+
+        asc.adv.softmax_flash_v2(dst_half, state_half, state_half, src_half, exp_max_half, state_half, state_half,
+                                 tiling, shape, shared_tmp_buffer=shared_tmp, out_reduce_max=reduce_max, is_update=True,
+                                 config=reduce_config)
+
+        full_tile_config = asc.adv.SoftmaxConfig(False, 8, 512)
+        asc.adv.softmax_flash_v2(dst_half, state_float, state_float, src_half, exp_max_half, state_float, state_float,
+                                 tiling, shape, shared_tmp_buffer=shared_tmp, is_basic_block=True,
+                                 config=full_tile_config)
+
+    kernel_softmax_flash_v2[1]()
+    assert mock_launcher_run.call_count == 1

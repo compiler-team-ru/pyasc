@@ -72,6 +72,25 @@ def AscendC_SoftMaxOp : VectorOp<"softmax", "SoftMax", [
     SmallVector<Value> getSrcTensors() { return {getSrc()}; }
   }];
 }
+
+def AscendC_SoftmaxFlashV2Op
+    : APIOp<"softmax_flash_v2", "SoftmaxFlashV2", [AttrSizedOperandSegments, OpWithDstInterface]> {
+  let arguments = (ins UnitAttr:$isUpdate, UnitAttr:$reuseSource,
+                   UnitAttr:$basicBlock, UnitAttr:$dataFormatNZ,
+                   AscendC_LocalTensor:$dst,
+                   Optional<AscendC_LocalTensor>:$outReduceMax,
+                   AscendC_LocalTensor:$expSumTensor,
+                   AscendC_LocalTensor:$maxTensor,
+                   AscendC_LocalTensor:$src,
+                   AscendC_LocalTensor:$expMaxTensor,
+                   AscendC_LocalTensor:$inExpSumTensor,
+                   AscendC_LocalTensor:$inMaxTensor,
+                   Optional<AscendC_LocalTensor>:$sharedTmpBuffer,
+                   AscendC_SoftMaxTiling:$tiling,
+                   Optional<AscendC_SoftMaxShapeInfo>:$softmaxShapeInfo,
+                   Optional<AscendC_SoftmaxConfig>:$softmaxConfig);
+}
+
 def AscendC_SwiGLUOp : APIOp<"swiglu", "SwiGLU", [AttrSizedOperandSegments, OpWithDstInterface]> {
   let arguments = (ins AscendC_LocalTensor:$dst,
                    AscendC_LocalTensor:$srcTensor0,

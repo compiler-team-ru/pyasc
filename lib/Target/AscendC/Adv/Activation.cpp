@@ -53,6 +53,37 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::SoftM
     return success();
 }
 
+LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::SoftmaxFlashV2Op op)
+{
+    auto& os = emitter.ostream();
+    os << ascNamespace << "::" << op.getAPIName() << "<";
+    if (failed(emitter.emitType(op.getLoc(), op.getDst().getType().getElementType()))) {
+        return failure();
+    }
+    os << ", " << op.getIsUpdate() << ", " << op.getReuseSource() << ", " << op.getBasicBlock() << ", "
+       << op.getDataFormatNZ();
+    if (auto config = op.getSoftmaxConfig()) {
+        os << ", " << emitter.getOrCreateName(config);
+    }
+    os << ">(" << emitter.getOrCreateName(op.getDst()) << ", ";
+    if (auto outReduceMax = op.getOutReduceMax()) {
+        os << emitter.getOrCreateName(outReduceMax) << ", ";
+    }
+    os << emitter.getOrCreateName(op.getExpSumTensor()) << ", " << emitter.getOrCreateName(op.getMaxTensor()) << ", "
+       << emitter.getOrCreateName(op.getSrc()) << ", " << emitter.getOrCreateName(op.getExpMaxTensor()) << ", "
+       << emitter.getOrCreateName(op.getInExpSumTensor()) << ", " << emitter.getOrCreateName(op.getInMaxTensor())
+       << ", ";
+    if (auto sharedTmpBuffer = op.getSharedTmpBuffer()) {
+        os << emitter.getOrCreateName(sharedTmpBuffer) << ", ";
+    }
+    os << emitter.getOrCreateName(op.getTiling());
+    if (auto shapeInfo = op.getSoftmaxShapeInfo()) {
+        os << ", " << emitter.getOrCreateName(shapeInfo);
+    }
+    os << ")";
+    return success();
+}
+
 LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::SwiGLUOp op)
 {
     auto& os = emitter.ostream();

@@ -228,6 +228,7 @@ from .core.enums import (
     IterateMode,
     IterateOrder,
     ScheduleType,
+    SoftmaxMode,
     LayoutMode,
     MaskMode,
     QuantModes,

@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Optional, overload
 
 from ..core.dtype import KnownTypes as KT
-from ..core.enums import BatchMode, IterateMode, IterateOrder, ScheduleType, BatchOutMode
+from ..core.enums import BatchMode, IterateMode, IterateOrder, ScheduleType, BatchOutMode, SoftmaxMode
 from ..core.ir_value import IRHandle, IRValue, materialize_ir_value as _mat
 from ..core.utils import global_builder
 
@@ -319,3 +319,57 @@ class MatmulFuncParams:
         self.is_a2_b2_shared = is_a2_b2_shared
         self.is_enable_channel_split = is_enable_channel_split
         self.enable_kdim_reorder_load = enable_kdim_reorder_load
+
+
+class SoftMaxShapeInfo(IRValue):
+    """Logical and original matrix dimensions used by softmax APIs."""
+
+    def __init__(self, src_m: int = 0, src_k: int = 0, ori_src_m: int = 0, ori_src_k: int = 0,
+                 handle: Optional[IRHandle] = None) -> None:
+        if handle is not None:
+            self.handle = handle
+            return
+        builder = global_builder.get_ir_builder()
+        values = [src_m, src_k, ori_src_m, ori_src_k]
+        operands = [_mat(value, KT.uint32).to_ir() for value in values]
+        types = builder.get_type_array_attr([builder.get_ui32_type()] * 4)
+        self.handle = builder.create_asc_ConstructOp(builder.get_asc_SoftMaxShapeInfoType(), operands, types)
+
+    @classmethod
+    def from_ir(cls, handle: IRHandle) -> "SoftMaxShapeInfo":
+        return cls(handle=handle)
+
+    def to_ir(self) -> IRHandle:
+        return self.handle
+
+
+class SoftmaxConfig(IRValue):
+    """Compile-time shape specialization for softmax APIs."""
+
+    def __init__(self, check_tiling: bool = True, src_m: int = 0, src_k: int = 0,
+                 mode: SoftmaxMode = SoftmaxMode.SOFTMAX_NORMAL, handle: Optional[IRHandle] = None) -> None:
+        if handle is not None:
+            self.handle = handle
+            return
+        builder = global_builder.get_ir_builder()
+        operands = [
+            _mat(check_tiling, KT.bool_).to_ir(),
+            _mat(src_m, KT.uint32).to_ir(),
+            _mat(src_k, KT.uint32).to_ir(),
+            _mat(mode, KT.int32).to_ir(),
+        ]
+        types = builder.get_type_array_attr([
+            builder.get_i1_type(),
+            builder.get_ui32_type(),
+            builder.get_ui32_type(),
+            builder.get_asc_SoftmaxModeType()
+        ])
+        self.handle = builder.create_asc_ConstructOp(builder.get_asc_SoftmaxConfigType(), operands, types,
+                                                     isConstexpr=True, isStatic=True)
+
+    @classmethod
+    def from_ir(cls, handle: IRHandle) -> "SoftmaxConfig":
+        return cls(handle=handle)
+
+    def to_ir(self) -> IRHandle:
+        return self.handle

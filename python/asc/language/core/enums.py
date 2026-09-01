@@ -212,6 +212,11 @@ class ScheduleType(IntEnum):
     OUTER_PRODUCT = 1
 
 
+class SoftmaxMode(IntEnum):
+    SOFTMAX_NORMAL = 0
+    SOFTMAX_OUTPUT_WITHOUT_BRC = 1
+
+
 class ReduceOrder(IntEnum):
     ORDER_VALUE_INDEX = 0
     ORDER_INDEX_VALUE = 1

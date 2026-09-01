@@ -414,6 +414,16 @@ def SoftMaxShapeInfo : APIType<"SoftMaxShapeInfo"> {
   let apiName = "AscendC::SoftMaxShapeInfo";
 }
 
+def SoftmaxConfig : APIType<"SoftmaxConfig"> {
+  let mnemonic = "softmax_config";
+  let apiName = "AscendC::SoftmaxConfig";
+}
+
+def SoftmaxMode : APIType<"SoftmaxMode"> {
+  let mnemonic = "softmax_mode";
+  let apiName = "AscendC::SoftmaxMode";
+}
+
 def TBuf : APIType {
   let mnemonic = "tbuf";
   let apiName = "AscendC::TBuf";

@@ -880,7 +880,7 @@ class MmadParams(IRValue):
                 _mat(m, KT.uint16).to_ir(),
                 _mat(n, KT.uint16).to_ir(),
                 _mat(k, KT.uint16).to_ir(),
-                _mat(unit_flag, KT.int1).to_ir(),
+                _mat(unit_flag, KT.uint8).to_ir(),
                 _mat(cmatrix_source, KT.int1).to_ir(),
                 _mat(cmatrix_init_val, KT.int1).to_ir(),
             ]
@@ -889,7 +889,7 @@ class MmadParams(IRValue):
                 builder.get_ui16_type(),
                 builder.get_ui16_type(),
                 builder.get_ui16_type(),
-                builder.get_i1_type(),
+                builder.get_ui8_type(),
                 builder.get_i1_type(),
                 builder.get_i1_type(),
             ])

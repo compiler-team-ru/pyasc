@@ -14,6 +14,8 @@
 | [06_gelu](./06_gelu) | 实现GELU激活函数算子，计算公式为：GELU(x) = x * Φ(x)，采用tanh近似。 |
 | [07_swiglu](./07_swiglu) | 实现 SwiGLU 激活函数算子，TPipe/TQue 框架双路 VECIN 输入，五步基础向量算子组合完成计算。 |
 | [08_rmsnorm](./08_rmsnorm) | 实现 RMSNorm 归一化算子，TPipe/TQue 框架管理搬运，调用 `asc.adv.rmsnorm` 高阶 API 完成行归一化计算。 |
+| [09_linear](./09_linear) | 实现 Linear 全连接算子，使用 Matmul 高阶 API 完成 float16 矩阵乘。 |
+| [10_fused_infer_attention](./10_fused_infer_attention) | 实现 Llama 推理中的因果自注意力。 |
 
 ## 推荐学习顺序
 
@@ -27,6 +29,8 @@
 6. **06_gelu** — 学习复杂激活函数的实现，掌握九步算子组合、TBuf 复用和 adv API（tanh）的使用。
 7. **07_swiglu** — 学习 SwiGLU 激活函数：TPipe/TQue 框架同步、双路 VECIN、TBuf 复用、多步组合计算与 PIPE_V 同步。
 8. **08_rmsnorm** — 学习 RMSNorm 归一化：`asc.adv.rmsnorm` 高阶 API 调用、RmsNormTiling 分块参数配置、整块/尾块处理。
+9. **09_linear** — 学习 Linear 全连接：Matmul 高阶 API、Cube tiling、多核矩阵乘和工作空间配置。
+10. **10_fused_infer_attention** — 综合运用 Matmul、在线 Softmax、多核任务分配和 AIC/AIV 流水，完成 Llama 因果自注意力。
 
 ## 运行示例
 

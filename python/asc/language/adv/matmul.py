@@ -819,16 +819,9 @@ def get_mm_config(*args, **kwargs) -> MatmulConfig:
 @require_jit
 @set_matmul_docstring(api_name="get_mm_config")
 def get_mm_config(*args, **kwargs) -> MatmulConfig:
-    norm = True
-    mdl = False
-    special_mdl = False
-    ib_share = False
-    single_core_m = 0
-    single_core_n = 0
-    single_core_k = 0
-    basic_m = 0
-    basic_n = 0
-    basic_k = 0
+    norm, mdl, special_mdl, ib_share = True, False, False, False
+    single_core_m, single_core_n, single_core_k = 0, 0, 0
+    basic_m, basic_n, basic_k = 0, 0, 0
     is_per_tensor = False
     has_anti_quant_offset = False
     is_n_batch = False
@@ -836,6 +829,7 @@ def get_mm_config(*args, **kwargs) -> MatmulConfig:
     is_bias_batch = False
     intrinsics_limit = False
     en_vec_nd2_nz = False
+    enable_double_cache = False
     enable_l1_cache_ub = False
     do_mte2_preload = 0
     iterate_order = IterateOrder.ORDER_M
@@ -846,7 +840,7 @@ def get_mm_config(*args, **kwargs) -> MatmulConfig:
     is_a2_b2_shared = False
     is_enable_channel_split = False
     enable_kdim_reorder_load = False
-    for arg in [args, kwargs]:
+    for arg in (*args, *kwargs.values()):
         if isinstance(arg, MatmulShapeParams):
             single_core_m = arg.single_core_m
             single_core_n = arg.single_core_n
@@ -863,7 +857,8 @@ def get_mm_config(*args, **kwargs) -> MatmulConfig:
             is_bias_batch = arg.is_bias_batch
         if isinstance(arg, MatmulFuncParams):
             intrinsics_limit = arg.intrinsics_limit
-            en_vec_nd2_nz = arg.intrinsics_limit
+            en_vec_nd2_nz = arg.en_vec_nd2_nz
+            enable_double_cache = arg.enable_double_cache
             enable_l1_cache_ub = arg.enable_l1_cache
             do_mte2_preload = arg.do_mte2_pre_load
             iterate_order = arg.iterate_order
@@ -872,15 +867,19 @@ def get_mm_config(*args, **kwargs) -> MatmulConfig:
             enable_ub_reuse = arg.enable_ub_reuse
             is_partial_output = arg.is_partial_output
             is_a2_b2_shared = arg.is_a2_b2_shared
+            is_enable_channel_split = arg.is_enable_channel_split
             enable_kdim_reorder_load = arg.enable_kdim_reorder_load
         if isinstance(arg, MatmulConfigMode):
             if arg == MatmulConfigMode.CONFIG_NORM:
                 norm = True
             if arg == MatmulConfigMode.CONFIG_MDL:
+                norm = False
                 mdl = True
             if arg == MatmulConfigMode.CONFIG_SPECIALMDL:
+                norm = False
                 special_mdl = True
             if arg == MatmulConfigMode.CONFIG_IBSHARE:
+                norm = False
                 ib_share = True
         check_type(batch_mode, [1, 2, 3], "Params batch_mode should be in [1, 2, 3]")
         check_type(iterate_order, [0, 1, 2], "Params iterate_order should be in [0, 1, 2]")
@@ -891,9 +890,9 @@ def get_mm_config(*args, **kwargs) -> MatmulConfig:
                         basic_m=basic_m, basic_n=basic_n, basic_k=basic_k, is_per_tensor=is_per_tensor,
                         has_anti_quant_offset=has_anti_quant_offset, is_n_batch=is_n_batch, batch_mode=batch_mode,
                         is_bias_batch=is_bias_batch, intrinsics_check=intrinsics_limit, en_vec_nd2nz=en_vec_nd2_nz,
-                        enable_l1_cache_ub=enable_l1_cache_ub, do_mte2_preload=do_mte2_preload,
-                        iterate_order=iterate_order, schedule_type=schedule_type, enable_reuse=enable_reuse,
-                        enable_ub_reuse=enable_ub_reuse, is_partial_output=is_partial_output,
+                        enable_double_cache=enable_double_cache, enable_l1_cache_ub=enable_l1_cache_ub,
+                        do_mte2_preload=do_mte2_preload, iterate_order=iterate_order, schedule_type=schedule_type,
+                        enable_reuse=enable_reuse, enable_ub_reuse=enable_ub_reuse, is_partial_output=is_partial_output,
                         is_a2b2_shared=is_a2_b2_shared, is_enable_channel_split=is_enable_channel_split,
                         enable_kdim_reorder_load=enable_kdim_reorder_load, do_norm=norm, do_multi_data_load=mdl,
                         do_special_mdl=special_mdl, do_ib_share_norm=ib_share)
