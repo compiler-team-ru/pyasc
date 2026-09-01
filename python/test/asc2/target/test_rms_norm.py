@@ -15,33 +15,30 @@ from .helpers import parametrize_is_static
 
 @asc2.jit
 def calculate_square_reduce_sum(x: asc2.LocalTensor):
-    x_f32 = asc2.cast(x, asc2.float32)
-    return asc2.reduce_sum(x_f32 * x_f32, 1, keep_dims=True)
+    return asc2.reduce_sum(x.to(asc2.float32)**2, 1, keep_dims=True)
 
 
 @asc2.jit
-def compute_rstd_newton_raphson(src: asc2.LocalTensor, epsilon, avgFactor, need_max=False, need_avg_factor=True):
+def compute_rstd_newton_raphson(src: asc2.LocalTensor, epsilon, avg_factor, need_max=False, need_avg_factor=True):
     pos_inf = 3.40282366920938E+38
-    src = asc2.cast(src, asc2.float32)
+    src = src.to(asc2.float32)
     if need_avg_factor:
-        src = src * avgFactor
+        src = src * avg_factor
     var = src + epsilon
     if need_max:
         var = asc2.maximum(var, -99.99)
     y_0 = asc2.sqrt(1.0 / var)
-    y_1 = y_0 * (1.5 - 0.5 * var * y_0 * y_0)
-    rstd = y_1 + 0.5 * (1.0 - var * y_1 * y_1) * y_1
-    rstd = asc2.where(var == pos_inf, asc2.cast(0.0, asc2.float32), rstd)
+    y_1 = y_0 * (1.5 - 0.5 * var * y_0**2)
+    rstd = y_1 + 0.5 * (1.0 - var * y_1**2) * y_1
+    rstd = asc2.where(var == pos_inf, asc2.cast(0, asc2.float32), rstd)
     rstd = asc2.where(var == 0.0, asc2.cast(pos_inf, asc2.float32), rstd)
     return rstd
 
 
 @asc2.jit
 def compute_y(x: asc2.LocalTensor, gamma: asc2.LocalTensor, rstd_f32: asc2.LocalTensor):
-    x_f32 = asc2.cast(x, asc2.float32)
-    gamma_f32 = asc2.cast(gamma, asc2.float32)
-    mul = x_f32 * rstd_f32 * gamma_f32
-    return asc2.cast(mul, x.dtype)
+    mul = x.to(asc2.float32) * rstd_f32 * gamma.to(asc2.float32)
+    return mul.to(x.dtype)
 
 
 @asc2.jit(reuse_alloc=2)
