@@ -11,6 +11,7 @@
 #include "ascir/Conversion/LowerToAsc/Passes.h"
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
+#include "ascir/Dialect/Asc/Utils/Constants.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/AscTile/Utils/Attributes.h"
@@ -38,7 +39,6 @@ using namespace mlir::asclower;
 
 namespace {
 
-constexpr int64_t cubeKBlockBytes = ascendc::ubBlockSize;
 constexpr int64_t fractalNum = 2;
 
 SmallVector<Value> getTensorShape(OpBuilder& builder, asctile::TensorOp tensorOp)
@@ -507,10 +507,10 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
         auto elemType = dst.getType().getElementType();
         auto constArgTypes = rewriter.getTypeArrayAttr(TypeRange{ui16Type, ui16Type, ui16Type, elemType});
         auto elementSize = ascendc::getElementTypeSize(opType);
-        int64_t cubeKBlockSize = cubeKBlockBytes / elementSize;
+        int64_t cubeKBlockSize = ascendc::cubeKBlockBytes / elementSize;
         auto c0Size = consts.i32(cubeKBlockSize);
         auto elemSizeVal = consts.i32(elementSize);
-        auto blockSizeVal = consts.i32(cubeKBlockBytes);
+        auto blockSizeVal = consts.i32(ascendc::cubeKBlockBytes);
         if ((isMatrixA && (isTransposeAL0 || isTransposeAL1)) || (!isMatrixA && (!isTransposeBL0 && !isTransposeBL1))) {
             auto totalBytes = consts.i32(dstShape[0] * dstShape[1] * elementSize);
             auto validBytes = rewriter.create<arith::MulIOp>(
@@ -856,7 +856,7 @@ struct ConvertCopyFixpipe : ConvertOp<asctile::CopyFixpipeOp> {
         } else {
             srcStride = srcShape[0];
             dstStride = rewriter.create<arith::MulIOp>(
-                loc, srcShape[0], consts.i32(cubeKBlockBytes / ascendc::getElementTypeSize(op.getType())));
+                loc, srcShape[0], consts.i32(ascendc::cubeKBlockBytes / ascendc::getElementTypeSize(op.getType())));
         }
         auto paramsBuilder = emitasc::InitStructBuilder(
                                  ascendc::FixpipeParamsC310Type::get(
@@ -965,7 +965,7 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
                 Value linearOffset = linearizeOffset(rewriter, loc, getStaticShape(rewriter, srcTensorType), offsets);
                 src = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcTensorType, src, linearOffset);
             }
-            int64_t cubeKBlockSize = static_cast<int64_t>(cubeKBlockBytes) / elementSize;
+            int64_t cubeKBlockSize = static_cast<int64_t>(ascendc::cubeKBlockBytes) / elementSize;
             int64_t colBlocks = width / cubeKBlockSize;
             int64_t srcColBlocks = srcWidth / cubeKBlockSize;
             int64_t totalElements = height * width;
@@ -1008,7 +1008,7 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
                 src = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcType, src, offsets[0]);
             }
             int64_t typeSize = ascendc::getElementTypeSize(base.getType());
-            int64_t blockLen = (dstShape[0] * typeSize) / cubeKBlockBytes;
+            int64_t blockLen = (dstShape[0] * typeSize) / ascendc::cubeKBlockBytes;
             auto dataCopyParams = rewriter.create<ascendc::ConstructOp>(
                 loc, rewriter.getType<ascendc::DataCopyParamsType>(),
                 ValueRange{consts.i32(1), consts.i32(blockLen), consts.i32(0), consts.i32(0)});
@@ -1027,7 +1027,7 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
         bool isTransposeBL0 = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeBL0);
         bool isTransposeBL1 = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeBL1);
         bool isFloat32 = isa<Float32Type>(opType.getElementType());
-        const int64_t cubeKBlockSize = cubeKBlockBytes / ascendc::getElementTypeSize(opType);
+        const int64_t cubeKBlockSize = ascendc::cubeKBlockBytes / ascendc::getElementTypeSize(opType);
         int64_t dstNzC0StrideElements =
             static_cast<int64_t>(llvm::alignTo(isTransposeBL1 ? srcShape[1] : srcShape[0], cubeKBlockSize));
         int64_t dValue = cubeKBlockSize;

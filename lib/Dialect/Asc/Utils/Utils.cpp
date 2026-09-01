@@ -10,6 +10,7 @@
 
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
+#include "ascir/Dialect/Asc/Utils/Constants.h"
 #include "ascir/Dialect/AscVF/IR/AscVF.h"
 #include "ascir/Dialect/Utils/Inlining.h"
 
