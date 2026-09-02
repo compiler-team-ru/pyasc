@@ -16,7 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 ## Overview
 
-PyAsc supports automatic synchronization insertion, which is controlled by the `insert_sync` parameter. This parameter is a JIT compilation option that manages automatic insertion of synchronization instructions in PyAsc2 kernels. Automatic synchronization is **enabled by default** and is essential for correct PyAsc2 kernel execution on Ascend NPU processors.
+PyAsc supports automatic synchronization insertion, which is controlled by the `insert_sync` parameter. This parameter is a JIT compilation option that manages automatic insertion of synchronization instructions in AscTile kernels. Automatic synchronization is **enabled by default** and is essential for correct AscTile kernel execution on Ascend NPU processors.
 
 ## Parameter Definition
 
@@ -161,7 +161,7 @@ The pass uses circular buffer ID allocation to handle the 32-buffer limit. This 
 For debugging purposes, automatic synchronization can be disabled:
 
 ```python
-@asc2.jit(insert_sync=False)  # Not recommended for production
+@asctile.jit(insert_sync=False)  # Not recommended for production
 def debug_kernel(...):
     # Manual synchronization must be inserted if needed
     pass

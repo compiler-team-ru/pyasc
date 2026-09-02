@@ -16,7 +16,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 ## 1. Goals & Scope
 
-**PyAsc2** is a tile-based programming model for writing Ascend NPU kernels in Python. It sits at a higher abstraction level than the original PyAsc (`asc`) model, which mapped Python APIs 1:1 to Ascend C intrinsics.
+**AscTile** is a tile-based programming model for writing Ascend NPU kernels in Python. It sits at a higher abstraction level than the original PyAsc (`asc`) model, which mapped Python APIs 1:1 to Ascend C intrinsics.
 
 **Core goals** (in priority order):
 - Let developers express kernels in terms of *tensors* (ND-arrays in global memory) and *tiles* (fixed-shape chunks in on-chip memory). Buffer addresses, `TPipe`/`TQue` lifecycles, and synchronization barriers are not exposed to the user.
@@ -26,7 +26,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 - Support Ascend **A2/A3** (910B/910C platforms, C220 arch), and **A5** (950 platforms, C310 arch) hardware families.
 
 **Relationship to PyAsc1 (`asc`):**
-PyAsc2 is implemented *on top of* the existing PyAsc infrastructure. The `asc2.jit` decorator re-uses `JITFunction`, the same AST-to-IR codegen, the same MLIR pass manager, and the same Bisheng compilation step. What is new is the `asctile` MLIR dialect and a dedicated lowering pipeline that converts tile-level IR down to the `ascendc` dialect before the existing backend takes over.
+AscTile is implemented *on top of* the existing PyAsc infrastructure. The `asctile.jit` decorator re-uses `JITFunction`, the same AST-to-IR codegen, the same MLIR pass manager, and the same Bisheng compilation step. What is new is the `asctile` MLIR dialect and a dedicated lowering pipeline that converts tile-level IR down to the `ascendc` dialect before the existing backend takes over.
 
 **Out of scope:**
 - Direct access to Ascend C intrinsics (use `asc` for that).
@@ -85,13 +85,13 @@ A5 adds the following hardware capabilities relative to A2: <sup>[[58]](#ref-58)
 ```
   ┌──────────────────────────────────────────────────────────┐
   │                 User Python Code                         │
-  │             @asc2.jit                                    │
+  │             @asctile.jit                                 │
   └──────────────────────┬───────────────────────────────────┘
                          │
   ┌──────────────────────▼───────────────────────────────────┐
-  │              PyAsc2 Frontend  (python/asc2/)             │
+  │              AscTile Frontend  (python/asctile/)          │
   │                                                          │
-  │  GlobalTensor (GM)  LocalTensor (UB/L0/…)  asc2.range    │
+  │  GlobalTensor (GM)  LocalTensor (UB/L0/…)  asctile.range │
   │  copy_in / copy_out  arithmetic  reductions  shape ops   │
   │  atomics  matmul  unary  creation  indexing              │
   └──────────────────────┬───────────────────────────────────┘
@@ -122,7 +122,7 @@ A5 adds the following hardware capabilities relative to A2: <sup>[[58]](#ref-58)
 ### End-to-end compilation flow
 
 ```
-@asc2.jit kernel invocation
+@asctile.jit kernel invocation
   → argument type specialization  (same as asc1)
   → two-level cache lookup         (same as asc1)
       → [miss]
@@ -152,7 +152,7 @@ A5 adds the following hardware capabilities relative to A2: <sup>[[58]](#ref-58)
 |--|----------|--------|
 | **Memory** | Global Memory (HBM, GM) | On-chip: UB, L0A, L0B, L0C, L1 |
 | **Shape** | ND, may be dynamic (RuntimeInt dims) | ND, must be static (known at JIT time) |
-| **Creation** | `asc2.global_tensor(ptr, shape)` | Returned by `asc2.copy_in(...)` or creation ops |
+| **Creation** | `asctile.global_tensor(ptr, shape)` | Returned by `asctile.copy_in(...)` or creation ops |
 | **Mutability** | Passed to/from kernel; never computed in-kernel | Value semantics; produced by ops, consumed once |
 | **IR type** | `asctile.tensor<shape x dtype>` | `asctile.tile<shape x dtype, location>` |
 
@@ -173,21 +173,21 @@ A5 adds the following hardware capabilities relative to A2: <sup>[[58]](#ref-58)
 
 ```python
 # Load a local tensor from a global tensor:
-tile = asc2.copy_in(tensor, [base], [128])       # explicit element offsets
+tile = asctile.copy_in(tensor, [base], [128])       # explicit element offsets
 
 # Load a scalar (no shape → scalar load)
-scalar = asc2.copy_in(tensor, [i])
+scalar = asctile.copy_in(tensor, [i])
 
 # Optional padding for partial tiles
-tile = asc2.copy_in(tensor, [base], [128], pad_value=0.0)
+tile = asctile.copy_in(tensor, [base], [128], pad_value=0.0)
 
 # Copy a local tensor (or sub-region) into a fresh local tensor, optionally on another location
-clone = asc2.copy(tile)
-sub   = asc2.copy(tile, [0], [64])
+clone = asctile.copy(tile)
+sub   = asctile.copy(tile, [0], [64])
 
 # Store local tensor or scalar back
-asc2.copy_out(tile, tensor, [base])
-asc2.copy_out(scalar_value, tensor, [i])
+asctile.copy_out(tile, tensor, [base])
+asctile.copy_out(scalar_value, tensor, [i])
 ```
 
 The last dimension of every local tensor shape must be aligned to `ub_block_size` (32 bytes). This is enforced at JIT time via `check_data_alignment`.
@@ -234,16 +234,16 @@ Operator overloads on `LocalTensor` (`+`, `-`, `*`, `/`, `>`, `==`, …) call th
 ### 4.5 Programming model operations
 
 ```python
-i = asc2.block_idx()    # current NPU block index (PlainValue)
-n = asc2.block_num()    # total number of blocks (PlainValue)
+i = asctile.block_idx()    # current NPU block index (PlainValue)
+n = asctile.block_num()    # total number of blocks (PlainValue)
 ```
 
-### 4.6 `asc2.range`
+### 4.6 `asctile.range`
 
-`asc2.range` extends the base range with two attributes that control compiler behaviour:
+`asctile.range` extends the base range with two attributes that control compiler behaviour:
 
 ```python
-for i in asc2.range(start, stop, step, unroll_factor=4, gm_barrier=False):
+for i in asctile.range(start, stop, step, unroll_factor=4, gm_barrier=False):
     ...
 ```
 
@@ -302,7 +302,7 @@ Defined in `include/ascir/Dialect/AscTile/IR/` using TableGen.
 
 ### 5.2 IR generation
 
-`FunctionVisitor` (Python AST walker, `python/asc/codegen/function_visitor.py`) calls pybind11-exposed builder methods from `python/src/OpBuilder.cpp` to create `asctile.*` ops. Every `asc2.*` Python API call produces exactly one (or a small fixed number of) `asctile` operations. No analysis is needed at this stage.
+`FunctionVisitor` (Python AST walker, `python/asc/codegen/function_visitor.py`) calls pybind11-exposed builder methods from `python/src/OpBuilder.cpp` to create `asctile.*` ops. Every `asctile.*` Python API call produces exactly one (or a small fixed number of) `asctile` operations. No analysis is needed at this stage.
 
 ### 5.3 Lowering chain
 
@@ -319,7 +319,7 @@ Ascend C source
 
 ## 6. Optimization Passes
 
-The full pass pipeline is scheduled by `Compiler._schedule_passes()` inside `python/asc/runtime/compiler.py`. The `run_asc2_passes=True` flag (set automatically by `asc2.jit`) activates the AscTile and AscLower phases.
+The full pass pipeline is scheduled by `Compiler._schedule_passes()` inside `python/asc/runtime/compiler.py`. The `run_asctile_passes=True` flag (set automatically by `asctile.jit`) activates the AscTile and AscLower phases.
 
 ### 6.1 AscTile passes  (`lib/Dialect/AscTile/Transforms/`)
 
@@ -368,7 +368,7 @@ Once all `asctile` ops are gone, the existing ascendc pipeline takes over:
 | **Optimization** | `LICM`, `SCCP`, `Canonicalizer` |
 | **Postprocessing** | `DeclarePyStruct`, `GenerateBoilerplate`, `DefineCubeOnly` (when `matmul_cube_only=True`), `LegalizeKernelArgs`, `DetectKernelType`, `DetectEnableDebug`, `ComputeMemoryConsumption` |
 
-`ComputeMemoryConsumption` is **only active in asc2 mode** and records per-`TPosition` UB usage as a module attribute; it raises a compile-time error on overflow.
+`ComputeMemoryConsumption` is **only active in asctile mode** and records per-`TPosition` UB usage as a module attribute; it raises a compile-time error on overflow.
 
 ---
 
@@ -402,9 +402,9 @@ Two strategies, selected per compilation:
 
 ### 7.3 Synchronization
 
-Because asc2 users don't write `set_flag`/`wait_flag`, all synchronization is inserted by the compiler:
+Because asctile users don't write `set_flag`/`wait_flag`, all synchronization is inserted by the compiler:
 
-- `insert_sync=True` is set automatically by `asc2.jit`.
+- `insert_sync=True` is set automatically by `asctile.jit`.
 - On **C220**: `InsertSync` uses the classic queue-position–based algorithm.
 - On **C310**: `InsertBufIdSync` uses a newer algorithm that reduces sync overhead by tracking buffer IDs rather than queue positions; `FuseBufIdSync` merges adjacent sync ops.
 - `verify_sync=True` runs an additional `VerifySync` pass after sync insertion as a sanity check.
@@ -416,36 +416,36 @@ Because asc2 users don't write `set_flag`/`wait_flag`, all synchronization is in
 ### Vector addition
 
 ```python
-import asc2
+import asctile
 
-@asc2.jit
+@asctile.jit
 def vadd(x_ptr, y_ptr, out_ptr, size: int, tiles_per_block: int, TILE: asc.ConstExpr[int]):
-    x_gm   = asc2.global_tensor(x_ptr,   [size])
-    y_gm   = asc2.global_tensor(y_ptr,   [size])
-    out_gm = asc2.global_tensor(out_ptr, [size])
+    x_gm   = asctile.global_tensor(x_ptr,   [size])
+    y_gm   = asctile.global_tensor(y_ptr,   [size])
+    out_gm = asctile.global_tensor(out_ptr, [size])
 
-    base = asc2.block_idx() * tiles_per_block * TILE
-    for i in asc2.range(tiles_per_block):
+    base = asctile.block_idx() * tiles_per_block * TILE
+    for i in asctile.range(tiles_per_block):
         off = base + i * TILE
-        x   = asc2.copy_in(x_gm, [off], [TILE])
-        y   = asc2.copy_in(y_gm, [off], [TILE])
-        asc2.copy_out(x + y, out_gm, [off])
+        x   = asctile.copy_in(x_gm, [off], [TILE])
+        y   = asctile.copy_in(y_gm, [off], [TILE])
+        asctile.copy_out(x + y, out_gm, [off])
 
-vadd[8](x, y, out, n, asc2.ceildiv(n // 256, 8), TILE=256)
+vadd[8](x, y, out, n, asctile.ceildiv(n // 256, 8), TILE=256)
 ```
 
 ### Softmax (row-wise)
 
 ```python
-@asc2.jit
+@asctile.jit
 def softmax(x_ptr, out_ptr, rows: int, cols: int, TILE: asc.ConstExpr[int]):
-    x_gm   = asc2.global_tensor(x_ptr,   [rows, cols])
-    out_gm = asc2.global_tensor(out_ptr, [rows, cols])
+    x_gm   = asctile.global_tensor(x_ptr,   [rows, cols])
+    out_gm = asctile.global_tensor(out_ptr, [rows, cols])
 
-    for row in asc2.range(asc2.block_idx(), rows, asc2.block_num()):
-        x = asc2.copy_in(x_gm, [row, 0], [1, TILE])
-        exp_x = asc2.exp(x - x.max())
-        asc2.copy_out(exp_x / exp_x.sum(), out_gm, [row, 0])
+    for row in asctile.range(asctile.block_idx(), rows, asctile.block_num()):
+        x = asctile.copy_in(x_gm, [row, 0], [1, TILE])
+        exp_x = asctile.exp(x - x.max())
+        asctile.copy_out(exp_x / exp_x.sum(), out_gm, [row, 0])
 ```
 
 ---
@@ -475,11 +475,10 @@ _TODO: to be filled in._
 
 ---
 
-## Appendix: Key `CompileOptions` for PyAsc2
+## Appendix: Key `CompileOptions` for AscTile
 
-| Option | Default in `asc2.jit` | Effect |
+| Option | Default in `asctile.jit` | Effect |
 |--------|-----------------------|--------|
-| `run_asc2_passes` | `True` | Enable AscTile + AscLower pipeline |
 | `insert_sync` | `True` | Auto-insert sync barriers |
 | `static_alloc` | `None` → arch-dependent (`True` on C310, `False` on C220) | Static vs TPipe-managed UB allocation |
 | `reuse_alloc` | `0` | Reuse freed UB regions |

@@ -9,7 +9,7 @@
 Kernel API
 ==========
 
-.. currentmodule:: asc2
+.. currentmodule:: asctile
 
 .. autosummary::
     :toctree: generated

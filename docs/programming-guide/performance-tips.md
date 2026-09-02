@@ -22,11 +22,11 @@ Ascend NPUs expose dozens of AI Cores (up to 56+ on C310). **Distribute work acr
 
 ```python
 # Good: spread rows across all available cores
-rows_per_block = asc2.ceildiv(input_num_rows, asc2.block_num())
-block_offset = asc2.block_idx() * rows_per_block
+rows_per_block = asctile.ceildiv(input_num_rows, asctile.block_num())
+block_offset = asctile.block_idx() * rows_per_block
 
 # Bad: only use a few cores, leaving most idle
-if asc2.block_idx() < 4:
+if asctile.block_idx() < 4:
     ...
 ```
 
@@ -39,35 +39,35 @@ Each core processes its own slice of data in parallel — doubling active cores 
 
 ### 2. Bigger Tiles = Better Performance, Less Transfer Overhead
 
-Every `asc2.copy_in` / `asc2.copy_out` is a DMA transfer between global memory (HBM) and on-chip UB. **Larger tiles amortize transfer latency and reduce the total number of transfers.**
+Every `asctile.copy_in` / `asctile.copy_out` is a DMA transfer between global memory (HBM) and on-chip UB. **Larger tiles amortize transfer latency and reduce the total number of transfers.**
 
 ```python
 # Good: large tile, fewer transfers
 tile_length = 10496  # ~40 KB for fp32 — fills UB well
-for i in asc2.range(loop_count, ...):
-    xt = asc2.copy_in(in_gm, [tile_length], ...)
+for i in asctile.range(loop_count, ...):
+    xt = asctile.copy_in(in_gm, [tile_length], ...)
 
 # Bad: small tile, many transfers, high overhead
 tile_length = 128  # only 512 bytes — mostly waiting on DMA
-for i in asc2.range(huge_loop_count, ...):
-    xt = asc2.copy_in(in_gm, [tile_length], ...)
+for i in asctile.range(huge_loop_count, ...):
+    xt = asctile.copy_in(in_gm, [tile_length], ...)
 ```
 
 **Rule of thumb**: make tiles as large as UB memory allows (typically ~256 KB total, shared among all live tiles). The test suite uses tiles of 10496–18752 elements for fp32 kernels (40–75 KB per tile).
 
 ### 3. Use `ConstExpr` for Static Code Generation
 
-**All tiling parameters, shapes, and loop bounds must be typed as `asc2.ConstExpr`.** This tells the JIT compiler to treat them as compile-time constants, enabling:
+**All tiling parameters, shapes, and loop bounds must be typed as `asctile.ConstExpr`.** This tells the JIT compiler to treat them as compile-time constants, enabling:
 - Full loop unrolling (`unroll_factor` baked into generated code)
 - Static UB allocation (`static_alloc=True`) — no runtime memory management overhead
 - Dead-code elimination and constant folding in the MLIR pipeline
 
 ```python
 # Good: all tiling params are ConstExpr → static, optimized code
-@asc2.jit(static_alloc=True, reuse_alloc=1)
-def kernel(input_ptr: asc2.GlobalAddress, output_ptr: asc2.GlobalAddress,
-           input_length: asc2.ConstExpr, tile_length: asc2.ConstExpr,
-           unroll_factor: asc2.ConstExpr):
+@asctile.jit(static_alloc=True, reuse_alloc=1)
+def kernel(input_ptr: asctile.GlobalAddress, output_ptr: asctile.GlobalAddress,
+           input_length: asctile.ConstExpr, tile_length: asctile.ConstExpr,
+           unroll_factor: asctile.ConstExpr):
     ...
 
 # Bad: plain int → dynamic code, no unrolling, runtime overhead
@@ -94,13 +94,13 @@ def kernel(input_ptr, output_ptr, input_length: int, tile_length: int):
 
 These parameters control how loops are compiled and executed:
 
-**`unroll_factor: int`** (default is 1, passed to `asc2.range()` or `range()`):
+**`unroll_factor: int`** (default is 1, passed to `asctile.range()` or `range()`):
 - Unrolls the loop by the given factor at compile time
 - Reduces loop overhead and enables instruction-level parallelism
 - **Recommended**: `unroll_factor=2` for most kernels, `unroll_factor=1` for very large tiles or memory-bound operations
 - Must be `ConstExpr` for static unrolling
 
-**`gm_barrier: bool`** (default is `False`, passed to `asc2.range()` or `range()`):
+**`gm_barrier: bool`** (default is `False`, passed to `asctile.range()` or `range()`):
 - Inserts barriers for data transfer pipes and disables parallel load/store optimization across loop iterations
 - Only necessary when different iterations write and the read from the same memory
 - When `False`, allows overlapping DMA transfers with computation
@@ -108,10 +108,10 @@ These parameters control how loops are compiled and executed:
 
 ```python
 # Recommended pattern for outer tile loop
-for i in asc2.range(loop_count, unroll_factor=2):
-    xt = asc2.copy_in(in_gm, [tile_length], ...)
+for i in asctile.range(loop_count, unroll_factor=2):
+    xt = asctile.copy_in(in_gm, [tile_length], ...)
     zt = xt + yt
-    asc2.copy_out(zt, out_gm, ...)
+    asctile.copy_out(zt, out_gm, ...)
 ```
 
 ---
@@ -121,24 +121,24 @@ for i in asc2.range(loop_count, unroll_factor=2):
 For a sequence of basic elementwise or reduction vector operations, PyAsc can automatically fuse them into a single **VF (vector function)** block that executes at the register level, avoiding redundant UB reads/writes between intermediate steps. Enable this by passing `vf_fusion=True` to the JIT decorator:
 
 ```python
-@asc2.jit(vf_fusion=True)
-def kernel(x_ptr, y_ptr, out_ptr, size: int, tile_size: asc2.ConstExpr[int]):
-    x_gm = asc2.global_tensor(x_ptr, [size])
-    y_gm = asc2.global_tensor(y_ptr, [size])
-    out_gm = asc2.global_tensor(out_ptr, [size])
-    for i in asc2.range(asc2.ceildiv(size, tile_size)):
-        x = asc2.copy_in(x_gm, [i * tile_size], [tile_size])
-        y = asc2.copy_in(y_gm, [i * tile_size], [tile_size])
+@asctile.jit(vf_fusion=True)
+def kernel(x_ptr, y_ptr, out_ptr, size: int, tile_size: asctile.ConstExpr[int]):
+    x_gm = asctile.global_tensor(x_ptr, [size])
+    y_gm = asctile.global_tensor(y_ptr, [size])
+    out_gm = asctile.global_tensor(out_ptr, [size])
+    for i in asctile.range(asctile.ceildiv(size, tile_size)):
+        x = asctile.copy_in(x_gm, [i * tile_size], [tile_size])
+        y = asctile.copy_in(y_gm, [i * tile_size], [tile_size])
         # These elementwise ops are fused into a single VF block
         result = (x + y) * x - y
-        asc2.copy_out(result, out_gm, [i * tile_size])
+        asctile.copy_out(result, out_gm, [i * tile_size])
 ```
 
-The automatic fusion handles straightforward chains of built-in arithmetic and reduction operations. For more complex patterns — such as custom register-level logic, specialized masking, or operations not expressible through the standard API — use {py:func}`asc2.inline_vf` to embed raw Ascend C register code directly as a VF block:
+The automatic fusion handles straightforward chains of built-in arithmetic and reduction operations. For more complex patterns — such as custom register-level logic, specialized masking, or operations not expressible through the standard API — use {py:func}`asctile.inline_vf` to embed raw Ascend C register code directly as a VF block:
 
 ```python
 # x * y + z — three inputs, processed in 64-element vector chunks
-out = asc2.inline_vf(
+out = asctile.inline_vf(
     """
     auto* out_ptr = reinterpret_cast<__ubuf__ float*>($0.GetPhyAddr());
     auto* x_ptr = reinterpret_cast<__ubuf__ float*>($1.GetPhyAddr());
@@ -174,13 +174,13 @@ Profiling only activates on real NPU hardware with the `--profile` flag:
 
 ```bash
 # Profile on NPU backend (requires physical Ascend NPU)
-pytest --backend NPU --profile python/test/asc2/target/test_vadd.py
+pytest --backend NPU --profile python/test/asctile/target/test_vadd.py
 
 # Profile with multiple runs per test (more stable median)
-pytest --backend NPU --profile --runs 10 python/test/asc2/target/test_vadd.py
+pytest --backend NPU --profile --runs 10 python/test/asctile/target/test_vadd.py
 
 # Select specific platform
-pytest --backend NPU --profile --platform Ascend950PR_9599 python/test/asc2/target/
+pytest --backend NPU --profile --platform Ascend950PR_9599 python/test/asctile/target/
 ```
 
 Without `--profile` or when not using the NPU backend, a `StubProfiler` is used (no-op).
@@ -210,8 +210,8 @@ After the test session, profiling results are printed in a summary table:
 
 ```
 ============================== Profiling results ==============================
-python/test/asc2/target/test_vadd.py::test_add[...]: 12.34 μs
-python/test/asc2/target/test_softmax.py::test_softmax[...]: 45.67 μs
+python/test/asctile/target/test_vadd.py::test_add[...]: 12.34 μs
+python/test/asctile/target/test_softmax.py::test_softmax[...]: 45.67 μs
 ```
 
 The reported duration is the **median task time** across all runs (first run is skipped as warmup via `skip=1` in `task_time_median`).

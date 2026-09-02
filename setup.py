@@ -274,9 +274,9 @@ packages = [
     "asc/lib/profiling",
     "asc/lib/runtime",
     "asc/runtime",
-    "asc2",
-    "asc2/language",
-    "asc2/runtime",
+    "asctile",
+    "asctile/language",
+    "asctile/runtime",
 ]
 
 extras_require = {

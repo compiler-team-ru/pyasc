@@ -1,0 +1,63 @@
+# Copyright (c) 2026 Huawei Technologies Co., Ltd.
+# This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+# CANN Open Software License Agreement Version 2.0 (the "License").
+# Please refer to the License for details. You may not use this file except in compliance with the License.
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+# INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+# See LICENSE in the root of the software repository for the full text of the License.
+
+import asctile
+import pytest
+import torch
+
+
+@pytest.fixture(autouse=True)
+def require_c310_auto(require_c310):
+    require_c310()
+
+
+@asctile.jit(always_compile=True)
+def softmax_1d_kernel(dst_ptr, src_ptr, length: asctile.ConstExpr) -> None:
+    dst = asctile.global_tensor(dst_ptr, [length])
+    src = asctile.global_tensor(src_ptr, [length])
+    src_tile = asctile.copy_in(src, [0], [length])
+    dst_tile = asctile.softmax(src_tile)
+    asctile.copy_out(dst_tile, dst, [0])
+    asctile.copy_out(src_tile, src, [0])
+
+
+@asctile.jit(always_compile=True)
+def softmax_2d_kernel(dst_ptr, src_ptr, shape: asctile.ConstExpr) -> None:
+    dst = asctile.global_tensor(dst_ptr, shape)
+    src = asctile.global_tensor(src_ptr, shape)
+    src_tile = asctile.copy_in(src, [0, 0], shape)
+    dst_tile = asctile.softmax(src_tile)
+    asctile.copy_out(dst_tile, dst, [0, 0])
+    asctile.copy_out(src_tile, src, [0, 0])
+
+
+@pytest.mark.parametrize("dtype, shape", [
+    (torch.float16, [1, 16]),
+    (torch.float16, [4, 1024]),
+    (torch.float32, [1, 8]),
+    (torch.float32, [4, 256]),
+])
+def test_softmax_2d(dtype: torch.dtype, shape):
+    src = torch.rand(shape, dtype=dtype)
+    dst = torch.zeros_like(src)
+    softmax_2d_kernel[1](dst, src, shape)
+    torch.testing.assert_close(dst, torch.softmax(src, dim=1))
+
+
+@pytest.mark.parametrize("dtype, length", [
+    (torch.float16, 16),
+    (torch.float16, 1024),
+    (torch.float32, 8),
+    (torch.float32, 1024),
+    (torch.float32, 1040),
+])
+def test_softmax_1d(dtype: torch.dtype, length):
+    src = torch.rand(length, dtype=dtype)
+    dst = torch.zeros_like(src)
+    softmax_1d_kernel[1](dst, src, length)
+    torch.testing.assert_close(dst, torch.softmax(src, dim=0))

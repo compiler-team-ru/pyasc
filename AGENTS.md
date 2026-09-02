@@ -11,7 +11,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 # Agent Guidelines for PyAsc
 
 PyAsc is a Python programming model for writing compute kernels that run on Huawei Ascend NPUs.
-Two APIs: `asc` (1:1 Ascend C mapping, `@asc.jit`) for low-level control, `asc2` (tile-based, NumPy-like, `@asc2.jit`) for high-level kernels.
+Two APIs: `asc` (1:1 Ascend C mapping, `@asc.jit`) for low-level control, `asctile` (tile-based, NumPy-like, `@asctile.jit`) for high-level kernels.
 Requires CANN toolkit (Bisheng compiler + NPU runtime).
 
 ## External File Loading
@@ -40,17 +40,17 @@ Other options in @docs/installation/build-from-source.rst.
 
 ### Testing
 - Run all Python tests: `pytest python/test/`
-- Run asc2 kernel tests: `pytest python/test/asc2/kernels/`
-- Run asc2 operation tests: `pytest python/test/asc2/operations/`
-- Run asc2 target tests: `pytest python/test/asc2/target/`
+- Run asctile kernel tests: `pytest python/test/asctile/kernels/`
+- Run asctile operation tests: `pytest python/test/asctile/operations/`
+- Run asctile target tests: `pytest python/test/asctile/target/`
 - Run asc kernel tests: `pytest python/test/kernels/`
 - Run asc unit tests: `pytest python/test/unit/`
-- Run specific test file: `pytest python/test/asc2/kernels/test_vadd.py`
-- Run specific test function: `pytest python/test/asc2/kernels/test_vadd.py::test_vadd`
+- Run specific test file: `pytest python/test/asctile/kernels/test_vadd.py`
+- Run specific test function: `pytest python/test/asctile/kernels/test_vadd.py::test_vadd`
 - Run tests in parallel: `pytest -n auto python/test/`
 - Run with coverage: `pytest --cov=asc python/test/`
 - Run backend/MLIR tests: `lit -v test/`
-- Compile-only mode (no NPU required): `pytest --compile-only python/test/asc2/`
+- Compile-only mode (no NPU required): `pytest --compile-only python/test/asctile/`
 - Select backend/platform: `pytest --backend Model --platform Ascend910B1`
 - Skip FileCheck tests: `pytest --skip-filecheck python/test/unit/`
 
@@ -108,13 +108,13 @@ For runtime environment setup: @docs/installation/setup-runtime-env.rst
 
 ### Testing Guidelines
 - Use pytest for Python tests, lit for backend/MLIR tests
-- asc2 tests: `python/test/asc2/kernels/` (end-to-end), `python/test/asc2/operations/` (op-level), `python/test/asc2/target/` (target-specific)
+- asctile tests: `python/test/asctile/kernels/` (end-to-end), `python/test/asctile/operations/` (op-level), `python/test/asctile/target/` (target-specific)
 - asc tests: `python/test/kernels/` (end-to-end), `python/test/unit/` (unit with FileCheck)
 - Use descriptive test names, group related tests in test classes
 - Use fixtures for common setup/teardown, `pytest.skip()` for conditional test execution
 - Unit tests use `FileCheck` fixture to verify generated MLIR (see `@python/test/unit/conftest.py`)
 
-## PyAsc2 Programming Model
+## AscTile Programming Model
 
 ### Core Concepts
 - **GlobalTensor**: Global memory (HBM) descriptor with pointer and shape (dynamic shapes)
@@ -122,13 +122,13 @@ For runtime environment setup: @docs/installation/setup-runtime-env.rst
 - Local tensors use value semantics - each operation produces a new tensor
 - Memory hierarchy (Ascend NPU related): `TensorLocation.UB` (default), `TensorLocation.L0A`/`L0B`/`L0C`, `TensorLocation.L1`
 
-### PyAsc2 API Patterns
+### AscTile API Patterns
 ```python
 # Tensor creation and loading
-global_tensor = asc2.global_tensor(x_ptr, [size])
-local_tensor = asc2.copy_in(global_tensor, shape=[128], offsets=[base])  # explicit element offsets
-scalar = asc2.copy_in(global_tensor, offsets=[i])
-asc2.copy_out(local_tensor, global_tensor, offsets=[base])
+global_tensor = asctile.global_tensor(x_ptr, [size])
+local_tensor = asctile.copy_in(global_tensor, shape=[128], offsets=[base])  # explicit element offsets
+scalar = asctile.copy_in(global_tensor, offsets=[i])
+asctile.copy_out(local_tensor, global_tensor, offsets=[base])
 
 # Arithmetic: add, sub, mul, div, maximum, minimum, left_shift, right_shift
 # Comparison: equal, not_equal, greater, greater_equal, less, less_equal
@@ -142,26 +142,26 @@ asc2.copy_out(local_tensor, global_tensor, offsets=[base])
 # Atomics: atomic_add, atomic_max, atomic_min
 
 # Programming model operations
-i = asc2.block_idx()    # current NPU block index
-n = asc2.block_num()    # total number of blocks
+i = asctile.block_idx()    # current NPU block index
+n = asctile.block_num()    # total number of blocks
 
 # Loop control
-for i in asc2.range(start, stop, step, unroll_factor=4, gm_barrier=False):
+for i in asctile.range(start, stop, step, unroll_factor=4, gm_barrier=False):
     # unroll_factor: how many iterations to unroll
     # gm_barrier=True: prevent parallel load/store optimization
 
 # Masking
-with asc2.mask(count=8, other=0):
+with asctile.mask(count=8, other=0):
     # operations apply to first 8 elements
 ```
 
 ### JIT Compilation
 ```python
-@asc2.jit  # or with options: @asc2.jit(always_compile=True, ...)
+@asctile.jit  # or with options: @asctile.jit(always_compile=True, ...)
 def kernel(x_ptr, y_ptr, out_ptr, size: int, TILE: asc.ConstExpr[int]):
-    x_gm = asc2.global_tensor(x_ptr, [size])
-    y_gm = asc2.global_tensor(y_ptr, [size])
-    out_gm = asc2.global_tensor(out_ptr, [size])
+    x_gm = asctile.global_tensor(x_ptr, [size])
+    y_gm = asctile.global_tensor(y_ptr, [size])
+    out_gm = asctile.global_tensor(out_ptr, [size])
     # ... kernel implementation
 
 x = torch.rand_like(..., device="cpu")  # Initialize tensors with numpy or torch
@@ -169,7 +169,7 @@ kernel[8](x, y, out, size, TILE=256)    # Launch with 8 cores
 ```
 
 ### JIT Compile Options
-- `run_asc2_passes=True`: Enable AscTile + AscLower pipeline (enabled by default when using `@asc2.jit`)
+- `run_asctile_passes=True`: Enable AscTile + AscLower pipeline (enabled by default when using `@asctile.jit`)
 - `static_alloc=True`: Static vs TPipe-managed UB allocation
 - `reuse_alloc=0`: Reuse freed UB regions (`1` to enable)
 - `always_compile=False`: Bypass cache, recompile every call
@@ -178,7 +178,7 @@ Other options in @python/asc/runtime/compiler.py (CompileOptions dataclass).
 
 ### Architecture Notes
 - `python/asc/`: Core Python package (codegen, language APIs, runtime, lib bindings)
-- `python/asc2/`: PyAsc2 frontend API and JIT decorator (thin wrapper over asc)
+- `python/asctile/`: AscTile frontend API and JIT decorator (thin wrapper over asc)
 - `python/asc/codegen/`: Python AST → ASC-IR (MLIR) translation (FunctionVisitor)
 - `python/asc/language/`: Language APIs (`basic/`, `adv/`, `core/`, `fwk/`, `tile/`)
 - `python/asc/runtime/`: JIT compilation, caching, kernel launching

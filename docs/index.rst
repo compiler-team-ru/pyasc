@@ -48,7 +48,7 @@ PyAsc documentation
 
 .. toctree::
    :maxdepth: 1
-   :caption: Python API (PyAsc2)
+   :caption: Python API (AscTile)
 
    python-api/rst/language/tile
    python-api/rst/runtime/index

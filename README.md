@@ -4,7 +4,7 @@ PyAsc (Python-Ascend) is a Python programming model for writing compute kernels 
 Kernels are written in Python, translated through an MLIR pipeline into Ascend C, and then compiled by the Bisheng compiler into an NPU binary.
 Two APIs are available:
 
-* `asc2` (tile-based, NumPy-like, `@asc2.jit`) for high-level kernels,
+* `asctile` (tile-based, NumPy-like, `@asctile.jit`) for high-level kernels,
 * `asc` (1:1 Ascend C mapping, `@asc.jit`) for low-level control.
 
 ## Installation
@@ -23,21 +23,21 @@ Two APIs are available:
 
 ```python
 import asc
-import asc2
+import asctile
 import torch
 
-@asc2.jit
+@asctile.jit
 def vadd_kernel(x_ptr: asc.GlobalAddress, y_ptr: asc.GlobalAddress, out_ptr: asc.GlobalAddress,
                 size: int, tile_size: asc.ConstExpr[int], tile_per_block: asc.ConstExpr[int]):
-    x_gm   = asc2.global_tensor(x_ptr,   [size])
-    y_gm   = asc2.global_tensor(y_ptr,   [size])
-    out_gm = asc2.global_tensor(out_ptr, [size])
-    base   = asc2.block_idx() * tile_size * tile_per_block
+    x_gm   = asctile.global_tensor(x_ptr,   [size])
+    y_gm   = asctile.global_tensor(y_ptr,   [size])
+    out_gm = asctile.global_tensor(out_ptr, [size])
+    base   = asctile.block_idx() * tile_size * tile_per_block
     for i in range(tile_per_block):
         off = base + i * tile_size
-        x   = asc2.copy_in(x_gm, [tile_size], offsets=[off])
-        y   = asc2.copy_in(y_gm, [tile_size], offsets=[off])
-        asc2.copy_out(x + y, out_gm, offsets=[off])
+        x   = asctile.copy_in(x_gm, [tile_size], offsets=[off])
+        y   = asctile.copy_in(y_gm, [tile_size], offsets=[off])
+        asctile.copy_out(x + y, out_gm, offsets=[off])
 
 # Create tensors
 x = torch.rand(8192, dtype=torch.float32)

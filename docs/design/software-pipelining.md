@@ -14,7 +14,7 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 Double-buffering is managed by developer with `unroll_factor` parameter in user
 loop operator. The `unroll_factor` parameter is a loop optimization option
-available in `asc2.range()` that controls loop unrolling. Loop unrolling is a
+available in `asctile.range()` that controls loop unrolling. Loop unrolling is a
 compiler optimization technique that replaces loop iterations with explicit
 sequential code, reducing loop overhead and enabling better instruction-level
 parallelism. As result the loop body is increased by fuctor `unroll_factor`.
@@ -28,7 +28,7 @@ to code block without loop (if one iteration).
 
 ### Syntax
 ```python
-for i in asc2.range(start, stop, step, unroll_factor=2):
+for i in asctile.range(start, stop, step, unroll_factor=2):
     # loop body
     pass
 ```
@@ -37,42 +37,42 @@ time.
 - **Default Value**: `1` (no unrolling)
 - **Minimum Value**: `1` (unroll factor must be 1 or greater)
 - **Type**: `int`
-- **Scope**: Only applicable to `asc2.range()` loops
+- **Scope**: Only applicable to `asctile.range()` loops
 Recommended value is 2.
 
 ## Usage Examples
 
 ### Example 1: Default Behavior (No Unrolling)
 ```python
-import asc2
+import asctile
 
 # Default unroll_factor=1 (no unrolling)
-@asc2.jit()
+@asctile.jit()
 def simple_kernel(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
-    x_gm = asc2.global_tensor(x, [size])
-    y_gm = asc2.global_tensor(y, [size])
+    x_gm = asctile.global_tensor(x, [size])
+    y_gm = asctile.global_tensor(y, [size])
 
-    for i in asc2.range(size):
+    for i in asctile.range(size):
         # Loop remains as-is
-        x_val = asc2.copy_in(x_gm, [i], [1])
-        y_val = asc2.copy_in(y_gm, [i], [1])
+        x_val = asctile.copy_in(x_gm, [i], [1])
+        y_val = asctile.copy_in(y_gm, [i], [1])
         result = x_val + y_val
-        asc2.copy_out(result, y_gm, [i])
+        asctile.copy_out(result, y_gm, [i])
 ```
 
 ### Example 2: Recomended unrolling
 ```python
-@asc2.jit()
+@asctile.jit()
 def unrolled_kernel(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
-    x_gm = asc2.global_tensor(x, [size])
-    y_gm = asc2.global_tensor(y, [size])
+    x_gm = asctile.global_tensor(x, [size])
+    y_gm = asctile.global_tensor(y, [size])
 
-    for i in asc2.range(size, unroll_factor=2):
+    for i in asctile.range(size, unroll_factor=2):
         # Loop body will be unrolled 2 times
-        x_val = asc2.copy_in(x_gm, [i], [1])
-        y_val = asc2.copy_in(y_gm, [i], [1])
+        x_val = asctile.copy_in(x_gm, [i], [1])
+        y_val = asctile.copy_in(y_gm, [i], [1])
         result = x_val + y_val
-        asc2.copy_out(result, y_gm, [i])
+        asctile.copy_out(result, y_gm, [i])
 ```
 
 ### Example 3: Unrolling with Parallel Execution
@@ -81,17 +81,17 @@ iteration with load on `n+1` iteration. The optimization works both for unrolled
 and not-unrolled iterations.
 ```python
 # Combine unrolling with parallel execution
-@asc2.jit()
+@asctile.jit()
 def parallel_unroll(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
-    x_gm = asc2.global_tensor(x, [size])
-    y_gm = asc2.global_tensor(y, [size])
+    x_gm = asctile.global_tensor(x, [size])
+    y_gm = asctile.global_tensor(y, [size])
 
-    for i in asc2.range(size, unroll_factor=2):
+    for i in asctile.range(size, unroll_factor=2):
         # Loop unrolled and executed in parallel
-        x_val = asc2.copy_in(x_gm, [i], [1])
-        y_val = asc2.copy_in(y_gm, [i], [1])
+        x_val = asctile.copy_in(x_gm, [i], [1])
+        y_val = asctile.copy_in(y_gm, [i], [1])
         result = x_val + y_val
-        asc2.copy_out(result, y_gm, [i])
+        asctile.copy_out(result, y_gm, [i])
 ```
 
 ### Limitations & Recommendations

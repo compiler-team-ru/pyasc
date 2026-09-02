@@ -303,7 +303,7 @@ pip wheel . --no-deps -w dist/
 pip list | grep pyasc
 
 # Check Python imports
-python -c "import asc, asc2; print('PyAsc imported successfully')"
+python -c "import asc, asctile; print('PyAsc imported successfully')"
 
 # Check dev tools (if PYASC_SETUP_DEVTOOLS=1)
 which ascir-opt

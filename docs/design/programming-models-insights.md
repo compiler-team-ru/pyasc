@@ -22,8 +22,8 @@ Survey of existing tile-based and kernel DSL programming models relevant to Asce
 ## 1. AscendC
 
 AscendC is the official C++ kernel language for Ascend NPU and the compilation
-target for PyAsc2. Understanding how it handles the three key challenges defines
-the baseline that PyAsc2 must improve upon.
+target for AscTile. Understanding how it handles the three key challenges defines
+the baseline that AscTile must improve upon.
 
 AscendC is not a single programming model — it has evolved with the hardware.
 On A2/A3 (910B/C) the only level is `basic_api` (TPipe/TQue, memory-centric).
@@ -289,7 +289,7 @@ must solve — evidenced by softmax's end-to-end rewrite from `membase/` to
 It exposes the register file and predication; it does not automate sync or
 memory planning.
 
-#### SIMT-API — brief note (not a pyasc2 target)
+#### SIMT-API — brief note (not a pyasctile target)
 
 SIMT-API is a CUDA-like per-thread scalar level (`AbsImpl`, `AtomicCasImpl`,
 warp-level primitives, a CPU-debug shim). It is A5-exclusive and represents
@@ -297,17 +297,17 @@ a different programming model entirely: instead of tile-level intrinsics it
 exposes per-thread operations, with the compiler and hardware responsible for
 SIMT-style lane grouping and latency hiding.
 
-**pyasc2 does not target SIMT-API.** SIMT-style per-thread code on Ascend is
-not expected to reach the performance ceiling needed by a pyasc2 kernel; the
+**pyasctile does not target SIMT-API.** SIMT-style per-thread code on Ascend is
+not expected to reach the performance ceiling needed by a pyasctile kernel; the
 DSL's goal is ≥90% of peak hardware potential and SIMT lowers that ceiling by
 giving up tile-level orchestration. SIMT-API is noted here for completeness
 and because its atomics are mirrored into basic_api.
 
-#### pyasc2 implication
+#### pyasctile implication
 
-pyasc2 targets `basic_api` (baseline, portable across A2 and A5) and
+pyasctile targets `basic_api` (baseline, portable across A2 and A5) and
 MicroAPI (A5-only, for register-file throughput and the new dtype matrix).
-SIMT-API is out of scope. A pyasc2 program targeting A5 must lower to a
+SIMT-API is out of scope. A pyasctile program targeting A5 must lower to a
 c310 build that mixes basic_api for data movement and TPipe orchestration with
 MicroAPI for compute inside tiles; targeting A2 lowers to basic_api only
 (c220). This level split is the core portability decision §4 must make
@@ -527,7 +527,7 @@ L1 and L0A/B/C allocation has no compile-time limit checking in either mode.
 
 **Conclusion**: Memory hierarchy placement is always user-chosen (unlike Triton).
 Buffer reuse and validation are available but opt-in — not yet the default.
-> TODO: Clarify why Buffer reuse and validation is not yet default option. 
+> TODO: Clarify why Buffer reuse and validation is not yet default option.
 
 
 ## 5. Triton-Ascend
@@ -1011,7 +1011,7 @@ philosophy: structured control over automation.
 | **User memory control** | Full manual | None | None | Explicit hierarchy | Indirect (BLOCK_SIZE) | None | `target_memory` hint | BlockSpec (tile shape) | Full manual (Shared, TMEM) |
 | **Hardware** | Ascend A2/A3 | NVIDIA/AMD/Intel | NVIDIA Blackwell | Ascend A2/A3 | Ascend A2/A3 | Ascend A2 | A2, A5 | Google TPU | NVIDIA/AMD/Apple |
 
-### Key Observations for PyAsc2 Design
+### Key Observations for AscTile Design
 
 **1. Full automation is achievable on Ascend — performance cost varies.**
 Among Ascend-targeting frameworks, Triton-Ascend, TileLang-Ascend, PyPTO-main, and
@@ -1019,12 +1019,12 @@ PyPTOv3 all automate sync, ping-pong, and UB allocation. But automation quality 
 TileLang-Ascend's auto sync generates conservative `PipeBarrier<PIPE_ALL>` instead of
 fine-grained flags. No published benchmarks compare automated vs hand-optimized AscendC
 for the same kernels. The gap between "correct" and "optimal" automatic code is the main
-engineering challenge for PyAsc2.
+engineering challenge for AscTile.
 
 **2. The right abstraction level is tensor — with tile escape hatch.**
 PyPTOv3's two-level design covers both use cases. Triton's tile-only model forces all
 users into low-level thinking. cuTile's no-escape model limits advanced optimization.
-PyAsc2 should follow PyPTOv3's approach: tensor-level default, tile-level available.
+AscTile should follow PyPTOv3's approach: tensor-level default, tile-level available.
 
 **3. Memory hierarchy hints > full manual control.**
 cuTile (fully implicit) and AscendC (fully explicit) are the two extremes. PyPTOv3's
@@ -1034,169 +1034,168 @@ handles mechanics.
 **4. Liveness-based UB reuse is critical — more so than on GPU.**
 On GPU, shared memory reuse pressure is low — up to 228 KB available, rarely exhausted.
 On Ascend, UB is 192 KB (96 KB with double buffering) and almost always the bottleneck.
-Suboptimal reuse forces smaller tiles or spills to global memory. PyAsc2 should provide
+Suboptimal reuse forces smaller tiles or spills to global memory. AscTile should provide
 automatic reuse by default with an option for expert override of buffer placement.
 
 **5. Compile-time UB overflow detection is non-negotiable.**
 AscendC's silent corruption is the #1 developer pain point. Every modern framework
-catches overflow at compile time. PyAsc2 must validate UB/L1/L0 fit at compile time
+catches overflow at compile time. AscTile must validate UB/L1/L0 fit at compile time
 with clear error messages.
 
 **6. `num_stages` vs fully automatic pipelining.**
 Triton and TileLang-Ascend expose pipeline depth to users. cuTile, PyPTO-main, and
-PyPTOv3 hide it entirely. For PyAsc2: default to automatic, provide `num_stages` as
+PyPTOv3 hide it entirely. For AscTile: default to automatic, provide `num_stages` as
 optional expert hint.
 
 **7. Ascend-native IR outperforms adapted GPU IR.**
 Triton-Ascend's TTIR→HIVM path works but requires user-level rewrites (BLOCK_SIZE_SUB,
-fixed grid, alignment). Native Ascend frameworks handle these in the compiler. PyAsc2
+fixed grid, alignment). Native Ascend frameworks handle these in the compiler. AscTile
 should be Ascend-native from the start.
 
 ## References
 
-<a id="ref-10"></a>**[10]** Triton matmul tutorial — pipelined kernel with no user-written barriers.  
+<a id="ref-10"></a>**[10]** Triton matmul tutorial — pipelined kernel with no user-written barriers.
 <https://triton-lang.org/main/getting-started/tutorials/03-matrix-multiplication.html>
 
-<a id="ref-11"></a>**[11]** Triton shared memory allocation — `AllocationAnalysis`.  
+<a id="ref-11"></a>**[11]** Triton shared memory allocation — `AllocationAnalysis`.
 <https://github.com/triton-lang/triton/blob/main/lib/Analysis/Allocation.cpp>
 
-<a id="ref-12"></a>**[12]** Triton encoding assignment for reductions — `ReduceDataDuplication`.  
+<a id="ref-12"></a>**[12]** Triton encoding assignment for reductions — `ReduceDataDuplication`.
 <https://github.com/triton-lang/triton/blob/main/lib/Dialect/TritonGPU/Transforms/ReduceDataDuplication.cpp>
 
-<a id="ref-13"></a>**[13]** Triton encoding assignment for dot/matmul — `BlockedToMMA`.  
+<a id="ref-13"></a>**[13]** Triton encoding assignment for dot/matmul — `BlockedToMMA`.
 <https://github.com/triton-lang/triton/blob/main/lib/Dialect/TritonGPU/Transforms/AccelerateMatmul.cpp>
 
-<a id="ref-14"></a>**[14]** cuTile execution model — no intra-block sync.  
+<a id="ref-14"></a>**[14]** cuTile execution model — no intra-block sync.
 <https://docs.nvidia.com/cuda/cutile-python/execution.html>
 
-<a id="ref-15"></a>**[15]** TileIR internals — from cuTile to MLIR/LLVM to SASS.  
+<a id="ref-15"></a>**[15]** TileIR internals — from cuTile to MLIR/LLVM to SASS.
 <https://maknee.github.io/blog/2026/NVIDIA-TileIR-Internals-from-CuTile-to-MLIR-LLVM-to-SASS/>
 
-<a id="ref-16"></a>**[16]** TileIR source code (NVIDIA, open-source).  
+<a id="ref-16"></a>**[16]** TileIR source code (NVIDIA, open-source).
 <https://github.com/NVIDIA/cuda-tile>
 
-<a id="ref-17"></a>**[17]** NVIDIA blog — high-performance matrix multiply in cuTile.  
+<a id="ref-17"></a>**[17]** NVIDIA blog — high-performance matrix multiply in cuTile.
 <https://developer.nvidia.com/blog/how-to-write-high-performance-matrix-multiply-in-nvidia-cuda-tile>
 
-<a id="ref-18"></a>**[18]** TiledAttention — SDPA in cuTile (arXiv:2603.01960).  
+<a id="ref-18"></a>**[18]** TiledAttention — SDPA in cuTile (arXiv:2603.01960).
 <https://arxiv.org/abs/2603.01960>
 
-<a id="ref-19"></a>**[19]** CuTile on Blackwell — compiler moat analysis (TMEM, mbarrier details).  
+<a id="ref-19"></a>**[19]** CuTile on Blackwell — compiler moat analysis (TMEM, mbarrier details).
 <https://patricktoulme.substack.com/p/cutile-on-blackwell-nvidias-compiler>
 
-<a id="ref-20"></a>**[20]** tcgen05 for dummies — TMEM allocation, operand placement.  
+<a id="ref-20"></a>**[20]** tcgen05 for dummies — TMEM allocation, operand placement.
 <https://gau-nernst.github.io/tcgen05/>
 
-<a id="ref-21"></a>**[21]** TileLang-Ascend repo — examples and sync primitives.  
+<a id="ref-21"></a>**[21]** TileLang-Ascend repo — examples and sync primitives.
 <https://github.com/tile-ai/tilelang-ascend>
 
-<a id="ref-22"></a>**[22]** TileLang-Ascend auto sync config (Issue #98).  
+<a id="ref-22"></a>**[22]** TileLang-Ascend auto sync config (Issue #98).
 <https://github.com/tile-ai/tilelang-ascend/issues/98>
 
-<a id="ref-23"></a>**[23]** TileLang-Ascend CombineCV + AscendSyncInsert passes.  
+<a id="ref-23"></a>**[23]** TileLang-Ascend CombineCV + AscendSyncInsert passes.
 <https://github.com/tile-ai/tilelang-ascend/blob/ascendc_pto/src/transform/ascend_combinecv.cc>
 
-<a id="ref-24"></a>**[24]** TileLang-Ascend double buffer sync issue (#110).  
+<a id="ref-24"></a>**[24]** TileLang-Ascend double buffer sync issue (#110).
 <https://github.com/tile-ai/tilelang-ascend/issues/110>
 
-<a id="ref-25"></a>**[25]** TileLang-Ascend roadmap — memory planning, autotuner (Issue #3).  
+<a id="ref-25"></a>**[25]** TileLang-Ascend roadmap — memory planning, autotuner (Issue #3).
 <https://github.com/tile-ai/tilelang-ascend/issues/3>
 
-<a id="ref-26"></a>**[26]** Triton-Ascend programming guide (gitcode.com primary repo).  
+<a id="ref-26"></a>**[26]** Triton-Ascend programming guide (gitcode.com primary repo).
 <https://gitcode.com/Ascend/triton-ascend/blob/main/docs/en/programming_guide.md>
 
-<a id="ref-27"></a>**[27]** Triton-Ascend examples — confirmed on Ascend with torch_npu.  
+<a id="ref-27"></a>**[27]** Triton-Ascend examples — confirmed on Ascend with torch_npu.
 <https://gitcode.com/Ascend/triton-ascend/tree/main/docs/en/examples>
 
-<a id="ref-28"></a>**[28]** Triton-Ascend architecture design and core features.  
+<a id="ref-28"></a>**[28]** Triton-Ascend architecture design and core features.
 <https://gitcode.com/Ascend/triton-ascend/blob/main/docs/en/architecture_design_and_core_features.md>
 
-<a id="ref-29"></a>**[29]** AscendNPU-IR architecture — HIVM/HFusion/HACC dialect definitions.  
+<a id="ref-29"></a>**[29]** AscendNPU-IR architecture — HIVM/HFusion/HACC dialect definitions.
 <https://gitcode.com/Ascend/AscendNPU-IR/blob/main/docs/source/en/introduction/architecture.md>
 
-<a id="ref-30"></a>**[30]** AscendNPU-IR PlanMemory pass — liveness-based UB allocation.  
+<a id="ref-30"></a>**[30]** AscendNPU-IR PlanMemory pass — liveness-based UB allocation.
 <https://gitcode.com/Ascend/AscendNPU-IR/blob/main/bishengir/lib/Dialect/HIVM/Transforms/PlanMemory.cpp>
 
-<a id="ref-31"></a>**[31]** PyPTO-main matmul example.  
+<a id="ref-31"></a>**[31]** PyPTO-main matmul example.
 <https://gitcode.com/cann/pypto/blob/master/examples/01_beginner/compute/matmul_ops.py>
 
-<a id="ref-32"></a>**[32]** PyPTO InsertSync pass — RAW/WAW/WAR dependency analysis.  
+<a id="ref-32"></a>**[32]** PyPTO InsertSync pass — RAW/WAW/WAR dependency analysis.
 <https://gitcode.com/cann/pypto/blob/master/framework/src/passes/block_graph_pass/insert_sync.cpp>
 
-<a id="ref-33"></a>**[33]** PyPTO tune_sync_for_vf — barrier relaxation for vector fusion.  
+<a id="ref-33"></a>**[33]** PyPTO tune_sync_for_vf — barrier relaxation for vector fusion.
 <https://gitcode.com/cann/pypto/blob/master/framework/src/passes/block_graph_pass/tune_sync_for_vf.cpp>
 
-<a id="ref-34"></a>**[34]** PyPTO n_buffer_merge — double buffering at Tile Graph level.  
+<a id="ref-34"></a>**[34]** PyPTO n_buffer_merge — double buffering at Tile Graph level.
 <https://gitcode.com/cann/pypto/blob/master/framework/src/passes/tile_graph_pass/graph_partition/n_buffer_merge.cpp>
 
-<a id="ref-35"></a>**[35]** PyPTO add_alloc / schedule_ooo — Block Graph allocation and scheduling.  
+<a id="ref-35"></a>**[35]** PyPTO add_alloc / schedule_ooo — Block Graph allocation and scheduling.
 <https://gitcode.com/cann/pypto/blob/master/framework/src/passes/block_graph_pass/schedule_ooo/add_alloc.cpp>
 
-<a id="ref-36"></a>**[36]** PyPTO assign_memory_type — memory space assignment at Tile Graph.  
+<a id="ref-36"></a>**[36]** PyPTO assign_memory_type — memory space assignment at Tile Graph.
 <https://gitcode.com/cann/pypto/blob/master/framework/src/passes/tile_graph_pass/data_path/assign_memory_type.cpp>
 
-<a id="ref-37"></a>**[37]** PyPTO memory_reuse — liveness-based buffer reuse.  
+<a id="ref-37"></a>**[37]** PyPTO memory_reuse — liveness-based buffer reuse.
 <https://gitcode.com/cann/pypto/blob/master/framework/src/passes/block_graph_pass/memory_reuse/global_memory_reuse.cpp>
 
-<a id="ref-38"></a>**[38]** PyPTOv3 language guide — DSL, memory hierarchy, optimization pipeline.  
+<a id="ref-38"></a>**[38]** PyPTOv3 language guide — DSL, memory hierarchy, optimization pipeline.
 <https://github.com/hw-native-sys/pypto/blob/main/docs/en/user/01-language_guide.md>
 
-<a id="ref-39"></a>**[39]** PyPTOv3 insert_sync_pass — 4-phase sync insertion algorithm.  
+<a id="ref-39"></a>**[39]** PyPTOv3 insert_sync_pass — 4-phase sync insertion algorithm.
 <https://github.com/hw-native-sys/pypto/blob/main/src/ir/transforms/insert_sync_pass.cpp>
 
-<a id="ref-40"></a>**[40]** PyPTOv3 expand_mixed_kernel_pass — AIC/AIV split + cross-core sync.  
+<a id="ref-40"></a>**[40]** PyPTOv3 expand_mixed_kernel_pass — AIC/AIV split + cross-core sync.
 <https://github.com/hw-native-sys/pypto/blob/main/src/ir/transforms/expand_mixed_kernel_pass.cpp>
 
-<a id="ref-41"></a>**[41]** PyPTOv3 init_memref — buffer allocation and memory space assignment.  
+<a id="ref-41"></a>**[41]** PyPTOv3 init_memref — buffer allocation and memory space assignment.
 <https://github.com/hw-native-sys/pypto/blob/main/src/ir/transforms/init_memref.cpp>
 
-<a id="ref-42"></a>**[42]** PyPTOv3 memory_reuse_pass — liveness-based buffer sharing.  
+<a id="ref-42"></a>**[42]** PyPTOv3 memory_reuse_pass — liveness-based buffer sharing.
 <https://github.com/hw-native-sys/pypto/blob/main/src/ir/transforms/memory_reuse_pass.cpp>
 
-<a id="ref-43"></a>**[43]** PyPTOv3 legalize_pto_buffer_reuse — PTO backend buffer legalization.  
+<a id="ref-43"></a>**[43]** PyPTOv3 legalize_pto_buffer_reuse — PTO backend buffer legalization.
 <https://github.com/hw-native-sys/pypto/blob/main/src/ir/transforms/legalize_pto_buffer_reuse_pass.cpp>
 
-<a id="ref-44"></a>**[44]** PyPTOv3 Qwen3 decode example — tilelet-aware tiling.  
+<a id="ref-44"></a>**[44]** PyPTOv3 Qwen3 decode example — tilelet-aware tiling.
 <https://github.com/hw-native-sys/pypto-lib/pull/25>
 
-<a id="ref-45"></a>**[45]** PyPTOv3 infer_tile_memory_space — memory space inference.  
+<a id="ref-45"></a>**[45]** PyPTOv3 infer_tile_memory_space — memory space inference.
 <https://github.com/hw-native-sys/pypto/blob/main/src/ir/transforms/infer_tile_memory_space_pass.cpp>
 
-<a id="ref-46"></a>**[46]** PyPTOv3 allocate_memory_addr — concrete address assignment.  
+<a id="ref-46"></a>**[46]** PyPTOv3 allocate_memory_addr — concrete address assignment.
 <https://github.com/hw-native-sys/pypto/blob/main/src/ir/transforms/allocate_memory_addr_pass.cpp>
 
-<a id="ref-47"></a>**[47]** Pallas — JAX kernel language overview.  
+<a id="ref-47"></a>**[47]** Pallas — JAX kernel language overview.
 <https://jax.readthedocs.io/en/latest/pallas/index.html>
 
-<a id="ref-48"></a>**[48]** Pallas design notes — compilation pipeline.  
+<a id="ref-48"></a>**[48]** Pallas design notes — compilation pipeline.
 <https://jax.readthedocs.io/en/latest/pallas/design/design.html>
 
-<a id="ref-49"></a>**[49]** Pallas TPU details — memory, sync, tiling constraints.  
+<a id="ref-49"></a>**[49]** Pallas TPU details — memory, sync, tiling constraints.
 <https://docs.jax.dev/en/latest/pallas/tpu/details.html>
 
-<a id="ref-50"></a>**[50]** Pallas paged attention kernel — async_copy + semaphore usage.  
+<a id="ref-50"></a>**[50]** Pallas paged attention kernel — async_copy + semaphore usage.
 <https://github.com/jax-ml/jax/blob/main/jax/experimental/pallas/ops/tpu/paged_attention/paged_attention_kernel.py>
 
-<a id="ref-51"></a>**[51]** Pallas TPU pipelining — emit_pipeline, lookahead prefetch.  
+<a id="ref-51"></a>**[51]** Pallas TPU pipelining — emit_pipeline, lookahead prefetch.
 <https://docs.jax.dev/en/latest/pallas/tpu/pipelining.html>
 
-<a id="ref-52"></a>**[52]** Mojo MLIR-based compilation — KGEN compiler (arXiv:2509.21039).  
+<a id="ref-52"></a>**[52]** Mojo MLIR-based compilation — KGEN compiler (arXiv:2509.21039).
 <https://arxiv.org/abs/2509.21039>
 
-<a id="ref-53"></a>**[53]** Structured Mojo Kernels Part 2 — three pillars (TileIO, TilePipeline, TileOp).  
+<a id="ref-53"></a>**[53]** Structured Mojo Kernels Part 2 — three pillars (TileIO, TilePipeline, TileOp).
 <https://www.modular.com/blog/structured-mojo-kernels-part-2-the-three-pillars>
 
-<a id="ref-54"></a>**[54]** Mojo GPU sync primitives — barrier, syncwarp, named_barrier.  
+<a id="ref-54"></a>**[54]** Mojo GPU sync primitives — barrier, syncwarp, named_barrier.
 <https://docs.modular.com/mojo/manual/gpu/block-and-warp/>
 
-<a id="ref-55"></a>**[55]** Mojo GPU fundamentals — kernel model, thread indexing.  
+<a id="ref-55"></a>**[55]** Mojo GPU fundamentals — kernel model, thread indexing.
 <https://docs.modular.com/mojo/manual/gpu/fundamentals/>
 
-<a id="ref-56"></a>**[56]** Structured Mojo Kernels Part 1 — design philosophy, performance.  
+<a id="ref-56"></a>**[56]** Structured Mojo Kernels Part 1 — design philosophy, performance.
 <https://www.modular.com/blog/structured-mojo-kernels-part-1-peak-performance-half-the-code>
 
-<a id="ref-57"></a>**[57]** TileTensor — parametric tile-level tensors in Mojo.  
+<a id="ref-57"></a>**[57]** TileTensor — parametric tile-level tensors in Mojo.
 <https://www.modular.com/blog/tiletensor-part-1-safer-more-efficient-gpu-kernels>
 
 <a id="ref-58"></a>**[58]** CANN 9 SDK preview — 950/A5 programming model findings (internal notes from SDK source inspection).
-

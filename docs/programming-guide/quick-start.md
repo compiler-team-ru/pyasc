@@ -16,57 +16,57 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 ## Install required packages
 
-1. [Build PyAsc2 from sources](../installation/build-from-source.rst).
+1. [Build AscTile from sources](../installation/build-from-source.rst).
 2. [Install CANN packages](../installation/setup-runtime-env.rst) if not installed.
 
 ## Verify the installation
 
-Run tutorials in `python/tutorials/asc2` directory, for example:
+Run tutorials in `python/tutorials/asctile` directory, for example:
 
 ```bash
-python3 python/tutorials/asc2/01-vector-add.py
+python3 python/tutorials/asctile/01-vector-add.py
 ```
 
 ## Operator file structure
 
 ### Kernel function
 
-The functions which are executed on Ascend NPU must be marked with `@asc2.jit` decorator. In this case:
-- Pointers to input and output tensors should have `asc2.GlobalAddress` type.
+The functions which are executed on Ascend NPU must be marked with `@asctile.jit` decorator. In this case:
+- Pointers to input and output tensors should have `asctile.GlobalAddress` type.
 - Scalar parameters are passed as Python types (e.g. `int`, `float`).
-- For optimization purposes it is recommended to pass scalar parameter as constants (e.g. `asc2.ConstExpr[int]`).
+- For optimization purposes it is recommended to pass scalar parameter as constants (e.g. `asctile.ConstExpr[int]`).
 
 ```python
-@asc2.jit
-def vadd_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, size: int,
-                tile_size: asc2.ConstExpr[int], tile_per_block: asc2.ConstExpr[int]):
+@asctile.jit
+def vadd_kernel(x_ptr: asctile.GlobalAddress, y_ptr: asctile.GlobalAddress, out_ptr: asctile.GlobalAddress, size: int,
+                tile_size: asctile.ConstExpr[int], tile_per_block: asctile.ConstExpr[int]):
 ```
 
-Tensor descriptor is created from `asc2.GlobalAddress` to represent entire tensor.
+Tensor descriptor is created from `asctile.GlobalAddress` to represent entire tensor.
 
 ```python
-x_gm = asc2.global_tensor(x_ptr, [size])
-y_gm = asc2.global_tensor(y_ptr, [size])
-out_gm = asc2.global_tensor(out_ptr, [size])
+x_gm = asctile.global_tensor(x_ptr, [size])
+y_gm = asctile.global_tensor(y_ptr, [size])
+out_gm = asctile.global_tensor(out_ptr, [size])
 ```
 
 Python expressions are used to calculate offset and define the loop iterating over tiles:
-- `asc2.block_idx()` function is used to get current AICORE index.
-- `asc2.block_num()` function provides number of AICOREs launched.
-- `unroll_factor` parameter of `asc2.range` in `for` loop can be used to manage software pipelining. Set it to `2` to enable double buffering.
-- `parallel` parameter of `asc2.range` in `for` loop enable overlapping of store operation of `i`-th iteration and load of `i+1`-th iteration. It is user responsibility to ensure that there are no data dependencies between overlapped iterations.
+- `asctile.block_idx()` function is used to get current AICORE index.
+- `asctile.block_num()` function provides number of AICOREs launched.
+- `unroll_factor` parameter of `asctile.range` in `for` loop can be used to manage software pipelining. Set it to `2` to enable double buffering.
+- `parallel` parameter of `asctile.range` in `for` loop enable overlapping of store operation of `i`-th iteration and load of `i+1`-th iteration. It is user responsibility to ensure that there are no data dependencies between overlapped iterations.
 
 ```python
-base_offset = asc2.block_idx() * tile_size * tile_per_block
-for i in asc2.range(tile_per_block, unroll_factor=2):
+base_offset = asctile.block_idx() * tile_size * tile_per_block
+for i in asctile.range(tile_per_block, unroll_factor=2):
     tile_offset = base_offset + i * tile_size
 ```
 
-`asc2.copy_in` is used to create a local tensor object which is used for further calculations. Data movement from GM to UB/L1/L0A/L0B happens in this operation. If `location` parameter is set, then the corresponding memory realm is used to load data to. Otherwise it is loaded to UB.
+`asctile.copy_in` is used to create a local tensor object which is used for further calculations. Data movement from GM to UB/L1/L0A/L0B happens in this operation. If `location` parameter is set, then the corresponding memory realm is used to load data to. Otherwise it is loaded to UB.
 
 ```python
-x = asc2.copy_in(x_gm, [tile_offset], [tile_size], asc2.TensorLocation.UB)
-y = asc2.copy_in(y_gm, [tile_offset], [tile_size])  # location can be omitted
+x = asctile.copy_in(x_gm, [tile_offset], [tile_size], asctile.TensorLocation.UB)
+y = asctile.copy_in(y_gm, [tile_offset], [tile_size])  # location can be omitted
 ```
 
 One or more operations can be applied for tiles. It is compiler responsibility to allocate required number of memory blocks in UB.
@@ -75,10 +75,10 @@ One or more operations can be applied for tiles. It is compiler responsibility t
 out = x + y
 ```
 
-`asc2.copy_out` is used to move data from L0C/UB back to GM. Source location is defined by the local tensor itself, so no `location` parameter is present in `asc2.copy_out`.
+`asctile.copy_out` is used to move data from L0C/UB back to GM. Source location is defined by the local tensor itself, so no `location` parameter is present in `asctile.copy_out`.
 
 ```python
-asc2.copy_out(out, out_gm, [tile_offset])
+asctile.copy_out(out, out_gm, [tile_offset])
 ```
 
 ### Host code
@@ -96,23 +96,23 @@ out = np.empty_like(x)
 size = out.size
 core_num = 16
 tile_size = 128
-num_tiles = asc2.ceildiv(size, tile_size)
+num_tiles = asctile.ceildiv(size, tile_size)
 ```
 
 For the kernel invocation, number of AICOREs should be provided in brackets:
 
 ```python
-vadd_kernel[core_num](x, y, out, size, tile_size, asc2.ceildiv(num_tiles, core_num))
+vadd_kernel[core_num](x, y, out, size, tile_size, asctile.ceildiv(num_tiles, core_num))
 return out
 ```
 
 Example:
 
 ```python
-backend = asc2.Backend.Model # can be "Model" for simulator or "NPU" for device
-soc_version = asc2.Platform.Ascend950PR_9599 # Device version
+backend = asctile.Backend.Model # can be "Model" for simulator or "NPU" for device
+soc_version = asctile.Platform.Ascend950PR_9599 # Device version
 device_id = 0 # might be necessary to provide if more than one NPU device is present in the system
-asc2.set_platform(backend, soc_version, device_id)
+asctile.set_platform(backend, soc_version, device_id)
 rng = np.random.default_rng(seed=2026)
 size = 8192
 x = rng.random(size, dtype=np.float32) * 10
@@ -125,10 +125,10 @@ np.testing.assert_allclose(out, x + y)
 
 ### Capture build artifacts
 
-`PYASC_DUMP_PATH` environment variable can be defined to make PyAsc2 compiler keep generated files in the directory, for example:
+`PYASC_DUMP_PATH` environment variable can be defined to make AscTile compiler keep generated files in the directory, for example:
 
 ``` bash
-PYASC_DUMP_PATH=dumps python3 python/tutorials/asc2/01-vector-add.py
+PYASC_DUMP_PATH=dumps python3 python/tutorials/asctile/01-vector-add.py
 ```
 
 As a result, the following directory structure is created in the current directory:
@@ -146,14 +146,14 @@ dumps/
 
 ### Tune generated Ascend C code
 
-The Ascend C code generated from PyAsc2 can be injected back in PyAsc2 python code:
-- pass content of generated kernel as parameter to {py:func}`asc2.inline` method;
+The Ascend C code generated from AscTile can be injected back in AscTile python code:
+- pass content of generated kernel as parameter to {py:func}`asctile.inline` method;
 - comment out `TPipe` definition in the code (see an example below).
 
 ```python
-@asc2.jit(kernel_type=asc2.KernelType.AIV_ONLY)
-def vadd_kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, size: int,
-                tile_size: asc2.ConstExpr[int], tile_per_block: asc2.ConstExpr[int]):
+@asctile.jit(kernel_type=asctile.KernelType.AIV_ONLY)
+def vadd_kernel(x_ptr: asctile.GlobalAddress, y_ptr: asctile.GlobalAddress, out_ptr: asctile.GlobalAddress, size: int,
+                tile_size: asctile.ConstExpr[int], tile_per_block: asctile.ConstExpr[int]):
     asc.inline('''
 constexpr int32_t c32_i32 = 32;
 constexpr int64_t c128_i64 = 128;
@@ -171,15 +171,15 @@ return;
     ''')
 ```
 
-> Note: co-existence of PyAsc2 API and `asc.inline` in the same kernel is not supported for now.
+> Note: co-existence of AscTile API and `asc.inline` in the same kernel is not supported for now.
 
 ### Passing arguments to inline code
 
-Kernel arguments can be passed to `asc2.inline` via the `args` parameter. Use `$<index>` placeholders (e.g., `$0`, `$1`, `$2`) in the code string to reference arguments by their position in the list:
+Kernel arguments can be passed to `asctile.inline` via the `args` parameter. Use `$<index>` placeholders (e.g., `$0`, `$1`, `$2`) in the code string to reference arguments by their position in the list:
 
 ```python
-@asc2.jit
-def kernel(x_ptr: asc2.GlobalAddress, y_ptr: asc2.GlobalAddress, out_ptr: asc2.GlobalAddress, size: int):
+@asctile.jit
+def kernel(x_ptr: asctile.GlobalAddress, y_ptr: asctile.GlobalAddress, out_ptr: asctile.GlobalAddress, size: int):
     asc.inline('''
         auto input_x = $0;
         auto input_y = $1;

@@ -140,7 +140,7 @@ suppress_warnings = [
 
 sphinx_gallery_conf = {
     "download_all_examples": False,
-    "examples_dirs": [str(package_root / "python" / "tutorials" / "asc2")],
+    "examples_dirs": [str(package_root / "python" / "tutorials" / "asctile")],
     "gallery_dirs": ["programming-guide/tutorials"],
     "line_numbers": True,
     "within_subsection_order": FileNameSortKey,
