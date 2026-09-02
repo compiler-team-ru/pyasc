@@ -33,11 +33,12 @@ struct MarkReuseSourcePass : public asctile::impl::MarkReuseSourceBase<MarkReuse
     {
         getOperation().walk([](OpT op) -> void {
             bool mark = true;
+            DominanceInfo di;
             auto value = op.getOperand();
             for (auto* user : value.getUsers()) {
                 if (user == op)
                     continue;
-                if (!ascendc::opPrecedes(user, op)) {
+                if (!ascendc::opPrecedes(user, op, di)) {
                     mark = false;
                     break;
                 }
