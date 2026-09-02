@@ -13,13 +13,13 @@ Runtime API
 JIT decorator
 -------------
 
-.. autodecorator:: asc2.jit
+.. autodecorator:: asctile.jit
 
 
 JIT options
 -----------
 
-Attributes from the following classes can be used as keyword arguments in :py:obj:`asc2.jit` decorator.
+Attributes from the following classes can be used as keyword arguments in :py:obj:`asctile.jit` decorator.
 
 .. tip::
 
@@ -28,7 +28,7 @@ Attributes from the following classes can be used as keyword arguments in :py:ob
 
     .. code-block:: python
 
-        @asc2.jit(capture_exceptions=False, opt_level=2)
+        @asctile.jit(capture_exceptions=False, opt_level=2)
         def kernel(x, y):
             ...
 
@@ -36,7 +36,7 @@ Attributes from the following classes can be used as keyword arguments in :py:ob
    :members:
    :member-order: bysource
 
-.. autoclass:: asc2.CompileOptions
+.. autoclass:: asctile.CompileOptions
    :members:
    :inherited-members:
    :member-order: bysource
@@ -53,8 +53,8 @@ Platform configuration
    :toctree: generated
    :nosignatures:
 
-   asc2.Backend
-   asc2.Platform
+   asctile.Backend
+   asctile.Platform
 
 
-.. autofunction:: asc2.set_platform
+.. autofunction:: asctile.set_platform
