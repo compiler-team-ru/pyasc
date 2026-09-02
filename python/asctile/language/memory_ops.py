@@ -100,7 +100,7 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
             l1_tensor = ub_tensor.to(asctile.TensorLocation.L1)
     """
     check_type("src", src, LocalTensor)
-    location = src.location if location is None else location
+    location = src.location if location is None else verify_location(location)
     if src.location == TensorLocation.L1:
         location = verify_location(location, allow=(TensorLocation.L0A, TensorLocation.L0B, TensorLocation.BT))
     elif src.location == TensorLocation.L0C:
