@@ -66,8 +66,7 @@ def matmul_v3_kernel(a_ptr: asctile.GlobalAddress, b_ptr: asctile.GlobalAddress,
     main_group = min(group_size, m_blocks)
     main_row = (m_blocks // main_group - 1) if m_blocks >= main_group else 0
     tail_group = m_blocks - main_row * main_group
-    for tile_id in range(asctile.block_idx(), tiles_num, asctile.block_num(), unroll_factor=tile_uf):
-        tile_idx = tile_id % tiles_num
+    for tile_idx in range(asctile.block_idx(), tiles_num, asctile.block_num(), unroll_factor=tile_uf):
         row_idx = tile_idx // n_blocks // main_group
         m_idx = row_idx * main_group + tile_idx % main_group
         n_idx = (tile_idx // main_group) % n_blocks
