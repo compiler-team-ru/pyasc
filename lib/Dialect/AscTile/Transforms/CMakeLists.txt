@@ -10,6 +10,7 @@ add_mlir_dialect_library(MLIRAscTileTransforms
   CubeTransposeToLoad.cpp
   DetectBiasLoad.cpp
   FoldCast.cpp
+  FulfillDataTransfer.cpp
   LegalizeMatmul.cpp
   LocationCastToCopy.cpp
   MarkMatmulAccWithBias.cpp

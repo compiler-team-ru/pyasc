@@ -168,7 +168,7 @@ struct AcceptSameLoc : OpRewritePattern<OpT> {
                 return success();
             }
             if (acceptOperandLoc(rewriter, &opnd, locs).failed())
-                return failure();
+                return acceptResultLoc(rewriter, op->getResult(0), locs);
         } else if (resultLoc != TL::Auto) {
             return failure();
         }

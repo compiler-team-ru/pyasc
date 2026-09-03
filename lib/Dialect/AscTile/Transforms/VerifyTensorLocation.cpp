@@ -10,7 +10,6 @@
 
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/AscTile/Transforms/Passes.h"
-#include "ascir/Dialect/AscTile/Utils/Attributes.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -78,33 +77,8 @@ void VerifyTensorLocationPass::runOnOperation()
         if (badLoc(op, op.getType(), "result", {TL::UB, TL::L1, TL::L0A, TL::L0B, TL::BT}))
             signalPassFailure();
     });
-    funcOp.walk([this](CopyOp op) {
-        LocVector allowedSrcLocs{TL::L1, TL::L0C, TL::UB};
-        LocVector allowedDstLocs;
-        auto srcType = op.getBase().getType();
-        auto srcLoc = srcType.getLoc();
-        auto dstLoc = op.getType().getLoc();
-        if (srcLoc == TL::L1)
-            allowedDstLocs = {TL::L0A, TL::L0B, TL::BT};
-        else if (srcLoc == TL::L0C)
-            allowedDstLocs = {TL::L1, TL::UB};
-        else if (srcLoc == TL::UB)
-            allowedDstLocs = {TL::L1};
-        if (op->hasAttrOfType<UnitAttr>(attr::locationCast) &&
-            (!llvm::is_contained(allowedSrcLocs, srcLoc) || !llvm::is_contained(allowedDstLocs, dstLoc))) {
-            StringRef srcLocStr = stringifyTensorLocation(srcLoc);
-            StringRef dstLocStr = stringifyTensorLocation(dstLoc);
-            auto diag =
-                op.emitError() << "Direct data transfer from " << srcLocStr << " to " << dstLocStr
-                               << " is not supported. "
-                               << "Please call copy() with explicit locations to fulfill the requested data flow.";
-            diag.attachNote(op.getBase().getLoc()) << "source tensor with " << srcLocStr << " location defined here:";
-            diag.attachNote(op.getResult().getLoc())
-                << "result tensor is required to have " << dstLocStr << " location:";
-            signalPassFailure();
-            return;
-        }
-        if (badLoc(op, srcType, "input", allowedSrcLocs) || badLoc(op, op.getType(), "result", allowedDstLocs))
+    funcOp.walk([this](StoreOp op) {
+        if (badLoc(op, op.getValue().getType(), "src", {TL::UB, TL::L0C}))
             signalPassFailure();
     });
     funcOp.walk([this](AccumulatorOp op) {

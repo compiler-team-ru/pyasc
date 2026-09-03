@@ -161,6 +161,7 @@ void defineAscTilePasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_cube_transpose_to_load", createCubeTransposeToLoadPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_detect_bias_load", createDetectBiasLoadPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_fold_cast", createFoldCastPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_fulfill_data_transfer", createFulfillDataTransferPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_legalize_matmul", createLegalizeMatmulPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_location_cast_to_copy", createLocationCastToCopyPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_mark_matmul_acc_with_bias", createMarkMatmulAccWithBiasPass);

@@ -73,6 +73,7 @@ class Compiler(CompilerBase):
         passes.common.add_canonicalizer(pm)
         passes.common.add_cse(pm)
         passes.asctile.add_location_cast_to_copy(pm)
+        passes.asctile.add_fulfill_data_transfer(pm)
         passes.asctile.add_verify_tensor_location(pm)
         passes.asctile.add_split_cube_load(pm)
         passes.asctile.add_cube_transpose_to_load(pm)
