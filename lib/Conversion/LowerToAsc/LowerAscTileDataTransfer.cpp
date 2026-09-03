@@ -819,7 +819,7 @@ struct ConvertStoreFixpipe : ConvertOp<asctile::StoreFixpipeOp> {
         auto fixPipeConfig = rewriter.create<ascendc::ConstructOp>(
             loc, rewriter.getType<ascendc::FixpipeConfigType>(), ValueRange{layout}, ArrayAttr{}, true, true);
         auto copyOp = rewriter.replaceOpWithNewOp<ascendc::FixpipeOp>(op, dstInfo.tensor, src, params, fixPipeConfig);
-        copyOp.setDirection(ascendc::TPosition::CO2, ascendc::TPosition::GM);
+        copyOp.setDirection(ascendc::TPosition::CO1, ascendc::TPosition::GM);
         return success();
     }
 };
@@ -886,7 +886,7 @@ struct ConvertCopyFixpipe : ConvertOp<asctile::CopyFixpipeOp> {
             loc, rewriter.getType<ascendc::FixpipeConfigType>(), ValueRange{layout, consts.i1(isToUB)}, ArrayAttr{},
             true, true);
         auto copyOp = rewriter.create<ascendc::FixpipeOp>(loc, dst, src, params, fixPipeConfig);
-        copyOp.setDirection(ascendc::TPosition::CO2, locationToPosition(dstLoc));
+        copyOp.setDirection(ascendc::TPosition::CO1, locationToPosition(dstLoc));
         rewriter.replaceOp(op, dst);
         return success();
     }

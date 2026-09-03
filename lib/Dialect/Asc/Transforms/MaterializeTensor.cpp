@@ -54,7 +54,8 @@ struct MaterializeLocalTensor : OpRewritePattern<ascendc::LocalTensorAutoOp> {
         auto position = op.getPosition();
         if (type.hasStaticShape()) {
             if (position == ascendc::TPosition::A1 || position == ascendc::TPosition::B1 ||
-                position == ascendc::TPosition::A2 || position == ascendc::TPosition::B2)
+                position == ascendc::TPosition::A2 || position == ascendc::TPosition::B2 ||
+                position == ascendc::TPosition::CO1)
                 length = consts.i64(ascendc::getTypeSizeCubeBlockAlign(type, position));
             else
                 length = consts.i64(ascendc::getTypeSize(type));
