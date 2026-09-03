@@ -69,7 +69,8 @@ struct AllocateTensorPass : public ascendc::impl::AllocateTensorBase<AllocateTen
             auto position = normalizePosition(op.getPosition());
             uint32_t& addr = offsets[position];
             uint32_t byteSize;
-            if (position == TPosition::A1 || position == ascendc::TPosition::A2 || position == ascendc::TPosition::B2)
+            if (position == TPosition::A1 || position == ascendc::TPosition::A2 || position == ascendc::TPosition::B2 ||
+                position == ascendc::TPosition::CO1)
                 byteSize = getTypeSizeCubeBlockAlign(type, op.getPosition());
             else
                 byteSize = llvm::alignTo<ubBlockSize>(getTypeSize(type));

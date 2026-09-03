@@ -258,7 +258,7 @@ func.func @lower_store_dynamic(%arg0: memref<*xf32, 22>, %arg1: tensor<16x16xf32
 // CHECK-NEXT:  %13 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %9 : i32, "mSize" = %12 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c32_i32 : i32)
 // CHECK-NEXT:  %14 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
 // CHECK-NEXT:  %15 = ascendc.construct !ascendc.fixpipe_config(%14) constexpr static : !ascendc.co2_layout
-// CHECK-NEXT:  ascendc.fixpipe %5, %0, %13, %15 {direction = #ascendc.copy_direction<co2, gm>} : !ascendc.global_tensor<32x32xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
+// CHECK-NEXT:  ascendc.fixpipe %5, %0, %13, %15 {direction = #ascendc.copy_direction<co1, gm>} : !ascendc.global_tensor<32x32xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
 // CHECK-NEXT:  return
 // CHECK-NEXT:}
 func.func @lower_store_fixpipe_static(%arg0: memref<*xf32, 22>, %arg1: tensor<16x16xf32, #asctile.local<L0C>>, %arg2: i32, %arg3: i32) {
@@ -284,7 +284,7 @@ func.func @lower_store_fixpipe_static(%arg0: memref<*xf32, 22>, %arg1: tensor<16
 // CHECK-NEXT:  %13 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %9 : i32, "mSize" = %12 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c32_i32 : i32, "reluEn" = %c1_i32 : i32)
 // CHECK-NEXT:  %14 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
 // CHECK-NEXT:  %15 = ascendc.construct !ascendc.fixpipe_config(%14) constexpr static : !ascendc.co2_layout
-// CHECK-NEXT:  ascendc.fixpipe %5, %0, %13, %15 {direction = #ascendc.copy_direction<co2, gm>} : !ascendc.global_tensor<32x32xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
+// CHECK-NEXT:  ascendc.fixpipe %5, %0, %13, %15 {direction = #ascendc.copy_direction<co1, gm>} : !ascendc.global_tensor<32x32xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
 // CHECK-NEXT:  return
 // CHECK-NEXT:}
 func.func @lower_store_fixpipe_static_relu(%arg0: memref<*xf32, 22>, %arg1: tensor<16x16xf32, #asctile.local<L0C>>, %arg2: i32, %arg3: i32) {
@@ -311,7 +311,7 @@ func.func @lower_store_fixpipe_static_relu(%arg0: memref<*xf32, 22>, %arg1: tens
 // CHECK-NEXT:  %14 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %9 : i32, "mSize" = %12 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c32_i32 : i32, "reluEn" = %c1_i32 : i32, "quantPre" = %13 : !ascendc.quant_mode_t)
 // CHECK-NEXT:  %15 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
 // CHECK-NEXT:  %16 = ascendc.construct !ascendc.fixpipe_config(%15) constexpr static : !ascendc.co2_layout
-// CHECK-NEXT:  ascendc.fixpipe %5, %0, %14, %16 {direction = #ascendc.copy_direction<co2, gm>} : !ascendc.global_tensor<32x32xf16>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
+// CHECK-NEXT:  ascendc.fixpipe %5, %0, %14, %16 {direction = #ascendc.copy_direction<co1, gm>} : !ascendc.global_tensor<32x32xf16>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
 // CHECK-NEXT:  return
 // CHECK-NEXT:}
 func.func @lower_store_fixpipe_static_quantize(%arg0: memref<*xf32, 22>, %arg1: tensor<16x16xf32, #asctile.local<L0C>>, %arg2: i32, %arg3: i32) {
@@ -338,7 +338,7 @@ func.func @lower_store_fixpipe_static_quantize(%arg0: memref<*xf32, 22>, %arg1: 
 // CHECK-NEXT:  %14 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %9 : i32, "mSize" = %12 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %arg5 : i32, "reluEn" = %c1_i32 : i32, "quantPre" = %13 : !ascendc.quant_mode_t)
 // CHECK-NEXT:  %15 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
 // CHECK-NEXT:  %16 = ascendc.construct !ascendc.fixpipe_config(%15) constexpr static : !ascendc.co2_layout
-// CHECK-NEXT:  ascendc.fixpipe %5, %0, %14, %16 {direction = #ascendc.copy_direction<co2, gm>} : !ascendc.global_tensor<?x?xf16>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
+// CHECK-NEXT:  ascendc.fixpipe %5, %0, %14, %16 {direction = #ascendc.copy_direction<co1, gm>} : !ascendc.global_tensor<?x?xf16>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
 // CHECK-NEXT:  return
 // CHECK-NEXT:}
 func.func @lower_store_fixpipe_dynamic_relu_quantize(%arg0: memref<*xf32, 22>, %arg1: tensor<16x16xf32, #asctile.local<L0C>>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32) {
@@ -363,7 +363,7 @@ func.func @lower_store_fixpipe_dynamic_relu_quantize(%arg0: memref<*xf32, 22>, %
 // CHECK-NEXT:  %12 = emitasc.init_struct !ascendc.fixpipe_params_v220("nSize" = %10 : i32, "mSize" = %11 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %arg5 : i32)
 // CHECK-NEXT:  %13 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
 // CHECK-NEXT:  %14 = ascendc.construct !ascendc.fixpipe_config(%13) constexpr static : !ascendc.co2_layout
-// CHECK-NEXT:  ascendc.fixpipe %5, %0, %12, %14 {direction = #ascendc.copy_direction<co2, gm>} : !ascendc.global_tensor<?x?xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
+// CHECK-NEXT:  ascendc.fixpipe %5, %0, %12, %14 {direction = #ascendc.copy_direction<co1, gm>} : !ascendc.global_tensor<?x?xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
 // CHECK-NEXT:  return
 func.func @lower_store_fixpipe_real_shape(%arg0: memref<*xf32, 22>, %arg1: tensor<16x16xf32, #asctile.local<L0C>>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32) {
   %0 = asctile.tensor %arg0(%arg4, %arg5) : memref<*xf32, 22>, tensor<?x?xf32, #asctile.global>
@@ -921,7 +921,7 @@ func.func @lower_store_3d_with_transpose(%arg0: memref<*xf32, 22>, %arg1: tensor
 // CHECK-NEXT:  %7 = emitasc.init_struct !ascendc.fixpipe_params_c310<0 : i32>("nSize" = %c32_i32 : i32, "mSize" = %c16_i32 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c256_i32 : i32, "reluEn" = %c1_i32 : i32, "quantPre" = %6 : !ascendc.quant_mode_t)
 // CHECK-NEXT:  %8 = ascendc.construct !ascendc.co2_layout(%c0_i32) constexpr static : i32
 // CHECK-NEXT:  %9 = ascendc.construct !ascendc.fixpipe_config(%8, %false) constexpr static : !ascendc.co2_layout, i1
-// CHECK-NEXT:  ascendc.fixpipe %1, %5, %7, %9 {direction = #ascendc.copy_direction<co2, a1>} : !ascendc.local_tensor<16x32xbf16>, !ascendc.local_tensor<16x32xf32>, !ascendc.fixpipe_params_c310<0 : i32>, !ascendc.fixpipe_config
+// CHECK-NEXT:  ascendc.fixpipe %1, %5, %7, %9 {direction = #ascendc.copy_direction<co1, a1>} : !ascendc.local_tensor<16x32xbf16>, !ascendc.local_tensor<16x32xf32>, !ascendc.fixpipe_params_c310<0 : i32>, !ascendc.fixpipe_config
 // CHECK-NEXT:  return %2 : tensor<16x32xbf16, #asctile.local<L1>>
 // CHECK-NEXT:}
 func.func @lower_copy_fixpipe_relu_quantize(%arg0: tensor<16x32xf32, #asctile.local<L0C>>, %arg1: i32, %arg2: i32) -> tensor<16x32xbf16, #asctile.local<L1>> {
@@ -1085,7 +1085,7 @@ func.func @lower_load_gm_l1_transpose_a_l1(%arg0: memref<*xf16, 22>, %arg1: i32,
 // CHECK-NEXT:  %6 = emitasc.init_struct !ascendc.fixpipe_params_c310<1 : i32>("nSize" = %c32_i32 : i32, "mSize" = %c16_i32 : i32, "srcStride" = %c16_i32 : i32, "dstStride" = %c32_i32 : i32, "reluEn" = %c1_i32 : i32)
 // CHECK-NEXT:  %7 = ascendc.construct !ascendc.co2_layout(%c1_i32) constexpr static : i32
 // CHECK-NEXT:  %8 = ascendc.construct !ascendc.fixpipe_config(%7, %true) constexpr static : !ascendc.co2_layout, i1
-// CHECK-NEXT:  ascendc.fixpipe %1, %5, %6, %8 {direction = #ascendc.copy_direction<co2, veccalc>} : !ascendc.local_tensor<16x32xf32>, !ascendc.local_tensor<16x32xf32>, !ascendc.fixpipe_params_c310<1 : i32>, !ascendc.fixpipe_config
+// CHECK-NEXT:  ascendc.fixpipe %1, %5, %6, %8 {direction = #ascendc.copy_direction<co1, veccalc>} : !ascendc.local_tensor<16x32xf32>, !ascendc.local_tensor<16x32xf32>, !ascendc.fixpipe_params_c310<1 : i32>, !ascendc.fixpipe_config
 // CHECK-NEXT:  return %2 : tensor<16x32xf32, #asctile.local<UB>>
 // CHECK-NEXT:}
 func.func @lower_copy_fixpipe_to_ub_relu(%arg0: tensor<16x32xf32, #asctile.local<L0C>>, %arg1: i32, %arg2: i32) -> tensor<16x32xf32, #asctile.local<UB>> {

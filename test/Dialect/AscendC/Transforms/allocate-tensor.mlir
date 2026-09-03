@@ -190,7 +190,7 @@ func.func @test_b2_unaligned() {
 }
 
 // CHECK-LABEL: func.func @test_co1_unaligned() {
-// CHECK-NEXT: %0 = ascendc.local_tensor_v3 co1, 0, 16 : !ascendc.local_tensor<3x5xf32>
+// CHECK-NEXT: %0 = ascendc.local_tensor_v3 co1, 0, 256 : !ascendc.local_tensor<3x5xf32>
 // CHECK-NEXT: return
 // CHECK-NEXT:}
 func.func @test_co1_unaligned() {
