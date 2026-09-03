@@ -118,6 +118,18 @@ def FoldCast : Pass<"asctile-fold-cast", "func::FuncOp"> {
   }];
 }
 
+def FulfillDataTransfer : Pass<"asctile-fulfill-data-transfer", "func::FuncOp"> {
+  let summary = "Insert intermediate copies to route `asctile.copy` transfers between locations lacking a direct path";
+  let constructor = "mlir::asctile::createFulfillDataTransferPass()";
+  let dependentDialects = ["asctile::AscTileDialect"];
+  let description = [{
+    Decompose an `asctile.copy` whose source and destination tensor locations lack a direct hardware path into two
+    copies routed through an intermediate buffer (`L1` or `UB`). When the intermediate buffer is `L1` and the
+    destination is `BT`, the intermediate copy is marked with the `is_bias` attribute. The pass also verifies that
+    every remaining `asctile.copy` uses a supported location pair and emits an error otherwise.
+  }];
+}
+
 def LegalizeMatmul : Pass<"asctile-legalize-matmul", "func::FuncOp"> {
   let summary = "Verify that matmul accumulator operations use valid accumulator operands";
   let constructor = "mlir::asctile::createLegalizeMatmulPass()";

@@ -85,15 +85,15 @@ def kda_chunk_delta_h_kernel(k_ptr: asctile.GlobalAddress, v_ptr: asctile.Global
         w_row_offset = bos_v + (i_t * bt)
         for k_step in asctile.range(asctile.ceildiv(k1, base_k), unroll_factor=unroll_factor_k):
             k_off = k_step * base_k
-            w_l0 = asctile.copy_in(w_gm, [w_row_offset, k_off], [bt, base_k], asctile.TensorLocation.L0A)
-            h_l1 = asctile.copy(b_h1_compute, [k_off, 0], [base_k, bv], asctile.TensorLocation.L1)
+            w_l0 = asctile.copy_in(w_gm, [w_row_offset, k_off], [bt, base_k])
+            h_l1 = asctile.copy(b_h1_compute, [k_off, 0], [base_k, bv])
             asctile.matmul_acc(acc1, w_l0, h_l1)
         if k2 > 0:
             b_h2_compute = b_h2.to(quant_type)
             for k_step in asctile.range(asctile.ceildiv(k2, base_k), unroll_factor=unroll_factor_k):
                 k_off = k1 + k_step * base_k
-                w_l0 = asctile.copy_in(w_gm, [w_row_offset, k_off], [bt, base_k], asctile.TensorLocation.L0A)
-                h_l1 = asctile.copy(b_h2_compute, [k_step * base_k, 0], [base_k, bv], asctile.TensorLocation.L1)
+                w_l0 = asctile.copy_in(w_gm, [w_row_offset, k_off], [bt, base_k])
+                h_l1 = asctile.copy(b_h2_compute, [k_step * base_k, 0], [base_k, bv])
                 asctile.matmul_acc(acc1, w_l0, h_l1)
         b_v = v_chunk - acc1.to(quant_type)
         if save_new_value:
@@ -137,16 +137,16 @@ def kda_chunk_delta_h_kernel(k_ptr: asctile.GlobalAddress, v_ptr: asctile.Global
         acc2 = asctile.zeros_acc([k1, bv], dtype=asctile.float32)
         for bt_step in asctile.range(asctile.ceildiv(bt, base_k), unroll_factor=unroll_factor_k):
             bt_off = bt_step * base_k
-            k_l0 = asctile.copy_in(k_gm, [k_row_offset + bt_off, 0], [base_k, k1], asctile.TensorLocation.L0A).T
-            v_l1 = asctile.copy(b_v_compute, [bt_off, 0], [base_k, bv], asctile.TensorLocation.L1)
+            k_l0 = asctile.copy_in(k_gm, [k_row_offset + bt_off, 0], [base_k, k1]).T
+            v_l1 = asctile.copy(b_v_compute, [bt_off, 0], [base_k, bv])
             asctile.matmul_acc(acc2, k_l0, v_l1)
         b_h1 = b_h1 + acc2
         if k2 > 0:
             acc3 = asctile.zeros_acc([k2, bv], dtype=asctile.float32)
             for bt_step in asctile.range(asctile.ceildiv(bt, base_k), unroll_factor=unroll_factor_k):
                 bt_off = bt_step * base_k
-                k_l0 = asctile.copy_in(k_gm, [k_row_offset + bt_off, k1], [base_k, k2], asctile.TensorLocation.L0A).T
-                v_l1 = asctile.copy(b_v_compute, [bt_off, 0], [base_k, bv], asctile.TensorLocation.L1)
+                k_l0 = asctile.copy_in(k_gm, [k_row_offset + bt_off, k1], [base_k, k2]).T
+                v_l1 = asctile.copy(b_v_compute, [bt_off, 0], [base_k, bv])
                 asctile.matmul_acc(acc3, k_l0, v_l1)
             b_h2 = b_h2 + acc3
     state_row_offset = (i_n * h * k) + (i_h * k)

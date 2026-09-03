@@ -8,23 +8,6 @@
 
 // RUN: ascir-opt -asctile-verify-tensor-location -split-input-file -verify-diagnostics %s
 
-func.func @valid_copy_l1_to_l0a(%arg0: tensor<16x16xf32, #asctile.local<L1>>) -> tensor<16x16xf32, #asctile.local<L0A>> {
-  %c0 = arith.constant 0 : i32
-  %0 = asctile.copy %arg0[%c0, %c0] : tensor<16x16xf32, #asctile.local<L1>>, tensor<16x16xf32, #asctile.local<L0A>>
-  return %0 : tensor<16x16xf32, #asctile.local<L0A>>
-}
-
-// -----
-
-func.func @invalid_copy_l0a_to_ub(%arg0: tensor<16x16xf32, #asctile.local<L0A>>) -> tensor<16x16xf32, #asctile.local<UB>> {
-  %c0 = arith.constant 0 : i32
-  // expected-error@+1 {{input tensor location must be L1, L0C, UB, got L0A}}
-  %0 = asctile.copy %arg0[%c0, %c0] : tensor<16x16xf32, #asctile.local<L0A>>, tensor<16x16xf32, #asctile.local<UB>>
-  return %0 : tensor<16x16xf32, #asctile.local<UB>>
-}
-
-// -----
-
 func.func @valid_transpose_2d_ub(%arg0: tensor<16x32xf32, #asctile.local<UB>>) -> tensor<32x16xf32, #asctile.local<UB>> {
   %0 = asctile.transpose %arg0, [1 : i32, 0 : i32] : tensor<16x32xf32, #asctile.local<UB>> to tensor<32x16xf32, #asctile.local<UB>>
   return %0 : tensor<32x16xf32, #asctile.local<UB>>
@@ -57,31 +40,17 @@ func.func @invalid_load_l0c(%arg0: tensor<128xf32, #asctile.global>) -> tensor<3
 
 // -----
 
-func.func @valid_copy_l0c_to_ub(%arg0: tensor<16x16xf32, #asctile.local<L0C>>) -> tensor<16x16xf32, #asctile.local<UB>> {
-  %c0 = arith.constant 0 : i32
-  %0 = asctile.copy %arg0[%c0, %c0] : tensor<16x16xf32, #asctile.local<L0C>>, tensor<16x16xf32, #asctile.local<UB>>
-  return %0 : tensor<16x16xf32, #asctile.local<UB>>
+func.func @valid_store_ub(%arg0: tensor<128xf32, #asctile.global>, %arg1: tensor<32xf32, #asctile.local<UB>>, %arg2: i32) {
+  asctile.store %arg1, %arg0[%arg2] : tensor<32xf32, #asctile.local<UB>>, tensor<128xf32, #asctile.global>
+  return
 }
 
 // -----
 
-func.func @invalid_copy_ub_to_l0a(%arg0: tensor<16x16xf32, #asctile.local<UB>>) -> tensor<16x16xf32, #asctile.local<L0A>> {
-  %c0 = arith.constant 0 : i32
-  // expected-error@+1 {{result tensor location must be L1, got L0A}}
-  %0 = asctile.copy %arg0[%c0, %c0] : tensor<16x16xf32, #asctile.local<UB>>, tensor<16x16xf32, #asctile.local<L0A>>
-  return %0 : tensor<16x16xf32, #asctile.local<L0A>>
-}
-
-// -----
-
-func.func @invalid_copy_location_cast(%arg0: tensor<16x16xf32, #asctile.global>) -> tensor<16x16xf32, #asctile.local<UB>> {
-  %c0 = arith.constant 0 : i32
-  // expected-note@+1 {{source tensor with L0A location defined here:}}
-  %src = asctile.load %arg0[%c0, %c0] : tensor<16x16xf32, #asctile.global>, tensor<16x16xf32, #asctile.local<L0A>>
-  // expected-error@+2 {{Direct data transfer from L0A to UB is not supported}}
-  // expected-note@+1 {{result tensor is required to have UB location:}}
-  %0 = asctile.copy %src[%c0, %c0] {asctile.location_cast} : tensor<16x16xf32, #asctile.local<L0A>>, tensor<16x16xf32, #asctile.local<UB>>
-  return %0 : tensor<16x16xf32, #asctile.local<UB>>
+func.func @invalid_store_l0a(%arg0: tensor<128xf32, #asctile.global>, %arg1: tensor<32xf32, #asctile.local<L0A>>, %arg2: i32) {
+  // expected-error@+1 {{src tensor location must be UB, L0C, got L0A}}
+  asctile.store %arg1, %arg0[%arg2] : tensor<32xf32, #asctile.local<L0A>>, tensor<128xf32, #asctile.global>
+  return
 }
 
 // -----
