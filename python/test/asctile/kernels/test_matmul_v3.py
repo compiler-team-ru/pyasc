@@ -10,7 +10,7 @@ import asctile
 import pytest
 import torch
 
-from ..target.test_matmul_v3 import FullLoadMode, matmul_v3_kernel
+from ..target.matmul_v3 import FullLoadMode, matmul_v3_kernel
 """
 Each test case is a tuple of:
 (core_num, tiling_data, dtype, is_a_transpose, is_b_transpose, full_load_mode,
@@ -258,7 +258,7 @@ def test_matmul_v3(core_num, tiling_data, dtype, is_a_transpose, is_b_transpose,
     bias = (high - low) * torch.rand([n], dtype=dtype) + low
     matmul_v3_kernel[core_num](a, b, c, bias, a.shape, b.shape, m_L1, n_L1, k_L1, base_m, base_n, base_k,
                                is_a_transpose, is_b_transpose, full_load_mode, quant_type, enable_hf32_mode, has_bias,
-                               double_buffering)
+                               double_buffering, l0c2ub=False)
     if is_a_transpose:
         a = a.T
     if is_b_transpose:
