@@ -9,7 +9,7 @@
 import asctile
 import pytest
 
-from .helpers import all_dtypes, non_ub_locations
+from .helpers import all_dtypes
 
 valid_dtypes = (asctile.int8, asctile.int16, asctile.int32, asctile.int64, asctile.float16, asctile.bfloat16,
                 asctile.float32)
@@ -169,17 +169,6 @@ def test_full_invalid_dtype(jit_test, dtype):
         asctile.full([32, 32], 2.0, dtype)
 
     with pytest.raises(RuntimeError, match="dtype"):
-        kernel[1]()
-
-
-@pytest.mark.parametrize("loc", non_ub_locations)
-def test_full_invalid_location(jit_test, loc):
-
-    @jit_test
-    def kernel():
-        asctile.full([32, 32], 2.0, asctile.float32, loc)
-
-    with pytest.raises(RuntimeError, match="location"):
         kernel[1]()
 
 

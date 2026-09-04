@@ -10,7 +10,7 @@
 
 // CHECK-LABEL: func.func @cast_ub_to_l1(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<L1>> {
 // CHECK: %c0_i32 = arith.constant 0 : i32
-// CHECK-NEXT: %0 = asctile.copy %arg0[%c0_i32] {asctile.location_cast} : tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<L1>>
+// CHECK-NEXT: %0 = asctile.copy %arg0[%c0_i32] : tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<L1>>
 // CHECK-NEXT: return %0 : tensor<32xf32, #asctile.local<L1>>
 // CHECK-NEXT:}
 func.func @cast_ub_to_l1(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<L1>> {
@@ -20,7 +20,7 @@ func.func @cast_ub_to_l1(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32
 
 // CHECK-LABEL: func.func @cast_l0c_to_ub_2d(%arg0: tensor<16x16xf32, #asctile.local<L0C>>) -> tensor<16x16xf32, #asctile.local<UB>> {
 // CHECK: %c0_i32 = arith.constant 0 : i32
-// CHECK-NEXT: %0 = asctile.copy %arg0[%c0_i32, %c0_i32] {asctile.location_cast} : tensor<16x16xf32, #asctile.local<L0C>>, tensor<16x16xf32, #asctile.local<UB>>
+// CHECK-NEXT: %0 = asctile.copy %arg0[%c0_i32, %c0_i32] : tensor<16x16xf32, #asctile.local<L0C>>, tensor<16x16xf32, #asctile.local<UB>>
 // CHECK-NEXT: return %0 : tensor<16x16xf32, #asctile.local<UB>>
 // CHECK-NEXT:}
 func.func @cast_l0c_to_ub_2d(%arg0: tensor<16x16xf32, #asctile.local<L0C>>) -> tensor<16x16xf32, #asctile.local<UB>> {

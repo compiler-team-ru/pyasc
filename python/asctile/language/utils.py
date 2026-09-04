@@ -17,7 +17,7 @@ from asc.language.core.utils import allow_jit, global_builder
 
 from .local_tensor import BinaryOperandTypeError, LocalTensor
 from .tensor_location import TensorLocation
-from .validation import check_dtype, check_type, verify_location
+from .validation import check_dtype, check_type
 
 
 @overload
@@ -173,7 +173,6 @@ def check_bias(bias: Optional[LocalTensor], size: int) -> None:
         return
     check_type("bias", bias, LocalTensor)
     check_dtype("bias", bias, (KT.bfloat16, KT.float16, KT.float32))
-    verify_location(bias.location, "bias", TensorLocation.BT)
     if len(bias.shape) != 1:
         raise RuntimeError(f"Bias must be 1D tensor, got shape {bias.shape}")
     if bias.size != size:

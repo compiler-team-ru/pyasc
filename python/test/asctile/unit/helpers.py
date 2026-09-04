@@ -13,5 +13,3 @@ all_dtypes = (asctile.int8, asctile.int16, asctile.int32, asctile.int64, asctile
 all_locations = (asctile.TensorLocation.BT, asctile.TensorLocation.FIX, asctile.TensorLocation.L0A,
                  asctile.TensorLocation.L0B, asctile.TensorLocation.L0C, asctile.TensorLocation.L1,
                  asctile.TensorLocation.UB)
-non_ub_locations = tuple(loc for loc in all_locations if loc != asctile.TensorLocation.UB)
-non_ub_l0c_locations = tuple(loc for loc in non_ub_locations if loc != asctile.TensorLocation.L0C)

@@ -165,11 +165,14 @@ LogicalResult LoadOp::canonicalize(LoadOp op, PatternRewriter& rewriter) { retur
 LogicalResult LoadOp::verify()
 {
     auto type = getType();
-    if (type.getLoc() == TensorLocation::UB && verifyDataAlignment(getOperation(), type).failed())
+    TensorLocation loc = type.getLoc();
+    if (loc == TensorLocation::UB && verifyDataAlignment(getOperation(), type).failed())
         return failure();
     SmallVector<Value> realShape = getRealShape();
     if (realShape.empty())
         return success();
+    if (loc != TensorLocation::UB && loc != TensorLocation::Auto)
+        return emitOpError() << "only supports 'real_shape' with UB location, got " << stringifyTensorLocation(loc);
     auto tileShape = type.getShape();
     if (tileShape.size() != realShape.size())
         return emitOpError() << "real_shape must have same size as tensor shape";

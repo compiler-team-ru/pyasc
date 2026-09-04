@@ -149,10 +149,8 @@ def LocationCastToCopy : Pass<"asctile-location-cast-to-copy", "func::FuncOp"> {
   let constructor = "mlir::asctile::createLocationCastToCopyPass()";
   let dependentDialects = ["asctile::AscTileDialect"];
   let description = [{
-    Replaces `tensor.cast` operations that change the memory location of a local tensor with `asctile.copy`
-    operations using zero offsets. The generated `copy` is annotated with the `asctile.location_cast` unit
-    attribute so that downstream passes can distinguish it from user-written copies. This transformation enables
-    direct location changes to be routed through the standard data-transfer path.
+    Replaces `tensor.cast` operations that change the memory location of a local tensor with `asctile.copy` operations
+    using zero offsets. This pass enables direct location changes to be routed through the standard data-transfer path.
   }];
 }
 

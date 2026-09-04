@@ -83,14 +83,6 @@ def verify_shape(shape: Iterable[int], name: str = "shape", size: Optional[int] 
     return shape
 
 
-def verify_location(location: Any, name: str = "location",
-                    allow: Optional[Union[TensorLocation, Tuple[TensorLocation, ...]]] = None) -> TensorLocation:
+def verify_location(location: Any, name: str = "location") -> TensorLocation:
     check_type(name, location, (str, TensorLocation))
-    location = TensorLocation(location)
-    if allow is None:
-        return location
-    allow = allow if isinstance(allow, tuple) else (allow, )
-    if location == TensorLocation.Auto or location in allow:
-        return location
-    loc_str = " or ".join(loc.name for loc in allow)
-    raise RuntimeError(f"'{name}' tensor location must be {loc_str}, got {location.name}")
+    return TensorLocation(location)
