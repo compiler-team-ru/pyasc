@@ -41,6 +41,8 @@ class Function(Generic[P, T]):
         self.location = self.get_location(fn)
 
         self.raw_src, self.starting_line_number = self.get_source_lines(fn)
+        if self.starting_line_number is not None:
+            self.location.line_offset = self.starting_line_number - 1
         self.src = "".join(self.raw_src).splitlines()
 
         self.fn_name = self.get_full_name(fn)

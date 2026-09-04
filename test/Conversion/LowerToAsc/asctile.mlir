@@ -329,3 +329,40 @@ module attributes {asc.compilation_arch = "c310"} {
     return %0 : tensor<32xf16, #asctile.local<UB>>
   }
 }
+
+// -----
+
+// CHECK-LABEL: func.func @lower_assert(%arg0: i1) {
+// CHECK:        %0 = arith.xori %arg0, %true : i1
+// CHECK-NEXT:   scf.if %0 {
+// CHECK-NEXT:     ascendc.printf  {desc = "Assertion failed at {{.*}}:{{[0-9]+}}:{{[0-9]+}}: assertion message\0A"} :
+// CHECK-NEXT:     ascendc.trap
+// CHECK-NEXT:   }
+// CHECK-NEXT:   return
+// CHECK-NEXT: }
+func.func @lower_assert(%cond: i1) {
+  asctile.assert %cond, "assertion message" : i1
+  return
+}
+
+// CHECK-LABEL: func.func @lower_dump_local_tensor(%arg0: tensor<32xf32, #asctile.local<UB>>) {
+// CHECK:        %0 = builtin.unrealized_conversion_cast %arg0 : tensor<32xf32, #asctile.local<UB>> to !ascendc.local_tensor<32xf32>
+// CHECK-NEXT:   %1 = ascendc.local_tensor.get_shape_info %0 : !ascendc.local_tensor<32xf32>, !ascendc.shape_info
+// CHECK-NEXT:   ascendc.dump_tensor %0, %c0_i32, %c32_i32, %1 : !ascendc.local_tensor<32xf32>, i32, i32, !ascendc.shape_info
+// CHECK-NEXT:   return
+// CHECK-NEXT: }
+func.func @lower_dump_local_tensor(%arg0: tensor<32xf32, #asctile.local<UB>>) {
+  asctile.dump_tensor %arg0 : tensor<32xf32, #asctile.local<UB>>
+  return
+}
+
+// CHECK-LABEL: func.func @lower_dump_global_tensor(%arg0: tensor<?xf32, #asctile.global>) {
+// CHECK:        %1 = builtin.unrealized_conversion_cast %arg0 : tensor<?xf32, #asctile.global> to !ascendc.global_tensor<?xf32>
+// CHECK-NEXT:   %2 = ascendc.global_tensor.get_phy_addr %1, %0 : !ascendc.global_tensor<?xf32>, memref<*xf32, 22>, ui64
+// CHECK-NEXT:   ascendc.printf %2 {desc = "Dump tensor: addr=%p, dtype=f32, position=GM\0A"} : memref<*xf32, 22>
+// CHECK-NEXT:   return
+// CHECK-NEXT: }
+func.func @lower_dump_global_tensor(%arg0: tensor<?xf32, #asctile.global>) {
+  asctile.dump_tensor %arg0 : tensor<?xf32, #asctile.global>
+  return
+}

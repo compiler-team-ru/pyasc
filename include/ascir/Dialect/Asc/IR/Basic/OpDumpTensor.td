@@ -24,6 +24,10 @@ include "mlir/IR/OpBase.td"
 // DebugAPI operations
 //===----------------------------------------------------------------------===//
 
+def AscendC_InitDumpOp : APIOp<"init_dump", "InitDump", [AscFunc]> {
+  let arguments = (ins I1:$isMixed, AnyMemRef:$dumpAddr, I32:$dumpSize);
+}
+
 def AscendC_PrintfOp : APIOp<"printf", "printf"> {
   let arguments = (ins StrAttr:$desc, Variadic<AnyType>:$vars);
 }

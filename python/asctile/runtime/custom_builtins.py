@@ -14,9 +14,9 @@ from typing import Any, Callable, Iterable, List, Optional, Tuple, Union
 
 from asc.codegen.function_visitor import CustomBuiltins
 from asc.language.core.ir_value import PlainValue, RuntimeNumeric
-from asc.language.core.utils import static_assert
 
 from ..language.binary_ops import maximum, minimum
+from ..language.debug_ops import device_assert, device_print
 from ..language.range import range as custom_range
 from ..language.local_tensor import LocalTensor
 
@@ -97,8 +97,16 @@ def custom_sum(iterable: Iterable, /, start: Union[LocalTensor, RuntimeNumeric] 
                               builtin_fn=operator.add)
 
 
-def custom_assert(test: bool, message: Optional[str] = None) -> None:
-    static_assert(test, message)
+def custom_assert(test: Any, message: Optional[str] = None) -> None:
+    device_assert(test, message)
+
+
+@functools.wraps(print)
+def custom_print(*values: object, sep: Optional[str] = None, end: Optional[str] = None, **kwargs: Any) -> None:
+    if kwargs:
+        extras = ", ".join(f"{name}" for name in kwargs)
+        raise TypeError(f"print(): unsupported keyword arguments: {extras}")
+    device_print(*values, sep=sep, end=end)
 
 
 def get_custom_builtins() -> CustomBuiltins:
@@ -106,6 +114,7 @@ def get_custom_builtins() -> CustomBuiltins:
         "assert": custom_assert,
         "max": custom_max,
         "min": custom_min,
+        "print": custom_print,
         "range": custom_range,
         "sum": custom_sum,
     })

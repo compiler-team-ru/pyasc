@@ -1142,6 +1142,11 @@ void bindCreateAscTileOperations(py::class_<PyOpBuilder>& clss)
             [](PyOpBuilder& self, Type result, const std::vector<Value>& inputs, const std::string& code) -> Value {
                 return self.create<asctile::InlineVFOp>(result, ValueRange{inputs}, StringRef(code));
             })
+        .def(
+            "create_asctile_AssertOp",
+            [](PyOpBuilder& self, const Value& cond, const std::string& msg) {
+                self.create<asctile::AssertOp>(cond, self->getStringAttr(msg));
+            })
 #include "ascir/Dialect/AscTile/IR/AscTileOpBindings.h.inc"
         ;
 }

@@ -825,7 +825,8 @@ void bindKernelArgument(py::module& m)
 {
     py::enum_<emitasc::KernelArgument>(m, "KernelArgument", py::module_local())
         .value("Explicit", emitasc::KernelArgument::Explicit)
-        .value("FftsAddr", emitasc::KernelArgument::FftsAddr);
+        .value("FftsAddr", emitasc::KernelArgument::FftsAddr)
+        .value("DumpAddr", emitasc::KernelArgument::DumpAddr);
 
     m.def("get_kernel_arg_attrs", [](ModuleOp& mod) -> py::object {
         auto kernelArgs = getKernelArgAttrs(mod);

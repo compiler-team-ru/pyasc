@@ -17,6 +17,15 @@ func.func @emit_printf(%c1_i32 : i32) {
   return
 }
 
+// CHECK-LABEL: void emit_printf_escaped(int32_t v1) {
+// CHECK-NEXT:   AscendC::printf("q:\" n:\n t:\t b:\\ %d\n", v1);
+// CHECK-NEXT:   return;
+// CHECK-NEXT: }
+func.func @emit_printf_escaped(%c1_i32 : i32) {
+  ascendc.printf %c1_i32 {desc = "q:\22 n:\0A t:\09 b:\\ %d\0A"} : i32
+  return
+}
+
 // CHECK-LABEL:void emit_dump_tensor_global(AscendC::GlobalTensor<float> v1, uint32_t v2, uint32_t v3) {
 // CHECK-NEXT:  AscendC::DumpTensor(v1, v2, v3);
 // CHECK-NEXT:  AscendC::ShapeInfo v4;

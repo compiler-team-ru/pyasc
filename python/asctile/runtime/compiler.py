@@ -17,6 +17,17 @@ from asc.runtime.compiler import CompileOptions as CompileOptionsBase, Compiler 
 class CompileOptions(CompileOptionsBase):
     """Binary compilation and IR transformation options (for ``asctile`` kernels)"""
 
+    debug = False
+    """
+    Enable debug mode for the kernel.
+
+    When ``True``, device-side debug operations (``device_print``, ``device_assert``) are active during 
+    kernel execution. When ``False`` (the default), these operations are removed from the compiled kernel.
+
+    Use this option to enable debugging output and assertions on the device. Note that debug operations 
+    may impact performance and should be disabled in production builds.
+    """
+
     insert_sync: bool = True
 
     reuse_alloc: Literal[0, 1, 2] = 0
@@ -62,6 +73,10 @@ class Compiler(CompilerBase):
         if self.options.static_alloc is not None:
             mod.set_attr(ir.attr.static_alloc, builder.get_bool_attr(self.options.static_alloc))
 
+    def postprocess_module(self, mod: ir.ModuleOp) -> None:
+        super().postprocess_module(mod)
+        self.enable_debug = self.options.debug
+
     def schedule_passes(self, pm: passes.PassManager) -> None:
         arch_c310 = self.arch == CompilationArch.C310
         passes.ascendc.add_privatize_func(pm)
@@ -92,6 +107,8 @@ class Compiler(CompilerBase):
             passes.common.add_cse(pm)
         passes.asctile.add_wrap_cv_groups(pm)
         passes.asctile.add_merge_cv_groups(pm)
+        if not self.options.debug:
+            passes.ascendc.add_remove_debug_ops(pm)
         passes.asclower.add_expand_math(pm)
         passes.asclower.add_redress_i1_tensor(pm)
         passes.asclower.add_lower_arith(pm)
@@ -166,9 +183,12 @@ class Compiler(CompilerBase):
             passes.ascendc.add_define_cube_only(pm)
         passes.ascendc.add_legalize_kernel_args(pm, set_ffts_addr=not arch_c310)
         passes.ascendc.add_detect_kernel_type(pm)
-        passes.ascendc.add_detect_enable_debug(pm)
+        passes.ascendc.add_insert_init_dump(pm)
         if self.options.verify_sync:
             passes.ascendc.add_verify_sync(pm)
         if self.options.strip_loc:
             passes.common.add_strip_debug_info(pm)
         passes.ascendc.add_compute_memory_consumption(pm)
+
+    def _gen_init_dump_code(self, source: str, func_name: str) -> str:
+        return source

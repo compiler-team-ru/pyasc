@@ -92,6 +92,7 @@ def LowerAscTile : Pass<"asclower-asctile", "func::FuncOp"> {
   let constructor = "mlir::asclower::createLowerAscTilePass()";
   let dependentDialects = [
     "arith::ArithDialect", "ascvf::AscVFDialect", "ascendc::AscendCDialect", "emitasc::EmitAscDialect",
+    "emitc::EmitCDialect", "scf::SCFDialect",
   ];
   let description = [{
     Converts AscTile high-level operations to Ascend C and AscVF equivalents. Handles tensor setup, neural network

@@ -229,6 +229,8 @@ class Launcher:
             elif kind == ir.KernelArgument.FftsAddr:
                 ffts_addr = np.array([rt.c2c_ctrl_addr()], dtype=np.uint64)
                 kernel_args.append(ffts_addr)
+            elif kind == ir.KernelArgument.DumpAddr:
+                continue
             else:
                 raise ValueError(f"Unexpected KernelArgument value: {kind}")
         if kernel.meta.enable_debug:

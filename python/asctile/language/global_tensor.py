@@ -96,6 +96,9 @@ class GlobalTensor(IRValue):
     def to_ir(self) -> IRHandle:
         return self.handle
 
+    def __repr__(self) -> str:
+        return f"GlobalTensor(dtype={self.dtype}, handle=...)"
+
 
 @require_jit
 def global_tensor(base: GlobalAddress, shape: Iterable[RuntimeInt]) -> GlobalTensor:

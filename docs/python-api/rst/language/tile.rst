@@ -204,8 +204,12 @@ Debug operations
     :toctree: generated
     :nosignatures:
 
+    device_assert
+    device_print
     inline
     inline_vf
+    static_assert
+    static_print
 
 
 Utility functions

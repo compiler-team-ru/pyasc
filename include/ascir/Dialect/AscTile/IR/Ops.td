@@ -346,4 +346,16 @@ def PowerOp : AscTile_Op<"power", [Pure, AllTypesMatch<["lhs", "rhs", "result"]>
   let hasFolder = 1;
 }
 
+def AssertOp : AscTile_Op<"assert"> {
+  let summary = "Declare an assertion";
+  let arguments = (ins I1:$cond, StrAttr:$msg);
+  let assemblyFormat = "$cond `,` $msg attr-dict `:` type($cond)";
+}
+
+def DumpTensorOp : AscTile_Op<"dump_tensor"> {
+  let summary = "Print all the information of the tensor";
+  let arguments = (ins AscTile_AnyTensor:$tensor);
+  let assemblyFormat = "$tensor attr-dict `:` type($tensor)";
+}
+
 #endif // ASCTILE_OPS_TD
