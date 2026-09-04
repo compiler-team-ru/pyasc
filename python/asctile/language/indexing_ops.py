@@ -7,8 +7,10 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 from contextlib import contextmanager
+from numbers import Real
 from typing import Any, Generator, Iterable, Optional, Union, overload
 
+from asc.common.compat import isinstance
 from asc.language.core.dtype import KnownTypes as KT
 from asc.language.core.ir_value import RuntimeInt, RuntimeNumeric, materialize_ir_value as _mat
 from asc.language.core.utils import global_builder, require_jit
@@ -59,13 +61,14 @@ def where(mask: LocalTensor, src0: Union[LocalTensor, RuntimeNumeric], src1: Uni
     """
     check_type("mask", mask, LocalTensor)
     check_dtype("mask", mask, KT.int1)
-    mask = cast_loc(mask, TensorLocation.UB)
     for name, value in ("src0", src0), ("src1", src1):
         check_type(name, value, (LocalTensor, RuntimeNumeric))
-        check_dtype(name, value, (KT.int16, KT.int32, KT.float16, KT.bfloat16, KT.float32))
-    src_dtype = infer_common_dtype(src0, src1)
-    src0 = create_tile(src0, src_dtype, mask.shape, TensorLocation.UB)
-    src1 = create_tile(src1, src_dtype, mask.shape, TensorLocation.UB)
+        if not isinstance(value, Real):
+            check_dtype(name, value, (KT.int16, KT.int32, KT.float16, KT.bfloat16, KT.float32))
+    dtype = infer_common_dtype(src0, src1)
+    mask = cast_loc(mask, TensorLocation.UB)
+    src0 = create_tile(src0, dtype, mask.shape, TensorLocation.UB)
+    src1 = create_tile(src1, dtype, mask.shape, TensorLocation.UB)
     handle = global_builder.get_ir_builder().create_arith_SelectOp(mask.to_ir(), src0.to_ir(), src1.to_ir())
     return cast_loc(LocalTensor(handle))
 
