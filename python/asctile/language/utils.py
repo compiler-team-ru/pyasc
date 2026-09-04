@@ -163,8 +163,6 @@ def infer_common_shape(lhs: Union[LocalTensor, RuntimeNumeric], rhs: Union[Local
         return rhs.shape
     if not rhs_is_tile:
         return lhs.shape
-    if lhs.shape == rhs.shape:
-        return lhs.shape
     return infer_common_shape_impl(lhs.shape, rhs.shape)
 
 

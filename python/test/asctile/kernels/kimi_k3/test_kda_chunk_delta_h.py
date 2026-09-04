@@ -106,7 +106,7 @@ def kda_chunk_delta_h_kernel(k_ptr: asctile.GlobalAddress, v_ptr: asctile.Global
             g_chunk_offset = bos_v + (i_t * bt)
             g_chunk = asctile.copy_in(g_gm, [g_chunk_offset], [bt])
             g_diff = g_last_tensor - g_chunk
-            g_diff_safe = asctile.where(g_diff <= 0, g_diff, asctile.full([bt], float('-inf'), dtype=asctile.float32))
+            g_diff_safe = asctile.where(g_diff <= 0, g_diff, float('-inf'))
             g_safe_exp = asctile.exp(g_diff_safe)
             g_safe_exp_col = g_safe_exp.expand_dims(1)
             b_v = b_v * g_safe_exp_col

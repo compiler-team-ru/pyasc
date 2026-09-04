@@ -50,9 +50,8 @@ def attn_residual_kernel(prefix_ptr: asctile.GlobalAddress, bank_ptr: asctile.Gl
             sum_sq = asctile.reduce_sum(value * value)
             inverse_rms = 1.0 / asctile.sqrt(sum_sq / hidden_size + variance_epsilon)
             score = asctile.reduce_sum(value * inverse_rms * combined_weight)
-            score_2d = asctile.full([num_candidates_aligned], score, dtype=asctile.float32)
             mask = indices_2d == asctile.full([num_candidates_aligned], row, dtype=asctile.int32)
-            scores_2d = asctile.where(mask, score_2d, scores_2d)
+            scores_2d = asctile.where(mask, score, scores_2d)
         # Softmax over scores
         probabilities_2d = asctile.softmax(scores_2d)
         # Weighted sum of candidates
@@ -64,8 +63,7 @@ def attn_residual_kernel(prefix_ptr: asctile.GlobalAddress, bank_ptr: asctile.Gl
             else:
                 value = asctile.copy_in(prefix_gm, [token, 0], [hidden_size])
             mask = indices_2d == asctile.full([num_candidates_aligned], row, dtype=asctile.int32)
-            probability = asctile.reduce_sum(
-                asctile.where(mask, probabilities_2d, asctile.zeros([num_candidates_aligned], dtype=asctile.float32)))
+            probability = asctile.reduce_sum(asctile.where(mask, probabilities_2d, 0))
             output_vec = output_vec + value * probability
         asctile.copy_out(output_vec, output_gm, [token, 0])
 

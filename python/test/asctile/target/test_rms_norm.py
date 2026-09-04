@@ -30,8 +30,8 @@ def compute_rstd_newton_raphson(src: asctile.LocalTensor, epsilon, avg_factor, n
     y_0 = asctile.sqrt(1.0 / var)
     y_1 = y_0 * (1.5 - 0.5 * var * y_0**2)
     rstd = y_1 + 0.5 * (1.0 - var * y_1**2) * y_1
-    rstd = asctile.where(var == pos_inf, asctile.cast(0, asctile.float32), rstd)
-    rstd = asctile.where(var == 0.0, asctile.cast(pos_inf, asctile.float32), rstd)
+    rstd = asctile.where(var == pos_inf, 0, rstd)
+    rstd = asctile.where(var == 0.0, pos_inf, rstd)
     return rstd
 
 
