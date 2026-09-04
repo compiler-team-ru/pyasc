@@ -93,8 +93,12 @@ from .language.creation_ops import (
     zeros_like,
 )
 from .language.debug_ops import (
+    device_assert,
+    device_print,
     inline,
     inline_vf,
+    static_assert,
+    static_print,
 )
 from .language.memory_ops import (
     copy,
@@ -204,8 +208,12 @@ __all__ += [
     "zeros_acc",
     "zeros_like",
     # .language.debug_ops
+    "device_assert",
+    "device_print",
     "inline",
     "inline_vf",
+    "static_assert",
+    "static_print",
     # .language.memory_ops
     "copy",
     "copy_in",

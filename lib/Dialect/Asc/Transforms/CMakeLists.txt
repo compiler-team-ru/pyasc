@@ -26,6 +26,7 @@ add_mlir_dialect_library(MLIRAscTransforms
   InsertBiasBufIdSync.cpp
   InsertBufIdSync.cpp
   InsertCrossCoreSync.cpp
+  InsertInitDump.cpp
   InsertSubBlockGuard.cpp
   InsertQueSync.cpp
   LegalizeKernelArgs.cpp
@@ -35,6 +36,7 @@ add_mlir_dialect_library(MLIRAscTransforms
   PrivatizeFunc.cpp
   PromoteCVBlock.cpp
   RefineCubePosition.cpp
+  RemoveDebugOps.cpp
   ReuseTensorAllocation.cpp
   ReuseUBAllocation.cpp
   UnifyBiasTensor.cpp

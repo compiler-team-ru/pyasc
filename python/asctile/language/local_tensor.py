@@ -71,6 +71,9 @@ class LocalTensor(IRValue):
         self.rank: Final = len(self.shape)
         self.location: Final = ir.get_tensor_location(ir_type)
 
+    def __repr__(self) -> str:
+        return f"LocalTensor(dtype={self.dtype}, shape={self.shape}, location={self.location.name}, handle=...)"
+
     @classmethod
     def from_ir(cls, handle: IRHandle) -> Self:
         return cls(handle=handle)

@@ -235,6 +235,7 @@ using AcceptLoadLoc = AcceptAnyLoc<Traits<LoadOp>, 0>;
 using AcceptCopyLoc = AcceptAnyLoc<Traits<CopyOp, &CopyOp::getBaseMutable>, 0>;
 using AcceptStoreLoc = AcceptAnyLoc<Traits<StoreOp, &StoreOp::getValueMutable>>;
 using AcceptSetValueLoc = AcceptAnyLoc<Traits<SetValueOp, &SetValueOp::getValueMutable>>;
+using AcceptDumpTensorLoc = AcceptAnyLoc<Traits<DumpTensorOp, &DumpTensorOp::getTensorMutable>>;
 
 struct AcceptForLoc : OpRewritePattern<scf::ForOp> {
     using OpRewritePattern::OpRewritePattern;
@@ -324,15 +325,17 @@ void populateFirstStage(RewritePatternSet& patterns)
 {
     auto* context = patterns.getContext();
     patterns.add<
-        AcceptLoadLoc, AcceptCopyLoc, AcceptStoreLoc, AcceptSetValueLoc, AcceptCastLoc, AcceptReluLoc, AcceptReshapeLoc,
-        AcceptTransposeLoc, AcceptForLoc, AcceptIfLoc, ReconcileTensorCast>(context);
+        AcceptLoadLoc, AcceptCopyLoc, AcceptStoreLoc, AcceptSetValueLoc, AcceptDumpTensorLoc, AcceptCastLoc,
+        AcceptReluLoc, AcceptReshapeLoc, AcceptTransposeLoc, AcceptForLoc, AcceptIfLoc, ReconcileTensorCast>(context);
 }
 
 void populateSecondStage(RewritePatternSet& patterns)
 {
     enum : unsigned { LowBenefit = 1, HighBenefit = 10 };
     auto* context = patterns.getContext();
-    patterns.add<AcceptCopyLoc, AcceptSetValueLoc, AcceptForLoc, AcceptIfLoc, ReconcileTensorCast>(context, LowBenefit)
+    patterns
+        .add<AcceptCopyLoc, AcceptSetValueLoc, AcceptDumpTensorLoc, AcceptForLoc, AcceptIfLoc, ReconcileTensorCast>(
+            context, LowBenefit)
         .add<RequireSameLoc<LoadOp, StoreOp>>(context, std::nullopt, TL::UB, LowBenefit)
         .add<RequireSameLoc<CastOp, ReluOp>>(context, LocRange{TL::UB, TL::L0C}, TL::UB, HighBenefit)
         .add<RequireSameLoc<ReshapeOp>>(context, std::nullopt, TL::UB, HighBenefit)

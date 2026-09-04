@@ -330,6 +330,20 @@ def InsertCrossCoreSync : Pass<"ascendc-insert-cross-core-sync", "func::FuncOp">
   }];
 }
 
+def InsertInitDump : Pass<"ascendc-insert-init-dump", "func::FuncOp"> {
+  let summary = "Insert InitDump call and dump_addr kernel argument for kernels containing debug operations";
+  let constructor = "mlir::ascendc::createInsertInitDumpPass()";
+  let dependentDialects = ["emitasc::EmitAscDialect", "arith::ArithDialect"];
+  let description = [{
+    Inserts AscendC debug-dump initialization for kernels that use debug operations. Walks the function for
+    `ascendc.printf` or `ascendc.dump_tensor`; if any are found, appends a `dump_addr` kernel argument
+    (`__gm__ uint8_t*`, `emitasc.kernel_arg` = `DumpAddr`) and inserts an `ascendc.init_dump` operation at
+    the function entry. The operation is parameterized by the kernel `isMixed` flag (derived from the
+    `asc.kernel_type` module attribute), the dump address, and a fixed dump size of 1 MB (1024*1024 bytes)
+    per core.
+  }];
+}
+
 def InsertQueSync : Pass<"ascendc-insert-que-sync", "func::FuncOp"> {
   let summary = "Insert TQueBind enqueue/dequeue synchronization and scalar get/set_value barriers";
   let constructor = "mlir::ascendc::createInsertQueSyncPass()";
@@ -524,6 +538,16 @@ def RefineCubePosition : Pass<"ascendc-refine-cube-position", "func::FuncOp"> {
 
     Only tensors with position A1 are processed. This refinement ensures cube tensors are placed in the
     correct hardware buffer (L1, B1, or C1) matching the actual data flow to L0A, L0B, or bias memory.
+  }];
+}
+
+def RemoveDebugOps : Pass<"ascendc-remove-debug-ops", "ModuleOp"> {
+  let summary = "Remove debug operations (PrintfOp, DumpTensorOp, AssertOp) when debug mode is disabled";
+  let constructor = "mlir::ascendc::createRemoveDebugOpsPass()";
+  let description = [{
+    Removes `ascendc.printf`, `asctile.dump_tensor`, and `asctile.assert` operations from the module.
+    This pass should run immediately after codegen to remove debug ops when the user has not explicitly
+    enabled debug mode.
   }];
 }
 

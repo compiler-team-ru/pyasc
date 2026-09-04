@@ -20,8 +20,11 @@
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/EmitC/IR/EmitC.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Location.h"
 #include "mlir/Pass/Pass.h"
 
 #include <algorithm>
@@ -651,6 +654,65 @@ struct ConvertPower : ConvertOp<asctile::PowerOp> {
     }
 };
 
+struct ConvertAssert : ConvertOp<asctile::AssertOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    LogicalResult matchAndRewrite(asctile::AssertOp op, ConvertRewriter& rewriter) const override
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto loc = op.getLoc();
+        auto notCond = rewriter.create<arith::XOrIOp>(loc, consts.i1(true), rewriter.getRemappedValue(op.getCond()));
+        auto ifOp = rewriter.create<scf::IfOp>(loc, notCond, false);
+        rewriter.setInsertionPointToStart(ifOp.getBody());
+        std::string buffer;
+        llvm::raw_string_ostream os(buffer);
+        os << "Assertion failed";
+        if (auto flc = loc->findInstanceOf<FileLineColLoc>()) {
+            os << " at " << flc.getFilename().getValue() << ':' << flc.getLine() << ':' << flc.getColumn();
+        }
+        if (auto msg = op.getMsg(); !msg.empty())
+            os << ": " << msg.str();
+        os << '\n';
+        rewriter.create<ascendc::PrintfOp>(loc, rewriter.getStringAttr(os.str()), ValueRange{});
+        rewriter.create<ascendc::TrapOp>(loc);
+        rewriter.replaceOp(op, ifOp);
+        return success();
+    }
+};
+
+struct ConvertDumpTensor : ConvertOp<asctile::DumpTensorOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    LogicalResult matchAndRewrite(asctile::DumpTensorOp op, ConvertRewriter& rewriter) const override
+    {
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto loc = op.getLoc();
+        auto tensor = op.getTensor();
+        auto convertTensor = rewriter.getRemappedValue(tensor);
+        if (isa<ascendc::LocalTensorType>(convertTensor.getType())) {
+            rewriter.replaceOpWithNewOp<ascendc::DumpTensorOp>(
+                op, convertTensor, consts.i32(0), consts.i32(cast<ShapedType>(tensor.getType()).getNumElements()),
+                rewriter.create<ascendc::LocalTensorGetShapeInfoOp>(
+                    loc, rewriter.getType<ascendc::ShapeInfoType>(), convertTensor));
+        } else {
+            std::string buffer;
+            llvm::raw_string_ostream os(buffer);
+            os << "Dump tensor: addr=%p, dtype=";
+            auto elemType = cast<ascendc::GlobalTensorType>(convertTensor.getType()).getElementType();
+            elemType.print(os);
+            os << ", position=GM\n";
+            auto ui64Type = rewriter.getIntegerType(64, false);
+            auto offset = rewriter.create<emitc::ConstantOp>(loc, ui64Type, rewriter.getIntegerAttr(ui64Type, 0));
+            auto phyAddrType = UnrankedMemRefType::get(elemType, static_cast<int64_t>(ascendc::AddressSpace::gm));
+            auto phyAddr = rewriter.create<ascendc::GlobalTensorGetPhyAddrOp>(loc, phyAddrType, convertTensor, offset);
+            rewriter.replaceOpWithNewOp<ascendc::PrintfOp>(op, os.str(), ValueRange{phyAddr.getResult()});
+        }
+        return success();
+    }
+};
+
 struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePass> {
     void runOnOperation() override
     {
@@ -661,18 +723,20 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
         target.addIllegalOp<
             //
             asctile::TensorOp, asctile::AccumulatorOp, asctile::SoftmaxOp, asctile::ReshapeOp, asctile::BroadcastOp,
-            asctile::ReduceOp, asctile::InlineVFOp, asctile::CubeGroupOp, asctile::VectorGroupOp, asctile::PowerOp
+            asctile::ReduceOp, asctile::InlineVFOp, asctile::CubeGroupOp, asctile::VectorGroupOp, asctile::PowerOp,
+            asctile::AssertOp, asctile::DumpTensorOp
             //
             >();
         target.addLegalDialect<
-            ascendc::AscendCDialect, ascvf::AscVFDialect, arith::ArithDialect, emitasc::EmitAscDialect>();
+            ascendc::AscendCDialect, ascvf::AscVFDialect, arith::ArithDialect, emitasc::EmitAscDialect,
+            emitc::EmitCDialect, scf::SCFDialect>();
         target.addLegalOp<UnrealizedConversionCastOp>();
         RewritePatternSet patterns(context);
         patterns.insert<
             //
             ConvertTensor, ConvertAccumulator, ConvertReshape, ConvertBroadcast, ConvertSoftmax, ConvertRmsNorm,
             ConvertLayerNorm, ConvertReduce, ConvertInlineVF, ConvertCVGroup<asctile::CubeGroupOp, ascendc::IfAICOp>,
-            ConvertCVGroup<asctile::VectorGroupOp, ascendc::IfAIVOp>, ConvertPower
+            ConvertCVGroup<asctile::VectorGroupOp, ascendc::IfAIVOp>, ConvertPower, ConvertAssert, ConvertDumpTensor
             //
             >(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())
