@@ -10,8 +10,6 @@ import asctile
 from asc.runtime.jit import MockTensor, MockValue
 import pytest
 
-from .helpers import non_ub_l0c_locations
-
 valid_dtypes = (asctile.int8, asctile.int16, asctile.int32, asctile.int64, asctile.float16, asctile.bfloat16,
                 asctile.float32)
 index_dtypes = (asctile.int8, asctile.int16, asctile.int32, asctile.int64)
@@ -159,18 +157,6 @@ class TestCopyOut:
         kernel[1](MockTensor(asctile.float32))
         assert mock_launch.call_count == 1
 
-    @pytest.mark.parametrize("loc", non_ub_l0c_locations)
-    def test_invalid_location(self, jit_test, zero_tile, loc):
-
-        @jit_test
-        def kernel(out_ptr: asctile.GlobalAddress):
-            out_gm = asctile.global_tensor(out_ptr, [128])
-            src = zero_tile([128], asctile.float32, loc)
-            asctile.copy_out(src, out_gm, [0])
-
-        with pytest.raises(RuntimeError, match="location"):
-            kernel[1](MockTensor(asctile.float32))
-
     def test_invalid_dst_type(self, jit_test, zero_tile):
 
         @jit_test
@@ -255,26 +241,6 @@ class TestCopy:
 
         kernel[1]()
         assert mock_launch.call_count == 1
-
-    def test_invalid_src_location(self, jit_test, zero_tile):
-
-        @jit_test
-        def kernel():
-            src = zero_tile([128], asctile.float32, asctile.TensorLocation.L0A)
-            asctile.copy(src, location=asctile.TensorLocation.UB)
-
-        with pytest.raises(RuntimeError, match="location"):
-            kernel[1]()
-
-    def test_invalid_transfer(self, jit_test, zero_tile):
-
-        @jit_test
-        def kernel():
-            src = zero_tile([128], asctile.float32, asctile.TensorLocation.UB)
-            asctile.copy(src, location=asctile.TensorLocation.L0A)
-
-        with pytest.raises(RuntimeError, match="location"):
-            kernel[1]()
 
     def test_with_offsets_and_shape(self, jit_test, mock_launch, zero_tile):
 

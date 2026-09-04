@@ -25,21 +25,30 @@ func.func @dim_index_exceeds_rank(%arg0: memref<*xf32, 22>) -> i32 {
 
 // -----
 
-func.func @load_real_shape_size_mismatch(%arg0: tensor<64x128xf16, #asctile.global>, %arg1: f16, %arg2: i32) -> tensor<64x64xf16, #asctile.local<L1>> {
+func.func @load_real_shape_non_ub(%arg0: tensor<64xf16, #asctile.global>, %arg1: f16, %arg2: i32) -> tensor<64xf16, #asctile.local<L1>> {
   %c0 = arith.constant 0 : i32
-  // expected-error@below {{real_shape must have same size as tensor shape}}
-  %0 = asctile.load %arg0[%c0, %c0], %arg1, (%arg2) : tensor<64x128xf16, #asctile.global>, tensor<64x64xf16, #asctile.local<L1>>
-  return %0 : tensor<64x64xf16, #asctile.local<L1>>
+  // expected-error@below {{only supports 'real_shape' with UB location, got L1}}
+  %0 = asctile.load %arg0[%c0], %arg1, (%arg2) : tensor<64xf16, #asctile.global>, tensor<64xf16, #asctile.local<L1>>
+  return %0 : tensor<64xf16, #asctile.local<L1>>
 }
 
 // -----
 
-func.func @load_real_shape_exceeds_tile(%arg0: tensor<64x128xf16, #asctile.global>, %arg1: f16) -> tensor<64x64xf16, #asctile.local<L1>> {
+func.func @load_real_shape_size_mismatch(%arg0: tensor<64x128xf16, #asctile.global>, %arg1: f16, %arg2: i32) -> tensor<64x64xf16, #asctile.local<UB>> {
+  %c0 = arith.constant 0 : i32
+  // expected-error@below {{real_shape must have same size as tensor shape}}
+  %0 = asctile.load %arg0[%c0, %c0], %arg1, (%arg2) : tensor<64x128xf16, #asctile.global>, tensor<64x64xf16, #asctile.local<UB>>
+  return %0 : tensor<64x64xf16, #asctile.local<UB>>
+}
+
+// -----
+
+func.func @load_real_shape_exceeds_tile(%arg0: tensor<64x128xf16, #asctile.global>, %arg1: f16) -> tensor<64x64xf16, #asctile.local<UB>> {
   %c0 = arith.constant 0 : i32
   %c128 = arith.constant 128 : i32
   // expected-error@below {{real_shape exceeds tensor shape}}
-  %0 = asctile.load %arg0[%c0, %c0], %arg1, (%c128, %c128) : tensor<64x128xf16, #asctile.global>, tensor<64x64xf16, #asctile.local<L1>>
-  return %0 : tensor<64x64xf16, #asctile.local<L1>>
+  %0 = asctile.load %arg0[%c0, %c0], %arg1, (%c128, %c128) : tensor<64x128xf16, #asctile.global>, tensor<64x64xf16, #asctile.local<UB>>
+  return %0 : tensor<64x64xf16, #asctile.local<UB>>
 }
 
 // -----

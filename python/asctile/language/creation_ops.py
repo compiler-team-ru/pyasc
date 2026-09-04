@@ -15,14 +15,13 @@ from asc.language.core.ir_value import PlainValue, RuntimeNumeric, materialize_i
 from asc.language.core.utils import global_builder, require_jit
 
 from .local_tensor import LocalTensor, RoundMode
-from .tensor_location import TensorLocation, TensorLocLike
+from .tensor_location import TensorLocation
 from .utils import cast_tensor_location as cast_loc, check_bias, constant_tile, splat_tile
-from .validation import check_dtype, check_type, verify_location, verify_shape
+from .validation import check_dtype, check_type, verify_shape
 
 
 @require_jit
-def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] = None,
-         location: TensorLocLike = TensorLocation.UB) -> LocalTensor:
+def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] = None) -> LocalTensor:
     """
     Create a tensor filled with a scalar value.
 
@@ -32,13 +31,12 @@ def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] 
         shape: The shape of the tensor to create.
         value: The scalar value to fill the tensor with.
         dtype: The data type of the tensor. If None, inferred from the value type.
-        location: The memory location for the tensor. Default is ``TensorLocation.UB``.
 
     Returns:
         LocalTensor: A new tensor filled with the specified value
 
     Raises:
-        TypeError: If value is not a numeric type, dtype is not a DataType, or location is not a TensorLocation-like
+        TypeError: If value is not a numeric type or dtype is not a DataType
         RuntimeError: If shape is invalid or dtype is not supported
 
     Examples:
@@ -59,7 +57,6 @@ def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] 
     check_type("dtype", dtype, Optional[DataType])
     support_dtypes = (KT.int8, KT.int16, KT.int32, KT.int64, KT.float16, KT.bfloat16, KT.float32)
     check_dtype("dtype", dtype, support_dtypes, optional=True)
-    location = verify_location(location, allow=TensorLocation.UB)
     shape = verify_shape(shape)
     if isinstance(value, Real):
         if dtype is None:
@@ -72,7 +69,7 @@ def full(shape: Iterable[int], value: RuntimeNumeric, dtype: Optional[DataType] 
 
 
 @require_jit
-def full_like(input: LocalTensor, value: RuntimeNumeric, location: Optional[TensorLocLike] = None) -> LocalTensor:
+def full_like(input: LocalTensor, value: RuntimeNumeric) -> LocalTensor:
     """
     Create a tensor filled with a scalar value, with the same shape and dtype as the input tensor.
 
@@ -81,7 +78,6 @@ def full_like(input: LocalTensor, value: RuntimeNumeric, location: Optional[Tens
     Args:
         input: The input tensor to match shape and dtype.
         value: The scalar value to fill the tensor with.
-        location: The memory location for the tensor. Default is ``input.location``.
 
     Returns:
         LocalTensor: A new tensor filled with the specified value
@@ -96,12 +92,11 @@ def full_like(input: LocalTensor, value: RuntimeNumeric, location: Optional[Tens
             result = asctile.full_like(src, 255)
     """
     check_type("input", input, LocalTensor)
-    location = input.location if location is None else location
-    return full(input.shape, value, input.dtype, location)
+    return full(input.shape, value, input.dtype)
 
 
 @require_jit
-def zeros(shape: Iterable[int], dtype: DataType = KT.int32, location: TensorLocLike = TensorLocation.UB) -> LocalTensor:
+def zeros(shape: Iterable[int], dtype: DataType = KT.int32) -> LocalTensor:
     """
     Create a tensor filled with zeros.
 
@@ -110,13 +105,12 @@ def zeros(shape: Iterable[int], dtype: DataType = KT.int32, location: TensorLocL
     Args:
         shape: The shape of the tensor to create.
         dtype: The data type of the tensor. Default is ``int32``.
-        location: The memory location for the tensor. Default is ``TensorLocation.UB``.
 
     Returns:
         LocalTensor: A new tensor filled with zeros
 
     Raises:
-        TypeError: If dtype is not a DataType or location is not a TensorLocation
+        TypeError: If dtype is not a DataType
         RuntimeError: If shape is invalid or dtype is not supported
 
     Examples:
@@ -128,11 +122,11 @@ def zeros(shape: Iterable[int], dtype: DataType = KT.int32, location: TensorLocL
 
             result = asctile.zeros([32, 16], dtype=asctile.float16)
     """
-    return full(shape, 0, dtype, location)
+    return full(shape, 0, dtype)
 
 
 @require_jit
-def zeros_like(input: LocalTensor, location: Optional[TensorLocLike] = None) -> LocalTensor:
+def zeros_like(input: LocalTensor) -> LocalTensor:
     """
     Create a tensor filled with zeros, with the same shape and dtype as the input tensor.
 
@@ -140,7 +134,6 @@ def zeros_like(input: LocalTensor, location: Optional[TensorLocLike] = None) -> 
 
     Args:
         input: The input tensor to match shape and dtype.
-        location: The memory location for the tensor. Default is ``input.location``.
 
     Returns:
         LocalTensor: A new tensor filled with zeros
@@ -155,8 +148,7 @@ def zeros_like(input: LocalTensor, location: Optional[TensorLocLike] = None) -> 
             result = asctile.zeros_like(src)
     """
     check_type("input", input, LocalTensor)
-    location = input.location if location is None else location
-    return zeros(input.shape, input.dtype, location)
+    return zeros(input.shape, input.dtype)
 
 
 @require_jit

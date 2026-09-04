@@ -92,7 +92,7 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
         Copy matmul result from L0C to UB for further processing: ::
 
             result = asctile.matmul(a_l0a, b_l0b)
-            result_ub = asctile.copy(result, location=asctile.TensorLocation.UB)
+            result_ub = asctile.copy(result, location="UB")
 
         Alternatively, the ``to`` method can be used to transform the tensor location: ::
 
@@ -101,14 +101,6 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
     """
     check_type("src", src, LocalTensor)
     location = src.location if location is None else verify_location(location)
-    if src.location == TensorLocation.L1:
-        location = verify_location(location, allow=(TensorLocation.L0A, TensorLocation.L0B, TensorLocation.BT))
-    elif src.location == TensorLocation.L0C:
-        location = verify_location(location, allow=(TensorLocation.L1, TensorLocation.UB))
-    elif src.location == TensorLocation.UB:
-        location = verify_location(location, allow=TensorLocation.L1)
-    elif src.location != TensorLocation.Auto:
-        raise RuntimeError(f"'src' tensor location must be L1, L0C, or UB, got {src.location.name}")
     if shape is None:
         shape = src.shape
     else:
@@ -205,11 +197,7 @@ def copy_in(src: GlobalTensor, offsets: Iterable[RuntimeInt], shape: Optional[It
             # result has shape [16, 16], but only 12x12 elements loaded from global tensor, rest padded with -1.0
     """
     check_type("src", src, GlobalTensor)
-    location = verify_location(
-        location,
-        allow=(TensorLocation.UB, TensorLocation.L1, TensorLocation.L0A, TensorLocation.L0B, TensorLocation.BT))
-    if real_shape is not None and location not in (TensorLocation.Auto, TensorLocation.UB):
-        raise RuntimeError(f"'real_shape' argument is not supported with {location.name} tensor location")
+    location = verify_location(location)
     builder = global_builder.get_ir_builder()
     offsets = to_ir_list(verify_offsets(offsets, src.rank))
     if shape is None:
@@ -311,7 +299,6 @@ def copy_out(src: Union[LocalTensor, RuntimeNumeric], dst: GlobalTensor, offsets
         src = src.to(dst.dtype) if isinstance(src, LocalTensor) else _mat(src, dst.dtype)
         builder.create_asctile_SetValueOp(src.to_ir(), dst.to_ir(), offsets)
         return
-    verify_location(src.location, "src", (TensorLocation.UB, TensorLocation.L0C))
     real_shape = [] if real_shape is None else to_ir_list(verify_real_shape(real_shape, src.shape))
     builder.create_asctile_StoreOp(src.to_ir(), dst.to_ir(), offsets, real_shape)
 
