@@ -11,6 +11,7 @@
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinTypeInterfaces.h"
 #include "mlir/IR/DialectImplementation.h"
 #include "mlir/IR/OpImplementation.h"
 #include "llvm/ADT/TypeSwitch.h"
@@ -22,6 +23,32 @@
 
 using namespace mlir;
 using namespace mlir::asctile;
+
+//===----------------------------------------------------------------------===//
+// GlobalTensorAttr
+//===----------------------------------------------------------------------===//
+
+LogicalResult GlobalTensorAttr::verifyEncoding(
+    ArrayRef<int64_t> shape, Type, function_ref<InFlightDiagnostic()> emitError) const
+{
+    if (shape.empty())
+        return emitError() << "global tensor must have at least one dimension";
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
+// LocalTensorAttr
+//===----------------------------------------------------------------------===//
+
+LogicalResult LocalTensorAttr::verifyEncoding(
+    ArrayRef<int64_t> shape, Type, function_ref<InFlightDiagnostic()> emitError) const
+{
+    if (shape.empty())
+        return emitError() << "local tensor must have at least one dimension";
+    if (ShapedType::isDynamicShape(shape))
+        return emitError() << "local tensor must have static shape";
+    return success();
+}
 
 //===----------------------------------------------------------------------===//
 // AscTileDialect

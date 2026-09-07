@@ -15,6 +15,7 @@ include "Dialect.td"
 
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/EnumAttr.td"
+include "mlir/IR/TensorEncoding.td"
 
 class AscTile_Attr<string name, string attrMnemonic, list<Trait> traits = []> : AttrDef<AscTile_Dialect, name, traits> {
   let cppNamespace = "::mlir::asctile";
@@ -94,11 +95,13 @@ def AscTile_RoundMode : I32EnumAttr<"RoundMode", "cast rounding mode", [
 
 def AscTile_RoundModeAttr : AscTile_EnumAttr<AscTile_RoundMode, "round_mode">;
 
-def AscTile_GlobalTensorAttr : AscTile_Attr<"GlobalTensor", "global"> {
+def AscTile_GlobalTensorAttr : AscTile_Attr<"GlobalTensor", "global",
+  [DeclareAttrInterfaceMethods<VerifiableTensorEncoding>]> {
   let summary = "An encoding for a global tensor";
 }
 
-def AscTile_LocalTensorAttr : AscTile_Attr<"LocalTensor", "local"> {
+def AscTile_LocalTensorAttr : AscTile_Attr<"LocalTensor", "local",
+  [DeclareAttrInterfaceMethods<VerifiableTensorEncoding>]> {
   let summary = "An encoding for a local tensor";
   let parameters = (ins "TensorLocation":$loc);
   let assemblyFormat = "`<` $loc `>`";
