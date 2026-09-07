@@ -8,6 +8,21 @@
 
 // RUN: ascir-opt -split-input-file -verify-diagnostics %s
 
+// expected-error@below {{global tensor must have at least one dimension}}
+func.func private @global_tensor_0d(tensor<f32, #asctile.global>)
+
+// -----
+
+// expected-error@below {{local tensor must have at least one dimension}}
+func.func private @local_tensor_0d(tensor<f32, #asctile.local<UB>>)
+
+// -----
+
+// expected-error@below {{local tensor must have static shape}}
+func.func private @local_tensor_dynamic_shape(tensor<32x?xf32, #asctile.local<L1>>)
+
+// -----
+
 func.func @tensor_wrong_sizes(%arg0: memref<*xf32, 22>, %arg1: i32) -> tensor<?x?xf32, #asctile.global> {
   // expected-error@below {{must have value in 'sizes' for each dynamic dimension}}
   %0 = asctile.tensor %arg0(%arg1) : memref<*xf32, 22>, tensor<?x?xf32, #asctile.global>
