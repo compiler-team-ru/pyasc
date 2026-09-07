@@ -7,6 +7,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 add_mlir_dialect_library(MLIRAscTileTransforms
+  ApplyHomomorphism.cpp
   CubeTransposeToLoad.cpp
   DetectBiasLoad.cpp
   FoldCast.cpp
@@ -38,5 +39,6 @@ add_mlir_dialect_library(MLIRAscTileTransforms
   MLIRIR
   MLIRPass
   MLIRAscTile
+  MLIRAscTileUtils
   MLIRAscUtils
 )

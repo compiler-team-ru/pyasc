@@ -13,6 +13,48 @@
 
 include "mlir/Pass/PassBase.td"
 
+def ApplyHomomorphism : Pass<"asctile-apply-homomorphism", "func::FuncOp"> {
+  let summary = "Apply homomorphism-based transformations: scalarize elementwise operations with splat operands, etc.";
+  let constructor = "mlir::asctile::createApplyHomomorphismPass()";
+  let dependentDialects = ["arith::ArithDialect", "tensor::TensorDialect"];
+  let description = [{
+    The pass exploits the homomorphism between elementwise tensor operations and their scalar counterparts
+    (`op(splat(x))` is equivalent to `splat(op(x))`) to push operations toward scalar values. This enables
+    computation on scalars when all operands are uniform, replacing elementwise tensor operations with their
+    scalar equivalents.
+
+    **Transformation patterns**:
+
+    - Push an `asctile.cast` through an `arith.select` when both select branches are splats, applying the cast
+      to each underlying scalar value instead. Applies only with the default rounding mode and when both scalars
+      can be converted to the target element type.
+    - Rewrite a pure, region-less elementwise op into its scalar form when **all** of its operands are splats,
+      computing on the extracted scalars and splatting the results back. If any operand is not a splat, the op
+      is left unchanged.
+
+    Example transformations:
+    ```mlir
+    // Before: cast over a select of two splats
+    %sel = arith.select %mask, %splat_a, %splat_b : tensor<Nxi1>, tensor<Nxf32>
+    %cast = asctile.cast <default> %sel : tensor<Nxf32> to tensor<Nxi32>
+
+    // After: cast pushed to scalars; splats and select rebuilt with casted values
+    %sel = arith.select %mask, splat(cast %sa to i32), splat(cast %sb to i32) : tensor<Nxi1>, tensor<Nxi32>
+    ```
+
+    ```mlir
+    // Before: elementwise op with all-splat operands
+    %a = tensor.splat %sa : tensor<Nxi32>
+    %b = tensor.splat %sb : tensor<Nxi32>
+    %r = arith.addi %a, %b : tensor<Nxi32>
+
+    // After: op computed on scalars, result splat
+    %r = arith.addi %sa, %sb : i32
+    %s = tensor.splat %r : tensor<Nxi32>
+    ```
+  }];
+}
+
 def CubeTransposeToLoad : Pass<"asctile-cube-transpose-to-load", "func::FuncOp"> {
   let summary = "Remove transpose operations on cube operands and add transpose attributes to load/copy operations";
   let constructor = "mlir::asctile::createCubeTransposeToLoadPass()";

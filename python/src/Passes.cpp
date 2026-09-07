@@ -160,6 +160,7 @@ void defineAscTilePasses(py::module& mod)
     using namespace asctile;
     using namespace pybind11::literals;
     auto m = mod.def_submodule("asctile");
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_apply_homomorphism", createApplyHomomorphismPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_cube_transpose_to_load", createCubeTransposeToLoadPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_detect_bias_load", createDetectBiasLoadPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_fold_cast", createFoldCastPass);
