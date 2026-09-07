@@ -19,6 +19,7 @@ namespace asctile {
 #define GEN_PASS_DECL
 #include "ascir/Dialect/AscTile/Transforms/Passes.h.inc"
 
+std::unique_ptr<Pass> createApplyHomomorphismPass();
 std::unique_ptr<Pass> createCubeTransposeToLoadPass();
 std::unique_ptr<Pass> createDetectBiasLoadPass();
 std::unique_ptr<Pass> createFoldCastPass();

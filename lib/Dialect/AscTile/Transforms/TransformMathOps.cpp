@@ -10,6 +10,7 @@
 
 #include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/AscTile/Transforms/Passes.h"
+#include "ascir/Dialect/AscTile/Utils/Utils.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -28,25 +29,6 @@ using namespace mlir;
 
 namespace {
 
-std::optional<TypedAttr> getSplatValue(arith::ConstantOp cstOp)
-{
-    if (!cstOp)
-        return std::nullopt;
-    auto dense = dyn_cast<DenseElementsAttr>(cstOp.getValue());
-    if (!dense || !dense.isSplat())
-        return std::nullopt;
-    return dense.getSplatValue<TypedAttr>();
-}
-
-Value materializeSplatValue(OpBuilder& builder, Value cstTile)
-{
-    if (auto s = getSplatValue(cstTile.getDefiningOp<arith::ConstantOp>()))
-        return builder.create<arith::ConstantOp>(cstTile.getLoc(), s.value());
-    if (auto splat = cstTile.getDefiningOp<tensor::SplatOp>())
-        return splat.getInput();
-    return {};
-}
-
 template <typename AttrOrValue>
 bool matchPatternZero(AttrOrValue value)
 {
@@ -58,8 +40,8 @@ bool isZero(Value value)
     if (auto cstOp = value.getDefiningOp<arith::ConstantOp>()) {
         if (matchPatternZero(value))
             return true;
-        auto splat = getSplatValue(cstOp);
-        return splat && matchPatternZero(*splat);
+        auto splat = asctile::getSplatAttr(cstOp);
+        return splat && matchPatternZero(splat);
     }
     if (auto splatOp = value.getDefiningOp<tensor::SplatOp>())
         return matchPatternZero(splatOp.getInput());
@@ -115,10 +97,10 @@ struct ScalarizeArithOp : OpRewritePattern<ArithOp> {
         if (!isa<asctile::LocalTensorType>(op.getType()))
             return failure();
         Value newLhs, newRhs;
-        if (auto splat = materializeSplatValue(rewriter, op.getLhs())) {
+        if (auto splat = asctile::materializeSplatValue(rewriter, op.getLhs())) {
             newLhs = op.getRhs();
             newRhs = splat;
-        } else if (auto splat = materializeSplatValue(rewriter, op.getRhs())) {
+        } else if (auto splat = asctile::materializeSplatValue(rewriter, op.getRhs())) {
             newLhs = op.getLhs();
             newRhs = splat;
         } else {
@@ -138,7 +120,7 @@ struct ScalarizeArithRhsOp : OpRewritePattern<ArithOp> {
         auto type = op.getType();
         if (!isa<asctile::LocalTensorType>(type))
             return failure();
-        if (auto splat = materializeSplatValue(rewriter, op.getRhs())) {
+        if (auto splat = asctile::materializeSplatValue(rewriter, op.getRhs())) {
             rewriter.replaceOpWithNewOp<TileOp>(op, type, op.getLhs(), splat);
             return success();
         }
@@ -182,7 +164,7 @@ struct SelectMulToLeakyRelu : OpRewritePattern<arith::SelectOp> {
                 other = mulfOp.getLhs();
             else
                 return {};
-            return materializeSplatValue(builder, other);
+            return asctile::materializeSplatValue(builder, other);
         }
         if (auto mulsOp = mulResult.getDefiningOp<asctile::MulSOp>()) {
             if (mulsOp.getBase() == expectedX)
@@ -266,11 +248,11 @@ struct ScalarizeCompare : OpRewritePattern<CmpOp> {
     {
         Value newLhs, newRhs;
         auto mode = getCmpMode(op.getPredicate());
-        if (auto splat = materializeSplatValue(rewriter, op.getLhs())) {
+        if (auto splat = asctile::materializeSplatValue(rewriter, op.getLhs())) {
             newLhs = op.getRhs();
             newRhs = splat;
             mode = invertCmpMode(mode);
-        } else if (auto splat = materializeSplatValue(rewriter, op.getRhs())) {
+        } else if (auto splat = asctile::materializeSplatValue(rewriter, op.getRhs())) {
             newLhs = op.getLhs();
             newRhs = splat;
         } else {
@@ -289,7 +271,7 @@ struct ScalarizeShL : OpRewritePattern<arith::ShLIOp> {
         if (!isa<asctile::LocalTensorType>(op.getType()))
             return failure();
 
-        Value scalar = materializeSplatValue(rewriter, op.getRhs());
+        Value scalar = asctile::materializeSplatValue(rewriter, op.getRhs());
         if (!scalar)
             return failure();
 
@@ -307,7 +289,7 @@ struct ScalarizeShR : OpRewritePattern<arith::ShRSIOp> {
         if (!isa<asctile::LocalTensorType>(op.getType()))
             return failure();
 
-        Value scalar = materializeSplatValue(rewriter, op.getRhs());
+        Value scalar = asctile::materializeSplatValue(rewriter, op.getRhs());
         if (!scalar)
             return failure();
 
@@ -347,6 +329,7 @@ public:
             signalPassFailure();
     }
 };
+
 } // namespace
 
 std::unique_ptr<Pass> mlir::asctile::createTransformMathOpsPass() { return std::make_unique<TransformMathOpsPass>(); }

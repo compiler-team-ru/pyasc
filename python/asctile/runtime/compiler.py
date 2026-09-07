@@ -21,10 +21,10 @@ class CompileOptions(CompileOptionsBase):
     """
     Enable debug mode for the kernel.
 
-    When ``True``, device-side debug operations (``device_print``, ``device_assert``) are active during 
+    When ``True``, device-side debug operations (``device_print``, ``device_assert``) are active during
     kernel execution. When ``False`` (the default), these operations are removed from the compiled kernel.
 
-    Use this option to enable debugging output and assertions on the device. Note that debug operations 
+    Use this option to enable debugging output and assertions on the device. Note that debug operations
     may impact performance and should be disabled in production builds.
     """
 
@@ -96,6 +96,7 @@ class Compiler(CompilerBase):
         passes.common.add_canonicalizer(pm)
         passes.asctile.add_mark_matmul_acc_with_bias(pm)
         passes.asctile.add_fold_cast(pm)
+        passes.asctile.add_apply_homomorphism(pm)
         passes.asctile.add_transform_math_ops(pm)
         passes.asctile.add_transform_store_fixpipe(pm)
         passes.asctile.add_detect_bias_load(pm)
