@@ -10,27 +10,27 @@ import asctile
 import pytest
 import torch
 
+from .helpers import parametrize_is_static
 from .matmul_v3 import FullLoadMode
 
 
 @asctile.jit(reuse_alloc=2)
 def matmul_v3_kernel(a_ptr: asctile.GlobalAddress, b_ptr: asctile.GlobalAddress, c_ptr: asctile.GlobalAddress,
-                     bias_ptr: asctile.GlobalAddress, a_shape: asctile.ConstExpr, b_shape: asctile.ConstExpr,
-                     m_L1: asctile.ConstExpr, n_L1: asctile.ConstExpr, k_L1: asctile.ConstExpr,
-                     base_m: asctile.ConstExpr, base_n: asctile.ConstExpr, base_k: asctile.ConstExpr,
-                     is_a_transpose_l1: asctile.ConstExpr, is_b_transpose_l1: asctile.ConstExpr,
-                     full_load_mode: asctile.ConstExpr, quant_type: asctile.ConstExpr,
-                     enable_hf32_mode: asctile.ConstExpr, has_bias: asctile.ConstExpr,
-                     double_buffering: asctile.ConstExpr):
-    m, k = a_shape
-    if is_a_transpose_l1:
-        k, m = a_shape
-    if not is_b_transpose_l1:
-        n = b_shape[1]
+                     bias_ptr: asctile.GlobalAddress, m, n, k, m_L1: asctile.ConstExpr, n_L1: asctile.ConstExpr,
+                     k_L1: asctile.ConstExpr, base_m: asctile.ConstExpr, base_n: asctile.ConstExpr,
+                     base_k: asctile.ConstExpr, is_a_transpose_l1: asctile.ConstExpr,
+                     is_b_transpose_l1: asctile.ConstExpr, full_load_mode: asctile.ConstExpr,
+                     quant_type: asctile.ConstExpr, enable_hf32_mode: asctile.ConstExpr, has_bias: asctile.ConstExpr,
+                     double_buffering: asctile.ConstExpr, full_load_tile_m: asctile.ConstExpr,
+                     full_load_tile_k: asctile.ConstExpr, full_load_tile_n: asctile.ConstExpr):
+    if not is_a_transpose_l1:
+        a_gm = asctile.global_tensor(a_ptr, [m, k])
     else:
-        n = b_shape[0]
-    a_gm = asctile.global_tensor(a_ptr, a_shape)
-    b_gm = asctile.global_tensor(b_ptr, b_shape)
+        a_gm = asctile.global_tensor(a_ptr, [k, m])
+    if not is_b_transpose_l1:
+        b_gm = asctile.global_tensor(b_ptr, [k, n])
+    else:
+        b_gm = asctile.global_tensor(b_ptr, [n, k])
     c_gm = asctile.global_tensor(c_ptr, [m, n])
     if has_bias:
         bias_gm = asctile.global_tensor(bias_ptr, [n])
@@ -40,8 +40,8 @@ def matmul_v3_kernel(a_ptr: asctile.GlobalAddress, b_ptr: asctile.GlobalAddress,
     is_A_full_load = full_load_mode == FullLoadMode.A
     is_B_full_load = full_load_mode == FullLoadMode.B
     if is_A_full_load:
-        tile_m = asctile.ceildiv(m, base_m) * base_m
-        tile_k = asctile.ceildiv(k, k_L1) * k_L1
+        tile_m = full_load_tile_m
+        tile_k = full_load_tile_k
         if not is_a_transpose_l1:
             shape = [tile_m, tile_k]
             a_l1 = asctile.copy_in(a_gm, [0, 0], shape, location=asctile.TensorLocation.L1)
@@ -49,8 +49,8 @@ def matmul_v3_kernel(a_ptr: asctile.GlobalAddress, b_ptr: asctile.GlobalAddress,
             shape = [tile_k, tile_m]
             a_l1 = asctile.copy_in(a_gm, [0, 0], shape, location=asctile.TensorLocation.L1).T
     elif is_B_full_load:
-        tile_k = asctile.ceildiv(k, k_L1) * k_L1
-        tile_n = asctile.ceildiv(n, base_n) * base_n
+        tile_k = full_load_tile_k
+        tile_n = full_load_tile_n
         if not is_b_transpose_l1:
             shape = [tile_k, tile_n]
             b_l1 = asctile.copy_in(b_gm, [0, 0], shape, location=asctile.TensorLocation.L1)
@@ -125,11 +125,12 @@ test_cases = [
 ]
 
 
+@parametrize_is_static()
 @pytest.mark.parametrize(
     "core_num, tiling_data, dtype, is_a_transpose_l1, is_b_transpose_l1, full_load_mode, enable_hf32_mode, has_bias, double_buffering, input_range, accuracy",
     test_cases, ids=["_".join(map(str, tc[1][:3])) for tc in test_cases])
-def test_matmul_v3(profiler, runs, core_num, tiling_data, dtype, is_a_transpose_l1, is_b_transpose_l1, full_load_mode,
-                   enable_hf32_mode, has_bias, double_buffering, input_range, accuracy):
+def test_matmul_v3(profiler, runs, is_static, core_num, tiling_data, dtype, is_a_transpose_l1, is_b_transpose_l1,
+                   full_load_mode, enable_hf32_mode, has_bias, double_buffering, input_range, accuracy):
     quant_type = asctile.float32
     if dtype == torch.float16:
         quant_type = asctile.float16
@@ -138,6 +139,9 @@ def test_matmul_v3(profiler, runs, core_num, tiling_data, dtype, is_a_transpose_
     m, n, k, m_L1, n_L1, k_L1, base_m, base_n, base_k = tiling_data
     a_shape = (m, k) if not is_a_transpose_l1 else (k, m)
     b_shape = (k, n) if not is_b_transpose_l1 else (n, k)
+    full_load_tile_m = asctile.ceildiv(m, base_m) * base_m
+    full_load_tile_k = asctile.ceildiv(k, k_L1) * k_L1
+    full_load_tile_n = asctile.ceildiv(n, base_n) * base_n
     low, high = input_range
     a = (high - low) * torch.rand(a_shape, dtype=dtype) + low
     b = (high - low) * torch.rand(b_shape, dtype=dtype) + low
@@ -145,9 +149,12 @@ def test_matmul_v3(profiler, runs, core_num, tiling_data, dtype, is_a_transpose_
     bias = (high - low) * torch.rand([n], dtype=dtype) + low
     with profiler.profile():
         for _ in range(runs):
-            matmul_v3_kernel[core_num](a, b, c, bias, a.shape, b.shape, m_L1, n_L1, k_L1, base_m, base_n, base_k,
-                                       is_a_transpose_l1, is_b_transpose_l1, full_load_mode, quant_type,
-                                       enable_hf32_mode, has_bias, double_buffering)
+            matmul_v3_kernel[core_num](a, b, c, bias, asctile.ConstExpr(m) if is_static else m,
+                                       asctile.ConstExpr(n) if is_static else n,
+                                       asctile.ConstExpr(k) if is_static else k, m_L1, n_L1, k_L1, base_m, base_n,
+                                       base_k, is_a_transpose_l1, is_b_transpose_l1, full_load_mode, quant_type,
+                                       enable_hf32_mode, has_bias, double_buffering, full_load_tile_m, full_load_tile_k,
+                                       full_load_tile_n)
     if is_a_transpose_l1:
         a = a.T
     if is_b_transpose_l1:
