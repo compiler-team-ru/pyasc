@@ -13,8 +13,8 @@ BUILD_DIR=${CURRENT_DIR}/build
 OUTPUT_DIR=${CURRENT_DIR}/output
 TEST_PATH=${CURRENT_DIR}/python
 UT_PATH=${CURRENT_DIR}/../python/test/unit
-CPU_NUM=$(($(cat /proc/cpuinfo | grep "^processor" | wc -l)))
-JOB_NUM="-j${CPU_NUM}"
+CPU_NUM="$(nproc)"
+JOB_NUM="-j$((CPU_NUM < 16 ? CPU_NUM : 16))"  # Limit parallel build jobs to 16
 ASAN="false"
 COV="false"
 PYASC_SETUP_CCACHE="ON"
@@ -112,7 +112,7 @@ function is_in_whitelist() {
 }
 
 # 分析PR文件列表，决定测试触发策略
-# 
+#
 # 分析流程：
 # 1. 白名单检查：匹配白名单模式的文件跳过
 # 2. 全量触发检查：匹配FULL_TEST_PATHS的文件触发全量测试
@@ -130,33 +130,33 @@ function is_in_whitelist() {
 # - PYTHON_TEST_TARGET：Python测试目标（all/模块名）
 function analyze_pr_filelist() {
     local file_list="${PR_FILELIST}"
-    
+
     CPP_TEST_TARGET="all"
     PYTHON_TEST_TARGET="all"
     NEED_CPP_TEST="false"
     NEED_PYTHON_TEST="false"
     local HAS_UNKNOWN_SOURCE="false"
-    
+
     if [[ -z "${file_list}" ]] || [[ ! -f "${file_list}" ]]; then
         NEED_CPP_TEST="true"
         NEED_PYTHON_TEST="true"
         log "Info: No PR file list provided, running full tests"
         return
     fi
-    
+
     local cpp_module_hits=()
     local python_module_hits=()
     local whitelist_hits=0
     local source_hits=0
-    
+
     while IFS= read -r file || [[ -n "$file" ]]; do
         [[ -z "$file" ]] && continue
-        
+
         if is_in_whitelist "$file"; then
             whitelist_hits=$((whitelist_hits + 1))
             continue
         fi
-        
+
         for full_path in "${FULL_TEST_PATHS[@]}"; do
             if [[ "$file" == ${full_path}* ]]; then
                 log "Info: Core path modified: $file -> full tests required"
@@ -167,7 +167,7 @@ function analyze_pr_filelist() {
                 return
             fi
         done
-        
+
         # 步骤1: 先精准匹配模块子目录
         local matched_cpp="false"
         local cpp_matched_module=""
@@ -181,7 +181,7 @@ function analyze_pr_filelist() {
                 break
             fi
         done
-        
+
         # 步骤2: lib/Target/AscendC 目录下的公共文件（非子目录）触发全量
         if [[ "$file" == lib/Target/AscendC/* ]] && [[ "$matched_cpp" == "false" ]]; then
             if [[ "$file" != lib/Target/AscendC/*/* ]]; then
@@ -196,14 +196,14 @@ function analyze_pr_filelist() {
                 log "Warning: Unknown C++ source path: $file"
             fi
         fi
-        
+
         local matched_python="false"
         local py_matched_module=""
         if [[ "$file" == python/asc/* ]]; then
             NEED_PYTHON_TEST="true"
             source_hits=$((source_hits + 1))
             matched_python="true"
-            
+
             for module in "${KNOWN_PYTHON_MODULES[@]}"; do
                 if [[ "$file" == python/asc/${module}* ]]; then
                     python_module_hits+=("$module")
@@ -211,13 +211,13 @@ function analyze_pr_filelist() {
                     break
                 fi
             done
-            
+
             if [[ -z "${py_matched_module}" ]]; then
                 HAS_UNKNOWN_SOURCE="true"
                 log "Warning: Unknown Python source path: $file"
             fi
         fi
-        
+
         if [[ "$file" == lib/* ]] || [[ "$file" == python/* ]]; then
             if [[ "${matched_cpp}" == "false" ]] && [[ "${matched_python}" == "false" ]]; then
                 source_hits=$((source_hits + 1))
@@ -225,11 +225,11 @@ function analyze_pr_filelist() {
                 log "Warning: Unknown source path: $file"
             fi
         fi
-        
+
     done < "$file_list"
-    
+
     log "Info: File analysis: whitelist=${whitelist_hits}, source=${source_hits}, unknown_source=${HAS_UNKNOWN_SOURCE}"
-    
+
     if [[ "${HAS_UNKNOWN_SOURCE}" == "true" ]]; then
         log "Warning: Unknown source directory modified, triggering full tests for safety"
         CPP_TEST_TARGET="all"
@@ -238,7 +238,7 @@ function analyze_pr_filelist() {
         NEED_PYTHON_TEST="true"
         return
     fi
-    
+
     if [[ ${#cpp_module_hits[@]} -gt 0 ]]; then
         local unique_cpp=$(printf '%s\n' "${cpp_module_hits[@]}" | sort -u | tr '\n' ' ' | sed 's/ $//')
         local cpp_count=$(echo "$unique_cpp" | wc -w)
@@ -250,7 +250,7 @@ function analyze_pr_filelist() {
             log "Info: Multiple C++ modules modified (${unique_cpp}), full test"
         fi
     fi
-    
+
     if [[ ${#python_module_hits[@]} -gt 0 ]]; then
         local unique_python=$(printf '%s\n' "${python_module_hits[@]}" | sort -u | tr '\n' ' ' | sed 's/ $//')
         local python_count=$(echo "$unique_python" | wc -w)
@@ -262,7 +262,7 @@ function analyze_pr_filelist() {
             log "Info: Multiple Python modules modified (${unique_python}), full test"
         fi
     fi
-    
+
     if [[ "${NEED_CPP_TEST}" == "false" ]] && [[ "${NEED_PYTHON_TEST}" == "false" ]]; then
         log "Info: No source code changes detected, tests may be skipped"
     fi
@@ -291,7 +291,7 @@ function cmake_config()
 }
 
 # 执行Python单元测试
-# 
+#
 # 测试策略：
 # - PYTHON_TEST_TARGET=all：执行 $UT_PATH 全量pytest测试
 # - PYTHON_TEST_TARGET=模块名：执行 $UT_PATH/{模块名}/ 精准pytest测试
@@ -340,7 +340,7 @@ function run_python_ut()
 }
 
 # 执行C++ Lit测试
-# 
+#
 # 测试策略：
 # - CPP_TEST_TARGET=all：执行 make check-ascir 全量测试
 # - CPP_TEST_TARGET=模块名：
@@ -359,23 +359,23 @@ function run_check_ascir()
     else
         cmake_config "-DLLVM_PREFIX_PATH=${LLVM_INSTALL_PATH} -DLLVM_EXTERNAL_LIT=${LIT_INSTALL_PATH}/bin/lit"
     fi
-    
+
     if [[ "${COV}" == "true" ]]; then
         export LLVM_PROFILE_FILE="${BUILD_DIR}/%p.profraw"
         log "Info: LLVM_PROFILE_FILE set to ${BUILD_DIR}/%p.profraw"
     fi
-    
+
     if [[ "${CPP_TEST_TARGET}" == "all" ]]; then
         log "Info: Running full C++ Lit tests"
         make check-ascir ${JOB_NUM}
     else
         log "Info: Running precise C++ Lit tests for: ${CPP_TEST_TARGET}"
         make ${JOB_NUM} ascir-opt ascir-translate
-        
+
         local test_base="${CURRENT_DIR}/../test/Target/AscendC"
         local test_file="${test_base}/${CPP_TEST_TARGET}.mlir"
         local test_dir="${test_base}/${CPP_TEST_TARGET}"
-        
+
         if [[ -f "${test_file}" ]]; then
             lit -v "${test_file}" --param ascir_tools_dir=${BUILD_DIR}/bin
         elif [[ -d "${test_dir}" ]]; then
@@ -385,7 +385,7 @@ function run_check_ascir()
             make check-ascir ${JOB_NUM}
         fi
     fi
-    
+
     cd ${CURRENT_DIR}
 
     if [[ "${COV}" == "true" ]];then
@@ -648,7 +648,7 @@ generate_html() {
 }
 
 # 测试执行入口函数
-# 
+#
 # 执行逻辑：
 # 1. 调用 analyze_pr_filelist() 分析PR文件
 # 2. 根据TEST参数决定执行流程：
@@ -662,9 +662,9 @@ generate_html() {
 # - 1：测试执行失败
 function build_test() {
     analyze_pr_filelist
-    
+
     log "Info: Test decision: CPP=${NEED_CPP_TEST}(${CPP_TEST_TARGET}), Python=${NEED_PYTHON_TEST}(${PYTHON_TEST_TARGET})"
-    
+
     if [[ "${TEST}" == "lit" ]]; then
         if [[ "${NEED_CPP_TEST}" == "true" ]]; then
             run_check_ascir

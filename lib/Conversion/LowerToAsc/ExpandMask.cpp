@@ -18,7 +18,7 @@
 
 #include "mlir/Dialect/Arith/Utils/Utils.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Transforms/WalkPatternRewriteDriver.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
 namespace mlir {
 namespace asclower {
@@ -40,7 +40,7 @@ void processMask(func::FuncOp funcOp)
     for (OpT maskOp : maskVector) {
         RewritePatternSet patterns(funcOp.getContext());
         ascendc::populateLowerToL0Patterns(patterns);
-        walkAndApplyPatterns(maskOp, std::move(patterns));
+        (void)applyPatternsAndFoldGreedily(funcOp, std::move(patterns));
         auto updateMask = [&](auto l0Op) {
             OpBuilder builder(l0Op);
             auto loc = l0Op.getLoc();

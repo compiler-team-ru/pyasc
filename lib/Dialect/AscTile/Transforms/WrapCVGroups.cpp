@@ -15,9 +15,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Math/IR/Math.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
-#include "mlir/IR/IRMapping.h"
 
 namespace mlir {
 namespace asctile {
@@ -57,7 +55,9 @@ ComputeUnit classifyOperation(Operation* op)
         return classifyByTileType(op->getOperand(0).getType());
     if (!isa<arith::ArithDialect, asctile::AscTileDialect, math::MathDialect, tensor::TensorDialect>(op->getDialect()))
         return ComputeUnit::Neither;
-    for (auto type : llvm::concat<Type>(op->getResultTypes(), op->getOperandTypes()))
+    SmallVector<Type, 8> types(op->getResultTypes());
+    llvm::copy(op->getOperandTypes(), std::back_inserter(types));
+    for (auto type : types)
         if (auto unit = classifyByTileType(type); unit != ComputeUnit::Neither)
             return unit;
     return ComputeUnit::Neither;
