@@ -10,6 +10,7 @@ import asctile
 import pytest
 import torch
 
+from ..target.helpers import parametrize_is_static
 from ..target.matmul_v3 import FullLoadMode, matmul_v3_kernel
 """
 Each test case is a tuple of:
@@ -241,8 +242,9 @@ Coverage axes:
         (1, (80, 16, 16, 16, 16, 16, 16, 16, 16), torch.float16, False, False, FullLoadMode.B, False, False,
          (1, 1, 1, 1, 1), (-1, 1)),
     ])
-def test_matmul_v3(core_num, tiling_data, dtype, is_a_transpose, is_b_transpose, full_load_mode, enable_hf32_mode,
-                   has_bias, double_buffering, input_range):
+@parametrize_is_static()
+def test_matmul_v3(profiler, runs, is_static, core_num, tiling_data, dtype, is_a_transpose, is_b_transpose,
+                   full_load_mode, enable_hf32_mode, has_bias, double_buffering, input_range):
     quant_type = asctile.float32
     if dtype == torch.float16:
         quant_type = asctile.float16
@@ -251,14 +253,22 @@ def test_matmul_v3(core_num, tiling_data, dtype, is_a_transpose, is_b_transpose,
     m, n, k, m_L1, n_L1, k_L1, base_m, base_n, base_k = tiling_data
     a_shape = (m, k) if not is_a_transpose else (k, m)
     b_shape = (k, n) if not is_b_transpose else (n, k)
+    full_load_tile_m = asctile.ceildiv(m, base_m) * base_m
+    full_load_tile_k = asctile.ceildiv(k, k_L1) * k_L1
+    full_load_tile_n = asctile.ceildiv(n, base_n) * base_n
     low, high = input_range
     a = (high - low) * torch.rand(a_shape, dtype=dtype) + low
     b = (high - low) * torch.rand(b_shape, dtype=dtype) + low
     c = torch.zeros((m, n), dtype=dtype)
     bias = (high - low) * torch.rand([n], dtype=dtype) + low
-    matmul_v3_kernel[core_num](a, b, c, bias, a.shape, b.shape, m_L1, n_L1, k_L1, base_m, base_n, base_k,
-                               is_a_transpose, is_b_transpose, full_load_mode, quant_type, enable_hf32_mode, has_bias,
-                               double_buffering, l0c2ub=False)
+    with profiler.profile():
+        for _ in range(runs):
+            matmul_v3_kernel[core_num](a, b, c, bias, asctile.ConstExpr(m) if is_static else m,
+                                       asctile.ConstExpr(n) if is_static else n,
+                                       asctile.ConstExpr(k) if is_static else k, m_L1, n_L1, k_L1, base_m, base_n,
+                                       base_k, is_a_transpose, is_b_transpose, full_load_mode, quant_type,
+                                       enable_hf32_mode, has_bias, double_buffering, False, full_load_tile_m,
+                                       full_load_tile_k, full_load_tile_n)
     if is_a_transpose:
         a = a.T
     if is_b_transpose:

@@ -9,6 +9,7 @@
 import pytest
 import torch
 
+from .helpers import parametrize_is_static
 from .matmul_v3 import FullLoadMode, run_matmul_v3_test
 
 test_cases = [
@@ -55,10 +56,11 @@ test_cases = [
 ]
 
 
+@parametrize_is_static()
 @pytest.mark.parametrize(
     "core_num, tiling_data, dtype, is_a_transpose_l0, is_b_transpose_l0, full_load_mode, enable_hf32_mode, has_bias, double_buffering, input_range, accuracy",
     test_cases, ids=["_".join(map(str, tc[1][:3])) for tc in test_cases])
-def test_matmul_v3(profiler, runs, core_num, tiling_data, dtype, is_a_transpose_l0, is_b_transpose_l0, full_load_mode,
-                   enable_hf32_mode, has_bias, double_buffering, input_range, accuracy):
-    run_matmul_v3_test(profiler, runs, core_num, tiling_data, dtype, is_a_transpose_l0, is_b_transpose_l0,
+def test_matmul_v3(profiler, runs, is_static, core_num, tiling_data, dtype, is_a_transpose_l0, is_b_transpose_l0,
+                   full_load_mode, enable_hf32_mode, has_bias, double_buffering, input_range, accuracy):
+    run_matmul_v3_test(profiler, runs, is_static, core_num, tiling_data, dtype, is_a_transpose_l0, is_b_transpose_l0,
                        full_load_mode, enable_hf32_mode, has_bias, double_buffering, input_range, accuracy, l0c2ub=True)
