@@ -227,5 +227,17 @@ Pipe getOpPipe(Operation* op, Pipe defaultPipe)
         .Default(defaultPipe);
 }
 
+bool isWriteToAllocation(Operation* op, ascendc::LocalTensorAutoOp root)
+{
+    if (auto dstOp = dyn_cast<ascendc::OpWithDst>(op)) {
+        for (Value dst : dstOp.getDstTensors()) {
+            auto dstRoot = ascendc::getAllocationRoot(dst);
+            if (dstRoot && dstRoot == root)
+                return true;
+        }
+    }
+    return false;
+}
+
 } // namespace ascendc
 } // namespace mlir

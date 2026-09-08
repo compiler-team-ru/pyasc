@@ -73,6 +73,8 @@ ascendc::LocalTensorAutoOp getAllocationRoot(Value v);
 
 Pipe getOpPipe(Operation* op, Pipe defaultPipe = Pipe::PIPE_S);
 
+bool isWriteToAllocation(Operation* op, ascendc::LocalTensorAutoOp root);
+
 } // namespace ascendc
 } // namespace mlir
 
