@@ -18,6 +18,7 @@
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/AscVF/Utils/Utils.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/IR/Iterators.h"
 
 namespace mlir {
 namespace ascvf {
@@ -44,47 +45,81 @@ ValueVector getUsedLocalTensors(ascvf::VecScopeOp vecScope)
     return ascvf::deduplicate(usedLocalTensors);
 }
 
-ValueMap<Value> setAddress(ascvf::VecScopeOp vecScopeOp, ArrayRef<Value> usedTensors, Type groupType)
+ValueMap<Value> setAddress(ascvf::VecScopeOp vecScopeOp, ArrayRef<Value> usedTensors, Type elemType)
 {
     ValueMap<Value> addrTensors;
     OpBuilder builder(vecScopeOp);
     for (auto value : usedTensors) {
         auto shape = cast<ascendc::LocalTensorType>(value.getType()).getShape();
-        auto type = MemRefType::get(shape, groupType, {}, static_cast<int>(ascendc::AddressSpace::ubuf));
+        auto type = MemRefType::get(shape, elemType, {}, static_cast<int>(ascendc::AddressSpace::ubuf));
         auto getPhyAddrOp = builder.create<ascendc::LocalTensorGetPhyAddrV2Op>(builder.getUnknownLoc(), type, value);
         addrTensors[value] = getPhyAddrOp.getResult();
     }
     return addrTensors;
 }
 
-void materialize(ascvf::VecScopeOp vecScopeOp, Type groupType)
+void materialize(ascvf::VecScopeOp vecScopeOp, Type elemType)
 {
     ValueMap<Value> addrTensors;
     // materialize getPhyAddr
     SmallVector<Value> usedTensors = getUsedLocalTensors(vecScopeOp);
-    addrTensors = setAddress(vecScopeOp, usedTensors, groupType);
+    addrTensors = setAddress(vecScopeOp, usedTensors, elemType);
 
     // materialize DataCopy from LoadMicro, StoreMicro
-    auto builder = OpBuilder::atBlockBegin(vecScopeOp.getBody());
     vecScopeOp->walk([&](Operation* op) {
         OpBuilder builder(op);
         ascir::ConstantOpBuilder consts(builder);
         if (auto load = dyn_cast<ascvf::LoadOp>(op)) {
             Value tensor = load.getSrcTensor();
             auto shape = cast<ascendc::LocalTensorType>(tensor.getType()).getShape();
-            auto resultType = MemRefType::get(shape, groupType, {}, static_cast<int>(ascendc::AddressSpace::ubuf));
+            auto resultType = MemRefType::get(shape, elemType, {}, static_cast<int>(ascendc::AddressSpace::ubuf));
             auto srcAddr = builder.create<emitasc::PtrOffsetOp>(
                 builder.getUnknownLoc(), resultType, addrTensors[tensor], IntegerAttr{}, load.getOffset());
-            builder.create<ascendc::DataCopyLoadOp>(builder.getUnknownLoc(), load.getDstReg(), srcAddr);
+
+            bool process = false;
+            if (auto maskOp = load.getMask().getDefiningOp<ascendc::CreateMaskOp>()) {
+                // WA: if load one elem then make broadcast (need LoadUnalign and if has next duplicate then load with
+                // broadcast)
+                if (maskOp.getMask() == ascendc::MaskPattern::VL1) {
+                    process = true;
+                    builder.create<ascendc::DataCopyLoadOp>(
+                        builder.getUnknownLoc(), load.getDstReg(), srcAddr,
+                        ascendc::LoadDist::DIST_BRC_B32); // TODO: Change on loadUnalign
+                }
+            }
+            if (!process) {
+                process = true;
+                builder.create<ascendc::DataCopyLoadOp>(
+                    builder.getUnknownLoc(), load.getDstReg(), srcAddr, ascendc::LoadDist::DIST_NORM);
+            }
+            if (!process) {
+                llvm_unreachable("add load support");
+            }
             load.erase();
         } else if (auto store = dyn_cast<ascvf::StoreOp>(op)) {
             Value tensor = store.getDstTensor();
             auto shape = cast<ascendc::LocalTensorType>(tensor.getType()).getShape();
-            auto resultType = MemRefType::get(shape, groupType, {}, static_cast<int>(ascendc::AddressSpace::ubuf));
+            auto resultType = MemRefType::get(shape, elemType, {}, static_cast<int>(ascendc::AddressSpace::ubuf));
             auto dstAddr = builder.create<emitasc::PtrOffsetOp>(
                 builder.getUnknownLoc(), resultType, addrTensors[tensor], IntegerAttr{}, store.getOffset());
-            builder.create<ascendc::DataCopyStoreOp>(
-                builder.getUnknownLoc(), dstAddr, store.getSrcReg(), store.getMask());
+            bool process = false;
+            if (auto maskOp = store.getMask().getDefiningOp<ascendc::CreateMaskOp>()) {
+                if (maskOp.getMask() == ascendc::MaskPattern::VL1) {
+                    process = true;
+                    builder.create<ascendc::DataCopyStoreOp>(
+                        builder.getUnknownLoc(), dstAddr, store.getSrcReg(), store.getMask(),
+                        ascendc::StoreDist::DIST_FIRST_ELEMENT_B32); // TODO: choose for other types
+                }
+            }
+            if (!process) {
+                process = true;
+                builder.create<ascendc::DataCopyStoreOp>(
+                    builder.getUnknownLoc(), dstAddr, store.getSrcReg(), store.getMask(),
+                    ascendc::StoreDist::DIST_NORM); // TODO: choose for other types
+            }
+            if (!process) {
+                llvm_unreachable("add store support");
+            }
             store.erase();
         }
     });
@@ -95,7 +130,8 @@ struct MaterializeLoadStorePass : public ascvf::impl::MaterializeLoadStoreBase<M
     {
         func::FuncOp funcOp = getOperation();
         funcOp.walk([](ascvf::VFGroupOp fusedOp) {
-            fusedOp.walk([&](ascvf::VecScopeOp vecScope) { materialize(vecScope, fusedOp.getGroupType()); });
+            auto elemType = getElementTypeOrSelf(fusedOp.getGroupType());
+            fusedOp.walk([&](ascvf::VecScopeOp vecScope) { materialize(vecScope, elemType); });
         });
     }
 };

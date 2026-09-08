@@ -19,6 +19,7 @@
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "mlir/Interfaces/ViewLikeInterface.h"
 
+#include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/AscVF/IR/AscVFDialect.h.inc"
 
 #include "ascir/Dialect/AscVF/IR/AscVFEnums.h.inc"

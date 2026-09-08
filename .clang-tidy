@@ -87,6 +87,7 @@ Checks: >
   portability-avoid-pragma-once,
   readability-avoid-const-params-in-decls,
   readability-avoid-nested-conditional-operator,
+  readability-avoid-return-with-void-value,
   readability-avoid-unconditional-preprocessor-if,
   readability-const-return-type,
   readability-container-size-empty,

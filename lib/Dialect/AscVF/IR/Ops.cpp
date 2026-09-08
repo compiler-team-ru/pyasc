@@ -21,6 +21,16 @@
 using namespace mlir;
 using namespace mlir::ascvf;
 
+namespace {
+bool hasStaticShapes(Operation* op)
+{
+    return llvm::all_of(op->getOperandTypes(), [](Type type) {
+        auto tensorType = dyn_cast<ascendc::LocalTensorType>(type);
+        return !tensorType || tensorType.hasStaticShape();
+    });
+}
+} // namespace
+
 //===----------------------------------------------------------------------===//
 // LoadOp
 //===----------------------------------------------------------------------===//
@@ -28,7 +38,7 @@ using namespace mlir::ascvf;
 LogicalResult LoadOp::verify()
 {
     if (!getOperation()->getParentOfType<ascvf::VecScopeOp>()) {
-        return emitOpError("The operation must belong to vec_scope");
+        return emitOpError("must be inside ascvf.vec_scope block");
     }
     return success();
 }
@@ -40,7 +50,7 @@ LogicalResult LoadOp::verify()
 LogicalResult StoreOp::verify()
 {
     if (!getOperation()->getParentOfType<ascvf::VecScopeOp>()) {
-        return emitOpError("The operation must belong to vec_scope");
+        return emitOpError("must be inside ascvf.vec_scope block");
     }
     return success();
 }
@@ -49,19 +59,16 @@ LogicalResult StoreOp::verify()
 // VFGroupOp
 //===----------------------------------------------------------------------===//
 
-Type VFGroupOp::getGroupType()
+LogicalResult VFGroupOp::verify()
 {
-    Value tensor{};
-    if (auto dstList = getDstList(); !dstList.empty()) {
-        tensor = dstList.back();
-    } else if (auto srcList = getSrcList(); !srcList.empty()) {
-        tensor = srcList.back();
-    } else {
-        return Type{};
-    }
-    auto tensorType = dyn_cast<ascendc::LocalTensorType>(tensor.getType());
-    assert(tensorType && "expected local tensor");
-    return tensorType.getElementType();
+    auto result = walk([&](Operation* op) {
+        if (!hasStaticShapes(op)) {
+            op->emitOpError("inside asvf.vf_group must have static shape");
+            return WalkResult::interrupt();
+        }
+        return WalkResult::advance();
+    });
+    return failure(result.wasInterrupted());
 }
 
 //===----------------------------------------------------------------------===//
@@ -86,6 +93,10 @@ LogicalResult VFForOp::canonicalize(VFForOp op, PatternRewriter& rewriter)
         rewriter.eraseOp(op);
         return success();
     }
+    if (auto ub = getConstantIntValue(op.getUpperBound()); ub && ub.value() == 0) {
+        rewriter.eraseOp(op);
+        return success();
+    }
     return failure();
 }
 
@@ -93,7 +104,17 @@ LogicalResult VFForOp::verify()
 {
     if (getBody()->getArguments().size() != 1)
         return emitOpError("block must have one argument");
+    if (!getOperation()->getParentOfType<ascvf::VecScopeOp>()) {
+        return emitOpError("must be inside ascvf.vec_scope block");
+    }
     return success();
+}
+
+SmallVector<Region*> VFForOp::getLoopRegions()
+{
+    SmallVector<Region*> regions;
+    regions.push_back(&getRegion());
+    return regions;
 }
 
 //===----------------------------------------------------------------------===//

@@ -23,14 +23,14 @@ func.func @fuse(%calCount : index) {
     return
 }
 
-// CHECK-LABEL: void emit_vf_group(uint32_t v1) {
+// CHECK-LABEL: void emit_vf_group(AscendC::LocalTensor<float> v1) {
 // CHECK-NEXT: {
 // CHECK-NEXT: }
 // CHECK-NEXT: return;
 // CHECK-NEXT: }
-func.func @emit_vf_group(%calCount : index) {
-    ascvf.vf_group %calCount : index {
+func.func @emit_vf_group(%local : !ascendc.local_tensor<1xf32>) {
+    ascvf.vf_group dst(%local : !ascendc.local_tensor<1xf32>) {
         ascvf.yield
-    } {operandSegmentSizes = array<i32: 0, 0, 1>}
+    } {groupType = !ascendc.local_tensor<1xf32>}
     return
 }

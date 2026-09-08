@@ -41,22 +41,6 @@ void eliminateCommonMask(ascvf::VFGroupOp groupOp)
             }
         }
     });
-
-    groupOp.walk([](Block* block) {
-        llvm::DenseMap<ascendc::MaskPattern, ascendc::CreateMaskOp> createMaskMap;
-        for (auto& op : llvm::make_early_inc_range(*block)) {
-            auto createMask = dyn_cast<ascendc::CreateMaskOp>(op);
-            if (!createMask)
-                continue;
-            auto it = createMaskMap.find(createMask.getMask());
-            if (it == createMaskMap.end()) {
-                createMaskMap[createMask.getMask()] = createMask;
-            } else {
-                createMask.replaceAllUsesWith(it->second.getResult());
-                createMask.erase();
-            }
-        }
-    });
 }
 
 struct EliminateCommonMaskPass : public ascvf::impl::EliminateCommonMaskBase<EliminateCommonMaskPass> {

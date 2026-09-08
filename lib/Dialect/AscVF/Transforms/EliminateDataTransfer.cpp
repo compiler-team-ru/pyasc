@@ -8,6 +8,7 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
+#include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/AscVF/IR/AscVF.h"
 #include "ascir/Dialect/AscVF/Transforms/Passes.h"
 #include "ascir/Dialect/AscVF/Utils/Utils.h"
@@ -45,6 +46,35 @@ SmallVector<SmallVector<Operation*>> collectLoadStoreOpsByBlock(ascvf::VFGroupOp
     return loadStoreGroups;
 }
 
+std::optional<bool> isSubset(Value a, Value b)
+{
+    if (!isa<ascendc::UpdateMaskOp, ascendc::CreateMaskOp>(a.getDefiningOp()) ||
+        !isa<ascendc::UpdateMaskOp, ascendc::CreateMaskOp>(b.getDefiningOp()))
+        return std::nullopt;
+    auto updateMaskA = a.getDefiningOp<ascendc::UpdateMaskOp>();
+    auto updateMaskB = b.getDefiningOp<ascendc::UpdateMaskOp>();
+    auto createMaskA = a.getDefiningOp<ascendc::CreateMaskOp>();
+    auto createMaskB = b.getDefiningOp<ascendc::CreateMaskOp>();
+    if (updateMaskA && updateMaskB)
+        return updateMaskA == updateMaskB;
+    if (updateMaskA && createMaskB)
+        return createMaskB.getMask() == ascendc::MaskPattern::ALL;
+    if (createMaskA && createMaskB) {
+        auto maskA = createMaskA.getMask();
+        auto maskB = createMaskB.getMask();
+        if (maskA > ascendc::MaskPattern::VL128 || maskB > ascendc::MaskPattern::VL128)
+            return std::nullopt;
+        if (maskB == ascendc::MaskPattern::ALL)
+            return true;
+        if (maskA == ascendc::MaskPattern::ALL)
+            return maskB == ascendc::MaskPattern::ALL;
+        return maskA <= maskB;
+    }
+    if (createMaskA && updateMaskB)
+        return false;
+    return std::nullopt;
+}
+
 // Optimization work in the same block
 // Before:                           | After:
 // Reg r0                            | Reg r0
@@ -58,28 +88,37 @@ SmallVector<SmallVector<Operation*>> collectLoadStoreOpsByBlock(ascvf::VFGroupOp
 void eliminateRedundantLoadsAfterStores(ascvf::VFGroupOp groupOp)
 {
     auto loadStoreGroups = collectLoadStoreOpsByBlock(groupOp);
+    SmallVector<Operation*> needDelete;
     for (auto& blockOps : loadStoreGroups) {
         ValueMap<SmallVector<Operation*>> tensorToLoadStoreOps;
         for (auto* op : blockOps) {
             if (auto loadOp = dyn_cast<ascvf::LoadOp>(op)) {
-                tensorToLoadStoreOps[loadOp.getSrcTensor()].emplace_back(loadOp);
+                if (auto tensor = ascendc::getAllocationRoot(loadOp.getSrcTensor()))
+                    tensorToLoadStoreOps[tensor].emplace_back(loadOp);
             } else if (auto storeOp = dyn_cast<ascvf::StoreOp>(op)) {
-                tensorToLoadStoreOps[storeOp.getDstTensor()].emplace_back(storeOp);
+                if (auto tensor = ascendc::getAllocationRoot(storeOp.getDstTensor()))
+                    tensorToLoadStoreOps[tensor].emplace_back(storeOp);
             }
         }
         for (auto& pair : tensorToLoadStoreOps) {
-            Value lastStoredReg;
+            ascvf::StoreOp lastStore;
             for (auto* op : pair.second) {
                 if (auto storeOp = dyn_cast<ascvf::StoreOp>(op)) {
-                    lastStoredReg = storeOp.getSrcReg();
+                    lastStore = storeOp;
                 } else if (auto loadOp = dyn_cast<ascvf::LoadOp>(op)) {
-                    if (lastStoredReg) {
-                        loadOp.getDstReg().replaceAllUsesWith(lastStoredReg);
-                        loadOp->erase();
+                    // need cse pass before
+                    if (lastStore && loadOp.getOffset() == lastStore.getOffset()) {
+                        if (auto opt = isSubset(loadOp.getMask(), lastStore.getMask()); opt && opt.value()) {
+                            loadOp.getDstReg().replaceAllUsesWith(lastStore.getSrcReg());
+                            needDelete.push_back(loadOp);
+                        }
                     }
                 }
             }
         }
+    }
+    for (auto* op : needDelete) {
+        op->erase();
     }
 }
 
@@ -116,6 +155,7 @@ void replaceIdenticalLoads(ascvf::VFGroupOp groupOp)
     auto dstMap = getDstMap(groupOp);
     ValueMap<Value> storesOfScalarValue;
     DominanceInfo di;
+    SmallVector<Operation*> needDelete;
     for (auto forOp : getLoops(groupOp)) {
         for (auto& op : llvm::make_early_inc_range(forOp)) {
             if (auto storeOp = dyn_cast<ascvf::StoreOp>(op)) {
@@ -123,7 +163,6 @@ void replaceIdenticalLoads(ascvf::VFGroupOp groupOp)
                 if (dstMap.count(srcReg) && ascvf::belong(storeOp->getBlock(), dstMap[srcReg]->getBlock(), di) &&
                     storeOp->getBlock() != dstMap[srcReg]->getBlock()) {
                     storesOfScalarValue[storeOp.getDstTensor()] = srcReg;
-                    storeOp.erase();
                 } else {
                     storesOfScalarValue.erase(storeOp.getDstTensor());
                 }
@@ -131,10 +170,13 @@ void replaceIdenticalLoads(ascvf::VFGroupOp groupOp)
                 auto dstReg = loadOp.getDstReg();
                 if (storesOfScalarValue.count(loadOp.getSrcTensor())) {
                     dstReg.replaceAllUsesWith(storesOfScalarValue[loadOp.getSrcTensor()]);
-                    loadOp.erase();
+                    needDelete.push_back(loadOp);
                 }
             }
         }
+    }
+    for (auto* op : needDelete) {
+        op->erase();
     }
 }
 
@@ -151,9 +193,11 @@ void eliminateOverwrittenStores(ascvf::VFGroupOp groupOp)
     ValueMap<SmallVector<Operation*>> tensorToLoadStoreOps;
     groupOp.walk([&](Operation* op) {
         if (auto loadOp = dyn_cast<ascvf::LoadOp>(op)) {
-            tensorToLoadStoreOps[loadOp.getSrcTensor()].emplace_back(loadOp);
+            if (auto tensor = ascendc::getAllocationRoot(loadOp.getSrcTensor()))
+                tensorToLoadStoreOps[tensor].emplace_back(loadOp);
         } else if (auto storeOp = dyn_cast<ascvf::StoreOp>(op)) {
-            tensorToLoadStoreOps[storeOp.getDstTensor()].emplace_back(storeOp);
+            if (auto tensor = ascendc::getAllocationRoot(storeOp.getDstTensor()))
+                tensorToLoadStoreOps[tensor].emplace_back(storeOp);
         }
     });
     llvm::DenseSet<Operation*> opsToDelete;
@@ -168,6 +212,8 @@ void eliminateOverwrittenStores(ascvf::VFGroupOp groupOp)
         }
         // Erase overwritten stores
         bool hasSeenStore = false;
+        // TODO: An analysis is needed to determine whether one or more stores that follow overwrite the stores that
+        // precede them.
         for (auto* op : llvm::make_range(ops.rbegin(), ops.rend())) {
             if (auto storeOp = dyn_cast<ascvf::StoreOp>(op)) {
                 if (hasSeenStore) {
@@ -184,23 +230,58 @@ void eliminateOverwrittenStores(ascvf::VFGroupOp groupOp)
     }
 }
 
+bool overwrittenBetween(ascvf::LoadOp beginOp, ascvf::LoadOp endOp, DominanceInfo& di)
+{
+    auto tensor = beginOp.getSrcTensor();
+    assert(tensor == endOp.getSrcTensor());
+    if (!ascendc::opPrecedes(beginOp, endOp, di))
+        std::swap(beginOp, endOp);
+    auto* commonOp = di.findNearestCommonDominator(beginOp->getBlock(), endOp->getBlock())->getParentOp();
+    bool inRange = false;
+    bool overwritten = false;
+    commonOp->walk([&](Operation* op) {
+        if (op == beginOp)
+            inRange = true;
+        if (auto storeOp = dyn_cast<ascvf::StoreOp>(op); storeOp && storeOp.getDstTensor() == tensor) {
+            overwritten = true;
+            return WalkResult::interrupt();
+        }
+        if (op == endOp)
+            return WalkResult::interrupt();
+        return WalkResult::advance();
+    });
+    return overwritten;
+}
+
 void mergeDuplicateLoadsFromSameAddress(ascvf::VFGroupOp groupOp)
 {
+    using Elem = std::tuple<Value, Value, Value>;
+    SmallVector<Operation*> needDelete;
+    DominanceInfo di;
     groupOp.walk([&](Block* block) {
-        ValueMap<Value> tensorToFirstLoadedReg;
-        for (auto& op : llvm::make_early_inc_range(*block)) {
+        llvm::DenseMap<Elem, ascvf::LoadOp> earlyLoad;
+        for (auto& op : llvm::make_early_inc_range(block->getOperations())) {
             auto loadOp = dyn_cast<ascvf::LoadOp>(op);
             if (!loadOp)
                 continue;
-            auto srcTensor = loadOp.getSrcTensor();
-            if (tensorToFirstLoadedReg.count(srcTensor)) {
-                loadOp.getDstReg().replaceAllUsesWith(tensorToFirstLoadedReg[srcTensor]);
-                loadOp.erase();
+            Elem elem{loadOp.getSrcTensor(), loadOp.getOffset(), loadOp.getMask()};
+            auto it = earlyLoad.find(elem);
+            if (it != earlyLoad.end()) {
+                auto earlyLoadOp = it->second;
+                if (overwrittenBetween(earlyLoadOp, loadOp, di)) {
+                    earlyLoad[elem] = loadOp;
+                } else {
+                    loadOp.getDstReg().replaceAllUsesWith(earlyLoadOp.getDstReg());
+                    needDelete.push_back(loadOp);
+                }
             } else {
-                tensorToFirstLoadedReg[srcTensor] = loadOp.getDstReg();
+                earlyLoad[elem] = loadOp;
             }
         }
     });
+    for (auto* op : needDelete) {
+        op->erase();
+    }
 }
 
 struct EliminateDataTransferPass : public ascvf::impl::EliminateDataTransferBase<EliminateDataTransferPass> {
@@ -211,7 +292,6 @@ struct EliminateDataTransferPass : public ascvf::impl::EliminateDataTransferBase
             eliminateRedundantLoadsAfterStores(vfGroupOp);
             eliminateOverwrittenStores(vfGroupOp);
             mergeDuplicateLoadsFromSameAddress(vfGroupOp);
-            replaceIdenticalLoads(vfGroupOp);
         });
     }
 };

@@ -556,7 +556,7 @@ struct ConvertInlineVF : ConvertOp<asctile::InlineVFOp> {
         if (rewriter.getRemappedValues(op.getInputs(), inputs).failed())
             return op.emitOpError("has unsupported inputs");
         ascir::ConstantOpBuilder consts(rewriter);
-        auto vfGroup = rewriter.create<ascvf::VFGroupOp>(loc, ValueRange{dst}, inputs, consts.i32(0));
+        auto vfGroup = rewriter.create<ascvf::VFGroupOp>(loc, ValueRange{dst}, inputs, dst.getType());
         {
             OpBuilder::InsertionGuard guard(rewriter);
             rewriter.setInsertionPointToStart(&vfGroup.getRegion().emplaceBlock());
