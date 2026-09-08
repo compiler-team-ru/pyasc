@@ -182,18 +182,6 @@ bool hasShareLoopAncestor(Operation* lhs, Operation* rhs)
     return !results.empty();
 }
 
-bool isWriteToAllocation(Operation* op, TensorOp root)
-{
-    if (auto dstOp = dyn_cast<ascendc::OpWithDst>(op)) {
-        for (Value dst : dstOp.getDstTensors()) {
-            auto dstRoot = ascendc::getAllocationRoot(dst);
-            if (dstRoot && dstRoot == root)
-                return true;
-        }
-    }
-    return false;
-}
-
 bool isReadToAllocation(Operation* op, TensorOp root)
 {
     if (auto srcOp = dyn_cast<ascendc::OpWithSrc>(op)) {
