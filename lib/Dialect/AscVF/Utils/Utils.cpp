@@ -33,10 +33,15 @@ ValueVector deduplicate(ArrayRef<Value> values)
 ValueVector getDst(Operation* op)
 {
     return llvm::TypeSwitch<Operation*, ValueVector>(op)
+        .Case<ascendc::UpdateMaskOp>([](ascendc::UpdateMaskOp op) {
+            ValueVector dsts{op->getResults()};
+            dsts.push_back(op.getCount());
+            return dsts;
+        })
         .Case<
             ascvf::LoadOp, ascendc::BinaryRegOp, ascendc::UnaryRegOp, ascendc::VecScalarRegOp, ascendc::ReduceMaxRegOp,
-            ascendc::ReduceMinRegOp, ascendc::ReduceSumRegOp, ascendc::DuplicateRegOp>(
-            [](auto op) { return ValueVector{op.getDstReg()}; })
+            ascendc::ReduceMinRegOp, ascendc::ReduceSumRegOp, ascendc::DuplicateRegOp, ascendc::DuplicateScalarRegOp,
+            ascendc::SelectRegOp>([](auto op) { return ValueVector{op.getDstReg()}; })
         .Default([](Operation* op) { return ValueVector{op->getResults()}; });
 }
 

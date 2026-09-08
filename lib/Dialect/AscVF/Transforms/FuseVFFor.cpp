@@ -27,8 +27,12 @@ namespace {
 
 void merge(ascvf::VFForOp firstLoop, ascvf::VFForOp secondLoop)
 {
-    OpBuilder builder(firstLoop.getBody()->getTerminator());
-    SmallVector<Operation*> opList;
+    auto* insertionPoint = firstLoop.getBody()->getTerminator();
+    for (auto& interOp :
+         llvm::make_early_inc_range(llvm::make_range(std::next(firstLoop->getIterator()), secondLoop->getIterator()))) {
+        interOp.moveBefore(insertionPoint);
+    }
+    OpBuilder builder(insertionPoint);
     IRMapping mapper;
     mapper.map(secondLoop.getInductionVar(), firstLoop.getInductionVar());
     for (auto& op : secondLoop.getBody()->without_terminator()) {
@@ -37,8 +41,13 @@ void merge(ascvf::VFForOp firstLoop, ascvf::VFForOp secondLoop)
     secondLoop.erase();
 }
 
+bool isFusible(Operation& op) { return isa<ascvf::BarrierOp>(op); }
+
 bool canMerge(ascvf::VFForOp firstLoop, ascvf::VFForOp secondLoop)
 {
+    assert(firstLoop->getBlock() == secondLoop->getBlock());
+    if (!llvm::all_of(llvm::make_range(std::next(firstLoop->getIterator()), secondLoop->getIterator()), isFusible))
+        return false;
     Value val1 = firstLoop.getUpperBound();
     Value val2 = secondLoop.getUpperBound();
     return val1 == val2 || getConstantIntValue(val1) == getConstantIntValue(val2);
@@ -46,24 +55,29 @@ bool canMerge(ascvf::VFForOp firstLoop, ascvf::VFForOp secondLoop)
 
 void fuseLoops(ascvf::VecScopeOp vecScopeOp)
 {
-    auto& ops = vecScopeOp.getBody()->getOperations();
-    if (ops.size() < 2)
-        return;
-    auto it = ops.begin();
-    while (std::next(it) != ops.end()) {
-        bool merged = false;
-        if (auto curLoop = dyn_cast<ascvf::VFForOp>(*it)) {
-            auto nextIt = std::next(it);
-            if (auto nextLoop = dyn_cast<ascvf::VFForOp>(*nextIt)) {
-                if (canMerge(curLoop, nextLoop)) {
-                    merge(curLoop, nextLoop);
-                    merged = true;
+    vecScopeOp.getBody()->walk([](Block* block) {
+        auto& ops = block->getOperations();
+        if (ops.size() < 2)
+            return;
+        auto it = ops.begin();
+        while (std::next(it) != ops.end()) {
+            bool merged = false;
+            if (auto curLoop = dyn_cast<ascvf::VFForOp>(*it)) {
+                auto nextIt = std::next(it);
+                while (nextIt != ops.end() && !isa<ascvf::VFForOp>(*nextIt))
+                    nextIt = std::next(nextIt);
+                if (nextIt != ops.end() && isa<ascvf::VFForOp>(*nextIt)) {
+                    auto nextLoop = cast<ascvf::VFForOp>(*nextIt);
+                    if (canMerge(curLoop, nextLoop)) {
+                        merge(curLoop, nextLoop);
+                        merged = true;
+                    }
                 }
             }
+            if (!merged)
+                ++it;
         }
-        if (!merged)
-            ++it;
-    }
+    });
 }
 
 struct FuseVFForPass : public ascvf::impl::FuseVFForBase<FuseVFForPass> {

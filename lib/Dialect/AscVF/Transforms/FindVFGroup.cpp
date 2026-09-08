@@ -33,81 +33,82 @@ namespace {
 
 struct OpGroup {
     SmallVector<Operation*> ops;
-    Value calCount;
     Type groupType;
-    OpGroup(ArrayRef<Operation*> ops, Value calCount, Type groupType)
-        : ops(ops), calCount(calCount), groupType(groupType)
-    {}
+    OpGroup(ArrayRef<Operation*> ops, Type groupType) : ops(ops), groupType(groupType) {}
 };
+
+bool isARPattern(ascendc::BroadcastOp bcastOp)
+{
+    // broadcast by last axis
+    // TODO: add case multiple last dim
+    // Ex. [12, 1, 1] -> [12, 34, 56] can broadcast
+    // Now only support broadcast last dim. Ex: [96, 1] -> [96, 16]
+    auto srcType = dyn_cast<ascendc::LocalTensorType>(bcastOp.getSrc().getType());
+    auto dstType = dyn_cast<ascendc::LocalTensorType>(bcastOp.getDst().getType());
+    if (!srcType || !dstType)
+        return false;
+    auto shape1 = SmallVector<int64_t>{srcType.getShape()};
+    if (shape1.back() != 1)
+        return false;
+    auto shape2 = SmallVector<int64_t>{dstType.getShape()};
+    shape1.pop_back();
+    shape2.pop_back();
+    return shape1 == shape2;
+}
 
 bool isFusible(Operation* op)
 {
-    if (auto duplicate = dyn_cast<ascendc::DuplicateL2Op>(op)) {
-        return isa<ascendc::LocalTensorType>(duplicate.getScalar().getType());
-    }
-    return isa<
-        // Reduce operation (L2)
-        ascendc::ReduceMaxL2Op, ascendc::ReduceMinL2Op, ascendc::ReduceSumL2Op,
-        // Vector binary operations (L2)
-        ascendc::AddL2Op, ascendc::AndL2Op, ascendc::DivL2Op, ascendc::FusedAbsSubL2Op, ascendc::FusedExpSubL2Op,
-        ascendc::SubL2Op, ascendc::MaxL2Op, ascendc::MinL2Op, ascendc::MulL2Op, ascendc::MulAddDstL2Op, ascendc::OrL2Op,
-        ascendc::PreluL2Op,
-        // Vector unary operations (L2)
-        ascendc::AbsL2Op, ascendc::ExpL2Op, ascendc::LnL2Op, ascendc::NegL2Op, ascendc::NotL2Op, ascendc::ReluL2Op,
-        ascendc::SqrtL2Op,
-        // Vector scalar operations (L2)
-        ascendc::AddsL2Op, ascendc::MulsL2Op, ascendc::SubsL2Op, ascendc::DivsL2Op, ascendc::MaxsL2Op,
-        ascendc::MinsL2Op, ascendc::LeakyReluL2Op, ascendc::ShiftLeftL2Op, ascendc::ShiftRightL2Op>(op);
-}
-
-Value getCalCount(Operation* op)
-{
-    return llvm::TypeSwitch<Operation*, Value>(op)
-        .Case<ascendc::BinaryL2Op, ascendc::UnaryL2Op, ascendc::VecScalarL2Op, ascendc::DuplicateL2Op>(
-            [](auto op) { return op.getCalCount(); })
-        .Case<ascendc::ReduceMaxL2Op, ascendc::ReduceMinL2Op, ascendc::ReduceSumL2Op>(
-            [](auto op) { return op.getCount(); })
-        .Default([](Operation* /*op*/) { return Value{}; });
+    return llvm::TypeSwitch<Operation*, bool>(op)
+        .Case<ascendc::ReduceSumOp, ascendc::ReduceMaxOp, ascendc::ReduceMinOp>(
+            [](auto reduceOp) { return reduceOp.getPattern() == ascendc::ReducePattern::AR; })
+        .Case<ascendc::BroadcastOp>([](auto bcastOp) { return isARPattern(bcastOp); })
+        .Case<
+            ascendc::DuplicateL2Op,
+            // Reduce operation (L2)
+            ascendc::ReduceMaxL2Op, ascendc::ReduceMinL2Op, ascendc::ReduceSumL2Op,
+            // Vector binary operations (L2)
+            ascendc::AddL2Op, ascendc::AndL2Op, ascendc::DivL2Op, ascendc::FusedAbsSubL2Op, ascendc::FusedExpSubL2Op,
+            ascendc::SubL2Op, ascendc::MaxL2Op, ascendc::MinL2Op, ascendc::MulL2Op, ascendc::MulAddDstL2Op,
+            ascendc::OrL2Op, ascendc::PreluL2Op,
+            // Vector unary operations (L2)
+            ascendc::AbsL2Op, ascendc::ExpL2Op, ascendc::LnL2Op, ascendc::NegL2Op, ascendc::NotL2Op, ascendc::ReluL2Op,
+            ascendc::SqrtL2Op,
+            // Vector scalar operations (L2)
+            ascendc::AddsL2Op, ascendc::MulsL2Op, ascendc::SubsL2Op, ascendc::DivsL2Op, ascendc::MaxsL2Op,
+            ascendc::MinsL2Op, ascendc::LeakyReluL2Op, ascendc::ShiftLeftL2Op, ascendc::ShiftRightL2Op>(
+            [](auto) { return true; })
+        .Default([](Operation*) { return false; });
 }
 
 Type getType(Operation* op)
 {
     return llvm::TypeSwitch<Operation*, Type>(op)
         .Case<
-            ascendc::BinaryL2Op, ascendc::UnaryL2Op, ascendc::VecScalarL2Op, ascendc::ReduceMaxL2Op,
-            ascendc::ReduceMinL2Op, ascendc::ReduceSumL2Op, ascendc::DuplicateL2Op>([](auto op) {
+            ascendc::BinaryL2Op, ascendc::UnaryL2Op, ascendc::VecScalarL2Op, ascendc::DuplicateL2Op,
+            ascendc::BroadcastOp>([](auto op) {
             assert(isa<ascendc::LocalTensorType>(op.getDst().getType()));
-            return getElementTypeOrSelf(op.getDst());
+            return op.getDst().getType();
         })
-        .Default([](Operation*) {
+        .Case<
+            ascendc::ReduceMaxL2Op, ascendc::ReduceMinL2Op, ascendc::ReduceSumL2Op, ascendc::ReduceSumOp,
+            ascendc::ReduceMaxOp>([](auto op) {
+            assert(isa<ascendc::LocalTensorType>(op.getSrc().getType()));
+            return op.getSrc().getType();
+        })
+        .Default([](Operation* op) {
+            op->dump();
             llvm_unreachable("was not expected this type");
             return Type{};
         });
 }
 
-bool isSameGroup(Operation* firstOp, Operation* secondOp)
-{
-    Value val1 = getCalCount(firstOp);
-    Value val2 = getCalCount(secondOp);
-    if (val1 && val2) {
-        std::optional<int64_t> number1 = getConstantIntValue(val1);
-        std::optional<int64_t> number2 = getConstantIntValue(val2);
-        if (number1.has_value() && number2.has_value()) {
-            if (number1.value() != number2.value()) {
-                return false;
-            }
-        } else if (val1 != val2) {
-            return false;
-        }
-    }
-    return getType(firstOp) == getType(secondOp);
-}
+bool isSameGroup(Operation* firstOp, Operation* secondOp) { return getType(firstOp) == getType(secondOp); }
 
 void findGroupsImpl(Region& region, std::vector<OpGroup>& groups)
 {
     auto append = [&groups](SmallVectorImpl<Operation*>& ops) {
         if (!ops.empty()) {
-            groups.emplace_back(ops, getCalCount(ops.front()), getType(ops.front()));
+            groups.emplace_back(ops, getType(ops.front()));
             ops.clear();
         }
     };
@@ -155,8 +156,9 @@ ValueVector getInputLocalTensors(ArrayRef<Operation*> group)
                 isInputLocalTensor.try_emplace(src, true);
             }
         } else if (auto duplicateOp = dyn_cast<ascendc::DuplicateL2Op>(op)) {
-            assert(isa<ascendc::LocalTensorType>(duplicateOp.getScalar().getType()) && "expected local tensor");
-            isInputLocalTensor.try_emplace(duplicateOp.getScalar(), true);
+            auto scalar = duplicateOp.getScalar();
+            if (isa<ascendc::LocalTensorType>(scalar.getType()))
+                isInputLocalTensor.try_emplace(scalar, true);
         }
         if (auto opWithDst = dyn_cast<ascendc::OpWithDst>(op)) {
             for (auto dst : opWithDst.getDstTensors()) {
@@ -180,7 +182,8 @@ ValueVector getOutputLocalTensors(ArrayRef<Operation*> group)
         llvm::TypeSwitch<Operation*>(op)
             .Case<
                 ascendc::BinaryL2Op, ascendc::UnaryL2Op, ascendc::VecScalarL2Op, ascendc::ReduceMaxL2Op,
-                ascendc::ReduceMinL2Op, ascendc::ReduceSumL2Op, ascendc::DuplicateL2Op>(
+                ascendc::ReduceMinL2Op, ascendc::ReduceSumL2Op, ascendc::ReduceSumOp, ascendc::ReduceMaxOp,
+                ascendc::DuplicateL2Op, ascendc::BroadcastOp>(
                 [&](auto op) { outputLocalTensors.push_back(op.getDst()); });
     }
     return ascvf::deduplicate(outputLocalTensors);
@@ -194,7 +197,7 @@ ascvf::VFGroupOp wrapInVFGroupOp(OpGroup& group)
     ValueVector inputs = getInputLocalTensors(ops);
     ValueVector outputs = getOutputLocalTensors(ops);
 
-    auto fusedOp = builder.create<ascvf::VFGroupOp>(builder.getUnknownLoc(), outputs, inputs, group.calCount);
+    auto fusedOp = builder.create<ascvf::VFGroupOp>(builder.getUnknownLoc(), outputs, inputs, group.groupType);
     auto& block = fusedOp.getRegion().emplaceBlock();
 
     builder.setInsertionPointToEnd(&block);
@@ -211,7 +214,7 @@ struct FindVFGroupPass : public ascvf::impl::FindVFGroupBase<FindVFGroupPass> {
     {
         func::FuncOp funcOp = getOperation();
         for (auto& group : findOperationGroups(funcOp.getRegion())) {
-            wrapInVFGroupOp(group);
+            auto vfGroupOp = wrapInVFGroupOp(group);
         }
     }
 };

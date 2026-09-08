@@ -354,6 +354,59 @@ def AscendC_MaskPattern : I32EnumAttr<"MaskPattern", "", [
   let underlyingType = "uint8_t";
 }
 
+def AscendC_LoadDist : I32EnumAttr<"LoadDist", "", [
+    I32EnumAttrCase<"DIST_NORM",  0>,
+    I32EnumAttrCase<"DIST_BRC_B8", 1>,
+    I32EnumAttrCase<"DIST_BRC_B16", 2>,
+    I32EnumAttrCase<"DIST_BRC_B32", 3>,
+    I32EnumAttrCase<"DIST_US_B8", 6>,
+    I32EnumAttrCase<"DIST_US_B16", 7>,
+    I32EnumAttrCase<"DIST_DS_B8", 8>,
+    I32EnumAttrCase<"DIST_DS_B16", 9>,
+    I32EnumAttrCase<"DIST_BDINTLV", 10>,
+    I32EnumAttrCase<"DIST_DINTLV_B8", 11>,
+    I32EnumAttrCase<"DIST_DINTLV_B16", 12>,
+    I32EnumAttrCase<"DIST_UNPACK_B8", 13>,
+    I32EnumAttrCase<"DIST_UNPACK_B16", 14>,
+    I32EnumAttrCase<"DIST_BLK", 15>,
+    I32EnumAttrCase<"DIST_E2B_B16", 16>,
+    I32EnumAttrCase<"DIST_E2B_B32", 17>,
+    I32EnumAttrCase<"DIST_UNPACK_B32", 18>,
+    I32EnumAttrCase<"DIST_DINTLV_B32", 19>,
+    I32EnumAttrCase<"DIST_UNPACK4_B8", 20>,
+    I32EnumAttrCase<"DIST_SPLT4CHN_B8", 21>,
+    I32EnumAttrCase<"DIST_SPLT2CHN_B8", 22>,
+    I32EnumAttrCase<"DIST_SPLT2CHN_B16", 23>,
+]>{
+  let cppNamespace = "::mlir::ascendc";
+  let description = "Represents AscendC::Reg::LoadDist";
+  let underlyingType = "uint8_t";
+}
+
+def AscendC_StoreDist : I32EnumAttr<"StoreDist", "", [
+    I32EnumAttrCase<"DIST_NORM_B8", 0>,
+    I32EnumAttrCase<"DIST_NORM_B16", 1>,
+    I32EnumAttrCase<"DIST_NORM_B32", 2>,
+    I32EnumAttrCase<"DIST_FIRST_ELEMENT_B8", 3>,
+    I32EnumAttrCase<"DIST_FIRST_ELEMENT_B16", 4>,
+    I32EnumAttrCase<"DIST_FIRST_ELEMENT_B32", 5>,
+    I32EnumAttrCase<"DIST_PACK_B16", 6>,
+    I32EnumAttrCase<"DIST_PACK_B32", 7>,
+    I32EnumAttrCase<"DIST_INTLV_B8", 8>,
+    I32EnumAttrCase<"DIST_INTLV_B16", 9>,
+    I32EnumAttrCase<"DIST_PACK_B64", 10>,
+    I32EnumAttrCase<"DIST_INTLV_B32", 11>,
+    I32EnumAttrCase<"DIST_PACK4_B32", 12>,
+    I32EnumAttrCase<"DIST_MRG4CHN_B8", 13>,
+    I32EnumAttrCase<"DIST_MRG2CHN_B8", 14>,
+    I32EnumAttrCase<"DIST_MRG2CHN_B16", 15>,
+    I32EnumAttrCase<"DIST_NORM", 16>,
+]>{
+  let cppNamespace = "::mlir::ascendc";
+  let description = "Represents AscendC::Reg::StoreDist";
+  let underlyingType = "uint8_t";
+}
+
 def AscendC_MatmulPolicyAttr : I32EnumAttr<"MatmulPolicy", "", [
   I32EnumAttrCase<"MatmulPolicy", 0>,
   I32EnumAttrCase<"TrianUpperMatmulPolicy", 1>,

@@ -13,14 +13,30 @@
 
 include "mlir/Pass/PassBase.td"
 
-def DispatchHoist : Pass<"ascvf-dispatch-hoist", "func::FuncOp"> {
-  let summary = "Run eliminate-data-transfer and hoist-loop-invariant passes twice in sequence";
+def DispatchVFFusion : Pass<"ascvf-dispatch-vf-fusion", "ModuleOp"> {
+  let summary = "Inserts LocalMemBarOp synchronization barriers at required points within VecScopeOp regions";
   let description = [{
-    Orchestrates a two-pass optimization pipeline that eliminates redundant data
-    transfers and hoists loop-invariant operations. The pipeline runs twice to
-    maximize optimization opportunities.
+    Inserts LocalMemBarOp synchronization barriers at the points within VecScopeOp
+    regions where store-to-load dependencies must be preserved. Determines those
+    points by marking every operation with a BarrierOp, cloning the function,
+    running the vector fusion optimization pipeline and EraseBarrier on the clone,
+    and mapping the barriers that survive back to LocalMemBarOp operations in the
+    original function before running the same pipeline on it.
   }];
-  let constructor = "mlir::ascvf::createDispatchHoistPass()";
+  let constructor = "mlir::ascvf::createDispatchVFFusionPass()";
+  let dependentDialects = ["ascendc::AscendCDialect", "ascvf::AscVFDialect"];
+}
+
+def EraseBarrier : Pass<"ascvf-erase-barrier", "func::FuncOp"> {
+  let summary = "Erases redundant BarrierOp operations within VecScopeOp that protect no pending stores";
+  let description = [{
+    Erases redundant BarrierOp operations within VecScopeOp regions by sorting
+    LoadOp, StoreOp, and BarrierOp operations by their relative position,
+    collapsing consecutive barriers to the last one, and removing barriers with
+    no preceding active stores. Emits a warning when a LoadOp encounters
+    unsynchronized stores.
+  }];
+  let constructor = "mlir::ascvf::createEraseBarrierPass()";
 }
 
 def EliminateCommonMask : Pass<"ascvf-eliminate-common-mask", "func::FuncOp"> {
@@ -61,27 +77,6 @@ def FuseVFFor : Pass<"ascvf-fuse-vf-for", "func::FuncOp"> {
     subsequent loops into the first loop, reducing loop overhead.
   }];
   let constructor = "mlir::ascvf::createFuseVFForPass()";
-}
-
-def HoistLoopInvariant : Pass<"ascvf-hoist-loop-invariant-pass", "func::FuncOp"> {
-  let summary = "Hoist loop-invariant operations out of VFForOp loop bodies";
-  let description = [{
-    Moves operations that don't depend on the loop induction variable and have no
-    memory side effects out of VFForOp loop bodies. This reduces redundant
-    computation by executing invariant operations once before the loop.
-  }];
-  let constructor = "mlir::ascvf::createHoistLoopInvariantPass()";
-}
-
-def InsertLocalMemBar : Pass<"ascvf-insert-local-mem-bar", "func::FuncOp"> {
-  let summary = "Inserts local memory barriers between consecutive VFForOp loops";
-  let description = [{
-    Inserts LocalMemBarOp operations between consecutive VFForOp loops within
-    VFGroupOp to synchronize vector store and vector load operations, ensuring
-    proper memory ordering for vector fusion execution.
-  }];
-  let constructor = "mlir::ascvf::createInsertLocalMemBarPass()";
-  let dependentDialects = ["ascendc::AscendCDialect"];
 }
 
 def LowerToReg : Pass<"ascvf-lower-to-reg", "func::FuncOp"> {

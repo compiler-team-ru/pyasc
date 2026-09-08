@@ -19,4 +19,13 @@ class AscVF_Type<string name, string typeMnemonic, list<Trait> traits = []>
   let mnemonic = typeMnemonic;
 }
 
+def AscendC_RegTensor : Type<CPred<"::llvm::isa<::mlir::ascendc::RegTensorType>($_self)">, "reg tensor type",
+  "::mlir::ascendc::RegTensorType">;
+
+def AscendC_MaskReg : Type<CPred<"::llvm::isa<::mlir::ascendc::MaskRegType>($_self)">, "mask type",
+  "::mlir::ascendc::MaskRegType">;
+
+def AscendC_LocalTensor : Type<CPred<"::llvm::isa<::mlir::ascendc::LocalTensorType>($_self)">, "local tensor type",
+  "::mlir::ascendc::LocalTensorType">;
+
 #endif // ASCVF_TYPES_TD

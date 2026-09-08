@@ -9,20 +9,20 @@
 // RUN: ascir-translate -mlir-to-ascendc %s | FileCheck %s
 
 // CHECK-LABEL:void emit_data_copy_vld_reg(AscendC::Reg::RegTensor<float> v1, float* v2) {
-// CHECK-NEXT:  AscendC::Reg::DataCopy(v1, v2);
+// CHECK-NEXT:  AscendC::Reg::DataCopy<float, AscendC::Reg::LoadDist::DIST_NORM>(v1, v2);
 // CHECK-NEXT:  return;
 // CHECK-NEXT:}
 func.func @emit_data_copy_vld_reg(%dstReg: !ascendc.reg_tensor<f32>, %src: memref<?xf32>) {
-  ascendc.data_copy_vld_reg %dstReg, %src : !ascendc.reg_tensor<f32>, memref<?xf32>
+  ascendc.data_copy_vld_reg %dstReg, %src {dist = 0 : i32} : !ascendc.reg_tensor<f32>, memref<?xf32>
   return
 }
 
 // CHECK-LABEL:void emit_data_copy_vst_reg(float* v1, AscendC::Reg::RegTensor<float> v2, AscendC::Reg::MaskReg v3) {
-// CHECK-NEXT:  AscendC::Reg::DataCopy(v1, v2, v3);
+// CHECK-NEXT:  AscendC::Reg::DataCopy<float, AscendC::Reg::StoreDist::DIST_NORM>(v1, v2, v3);
 // CHECK-NEXT:  return;
 // CHECK-NEXT:}
 func.func @emit_data_copy_vst_reg(%dst: memref<?xf32>, %srcReg: !ascendc.reg_tensor<f32>, %maskReg: !ascendc.mask_reg) {
-  ascendc.data_copy_vst_reg %dst, %srcReg, %maskReg : memref<?xf32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+  ascendc.data_copy_vst_reg %dst, %srcReg, %maskReg {dist = 16 : i32} : memref<?xf32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
   return
 }
 

@@ -103,14 +103,14 @@ def SelectRegOp : RegOp<"select_reg", "Select"> {
 def DataCopyLoadOp : RegOp<"data_copy_vld_reg", "DataCopy"> {
   let description = "Perform copying between tensors (UB to RegTensor)";
   let arguments = (ins AscendC_RegTensor:$dstReg,
-                       AnyRankedOrUnrankedMemRef:$src);
+                       AnyRankedOrUnrankedMemRef:$src, AscendC_LoadDist:$dist);
 }
 
 def DataCopyStoreOp : RegOp<"data_copy_vst_reg", "DataCopy"> {
   let description = "Perform copying between tensors (RegTensor to UB)";
   let arguments = (ins AnyRankedOrUnrankedMemRef:$dst,
                        AscendC_RegTensor:$srcReg,
-                       AscendC_MaskReg:$maskReg);
+                       AscendC_MaskReg:$maskReg, AscendC_StoreDist:$dist);
 }
 
 def UpdateMaskOp : RegOp<"update_mask", "UpdateMask"> {
