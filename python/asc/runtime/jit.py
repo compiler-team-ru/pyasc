@@ -136,7 +136,7 @@ class JITFunction(Function[P, T]):
     @classmethod
     def get_config_keywords(cls) -> List[str]:
         attr = "_config_keywords"
-        cached_keywords = getattr(cls, attr, None)
+        cached_keywords = cls.__dict__.get(attr, None)
         if cached_keywords is not None:
             return cached_keywords
         keywords = []
