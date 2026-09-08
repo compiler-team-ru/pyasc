@@ -17,11 +17,11 @@ loop operator. The `unroll_factor` parameter is a loop optimization option
 available in `asctile.range()` that controls loop unrolling. Loop unrolling is a
 compiler optimization technique that replaces loop iterations with explicit
 sequential code, reducing loop overhead and enabling better instruction-level
-parallelism. As result the loop body is increased by fuctor `unroll_factor`.
+parallelism. As result the loop body is increased by the factor `unroll_factor`.
 
 To support cases when `unroll_factor` is not divisor for number of loop
 iterations **tail loop** is created. If compiler gets information about
-**tail loop** boudaries it can eliminate it (if zero iterations) or reduce
+**tail loop** boundaries it can eliminate it (if zero iterations) or reduce
 to code block without loop (if one iteration).
 
 ## Parameter Definition
@@ -60,7 +60,7 @@ def simple_kernel(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
         asctile.copy_out(result, y_gm, [i])
 ```
 
-### Example 2: Recomended unrolling
+### Example 2: Recommended unrolling
 ```python
 @asctile.jit()
 def unrolled_kernel(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
@@ -102,8 +102,8 @@ HW design. Efficient operator will fully utilize one of the execution pipelines
 (e.g. MTE1, MTE2, MTE3, VECTOR or CUBE).
 **Increase code size**: Unrolling causes code size grow. The following may
 cause lowering performance gain or performance degradation:
- - inital programm load time increases;
- - increases icache miss rate (if program or loop block increases icashe size).
+ - initial program load time increases;
+ - increases icache miss rate (if program or loop block increases icache size).
 
 ## Implementation Details
 

@@ -113,7 +113,9 @@ struct RequireSameLoc : RewritePattern {
         bool modified = false;
         rewriter.startOpModification(op);
         auto requiredLoc = defaultLoc;
-        for (auto type : llvm::concat<Type>(op->getOperandTypes(), op->getResultTypes())) {
+        SmallVector<Type, 8> types(op->getOperandTypes());
+        llvm::copy(op->getResultTypes(), std::back_inserter(types));
+        for (auto type : types) {
             auto tensor = dyn_cast<LocalTensorType>(type);
             if (!tensor || tensor.getLoc() == TL::Auto)
                 continue;

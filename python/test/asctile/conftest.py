@@ -30,10 +30,6 @@ class StubProfiler:
 
 
 def pytest_addoption(parser: pytest.Parser):
-    parser.addoption("--backend", type=config.Backend, default=config.Backend.Model, help="Runtime backend")
-    parser.addoption("--platform", type=config.Platform, default=config.Platform.Ascend950PR_9599,
-                     help="Runtime platform")
-    parser.addoption("--device", type=int, help="Device ID")
     parser.addoption("--profile", action="store_true", help="Enable NPU profiling (if available)")
     parser.addoption("--profile-path", type=str, default=None, help="Directory to save profiling results")
     parser.addoption("--runs", type=int, default=1, help="Number of kernel launches")
@@ -57,21 +53,6 @@ def pytest_terminal_summary(terminalreporter, config):
     terminalreporter.write_sep("=", "Profiling results")
     for entry in config.profiling_results:
         terminalreporter.write_line(f"{entry['test']}: {entry['duration']} μs")
-
-
-@pytest.fixture
-def backend(request: pytest.FixtureRequest):
-    return request.config.getoption("--backend")
-
-
-@pytest.fixture
-def platform(request: pytest.FixtureRequest):
-    return request.config.getoption("--platform")
-
-
-@pytest.fixture
-def device_id(request: pytest.FixtureRequest):
-    return request.config.getoption("--device", default=None)
 
 
 @pytest.fixture(autouse=True)

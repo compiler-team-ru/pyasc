@@ -1103,7 +1103,7 @@ should be Ascend-native from the start.
 <https://github.com/tile-ai/tilelang-ascend/issues/3>
 
 <a id="ref-26"></a>**[26]** Triton-Ascend programming guide (gitcode.com primary repo).
-<https://gitcode.com/Ascend/triton-ascend/blob/main/docs/en/programming_guide.md>
+<https://gitcode.com/Ascend/triton-ascend/blob/58e48a6002491310e16ad029c41238a99630136c/docs/en/programming_guide.md>
 
 <a id="ref-27"></a>**[27]** Triton-Ascend examples — confirmed on Ascend with torch_npu.
 <https://gitcode.com/Ascend/triton-ascend/tree/main/docs/en/examples>
@@ -1112,10 +1112,10 @@ should be Ascend-native from the start.
 <https://gitcode.com/Ascend/triton-ascend/blob/main/docs/en/architecture_design_and_core_features.md>
 
 <a id="ref-29"></a>**[29]** AscendNPU-IR architecture — HIVM/HFusion/HACC dialect definitions.
-<https://gitcode.com/Ascend/AscendNPU-IR/blob/main/docs/source/en/introduction/architecture.md>
+<https://gitcode.com/Ascend/AscendNPU-IR/blob/0fa672ab72268513807047769b8d8354a7478b1d/docs/source/en/introduction/architecture.md>
 
 <a id="ref-30"></a>**[30]** AscendNPU-IR PlanMemory pass — liveness-based UB allocation.
-<https://gitcode.com/Ascend/AscendNPU-IR/blob/main/bishengir/lib/Dialect/HIVM/Transforms/PlanMemory.cpp>
+<https://gitcode.com/Ascend/AscendNPU-IR/blob/0fa672ab72268513807047769b8d8354a7478b1d/bishengir/lib/Dialect/HIVM/Transforms/PlanMemory.cpp>
 
 <a id="ref-31"></a>**[31]** PyPTO-main matmul example.
 <https://gitcode.com/cann/pypto/blob/master/examples/01_beginner/compute/matmul_ops.py>
@@ -1130,7 +1130,7 @@ should be Ascend-native from the start.
 <https://gitcode.com/cann/pypto/blob/master/framework/src/passes/tile_graph_pass/graph_partition/n_buffer_merge.cpp>
 
 <a id="ref-35"></a>**[35]** PyPTO add_alloc / schedule_ooo — Block Graph allocation and scheduling.
-<https://gitcode.com/cann/pypto/blob/master/framework/src/passes/block_graph_pass/schedule_ooo/add_alloc.cpp>
+<https://gitcode.com/cann/pypto/blob/00e300e16a75e6973d8e618d44bc9cd9f65741e3/framework/src/passes/block_graph_pass/schedule_ooo/add_alloc.cpp>
 
 <a id="ref-36"></a>**[36]** PyPTO assign_memory_type — memory space assignment at Tile Graph.
 <https://gitcode.com/cann/pypto/blob/master/framework/src/passes/tile_graph_pass/data_path/assign_memory_type.cpp>
@@ -1139,10 +1139,10 @@ should be Ascend-native from the start.
 <https://gitcode.com/cann/pypto/blob/master/framework/src/passes/block_graph_pass/memory_reuse/global_memory_reuse.cpp>
 
 <a id="ref-38"></a>**[38]** PyPTOv3 language guide — DSL, memory hierarchy, optimization pipeline.
-<https://github.com/hw-native-sys/pypto/blob/main/docs/en/user/01-language_guide.md>
+<https://github.com/hw-native-sys/pypto/blob/aedf7e663421a811ce5bed9d8063d25a8a881e9e/docs/en/user/01-language_guide.md>
 
 <a id="ref-39"></a>**[39]** PyPTOv3 insert_sync_pass — 4-phase sync insertion algorithm.
-<https://github.com/hw-native-sys/pypto/blob/main/src/ir/transforms/insert_sync_pass.cpp>
+<https://github.com/hw-native-sys/pypto/blob/aedf7e663421a811ce5bed9d8063d25a8a881e9e/src/ir/transforms/insert_sync_pass.cpp>
 
 <a id="ref-40"></a>**[40]** PyPTOv3 expand_mixed_kernel_pass — AIC/AIV split + cross-core sync.
 <https://github.com/hw-native-sys/pypto/blob/main/src/ir/transforms/expand_mixed_kernel_pass.cpp>
@@ -1154,7 +1154,7 @@ should be Ascend-native from the start.
 <https://github.com/hw-native-sys/pypto/blob/main/src/ir/transforms/memory_reuse_pass.cpp>
 
 <a id="ref-43"></a>**[43]** PyPTOv3 legalize_pto_buffer_reuse — PTO backend buffer legalization.
-<https://github.com/hw-native-sys/pypto/blob/main/src/ir/transforms/legalize_pto_buffer_reuse_pass.cpp>
+<https://github.com/hw-native-sys/pypto/blob/aedf7e663421a811ce5bed9d8063d25a8a881e9e/src/ir/transforms/legalize_pto_buffer_reuse_pass.cpp>
 
 <a id="ref-44"></a>**[44]** PyPTOv3 Qwen3 decode example — tilelet-aware tiling.
 <https://github.com/hw-native-sys/pypto-lib/pull/25>
