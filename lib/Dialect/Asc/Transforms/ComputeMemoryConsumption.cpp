@@ -14,6 +14,7 @@
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/IR/Matchers.h"
 
 namespace mlir {
 namespace ascendc {
@@ -31,6 +32,7 @@ StringLiteral positionToStr(TPosition position)
 {
     switch (position) {
         case ascendc::TPosition::A1:
+        case ascendc::TPosition::B1:
             return "L1";
         case ascendc::TPosition::A2:
             return "L0A";
@@ -38,6 +40,8 @@ StringLiteral positionToStr(TPosition position)
             return "L0B";
         case ascendc::TPosition::CO1:
             return "L0C";
+        case ascendc::TPosition::VECIN:
+        case ascendc::TPosition::VECOUT:
         case ascendc::TPosition::VECCALC:
             return "UB";
         case ascendc::TPosition::C2:
@@ -52,6 +56,30 @@ auto calculateMemoryConsumption(ModuleOp moduleOp)
     std::map<StringLiteral, int64_t> mem;
     moduleOp.walk([&mem](ascendc::LocalTensorV3Op op) {
         mem[positionToStr(op.getPos())] += getElementTypeSize(op.getType()) * static_cast<int64_t>(op.getTileSize());
+    });
+    moduleOp.walk([&mem](ascendc::TPipeInitBufferOp op) {
+        if (auto tbufType = dyn_cast<ascendc::TBufType>(op.getBuffer().getType())) {
+            APInt lengthAttr;
+            if (matchPattern(op.getLength(), m_ConstantInt(&lengthAttr))) {
+                mem[positionToStr(tbufType.getTPosition())] += lengthAttr.getSExtValue();
+            }
+        }
+    });
+    moduleOp.walk([&mem](ascendc::TPipeInitQueueOp op) {
+        auto queueType = op.getQueue().getType();
+        TPosition position;
+        if (auto queType = dyn_cast<ascendc::QueueType>(queueType)) {
+            position = queType.getPosition();
+        } else if (auto queBindType = dyn_cast<ascendc::QueBindType>(queueType)) {
+            position = queBindType.getSrcPosition();
+        } else {
+            return;
+        }
+        APInt numAttr, lengthAttr;
+        if (matchPattern(op.getNum(), m_ConstantInt(&numAttr)) &&
+            matchPattern(op.getLength(), m_ConstantInt(&lengthAttr))) {
+            mem[positionToStr(position)] += numAttr.getSExtValue() * lengthAttr.getSExtValue();
+        }
     });
     return mem;
 }
