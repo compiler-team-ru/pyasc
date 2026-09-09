@@ -68,8 +68,8 @@ The following environment variables can be **exported** to configure the install
 
 ``LLVM_INSTALL_PREFIX=<path>`` (required)
     provide the directory with pre-built LLVM binaries (preliminarily download and unpack the archive for
-    `x64 <https://oaitriton.blob.core.windows.net/public/llvm-builds/llvm-86b69c31-ubuntu-x64.tar.gz>`__ or
-    `arm64 <https://oaitriton.blob.core.windows.net/public/llvm-builds/llvm-86b69c31-ubuntu-arm64.tar.gz>`__ platform)
+    `x86_64 <https://cann-ai.obs.cn-north-4.myhuaweicloud.com/llvm/llvm-19.1.7-x86_64.tar.xz>`__ or
+    `aarch64 <https://cann-ai.obs.cn-north-4.myhuaweicloud.com/llvm/llvm-19.1.7-aarch64.tar.xz>`__ platform)
 
 ``PYASC_SETUP_BUILD_DIR=<path>`` (optional)
     provide the directory for the temporary build files (default: ``build``)

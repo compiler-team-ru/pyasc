@@ -6,7 +6,7 @@
 // INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 // See LICENSE in the root of the software repository for the full text of the License.
 
-// RUN: ascir-opt -asclower-atomic %s | FileCheck %s
+// RUN: ascir-opt -asclower-atomic -canonicalize %s | FileCheck %s
 
 // CHECK-LABEL: func.func @lower_atomic_add(%arg0: tensor<16xf32, #asctile.local<UB>>, %arg1: tensor<16xf32, #asctile.global>, %arg2: i32) {
 // CHECK-NEXT:  ascendc.set_atomic_add  {dtype = f32} :
