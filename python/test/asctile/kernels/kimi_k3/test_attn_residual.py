@@ -63,7 +63,7 @@ def attn_residual_kernel(prefix_ptr: asctile.GlobalAddress, bank_ptr: asctile.Gl
             else:
                 value = asctile.copy_in(prefix_gm, [token, 0], [hidden_size])
             mask = indices_2d == asctile.full([num_candidates_aligned], row, dtype=asctile.int32)
-            probability = asctile.reduce_sum(asctile.where(mask, probabilities_2d, 0))
+            probability = asctile.where(mask, probabilities_2d, 0).sum()
             output_vec = output_vec + value * probability
         asctile.copy_out(output_vec, output_gm, [token, 0])
 

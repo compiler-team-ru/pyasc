@@ -36,7 +36,7 @@ def one_hot_kernel(x_ptr: asctile.GlobalAddress, y_ptr: asctile.GlobalAddress, a
         idx_pos = block_offset + i
         idx_scalar = asctile.copy_in(x, [idx_pos])
         mask = asctile.equal(arange_tile, idx_scalar)
-        result = asctile.where(mask, asctile.cast(on_value, y_ptr.dtype), asctile.cast(off_value, y_ptr.dtype))
+        result = asctile.where(mask, on_value, off_value).to(y_ptr.dtype)
         asctile.copy_out(result, y, [idx_pos * depth])
 
 
