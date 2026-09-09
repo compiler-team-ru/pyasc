@@ -65,7 +65,7 @@ def where_scalar_kernel(x_ptr: asctile.GlobalAddress, scalar, z_ptr: asctile.Glo
     x = asctile.global_tensor(x_ptr, [SIZE])
     z = asctile.global_tensor(z_ptr, [SIZE])
     xt = asctile.copy_in(x, [0], [SIZE])
-    zt = asctile.where(op(xt, scalar), asctile.cast(0.0, x_ptr.dtype), asctile.cast(1.0, x_ptr.dtype))
+    zt = asctile.where(op(xt, scalar), 0, 1).to(x_ptr.dtype)
     asctile.copy_out(zt, z, [0])
 
 
