@@ -1032,7 +1032,9 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
         bool isFloat32 = isa<Float32Type>(opType.getElementType());
         const int64_t cubeKBlockSize = ascendc::cubeKBlockBytes / ascendc::getElementTypeSize(opType);
         int64_t dstNzC0StrideElements =
-            static_cast<int64_t>(llvm::alignTo(isTransposeBL1 ? srcShape[1] : srcShape[0], cubeKBlockSize));
+            (srcShape[0] > 1 || !isTensorA) ?
+                static_cast<int64_t>(llvm::alignTo(isTransposeBL1 ? srcShape[1] : srcShape[0], cubeKBlockSize)) :
+                1;
         int64_t dValue = cubeKBlockSize;
         Value colOffset = rewriter.create<arith::MulIOp>(
             loc, consts.i32(dstNzC0StrideElements), isTransposeBL1 ? offsets[0] : offsets[1]);

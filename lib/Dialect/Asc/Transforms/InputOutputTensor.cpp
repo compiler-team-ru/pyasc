@@ -11,6 +11,7 @@
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
+#include "ascir/Dialect/Asc/Utils/Constants.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
@@ -126,7 +127,7 @@ void createDataCopyIfNeeded(scf::ForOp forOp)
         Value dst = builder.create<TensorOp>(loc, type, /*input*/ false, /*output*/ false, ValueRange{});
         auto ifAIVOp = builder.create<ascendc::IfAIVOp>(loc, TypeRange{}, ValueRange{});
         builder.setInsertionPointToStart(&ifAIVOp.getRegion().emplaceBlock());
-        Value calCount = consts.i64(type.getNumElements());
+        Value calCount = consts.i64(getCopyCount(type));
         auto copyOp = builder.create<ascendc::DataCopyL2Op>(loc, dst, operand->get(), calCount);
         copyOp.setDirection(ascendc::TPosition::VECCALC, ascendc::TPosition::VECCALC);
         builder.create<ascendc::YieldOp>(loc);

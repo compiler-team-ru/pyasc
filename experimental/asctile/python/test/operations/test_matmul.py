@@ -268,6 +268,8 @@ def matmul_ub_l1_kernel(a_ptr: asctile.GlobalAddress, b_ptr: asctile.GlobalAddre
     (128, 32, 64, torch.float16, 16),
     (16, 16, 16, torch.float32, 16),
     (16, 32, 16, torch.float32, 16),
+    (1, 32, 16, torch.float32, 16),
+    (1, 32, 16, torch.float16, 16),
     (8, 16, 16, torch.float32, 16),
     (8, 32, 16, torch.float32, 16),
     (16, 16, 8, torch.float32, 16),
