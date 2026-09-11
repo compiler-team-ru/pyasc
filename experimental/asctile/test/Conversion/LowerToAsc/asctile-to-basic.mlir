@@ -437,4 +437,17 @@ module attributes {asc.compilation_arch = "c310"} {
     %0 = asctile.divs %arg0, %arg1 : tensor<4x256xf32, #asctile.local<UB>>
     return %0 : tensor<4x256xf32, #asctile.local<UB>>
   }
+
+// CHECK-LABEL: func.func @lower_cmps_f32(%arg0: tensor<16xf32, #asctile.local<UB>>, %arg1: f32) -> tensor<16xi1, #asctile.local<UB>> {
+// CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : tensor<16xf32, #asctile.local<UB>> to !ascendc.local_tensor<16xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <2xi8>
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<2xi8> to !ascendc.local_tensor<2xui8>
+// CHECK-NEXT:  ascendc.compare_scalar_l2 %2, %0, %arg1, %c16_i64 {cmpMode = 0 : i64} : !ascendc.local_tensor<2xui8>, !ascendc.local_tensor<16xf32>, f32, i64
+// CHECK-NEXT:  %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<2xui8> to tensor<16xi1, #asctile.local<UB>>
+// CHECK-NEXT:  return %3 : tensor<16xi1, #asctile.local<UB>>
+// CHECK-NEXT:}
+  func.func @lower_cmps_f32(%arg0: tensor<16xf32, #asctile.local<UB>>, %arg1: f32) -> tensor<16xi1, #asctile.local<UB>> {
+    %0 = asctile.cmps "LT" %arg0, %arg1 : tensor<16xf32, #asctile.local<UB>>
+    return %0 : tensor<16xi1, #asctile.local<UB>>
+  }
 }
