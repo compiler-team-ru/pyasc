@@ -51,23 +51,29 @@ def test_matmul_relu_quant(m, k, n, dtype, tile_a, tile_b, quant_type, quant_typ
 
 @asctile.jit(always_compile=True)
 def matmul_hf32_kernel(a_ptr: asctile.GlobalAddress, b_ptr: asctile.GlobalAddress, c_ptr: asctile.GlobalAddress,
-                       a_shape: asctile.ConstExpr, b_shape: asctile.ConstExpr, c_shape: asctile.ConstExpr,
-                       tile_a: asctile.ConstExpr, tile_b: asctile.ConstExpr):
+                       a_shape: asctile.ConstExpr, b_shape: asctile.ConstExpr, c_shape: asctile.ConstExpr):
     a_gm = asctile.global_tensor(a_ptr, a_shape)
     b_gm = asctile.global_tensor(b_ptr, b_shape)
     c_gm = asctile.global_tensor(c_ptr, c_shape)
-    a = asctile.copy_in(a_gm, [0, 0], tile_a, asctile.TensorLocation.L0A)
-    b = asctile.copy_in(b_gm, [0, 0], tile_b, asctile.TensorLocation.L0B)
+    a = asctile.copy_in(a_gm, [0, 0], a_shape, asctile.TensorLocation.L0A)
+    b = asctile.copy_in(b_gm, [0, 0], b_shape, asctile.TensorLocation.L0B)
     c = asctile.matmul(a, b, hf32=True)
     asctile.copy_out(c, c_gm, [0, 0])
 
 
-def test_matmul_hf32():
-    a = torch.rand((32, 64), dtype=torch.float32)
-    b = torch.rand((64, 64), dtype=torch.float32)
-    c = torch.zeros((a.shape[0], b.shape[1]), dtype=torch.float32)
-    matmul_hf32_kernel[1](a, b, c, a.shape, b.shape, c.shape, [32, 64], [64, 64])
-    c_ref = a.to(torch.float32) @ b.to(torch.float32)
+@pytest.mark.parametrize("m, k, n", [
+    (32, 64, 64),
+    (8, 16, 16),
+    (16, 8, 16),
+    (16, 16, 8),
+])
+def test_matmul_hf32(m, k, n):
+    dtype = torch.float32
+    a = torch.rand((m, k), dtype=dtype)
+    b = torch.rand((k, n), dtype=dtype)
+    c = torch.zeros((m, n), dtype=dtype)
+    matmul_hf32_kernel[1](a, b, c, a.shape, b.shape, c.shape)
+    c_ref = a @ b
     torch.testing.assert_close(c, c_ref, atol=1e-3, rtol=1e-3)
 
 
@@ -262,6 +268,12 @@ def matmul_ub_l1_kernel(a_ptr: asctile.GlobalAddress, b_ptr: asctile.GlobalAddre
     (128, 32, 64, torch.float16, 16),
     (16, 16, 16, torch.float32, 16),
     (16, 32, 16, torch.float32, 16),
+    (8, 16, 16, torch.float32, 16),
+    (8, 32, 16, torch.float32, 16),
+    (16, 16, 8, torch.float32, 16),
+    (16, 32, 8, torch.float32, 16),
+    (16, 8, 16, torch.float32, 8),
+    (16, 16, 16, torch.float32, 8),
 ])
 def test_matmul_ub_l1(m, k, n, dtype, tile_k):
     a = torch.randn((m, k), dtype=dtype)
