@@ -86,13 +86,9 @@ struct LegalizeKernelArgsPass : public ascendc::impl::LegalizeKernelArgsBase<Leg
 
 } // namespace
 
-namespace mlir {
-namespace ascendc {
-std::unique_ptr<Pass> createLegalizeKernelArgsPass(bool setFftsAddr)
+std::unique_ptr<Pass> mlir::ascendc::createLegalizeKernelArgsPass(bool setFftsAddr)
 {
     LegalizeKernelArgsOptions options;
     options.setFftsAddr = setFftsAddr;
     return std::make_unique<LegalizeKernelArgsPass>(options);
 }
-} // namespace ascendc
-} // namespace mlir

@@ -22,8 +22,6 @@ target_link_libraries(${ASCIR_LSP_NAME} PRIVATE
   MLIRIR
   MLIRLspServerLib
   MLIRAsc
-  MLIRAscTile
-  MLIRAscVF
   MLIREmitAsc
 )
 
@@ -60,12 +58,7 @@ set(LIBS
   MLIRAsc
   MLIRAscTransforms
   MLIRAscUtils
-  MLIRAscTile
-  MLIRAscTileTransforms
-  MLIRAscVF
-  MLIRAscVFTransforms
   MLIREmitAsc
-  MLIRLowerToAsc
 )
 
 add_mlir_tool(${ASCIR_OPT_NAME}

@@ -1,0 +1,79 @@
+// Copyright (c) 2026 Huawei Technologies Co., Ltd.
+// This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+// CANN Open Software License Agreement Version 2.0 (the "License").
+// Please refer to the License for details. You may not use this file except in compliance with the License.
+// THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+// INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+// See LICENSE in the root of the software repository for the full text of the License.
+
+// RUN: asctile-opt -asclower-scf %s | FileCheck %s
+
+// CHECK-LABEL: func.func @lower_if(%arg0: i1, %arg1: tensor<16xf32, #asctile.local<UB>>, %arg2: tensor<16xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>> {
+// CHECK-NEXT:  %0 = scf.if %arg0 -> (!ascendc.local_tensor<16xf32>) {
+// CHECK-NEXT:    %2 = arith.addf %arg1, %arg2 : tensor<16xf32, #asctile.local<UB>>
+// CHECK-NEXT:    %3 = builtin.unrealized_conversion_cast %2 : tensor<16xf32, #asctile.local<UB>> to !ascendc.local_tensor<16xf32>
+// CHECK-NEXT:    scf.yield %3 : !ascendc.local_tensor<16xf32>
+// CHECK-NEXT:  } else {
+// CHECK-NEXT:    %2 = arith.subf %arg1, %arg2 : tensor<16xf32, #asctile.local<UB>>
+// CHECK-NEXT:    %3 = builtin.unrealized_conversion_cast %2 : tensor<16xf32, #asctile.local<UB>> to !ascendc.local_tensor<16xf32>
+// CHECK-NEXT:    scf.yield %3 : !ascendc.local_tensor<16xf32>
+// CHECK-NEXT:  }
+// CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %0 : !ascendc.local_tensor<16xf32> to tensor<16xf32, #asctile.local<UB>>
+// CHECK-NEXT:  return %1 : tensor<16xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @lower_if(%arg0: i1, %arg1: tensor<16xf32, #asctile.local<UB>>, %arg2: tensor<16xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>> {
+  %0 = scf.if %arg0 -> tensor<16xf32, #asctile.local<UB>> {
+    %1 = arith.addf %arg1, %arg2 : tensor<16xf32, #asctile.local<UB>>
+    scf.yield %1 : tensor<16xf32, #asctile.local<UB>>
+  } else {
+    %1 = arith.subf %arg1, %arg2 : tensor<16xf32, #asctile.local<UB>>
+    scf.yield %1 : tensor<16xf32, #asctile.local<UB>>
+  }
+  return %0 : tensor<16xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @lower_for(%arg0: tensor<16xf32, #asctile.local<UB>>, %arg1: index, %arg2: index, %arg3: index) -> tensor<16xf32, #asctile.local<UB>> {
+// CHECK-NEXT:  %0 = builtin.unrealized_conversion_cast %arg0 : tensor<16xf32, #asctile.local<UB>> to !ascendc.local_tensor<16xf32>
+// CHECK-NEXT:  %1 = scf.for %arg4 = %arg1 to %arg2 step %arg3 iter_args(%arg5 = %0) -> (!ascendc.local_tensor<16xf32>) {
+// CHECK-NEXT:    %3 = builtin.unrealized_conversion_cast %arg5 : !ascendc.local_tensor<16xf32> to tensor<16xf32, #asctile.local<UB>>
+// CHECK-NEXT:    %4 = arith.addf %3, %arg0 : tensor<16xf32, #asctile.local<UB>>
+// CHECK-NEXT:    %5 = builtin.unrealized_conversion_cast %4 : tensor<16xf32, #asctile.local<UB>> to !ascendc.local_tensor<16xf32>
+// CHECK-NEXT:    scf.yield %5 : !ascendc.local_tensor<16xf32>
+// CHECK-NEXT:  }
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<16xf32> to tensor<16xf32, #asctile.local<UB>>
+// CHECK-NEXT:  return %2 : tensor<16xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @lower_for(%arg0: tensor<16xf32, #asctile.local<UB>>, %arg1: index, %arg2: index, %arg3: index) -> tensor<16xf32, #asctile.local<UB>> {
+  %0 = scf.for %arg4 = %arg1 to %arg2 step %arg3 iter_args(%arg5 = %arg0) -> tensor<16xf32, #asctile.local<UB>> {
+    %1 = arith.addf %arg5, %arg0 : tensor<16xf32, #asctile.local<UB>>
+    scf.yield %1 : tensor<16xf32, #asctile.local<UB>>
+  }
+  return %0 : tensor<16xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @lower_while(%arg0: tensor<16xf32, #asctile.local<UB>>, %arg1: tensor<16xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>> {
+// CHECK-NEXT:  %0 = builtin.unrealized_conversion_cast %arg0 : tensor<16xf32, #asctile.local<UB>> to !ascendc.local_tensor<16xf32>
+// CHECK-NEXT:  %1 = scf.while (%arg2 = %0) : (!ascendc.local_tensor<16xf32>) -> !ascendc.local_tensor<16xf32> {
+// CHECK-NEXT:    %false = arith.constant false
+// CHECK-NEXT:    scf.condition(%false) %arg2 : !ascendc.local_tensor<16xf32>
+// CHECK-NEXT:  } do {
+// CHECK-NEXT:  ^bb0(%arg2: !ascendc.local_tensor<16xf32>):
+// CHECK-NEXT:    %3 = builtin.unrealized_conversion_cast %arg2 : !ascendc.local_tensor<16xf32> to tensor<16xf32, #asctile.local<UB>>
+// CHECK-NEXT:    %4 = arith.addf %3, %3 : tensor<16xf32, #asctile.local<UB>>
+// CHECK-NEXT:    %5 = builtin.unrealized_conversion_cast %4 : tensor<16xf32, #asctile.local<UB>> to !ascendc.local_tensor<16xf32>
+// CHECK-NEXT:    scf.yield %5 : !ascendc.local_tensor<16xf32>
+// CHECK-NEXT:  }
+// CHECK-NEXT:  %2 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<16xf32> to tensor<16xf32, #asctile.local<UB>>
+// CHECK-NEXT:  return %2 : tensor<16xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @lower_while(%arg0: tensor<16xf32, #asctile.local<UB>>, %arg1: tensor<16xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>> {
+  %0 = scf.while (%arg2 = %arg0) : (tensor<16xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>> {
+    %false = arith.constant false
+    scf.condition(%false) %arg2 : tensor<16xf32, #asctile.local<UB>>
+  } do {
+  ^bb0(%arg2: tensor<16xf32, #asctile.local<UB>>):
+    %1 = arith.addf %arg2, %arg2 : tensor<16xf32, #asctile.local<UB>>
+    scf.yield %1 : tensor<16xf32, #asctile.local<UB>>
+  }
+  return %0 : tensor<16xf32, #asctile.local<UB>>
+}

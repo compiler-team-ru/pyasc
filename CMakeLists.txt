@@ -117,3 +117,8 @@ add_subdirectory(python/src)
 if(ASCIR_LLT_TEST)
   add_subdirectory(test)
 endif()
+
+option(CANN_ASC_USE_EXPERIMENTAL "Build experimental extensions" OFF)
+if(CANN_ASC_USE_EXPERIMENTAL)
+  add_subdirectory(experimental)
+endif()

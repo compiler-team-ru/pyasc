@@ -7,6 +7,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 set(TARGET_NAME libpyasc)
+set(ASCIR_PY_MODULE_TARGET ${TARGET_NAME} PARENT_SCOPE)
 
 find_package(Python3 3.9 REQUIRED COMPONENTS Development.Module Interpreter)
 find_package(pybind11 2.10.3 CONFIG REQUIRED HINTS "${Python3_SITELIB}")
@@ -29,13 +30,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE
   MLIRAsc
   MLIRAscTransforms
   MLIRAscUtils
-  MLIRAscTile
-  MLIRAscTileTransforms
-  MLIRAscVF
-  MLIRAscVFTransforms
   MLIREmitAsc
   MLIRIR
-  MLIRLowerToAsc
   MLIRPass
   MLIRTransforms
   MLIRTargetAsc
@@ -46,6 +42,11 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 
 add_dependencies(${TARGET_NAME}
   AscPybindGen
-  AscTilePybindGen
   AscTypesPybindGen
 )
+
+function(add_ascir_extension EXT_TARGET_NAME)
+  set_target_properties(${EXT_TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
+  target_include_directories(${EXT_TARGET_NAME} PRIVATE ${pybind11_INCLUDE_DIRS})
+  target_link_libraries(${ASCIR_PY_MODULE_TARGET} PRIVATE ${EXT_TARGET_NAME})
+endfunction()

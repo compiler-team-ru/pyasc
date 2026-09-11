@@ -6,68 +6,14 @@
 .. INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 .. See LICENSE in the root of the software repository for the full text of the License.
 
-PyAsc documentation
-===================
+Python API
+======================
 
 .. toctree::
    :maxdepth: 1
-   :caption: Installation
-
-   installation/build-from-source
-   installation/setup-runtime-env
-
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Programming guide
-
-   programming-guide/quick-start.md
-   programming-guide/cube-programming-capabilities
-   programming-guide/performance-tips.md
-   programming-guide/tutorials/index
-
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Development
-
-   development/codestyle
-   development/tools
-   development/cannbot-skills
-
-
-.. toctree::
-   :maxdepth: 1
-   :caption: High-level design
-
-   design/design-overview.md
-   design/programming-models-insights.md
-   design/software-pipelining.md
-   design/automatic-synchronization.md
-
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Python API (AscTile)
-
-   python-api/rst/language/tile
-   python-api/rst/runtime/index
-
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Python API (PyAsc)
 
    python-api/rst/language/adv
    python-api/rst/language/basic
    python-api/rst/language/core
    python-api/rst/language/fwk
    python-api/rst/lib/host
-
-
-.. toctree::
-   :maxdepth: 1
-   :caption: MLIR
-
-   mlir/dialects/index
-   mlir/passes/index

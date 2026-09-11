@@ -1,0 +1,159 @@
+<!--
+Copyright (c) 2026 Huawei Technologies Co., Ltd.
+This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+CANN Open Software License Agreement Version 2.0 (the "License").
+Please refer to the License for details. You may not use this file except in compliance with the License.
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+See LICENSE in the root of the software repository for the full text of the License.
+-->
+
+# Software pipelining (double-buffering)
+
+## Overview
+
+Double-buffering is managed by developer with `unroll_factor` parameter in user
+loop operator. The `unroll_factor` parameter is a loop optimization option
+available in `asctile.range()` that controls loop unrolling. Loop unrolling is a
+compiler optimization technique that replaces loop iterations with explicit
+sequential code, reducing loop overhead and enabling better instruction-level
+parallelism. As result the loop body is increased by the factor `unroll_factor`.
+
+To support cases when `unroll_factor` is not divisor for number of loop
+iterations **tail loop** is created. If compiler gets information about
+**tail loop** boundaries it can eliminate it (if zero iterations) or reduce
+to code block without loop (if one iteration).
+
+## Parameter Definition
+
+### Syntax
+```python
+for i in asctile.range(start, stop, step, unroll_factor=2):
+    # loop body
+    pass
+```
+Unrolling is done during compilation and the value must be available in compile
+time.
+- **Default Value**: `1` (no unrolling)
+- **Minimum Value**: `1` (unroll factor must be 1 or greater)
+- **Type**: `int`
+- **Scope**: Only applicable to `asctile.range()` loops
+Recommended value is 2.
+
+## Usage Examples
+
+### Example 1: Default Behavior (No Unrolling)
+```python
+from asc.experimental import asctile
+
+# Default unroll_factor=1 (no unrolling)
+@asctile.jit()
+def simple_kernel(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
+    x_gm = asctile.global_tensor(x, [size])
+    y_gm = asctile.global_tensor(y, [size])
+
+    for i in asctile.range(size):
+        # Loop remains as-is
+        x_val = asctile.copy_in(x_gm, [i], [1])
+        y_val = asctile.copy_in(y_gm, [i], [1])
+        result = x_val + y_val
+        asctile.copy_out(result, y_gm, [i])
+```
+
+### Example 2: Recommended unrolling
+```python
+@asctile.jit()
+def unrolled_kernel(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
+    x_gm = asctile.global_tensor(x, [size])
+    y_gm = asctile.global_tensor(y, [size])
+
+    for i in asctile.range(size, unroll_factor=2):
+        # Loop body will be unrolled 2 times
+        x_val = asctile.copy_in(x_gm, [i], [1])
+        y_val = asctile.copy_in(y_gm, [i], [1])
+        result = x_val + y_val
+        asctile.copy_out(result, y_gm, [i])
+```
+
+### Example 3: Unrolling with Parallel Execution
+`parallel` parameter enables parallel execution of store operation on `n`
+iteration with load on `n+1` iteration. The optimization works both for unrolled
+and not-unrolled iterations.
+```python
+# Combine unrolling with parallel execution
+@asctile.jit()
+def parallel_unroll(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
+    x_gm = asctile.global_tensor(x, [size])
+    y_gm = asctile.global_tensor(y, [size])
+
+    for i in asctile.range(size, unroll_factor=2):
+        # Loop unrolled and executed in parallel
+        x_val = asctile.copy_in(x_gm, [i], [1])
+        y_val = asctile.copy_in(y_gm, [i], [1])
+        result = x_val + y_val
+        asctile.copy_out(result, y_gm, [i])
+```
+
+### Limitations & Recommendations
+
+**No nested unroll**: Unroll for nested loops is not supported.
+**Recommended factor**: Recommended unroll factor is 2 for most cases due to
+HW design. Efficient operator will fully utilize one of the execution pipelines
+(e.g. MTE1, MTE2, MTE3, VECTOR or CUBE).
+**Increase code size**: Unrolling causes code size grow. The following may
+cause lowering performance gain or performance degradation:
+ - initial program load time increases;
+ - increases icache miss rate (if program or loop block increases icache size).
+
+## Implementation Details
+
+### UnrollLoop Pass
+
+**Purpose**: Physically unrolls loops based on unroll_factor
+
+**Process**:
+1. For each loop with `unroll_factor > 1`
+2. Clone loop body `unroll_factor` times
+3. Adjust iteration indices for each unrolled instance
+4. Remove original loop structure
+5. Clean up temporary attributes
+
+**Code Location**: `lib/Dialect/AscTile/Transforms/UnrollLoop.cpp`
+
+### IR Transformation
+
+The unrolling process transforms the IR as follows:
+
+#### Before Unrolling
+```mlir
+# Original loop structure
+scf.for %arg0 = %start to %stop step %step {
+  %0 = asctile.load %gm_tensor[%arg0] : tensor_type
+  %1 = asctile.add %0, %0 : tensor_type
+  asctile.store %1, %gm_tensor[%arg0] : tensor_type
+}
+```
+
+#### After Unrolling (unroll_factor=2)
+```mlir
+scf.for %arg0 = %start to %stop step %step * 2 {
+  # Unrolled loop (2 iterations expanded)
+  %0 = asctile.load %gm_tensor[%start] : tensor_type
+  %1 = asctile.add %0, %0 : tensor_type
+  asctile.store %1, %gm_tensor[%start] : tensor_type
+
+  %2 = asctile.load %gm_tensor[%start + %step] : tensor_type
+  %3 = asctile.add %2, %2 : tensor_type
+  asctile.store %3, %gm_tensor[%start + %step] : tensor_type
+}
+  # Number of iterations to be procesed in the tail loop
+  %4 = arith.remsi %stop, 2: i32
+# Tail iterations still in loop form
+scf.for %arg0 = %stop - %4 to %stop step %step {
+  # ... loop body
+}
+```
+
+## Conclusion
+
+The `unroll_factor` parameter is a powerful optimization tool for improving loop performance in pyasc kernels. When used appropriately, it can significantly reduce loop overhead and improve instruction-level parallelism. However, it requires careful consideration of loop characteristics, operation complexity, and hardware constraints.

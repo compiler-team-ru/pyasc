@@ -8,10 +8,13 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "InitFuncDef.h"
+#include "ascir/Extension/PythonExtension.h"
 
 #include <pybind11/cast.h>
 #include <pybind11/functional.h>
+#include <pybind11/pybind11.h>
+
+#include "InitFuncDef.h"
 
 namespace py = pybind11;
 
@@ -22,5 +25,6 @@ PYBIND11_MODULE(libpyasc, m)
     py::asc::initIRModule(m.def_submodule("ir"));
     py::asc::initPassesModule(m.def_submodule("passes"));
     py::asc::initTranslationModule(m.def_submodule("translation"));
+    mlir::ascir::initExtensionModules(m);
 }
 } // namespace

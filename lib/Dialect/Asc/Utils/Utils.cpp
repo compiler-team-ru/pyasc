@@ -11,7 +11,6 @@
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
 #include "ascir/Dialect/Asc/Utils/Constants.h"
-#include "ascir/Dialect/AscVF/IR/AscVF.h"
 #include "ascir/Dialect/Utils/Inlining.h"
 
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
@@ -203,7 +202,7 @@ LocalTensorAutoOp getAllocationRoot(Value v)
 Pipe getOpPipe(Operation* op, Pipe defaultPipe)
 {
     return llvm::TypeSwitch<Operation*, Pipe>(op)
-        .Case<VectorOp, ascvf::VFGroupOp>([](auto) { return Pipe::PIPE_V; })
+        .Case<VectorOp>([](auto) { return Pipe::PIPE_V; })
         .Case<MmadOp, MmadWithBiasOp>([](auto) { return Pipe::PIPE_M; })
         .Case([](FixpipeOp) { return Pipe::PIPE_FIX; })
         .Case([](CopyToL0Op) { return Pipe::PIPE_MTE1; })

@@ -12,8 +12,9 @@
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
-#include "ascir/Dialect/AscTile/IR/AscTile.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
+#include "ascir/Extension/PyOpBuilder.h"
+#include "ascir/Extension/PythonExtension.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
@@ -21,7 +22,6 @@
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/Attributes.h"
@@ -49,132 +49,12 @@
 
 namespace py = pybind11;
 using namespace mlir;
+using mlir::ascir::PyOpBuilder;
 
 namespace {
 
 std::vector<Type> noTypes;
 std::vector<Value> noValues;
-
-class PyOpBuilder {
-    OpBuilder builder;
-    Location loc;
-
-public:
-    explicit PyOpBuilder(MLIRContext* context) : builder(context), loc(builder.getUnknownLoc()) {}
-    explicit PyOpBuilder(Operation* op) : builder(op), loc(op->getLoc()) {}
-    ~PyOpBuilder() = default;
-
-    void setLoc(Location newLoc) { loc = newLoc; }
-
-    void setLoc(const std::string& name, bool reset = false)
-    {
-        if (reset) {
-            setLoc(NameLoc::get(builder.getStringAttr(name)));
-        } else {
-            setLoc(NameLoc::get(builder.getStringAttr(name), loc));
-        }
-    }
-
-    void setLoc(const std::string& fileName, int line, int column, const std::optional<std::string>& name)
-    {
-        Location newLoc = FileLineColLoc::get(builder.getContext(), fileName, line, column);
-        if (name) {
-            newLoc = NameLoc::get(builder.getStringAttr(*name), newLoc);
-        }
-        setLoc(newLoc);
-    }
-
-    Location getLoc() { return loc; }
-
-    void resetLoc() { loc = builder.getUnknownLoc(); }
-
-    OpBuilder& getBuilder() { return builder; }
-
-    OpBuilder* operator->() { return &builder; }
-
-    void setInsertionPointToStart(Block& block)
-    {
-        if (!block.empty()) {
-            setLoc(block.begin()->getLoc());
-        } else {
-            resetLoc();
-        }
-        builder.setInsertionPointToStart(&block);
-    }
-
-    void setInsertionPointToEnd(Block& block)
-    {
-        if (!block.empty()) {
-            setLoc(block.back().getLoc());
-        } else {
-            resetLoc();
-        }
-        builder.setInsertionPointToEnd(&block);
-    }
-
-    void setInsertionPointAfter(Operation& op)
-    {
-        setLoc(op.getLoc());
-        builder.setInsertionPointAfter(&op);
-    }
-
-    void restoreInsertionPoint(OpBuilder::InsertPoint pt)
-    {
-        if (pt.isSet() && pt.getPoint() != pt.getBlock()->end()) {
-            setLoc(pt.getPoint()->getLoc());
-        } else if (pt.isSet() && !pt.getBlock()->empty()) {
-            setLoc(pt.getBlock()->back().getLoc());
-        } else {
-            resetLoc();
-        }
-        builder.restoreInsertionPoint(pt);
-    }
-
-    Operation* create(
-        StringRef operationName, ValueRange operands, TypeRange types = {}, ArrayRef<NamedAttribute> attributes = {})
-    {
-        return builder.create(loc, builder.getStringAttr(operationName), operands, types, attributes);
-    }
-
-    template <typename OpTy, typename... Args>
-    auto create(Args&&... args) -> OpTy
-    {
-        return builder.create<OpTy>(loc, std::forward<Args>(args)...);
-    }
-
-    // Overload to create or fold a single result operation.
-    template <typename OpTy, typename... Args>
-    std::enable_if_t<OpTy::template hasTrait<OpTrait::OneResult>(), Value> createOrFold(Args&&... args)
-    {
-        return builder.createOrFold<OpTy>(loc, std::forward<Args>(args)...);
-    }
-
-    // Overload to create or fold a zero result operation.
-    template <typename OpTy, typename... Args>
-    std::enable_if_t<OpTy::template hasTrait<OpTrait::ZeroResults>(), OpTy> createOrFold(Args&&... args)
-    {
-        return builder.createOrFold<OpTy>(loc, std::forward<Args>(args)...);
-    }
-
-    std::optional<func::FuncOp> getCurrentFunction()
-    {
-        Block* block = builder.getInsertionBlock();
-        if (!block) {
-            return std::nullopt;
-        }
-        Operation* parent = block->getParentOp();
-        if (!parent) {
-            return std::nullopt;
-        }
-        if (auto op = dyn_cast<func::FuncOp>(parent)) {
-            return op;
-        }
-        if (auto op = parent->getParentOfType<func::FuncOp>()) {
-            return op;
-        }
-        return std::nullopt;
-    }
-};
 
 ascendc::HardEvent getHardEvent(uint8_t event, const std::string& opName)
 {
@@ -1117,69 +997,6 @@ void bindCreateAscCommonOperations(py::class_<PyOpBuilder>& clss)
         "type"_a, "op"_a);
 }
 
-void bindCreateAscTileOperations(py::class_<PyOpBuilder>& clss)
-{
-    using ret = py::return_value_policy;
-    using namespace pybind11::literals;
-
-    clss.def(
-            "create_asctile_CountMaskOp",
-            [](PyOpBuilder& self, Value& count, std::optional<Value> other) -> asctile::CountMaskOp {
-                Value otherVal = other.has_value() ? *other : Value();
-                return self.create<asctile::CountMaskOp>(count, otherVal);
-            },
-            py::arg("count"), py::arg("other") = py::none())
-        .def(
-            "create_asctile_BitwiseMaskOp",
-            [](PyOpBuilder& self, Value& highBits, Value& lowBits,
-               std::optional<Value> other) -> asctile::BitwiseMaskOp {
-                Value otherVal = other.has_value() ? *other : Value();
-                return self.create<asctile::BitwiseMaskOp>(highBits, lowBits, otherVal);
-            },
-            py::arg("highBits"), py::arg("lowBits"), py::arg("other") = py::none())
-        .def(
-            "create_asctile_InlineVFOp",
-            [](PyOpBuilder& self, Type result, const std::vector<Value>& inputs, const std::string& code) -> Value {
-                return self.create<asctile::InlineVFOp>(result, ValueRange{inputs}, StringRef(code));
-            })
-        .def(
-            "create_asctile_AssertOp",
-            [](PyOpBuilder& self, const Value& cond, const std::string& msg) {
-                self.create<asctile::AssertOp>(cond, self->getStringAttr(msg));
-            })
-#include "ascir/Dialect/AscTile/IR/AscTileOpBindings.h.inc"
-        ;
-}
-
-void bindCreateTensorOperations(py::class_<PyOpBuilder>& clss)
-{
-    using ret = py::return_value_policy;
-    using namespace pybind11::literals;
-
-    clss.def(
-            "create_tensor_CastOp",
-            [](PyOpBuilder& self, Type result, Value operand) -> Value {
-                return self.create<tensor::CastOp>(result, operand);
-            })
-        .def(
-            "create_tensor_ConcatOp",
-            [](PyOpBuilder& self, Type result, uint64_t dim, const std::vector<Value>& inputs) -> Value {
-                return self.create<tensor::ConcatOp>(result, dim, inputs);
-            })
-        .def(
-            "create_tensor_SplatOp",
-            [](PyOpBuilder& self, Type result, Value input) -> Value {
-                return self.create<tensor::SplatOp>(result, input);
-            })
-        .def("cast_tensor_location", [](PyOpBuilder& self, asctile::TensorLocation loc, Value tensor) -> Value {
-            auto type = dyn_cast<asctile::LocalTensorType>(tensor.getType());
-            if (!type)
-                throw std::runtime_error("cast_tensor_location(): value must have LocalTensorType");
-            return self.create<tensor::CastOp>(
-                asctile::LocalTensorType::get(type.getShape(), type.getElementType(), loc), tensor);
-        });
-}
-
 } // namespace
 
 namespace pybind11 {
@@ -1215,8 +1032,7 @@ void initBuilderInIRModule(py::module& m)
     bindCreateAscPipeOperations(clss);
     bindCreateAscEventOperations(clss);
     bindCreateAscCommonOperations(clss);
-    bindCreateAscTileOperations(clss);
-    bindCreateTensorOperations(clss);
+    ascir::initExtensionBuilders(clss);
 }
 
 } // namespace asc

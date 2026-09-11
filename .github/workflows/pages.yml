@@ -63,10 +63,11 @@ jobs:
         env:
           LLVM_INSTALL_PREFIX: llvm
           PYASC_SETUP_DOCS: 1
+          PYASC_SETUP_EXPERIMENTAL: 1
         run: |
           python3 -m pip install -e ".[docs]" -v
           source ~/Ascend/cann/set_env.sh
-          cd docs
+          cd experimental/asctile/docs
           make html
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

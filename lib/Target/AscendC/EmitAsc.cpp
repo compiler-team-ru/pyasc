@@ -17,10 +17,6 @@
 using namespace mlir;
 using namespace mlir::emitasc;
 
-//===----------------------------------------------------------------------===//
-// EmitAsc operations
-//===----------------------------------------------------------------------===//
-
 LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::CallOpaqueOp op)
 {
     auto& os = emitter.ostream();
@@ -246,5 +242,48 @@ LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::Verba
     }
     std::copy(data + rem, data + code.size(), std::back_inserter(result));
     os << result;
+    return success();
+}
+
+LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::VFForOp op)
+{
+    auto& os = emitter.ostream();
+    os << "for (";
+    FAIL_OR(emitter.emitType(op.getLoc(), op.getUnderlyingType()));
+    os << " " << emitter.getOrCreateName(op.getInductionVar());
+    os << " = " << op.getLowerBoundAsInt();
+    os << "; " << emitter.getOrCreateName(op.getInductionVar());
+    os << " < static_cast<";
+    FAIL_OR(emitter.emitType(op.getLoc(), op.getUnderlyingType()));
+    os << ">(" << emitter.getOrCreateName(op.getUpperBound()) << ")";
+    os << "; " << emitter.getOrCreateName(op.getInductionVar());
+    os << " += " << op.getStepAsInt() << ") {\n";
+    os.indent();
+    Region& forRegion = op.getRegion();
+    auto regionOps = forRegion.getOps();
+    for (auto it = regionOps.begin(); std::next(it) != regionOps.end(); ++it) {
+        Operation& op = *it;
+        if (failed(emitOperation(emitter, op, needsSemicolon(op)))) {
+            return failure();
+        }
+    }
+    os.unindent() << "}";
+    return success();
+}
+
+LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::VecScopeOp op)
+{
+    auto& os = emitter.ostream();
+    os << "__VEC_SCOPE__\n";
+    os << "{\n";
+    os.indent();
+    FAIL_OR(emitBlock(emitter, *op.getBody()));
+    os.unindent() << "}";
+    return success();
+}
+
+LogicalResult mlir::emitasc::printOperation(CodeEmitter&, emitasc::YieldOp)
+{
+    // No need to print anything
     return success();
 }
