@@ -54,6 +54,29 @@ func.func @scf_for_yield_tensor_used_in_copy(%arg0: !ascendc.global_tensor<*xf32
     return
 }
 
+// CHECK-LABEL: func.func @scf_for_yield_tensor_align_copy_count(%arg0: !ascendc.global_tensor<*xf32>) {
+// CHECK:       %0 = ascendc.local_tensor_auto veccalc() : <1xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() output : <1xf32>
+// CHECK-NEXT:  %2 = scf.for %arg1 = %c0 to %c10 step %c1 iter_args(%arg2 = %0) -> (!ascendc.local_tensor<1xf32>) {
+// CHECK-NEXT:    scf.yield %arg2 : !ascendc.local_tensor<1xf32>
+// CHECK-NEXT:  }
+// CHECK:       ascendc.data_copy_l2 %1, %2, %c8_i64 {direction = #ascendc.copy_direction<veccalc, veccalc>} : !ascendc.local_tensor<1xf32>, !ascendc.local_tensor<1xf32>, i64
+// CHECK-NEXT:  ascendc.data_copy_l2 %arg0, %1, %c1_i64 : !ascendc.global_tensor<*xf32>, !ascendc.local_tensor<1xf32>, i64
+// CHECK-NEXT:  return
+// CHECK-NEXT:}
+func.func @scf_for_yield_tensor_align_copy_count(%arg0: !ascendc.global_tensor<*xf32>) {
+    %c0 = arith.constant 0 : index
+    %c10 = arith.constant 10 : index
+    %c1 = arith.constant 1 : index
+    %c1_i64 = arith.constant 1 : i64
+    %0 = ascendc.local_tensor_auto veccalc() : <1xf32>
+    %result = scf.for %i = %c0 to %c10 step %c1 iter_args(%tensor = %0) -> (!ascendc.local_tensor<1xf32>) {
+        scf.yield %tensor : !ascendc.local_tensor<1xf32>
+    }    
+    ascendc.data_copy_l2 %arg0, %result, %c1_i64 : !ascendc.global_tensor<*xf32>, !ascendc.local_tensor<1xf32>, i64
+    return
+}
+
 // CHECK-LABEL: func.func @scf_if_yield_tensor_used_in_copy(%arg0: !ascendc.global_tensor<*xf32>, %arg1: i1) {
 // CHECK:       %0 = ascendc.local_tensor_auto veccalc() : <64xf32>
 // CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() output : <64xf32>

@@ -11,6 +11,7 @@
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
+#include "ascir/Dialect/Asc/Utils/Constants.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
@@ -33,6 +34,12 @@ namespace {
 
 using TensorOp = ascendc::LocalTensorAutoOp;
 
+int getCopyCount(ascendc::BaseTensorType type)
+{
+    size_t byteSize = llvm::alignTo<ascendc::ubBlockSize>(getTypeSize(type));
+    return static_cast<int>(byteSize / ascendc::getElementTypeSize(type));
+}
+
 template <typename ControlFlowOp>
 void createResultDataCopy(ControlFlowOp op)
 {
@@ -45,7 +52,7 @@ void createResultDataCopy(ControlFlowOp op)
         auto type = cast<ascendc::BaseTensorType>(use.get().getType());
         auto dst = builder.create<TensorOp>(op->getLoc(), type, /*input*/ false, /*output*/ true, ValueRange{});
         builder.setInsertionPointAfter(op);
-        Value calCount = consts.i64(type.getNumElements());
+        Value calCount = consts.i64(getCopyCount(type));
         auto extraOp = builder.create<ascendc::DataCopyL2Op>(op->getLoc(), dst, use.get(), calCount);
         extraOp.setDirection(ascendc::TPosition::VECCALC, ascendc::TPosition::VECCALC);
         copyOp.setSrc(dst);
@@ -120,7 +127,7 @@ void createDataCopyIfNeeded(scf::ForOp forOp)
         Value dst = builder.create<TensorOp>(loc, type, /*input*/ false, /*output*/ false, ValueRange{});
         auto ifAIVOp = builder.create<ascendc::IfAIVOp>(loc, TypeRange{}, ValueRange{});
         builder.setInsertionPointToStart(&ifAIVOp.getRegion().emplaceBlock());
-        Value calCount = consts.i64(type.getNumElements());
+        Value calCount = consts.i64(getCopyCount(type));
         auto copyOp = builder.create<ascendc::DataCopyL2Op>(loc, dst, operand->get(), calCount);
         copyOp.setDirection(ascendc::TPosition::VECCALC, ascendc::TPosition::VECCALC);
         builder.create<ascendc::YieldOp>(loc);
@@ -180,7 +187,7 @@ void fixInOutTensor(func::FuncOp& funcOp)
             if (!copyOp || !copyOp.isLocalToGlobal())
                 return builder.setInsertionPoint(owner);
             ascir::ConstantOpBuilder consts(builder);
-            Value calCount = consts.i64(tensorType.getNumElements());
+            Value calCount = consts.i64(getCopyCount(tensorType));
             auto outTensor = builder.create<TensorOp>(loc, tensorType, /*input*/ false, /*output*/ true, ValueRange{});
             auto extraOp = builder.create<ascendc::DataCopyL2Op>(loc, outTensor, inTensor, calCount);
             extraOp.setDirection(ascendc::TPosition::VECCALC, ascendc::TPosition::VECCALC);
