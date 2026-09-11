@@ -81,7 +81,7 @@ func.func @test_cube_alignment_a2() {
 }
 
 // CHECK-LABEL: func.func @test_cube_alignment_b2() {
-// CHECK-NEXT: %0 = ascendc.local_tensor_v3 b2, 0, 128 : !ascendc.local_tensor<3x16xf32>
+// CHECK-NEXT: %0 = ascendc.local_tensor_v3 b2, 0, 256 : !ascendc.local_tensor<3x16xf32>
 // CHECK-NEXT: return
 // CHECK-NEXT:}
 func.func @test_cube_alignment_b2() {
@@ -154,7 +154,7 @@ func.func @test_a1_2d() {
 }
 
 // CHECK-LABEL: func.func @test_b1_normalized() {
-// CHECK-NEXT: %0 = ascendc.local_tensor_v3 a1, 0, 128 : !ascendc.local_tensor<3x16xf32>
+// CHECK-NEXT: %0 = ascendc.local_tensor_v3 a1, 0, 256 : !ascendc.local_tensor<3x16xf32>
 // CHECK-NEXT: return
 // CHECK-NEXT:}
 func.func @test_b1_normalized() {
@@ -181,7 +181,7 @@ func.func @test_a2_unaligned() {
 }
 
 // CHECK-LABEL: func.func @test_b2_unaligned() {
-// CHECK-NEXT: %0 = ascendc.local_tensor_v3 b2, 0, 128 : !ascendc.local_tensor<3x5xf32>
+// CHECK-NEXT: %0 = ascendc.local_tensor_v3 b2, 0, 256 : !ascendc.local_tensor<3x5xf32>
 // CHECK-NEXT: return
 // CHECK-NEXT:}
 func.func @test_b2_unaligned() {
