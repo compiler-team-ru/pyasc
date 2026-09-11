@@ -966,11 +966,10 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
                 Value linearOffset = linearizeOffset(rewriter, loc, getStaticShape(rewriter, srcTensorType), offsets);
                 src = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcTensorType, src, linearOffset);
             }
-            auto cubeKBlockSize = static_cast<int64_t>(ascendc::cubeKBlockBytes) / elementSize;
-            auto colBlocks = width / cubeKBlockSize;
-            auto srcColBlocks = srcWidth / cubeKBlockSize;
-            auto heightAligned = static_cast<int64_t>(llvm::alignTo(height, ascendc::cubeBlockSize));
-            auto totalElements = heightAligned * width;
+            int64_t cubeKBlockSize = static_cast<int64_t>(ascendc::cubeKBlockBytes) / elementSize;
+            int64_t colBlocks = width / cubeKBlockSize;
+            int64_t srcColBlocks = srcWidth / cubeKBlockSize;
+            int64_t totalElements = height * width;
             auto const0 = consts.i32(0);
             auto const1 = consts.i32(1);
             auto tempUB = createTensorOp(rewriter, loc, {totalElements}, elemType).getResult();
@@ -985,8 +984,7 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
                 auto colIdx = forOp.getInductionVar();
                 auto srcOffset = rewriter.create<arith::MulIOp>(loc, colIdx, consts.i32(cubeKBlockSize));
                 auto srcView = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcTensorType, src, srcOffset);
-                auto dstOffset =
-                    rewriter.create<arith::MulIOp>(loc, colIdx, consts.i32(heightAligned * cubeKBlockSize));
+                auto dstOffset = rewriter.create<arith::MulIOp>(loc, colIdx, consts.i32(height * cubeKBlockSize));
                 auto dstView = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, tempType, tempUB, dstOffset);
                 auto innerCopyOp = rewriter.create<ascendc::DataCopyL2Op>(loc, dstView, srcView, dataCopyParams);
                 innerCopyOp.setDirection(ascendc::TPosition::VECCALC, ascendc::TPosition::VECCALC);
@@ -1032,9 +1030,7 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
         bool isFloat32 = isa<Float32Type>(opType.getElementType());
         const int64_t cubeKBlockSize = ascendc::cubeKBlockBytes / ascendc::getElementTypeSize(opType);
         int64_t dstNzC0StrideElements =
-            (srcShape[0] > 1 || !isTensorA) ?
-                static_cast<int64_t>(llvm::alignTo(isTransposeBL1 ? srcShape[1] : srcShape[0], cubeKBlockSize)) :
-                1;
+            static_cast<int64_t>(llvm::alignTo(isTransposeBL1 ? srcShape[1] : srcShape[0], cubeKBlockSize));
         int64_t dValue = cubeKBlockSize;
         Value colOffset = rewriter.create<arith::MulIOp>(
             loc, consts.i32(dstNzC0StrideElements), isTransposeBL1 ? offsets[0] : offsets[1]);

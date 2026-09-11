@@ -27,8 +27,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE
 add_dependencies(${TARGET_NAME} AscTilePybindGen)
 
 # pybind11==2.10.3 issue
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  target_compile_options(${TARGET_NAME} PRIVATE -Wno-deprecated-literal-operator -Wno-unknown-warning-option)
-endif()
+target_compile_options(${TARGET_NAME} PRIVATE -Wno-deprecated-literal-operator)
 
 add_ascir_extension(${TARGET_NAME})

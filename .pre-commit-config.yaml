@@ -9,7 +9,7 @@ repos:
     rev: v0.11.5
     hooks:
       - id: ruff
-        files: ^(python/asc/|python/asctile/|python/test/asctile/)
+        files: ^(python/asc/|experimental/asctile/python/)
 
   - repo: https://gitcode.com/pre-commit-clang/mirrors-clang-format
     rev: v20.1.8

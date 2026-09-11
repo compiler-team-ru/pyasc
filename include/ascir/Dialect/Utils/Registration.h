@@ -11,13 +11,8 @@
 #ifndef ASCIR_DIALECT_UTILS_REGISTRATION_H
 #define ASCIR_DIALECT_UTILS_REGISTRATION_H
 
-#include "ascir/Conversion/LowerToAsc/Passes.h"
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
-#include "ascir/Dialect/AscTile/IR/AscTile.h"
-#include "ascir/Dialect/AscTile/Transforms/Passes.h"
-#include "ascir/Dialect/AscVF/IR/AscVF.h"
-#include "ascir/Dialect/AscVF/Transforms/Passes.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 
 #include "mlir/InitAllDialects.h"
@@ -30,10 +25,8 @@ namespace ascir {
 inline void registerDialects(DialectRegistry& registry)
 {
     registerAllDialects(registry);
-    registry.insert<ascendc::AscendCDialect, asctile::AscTileDialect, ascvf::AscVFDialect, emitasc::EmitAscDialect>();
+    registry.insert<ascendc::AscendCDialect, emitasc::EmitAscDialect>();
     ascendc::registerExternalModels(registry);
-    asctile::registerExternalModels(registry);
-    ascvf::registerExternalModels(registry);
     emitasc::registerExternalModels(registry);
 }
 
@@ -43,9 +36,6 @@ inline void registerPasses()
 {
     registerAllPasses();
     registerascendcPasses();
-    registerasctilePasses();
-    registerascvfPasses();
-    registerLowerToAscPasses();
 }
 
 } // namespace ascir

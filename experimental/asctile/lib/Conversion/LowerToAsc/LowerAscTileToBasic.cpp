@@ -485,7 +485,6 @@ struct ConvertCmpS : ConvertOp<asctile::CmpSOp> {
         auto value = rewriter.getRemappedValue(op.getValue());
         auto base = rewriter.getRemappedValue(op.getBase());
         auto srcType = cast<ShapedType>(op.getBase().getType());
-        auto numElems = srcType.getNumElements();
         if (isa<IntegerType>(srcType.getElementType())) {
             unsigned bitWidth = srcType.getElementTypeBitWidth();
             if (bitWidth != 8 && bitWidth != 16 && bitWidth != 32)
@@ -493,23 +492,19 @@ struct ConvertCmpS : ConvertOp<asctile::CmpSOp> {
             auto castToType = bitWidth == 32 ? rewriter.getF32Type() : rewriter.getF16Type();
             auto baseCasted = createTensorOp(rewriter, loc, srcType.getShape(), castToType);
             rewriter.create<ascendc::CastL2Op>(
-                loc, baseCasted, base, ascendc::RoundMode::CAST_NONE, consts.i64(numElems));
+                loc, baseCasted, base, ascendc::RoundMode::CAST_NONE, consts.i64(srcType.getNumElements()));
             base = baseCasted;
             value = rewriter.create<arith::SIToFPOp>(loc, castToType, value);
         }
         I1ReplacementType replType(op.getContext());
-        auto dstShape = llvm::divideCeilSigned(numElems, replType.width);
+        auto dstShape = llvm::divideCeilSigned(srcType.getNumElements(), replType.width);
         Value dst = createTensorOp(rewriter, loc, dstShape, replType.iType);
         dst = createReCastOp(rewriter, loc, dst, dstShape, replType.uiType);
         auto mode = getCmpMode(op.getCmpMode());
-        if (ascendc::isTargetArchC310(op)) {
-            rewriter.create<ascendc::CompareScalarL2Op>(loc, dst, base, value, mode, consts.i64(numElems));
-        } else {
-            Value zero = consts.i64(0);
-            rewriter.create<ascendc::CompareScalarL0Op>(
-                loc, dst, base, value, mode, zero, zero,
-                rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::UnaryRepeatParamsType>()));
-        }
+        Value zero = consts.i64(0);
+        rewriter.create<ascendc::CompareScalarL0Op>(
+            loc, dst, base, value, mode, zero, zero,
+            rewriter.create<ascendc::ConstructOp>(loc, rewriter.getType<ascendc::UnaryRepeatParamsType>()));
         rewriter.replaceOp(op, dst);
         return success();
     }

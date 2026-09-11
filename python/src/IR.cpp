@@ -14,8 +14,6 @@
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
 #include "ascir/Dialect/Asc/Utils/Constants.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
-#include "ascir/Dialect/AscTile/IR/AscTile.h"
-#include "ascir/Dialect/AscTile/Utils/Attributes.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/EmitAsc/Utils/Attributes.h"
 
@@ -26,7 +24,6 @@
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/AffineMap.h"
 #include "mlir/IR/Builders.h"
@@ -109,12 +106,9 @@ void bindAttrs(py::module& m)
     auto modAttr = m.def_submodule("attr");
     modAttr.attr("compilation_arch") = py::str(ascendc::attr::compilationArch);
     modAttr.attr("enable_debug") = py::str(ascendc::attr::enableDebug);
-    modAttr.attr("gm_barrier") = py::str(asctile::attr::gmBarrier);
     modAttr.attr("kernel_type") = py::str(ascendc::attr::kernelType);
     modAttr.attr("memory_consumed") = py::str(ascendc::attr::memoryConsumed);
-    modAttr.attr("static_alloc") = py::str(ascendc::attr::staticAlloc);
     modAttr.attr("soc_version") = py::str(ascendc::attr::socVersion);
-    modAttr.attr("unroll_factor") = py::str(asctile::attr::unrollFactor);
     modAttr.attr("vf_vec_len") = py::str(ascendc::attr::vfVecLen);
 }
 
@@ -212,65 +206,6 @@ void bindEnums(py::module& m)
         .value("VSEL_TENSOR_TENSOR_MODE", ascendc::SELMODE::VSEL_TENSOR_TENSOR_MODE)
         .def_static(
             "symbolize", [](uint8_t selMode) -> ascendc::SELMODE { return static_cast<ascendc::SELMODE>(selMode); });
-
-    py::enum_<asctile::TensorLocation>(
-        m, "asctile_TensorLocation", py::module_local(), "A memory location of a :py:class:`LocalTensor`.")
-        .value("Auto", asctile::TensorLocation::Auto, "Automatic resolution (if available)")
-        .value("BT", asctile::TensorLocation::BT, "Bias Table buffer (Cube)")
-        .value("L0A", asctile::TensorLocation::L0A, "L0A buffer (Cube)")
-        .value("L0B", asctile::TensorLocation::L0B, "L0B buffer (Cube)")
-        .value("L0C", asctile::TensorLocation::L0C, "L0C buffer (Cube)")
-        .value("L1", asctile::TensorLocation::L1, "L1 buffer (Cube)")
-        .value("UB", asctile::TensorLocation::UB, "Unified buffer (Vector)")
-        .value("FIX", asctile::TensorLocation::FIX, "FixPipe buffer (Not supported)")
-        .def(py::init([](const std::string& name) {
-            auto normName = StringRef(name).upper();
-            if (auto loc = asctile::symbolizeTensorLocation(normName))
-                return *loc;
-            throw py::value_error(name + " does not match a valid TensorLocation name");
-        }))
-        .def_static("symbolize", [](int32_t loc) -> asctile::TensorLocation {
-            return static_cast<asctile::TensorLocation>(loc);
-        });
-
-    py::enum_<asctile::AtomicKind>(m, "AtomicKind", py::module_local())
-        .value("Add", asctile::AtomicKind::Add)
-        .value("Max", asctile::AtomicKind::Max)
-        .value("Min", asctile::AtomicKind::Min)
-        .def_static(
-            "symbolize", [](int32_t kind) -> asctile::AtomicKind { return static_cast<asctile::AtomicKind>(kind); });
-
-    py::enum_<asctile::CompareMode>(m, "CompareMode", py::module_local())
-        .value("LT", asctile::CompareMode::LT)
-        .value("GT", asctile::CompareMode::GT)
-        .value("EQ", asctile::CompareMode::EQ)
-        .value("LE", asctile::CompareMode::LE)
-        .value("GE", asctile::CompareMode::GE)
-        .value("NE", asctile::CompareMode::NE)
-        .def_static(
-            "symbolize", [](uint8_t mode) -> asctile::CompareMode { return static_cast<asctile::CompareMode>(mode); });
-
-    py::enum_<asctile::ReduceKind>(m, "ReduceKind", py::module_local())
-        .value("Sum", asctile::ReduceKind::Sum)
-        .value("Max", asctile::ReduceKind::Max)
-        .value("Min", asctile::ReduceKind::Min)
-        .value("Prod", asctile::ReduceKind::Prod)
-        .value("Mean", asctile::ReduceKind::Mean)
-        .value("All", asctile::ReduceKind::All)
-        .value("Any", asctile::ReduceKind::Any)
-        .value("XorSum", asctile::ReduceKind::XorSum)
-        .def_static("symbolize", [](int32_t kind) { return static_cast<asctile::ReduceKind>(kind); });
-
-    py::enum_<asctile::RoundMode>(m, "asctile_RoundMode", py::module_local())
-        .value("Default", asctile::RoundMode::Default)
-        .value("NoRound", asctile::RoundMode::NoRound)
-        .value("Rint", asctile::RoundMode::Rint)
-        .value("Floor", asctile::RoundMode::Floor)
-        .value("Ceil", asctile::RoundMode::Ceil)
-        .value("Round", asctile::RoundMode::Round)
-        .value("Trunc", asctile::RoundMode::Trunc)
-        .value("Odd", asctile::RoundMode::Odd)
-        .def_static("symbolize", [](int32_t mode) { return static_cast<asctile::RoundMode>(mode); });
 }
 
 void bindContextAndDialect(py::module& m)
@@ -283,14 +218,12 @@ void bindContextAndDialect(py::module& m)
         DialectRegistry registry;
         registry.insert<
             //
-            arith::ArithDialect, ascendc::AscendCDialect, asctile::AscTileDialect, emitasc::EmitAscDialect,
-            emitc::EmitCDialect, func::FuncDialect, math::MathDialect, memref::MemRefDialect, scf::SCFDialect,
-            tensor::TensorDialect, vector::VectorDialect
+            arith::ArithDialect, ascendc::AscendCDialect, emitasc::EmitAscDialect, emitc::EmitCDialect,
+            func::FuncDialect, math::MathDialect, memref::MemRefDialect, scf::SCFDialect, vector::VectorDialect
             //
             >();
         ascendc::registerExternalModels(registry);
         ascendc::registerInlinerInterfaces(registry);
-        asctile::registerExternalModels(registry);
         emitasc::registerExternalModels(registry);
         func::registerAllExtensions(registry);
         context.appendDialectRegistry(registry);
@@ -428,33 +361,6 @@ void bindTensorType(py::module& m)
     m.def("get_opaque_type_name", [](Type& type) -> std::string {
         return cast<emitc::OpaqueType>(type).getValue().str();
     });
-}
-
-void bindAscTileType(py::module& m)
-{
-    using namespace pybind11::literals;
-
-    m.def(
-        "get_asctile_GlobalTensorType",
-        [](const std::vector<int64_t>& shape, Type elementType) -> Type {
-            return asctile::GlobalTensorType::get(shape, elementType);
-        },
-        "shape"_a, "element_type"_a);
-    m.def(
-        "get_asctile_LocalTensorType",
-        [](const std::vector<int64_t>& shape, Type elementType, asctile::TensorLocation loc) -> Type {
-            return asctile::LocalTensorType::get(shape, elementType, loc);
-        },
-        "shape"_a, "element_type"_a, "loc"_a = asctile::TensorLocation::UB);
-    m.def(
-        "get_tensor_location",
-        [](Type type) -> asctile::TensorLocation {
-            auto tileType = llvm::dyn_cast_if_present<asctile::LocalTensorType>(type);
-            if (!tileType)
-                throw std::runtime_error("get_tensor_location(): must be LocalTensorType");
-            return tileType.getLoc();
-        },
-        "type"_a);
 }
 
 void bindLocation(py::module& m)
@@ -811,15 +717,6 @@ void bindScfop(py::module& m)
     py::class_<scf::ConditionOp, OpState>(m, "ConditionOp", py::module_local());
 }
 
-void bindAscTile(py::module& m)
-{
-    using ret = py::return_value_policy;
-    py::class_<asctile::CountMaskOp, OpState>(m, "CountMaskOp", py::module_local())
-        .def("get_region", &asctile::CountMaskOp::getRegion, ret::reference);
-    py::class_<asctile::BitwiseMaskOp, OpState>(m, "BitwiseMaskOp", py::module_local())
-        .def("get_region", &asctile::BitwiseMaskOp::getRegion, ret::reference);
-}
-
 void bindKernelArgument(py::module& m)
 {
     py::enum_<emitasc::KernelArgument>(m, "KernelArgument", py::module_local())
@@ -852,7 +749,6 @@ void initIRModule(py::module&& m)
     bindType(m);
     bindMemref(m);
     bindTensorType(m);
-    bindAscTileType(m);
     bindLocation(m);
     bindValue(m);
     bindRegion(m);
@@ -864,7 +760,6 @@ void initIRModule(py::module&& m)
     bindModuleop(m);
     bindFuncop(m);
     bindScfop(m);
-    bindAscTile(m);
     bindKernelArgument(m);
     py::class_<OpBuilder::InsertPoint>(m, "InsertPoint", py::module_local());
 

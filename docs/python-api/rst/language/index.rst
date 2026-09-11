@@ -19,4 +19,3 @@ asc.language
    basic
    core
    fwk
-   tile

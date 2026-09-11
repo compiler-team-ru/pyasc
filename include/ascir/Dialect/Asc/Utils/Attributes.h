@@ -17,21 +17,14 @@ namespace ascendc {
 
 namespace attr {
 LITERAL aicore = "ascendc.aicore";
-LITERAL api = "ascendc.api";
-LITERAL bufId = "ascendc.buf_id";
-LITERAL bufIds = "ascendc.buf_ids";
-LITERAL calCountSet = "asc.cal_count_set";
 LITERAL compilationArch = "asc.compilation_arch";
 LITERAL emitAsUnsigned = "ascendc.emit_as_unsigned";
 LITERAL global = "ascendc.global";
 LITERAL enableDebug = "asc.enable_debug";
 LITERAL kernelType = "asc.kernel_type";
-LITERAL maskSet = "asc.mask_set";
 LITERAL matmulCubeOnly = "asc.matmul_cube_only";
 LITERAL memoryConsumed = "asc.memory_consumed";
-LITERAL reuseGroup = "asc.reuse_group";
 LITERAL socVersion = "asc.soc_version";
-LITERAL staticAlloc = "asc.static_alloc";
 LITERAL vfVecLen = "asc.vf_vec_len";
 
 LITERAL kernelCube = "cube";

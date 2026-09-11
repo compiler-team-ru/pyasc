@@ -110,13 +110,9 @@ struct MaterializeTensorPass : public ascendc::impl::MaterializeTensorBase<Mater
 };
 } // namespace
 
-namespace mlir {
-namespace ascendc {
-std::unique_ptr<Pass> createMaterializeTensorPass(bool alwaysBuf)
+std::unique_ptr<Pass> mlir::ascendc::createMaterializeTensorPass(bool alwaysBuf)
 {
     MaterializeTensorOptions options;
     options.alwaysBuf = alwaysBuf;
     return std::make_unique<MaterializeTensorPass>(options);
 }
-} // namespace ascendc
-} // namespace mlir

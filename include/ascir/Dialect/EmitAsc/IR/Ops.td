@@ -206,4 +206,35 @@ def EmitAsc_VerbatimOp : EmitAsc_Op<"verbatim"> {
   let assemblyFormat = "$value ($args^ `:` type($args))?  attr-dict";
 }
 
+def VFForOp : EmitAsc_Op<"vf_for", [SingleBlockImplicitTerminator<"::mlir::emitasc::YieldOp">, AutomaticAllocationScope,
+  RecursivelySpeculatable, RecursiveMemoryEffects, DeclareOpInterfaceMethods<LoopLikeOpInterface>
+]> {
+  let arguments = (ins AnySignlessIntegerOrIndex:$upperBound);
+  let regions = (region SizedRegion<1>:$region);
+
+  let extraClassDeclaration = [{
+    BlockArgument getInductionVar() { return getBody()->getArgument(0); }
+    int64_t getLowerBoundAsInt() { return 0; }
+    int64_t getStepAsInt() { return 1; }
+    void setUpperBound(Value bound) { getOperation()->setOperand(0, bound); }
+    Type getUnderlyingType() { return IntegerType::get(getContext(), 16, IntegerType::Unsigned); }
+  }];
+
+  let skipDefaultBuilders = 1;
+  let builders = [OpBuilder<(ins "Value":$upperBound)>];
+
+  let hasCanonicalizeMethod = 1;
+  let assemblyFormat = "operands `:` qualified(type(operands)) $region attr-dict";
+  let hasVerifier = 1;
+}
+
+def VecScopeOp : EmitAsc_Op<"vec_scope", [SingleBlockImplicitTerminator<"::mlir::emitasc::YieldOp">]> {
+  let regions = (region SizedRegion<1> : $region);
+  let assemblyFormat = "$region attr-dict";
+}
+
+def YieldOp : EmitAsc_Op<"yield", [Terminator]> {
+  let assemblyFormat = "attr-dict";
+}
+
 #endif // EMITASC_OPS_TD

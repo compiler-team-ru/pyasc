@@ -7,39 +7,20 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 add_mlir_dialect_library(MLIRAscTransforms
-  AllocateTensor.cpp
-  ComputeMemoryConsumption.cpp
-  ComputeReuseGroup.cpp
   DeclarePyStructPass.cpp
   DefineCubeOnlyPass.cpp
   DetectEnableDebugPass.cpp
   DetectKernelTypePass.cpp
-  DispatchAlloc.cpp
   EraseSync.cpp
-  FillAscOperands.cpp
-  FixupMmadAccParams.cpp
-  FuseBufIdSync.cpp
   GenerateBoilerplatePass.cpp
   HoistQueBind.cpp
   HoistTensorAllocation.cpp
   InputOutputTensor.cpp
-  InsertBiasBufIdSync.cpp
-  InsertBufIdSync.cpp
-  InsertCrossCoreSync.cpp
-  InsertInitDump.cpp
-  InsertSubBlockGuard.cpp
   InsertQueSync.cpp
   LegalizeKernelArgs.cpp
-  LowerToL0.cpp
   MaterializeTensor.cpp
   Noop.cpp
   PrivatizeFunc.cpp
-  PromoteCVBlock.cpp
-  RefineCubePosition.cpp
-  RemoveDebugOps.cpp
-  ReuseTensorAllocation.cpp
-  ReuseUBAllocation.cpp
-  UnifyBiasTensor.cpp
   UnifyPipe.cpp
   VerifySync.cpp
 

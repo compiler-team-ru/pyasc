@@ -13,7 +13,6 @@
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
-#include "ascir/Dialect/AscVF/IR/AscVF.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Target/Asc/CodeEmitter.h"
 #include "ascir/Target/Asc/Utils.h"
@@ -65,9 +64,7 @@ using LogicalResultForT = LogicalResultIf<llvm::is_one_of<T, AllowedTypes...>::v
 template <typename OpType>
 bool needsSemicolon(const OpType& op)
 {
-    return !isa<
-        scf::IfOp, scf::ForOp, ascvf::VFForOp, ascvf::VecScopeOp, ascvf::VFGroupOp, scf::IndexSwitchOp, scf::YieldOp>(
-        op);
+    return !isa<scf::IfOp, scf::ForOp, scf::IndexSwitchOp, scf::YieldOp>(op);
 }
 
 template <typename OpType>

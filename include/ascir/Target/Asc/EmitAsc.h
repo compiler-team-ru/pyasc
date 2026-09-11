@@ -45,6 +45,12 @@ LogicalResult printOperation(CodeEmitter& emitter, emitasc::VariableOp op);
 
 LogicalResult printOperation(CodeEmitter& emitter, emitasc::VerbatimOp op);
 
+LogicalResult printOperation(CodeEmitter& emitter, emitasc::VFForOp op);
+
+LogicalResult printOperation(CodeEmitter& emitter, emitasc::VecScopeOp op);
+
+LogicalResult printOperation(CodeEmitter&, emitasc::YieldOp);
+
 } // namespace emitasc
 } // namespace mlir
 
