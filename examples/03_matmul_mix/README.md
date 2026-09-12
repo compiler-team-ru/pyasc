@@ -67,7 +67,7 @@ Global Memory (c_gm)
 ### 分块、多核、Tiling 逻辑
 
 - 多核切分
-  - MIX 模式（包含矩阵计算和矢量计算）下，启动时，按照AIV和AIC组合启动，`USE_CORE_NUM`用于设置启动多少个组合执行。比如Ascend 910B1平台有48个Vector核和24个Cube核，一个组合是2个Vector核和1个Cube核。本样例设置`USE_CORE_NUM = 48`，实际启动组合为 `48 // 2 = 24` 个组合，即48个Vector核和24个Cube核。注意：该场景下设置的的`USE_CORE_NUM`逻辑核的核数不能超过物理核（2个Vector核和1个Cube核组合为1个物理核）的核数。
+  - MIX 模式（包含矩阵计算和矢量计算）下，启动时，按照AIV和AIC组合启动，`USE_CORE_NUM`用于设置启动多少个组合执行。比如Ascend 910B1平台有48个Vector核和24个Cube核，一个组合是2个Vector核和1个Cube核。本样例设置`USE_CORE_NUM = 48`，实际启动组合为 `48 // 2 = 24` 个组合，即48个Vector核和24个Cube核。注意：该场景下设置的`USE_CORE_NUM`逻辑核的核数不能超过物理核（2个Vector核和1个Cube核组合为1个物理核）的核数。
   - 每个核根据 `block_idx` 计算自己在 M、N 方向的索引和偏移量，在 Global Memory 中定位自己的数据分块。
 - Tiling 生成
   - 创建 `MultiCoreMatmulTiling` 对象。

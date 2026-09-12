@@ -8205,7 +8205,7 @@ class TensorDescDocstring:
         return_list = """
         **返回值说明**
 
-        返回储存Tensor数据地址。T数据类型。。
+        返回储存Tensor数据地址。T数据类型。
         """
 
         py_example = """
