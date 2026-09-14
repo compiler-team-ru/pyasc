@@ -7,6 +7,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 from dataclasses import dataclass
+import math
 from typing import Callable, Tuple
 
 from asc.experimental import asctile
@@ -116,4 +117,39 @@ def test_reduce_partial_tile(tile_size):
     out = torch.empty(1, dtype=torch.float32)
     reduce_tile_kernel[1](x, out, tensor_size, tile_size=tile_size)
     expected = torch.amax(x[:tile_size]).unsqueeze(0)
+    torch.testing.assert_close(out, expected)
+
+
+@asctile.jit(always_compile=True)
+def reduce_tile_kernel_dim(x_ptr: asctile.GlobalAddress, out_ptr: asctile.GlobalAddress, gm_size: asctile.ConstExpr,
+                           input_size: asctile.ConstExpr, output_size: asctile.ConstExpr, reduce_dim: asctile.ConstExpr,
+                           keep_dims: asctile.ConstExpr):
+    x_gm = asctile.global_tensor(x_ptr, gm_size)
+    out_gm = asctile.global_tensor(out_ptr, output_size)
+    tile = asctile.copy_in(x_gm, [0] * len(gm_size), gm_size).reshape(input_size)
+    result = asctile.reduce_max(tile, reduce_dim)
+    asctile.copy_out(result, out_gm, [0] * len(output_size))
+
+
+@pytest.mark.parametrize("input_size, output_size, dim, dtype, keep", [
+    ([16, 16], [16], 0, torch.float32, False),
+    ([16, 16], [16], 1, torch.float32, False),
+    ([1, 16], [1, 16], 0, torch.float32, True),
+    ([1, 16], [16], 0, torch.float32, False),
+    ([1, 1, 16], [1, 1, 16], 0, torch.float32, True),
+    ([1, 1, 16], [1, 16], 0, torch.float32, False),
+    ([16, 1, 16], [1, 16], 0, torch.float32, False),
+    ([16, 1, 1, 16], [1, 1, 16], 0, torch.float32, False),
+    ([16, 16], [1, 16], 0, torch.float32, True),
+    ([16, 1, 16], [1, 1, 16], 0, torch.float32, True),
+    ([16, 1, 1, 16], [1, 1, 1, 16], 0, torch.float32, True),
+])
+def test_reduce_dim(input_size, output_size, dim, dtype, keep):
+    x = torch.rand(input_size, dtype=dtype) * -10.0
+    out = torch.empty(output_size, dtype=dtype)
+    reduce_tile_kernel_dim[1](x, out, (
+        math.prod(input_size[:-1]),
+        input_size[-1],
+    ), input_size, output_size, dim, keep)
+    expected = torch.amax(x, dim=dim, keepdim=keep)
     torch.testing.assert_close(out, expected)
