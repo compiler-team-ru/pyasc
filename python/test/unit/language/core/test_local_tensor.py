@@ -94,6 +94,18 @@ def test_get_size(mock_launcher_run):
     assert mock_launcher_run.call_count == 1
 
 
+def test_get_size_for_static_shape(mock_launcher_run):
+
+    @asc.jit
+    def kernel_get_size_for_static_shape() -> None:
+        x_local = asc.LocalTensorAuto(asc.float16, (2, 3, 4))
+        size = x_local.get_size()
+        assert size == 24
+
+    kernel_get_size_for_static_shape[1]()
+    assert mock_launcher_run.call_count == 1
+
+
 def test_get_value(mock_launcher_run):
 
     @asc.jit

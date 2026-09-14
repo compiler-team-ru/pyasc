@@ -7,7 +7,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 from __future__ import annotations
-import itertools
+import math
 from typing import Any, Iterable, NoReturn, Optional, Union, overload
 
 from ..._C import ir
@@ -124,7 +124,7 @@ class GlobalTensor(BaseTensor):
             builder = global_builder.get_ir_builder()
             handle = builder.create_asc_GlobalTensorGetSizeOp(builder.get_ui64_type(), self.to_ir())
             return PlainValue(handle)
-        return itertools.accumulate(self.shape, lambda acc, next: acc * next, initial=1)
+        return math.prod(self.shape)
 
     @overload
     def get_value(self, offset: int) -> int:
@@ -339,7 +339,7 @@ class LocalTensor(BaseTensor):
             builder = global_builder.get_ir_builder()
             handle = builder.create_asc_LocalTensorGetSizeOp(builder.get_i32_type(), self.to_ir())
             return PlainValue(handle)
-        return itertools.accumulate(self.shape, lambda acc, next: acc * next, initial=1)
+        return math.prod(self.shape)
 
     @overload
     def get_user_tag(self) -> int:
