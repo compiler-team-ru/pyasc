@@ -52,12 +52,8 @@ def op_reduce_impl(input: LocalTensor, keep_dims: bool, dims: Tuple[int, ...], k
         raise RuntimeError("Repeating dimensions are not allowed")
     if not all(dim >= 0 and dim < input.rank for dim in dims):
         raise RuntimeError(f"All reduction dimensions must be between 0 and {input.rank - 1}")
-    dims = tuple(dim for dim in dims if input.shape[dim] > 1)
-    dim_ones = tuple(dim for dim in dims if input.shape[dim] == 1)
-    if not keep_dims:
-        input = input.squeeze(*dim_ones)
-    if not dims:
-        return input
+    if not tuple(dim for dim in dims if input.shape[dim] > 1):
+        return input if keep_dims else input.squeeze(dims)
     check_dtype("input", input, support_dtypes)
     target_shape = get_reduction_shape(input.shape, keep_dims, dims)
     if not target_shape:
