@@ -178,27 +178,50 @@ def InsertCrossCoreSync : Pass<"ascendc-insert-cross-core-sync", "func::FuncOp">
   let dependentDialects = ["ascendc::AscendCDialect"];
   let description = [{
     This pass inserts `ascendc.cross_core_set_flag` and `ascendc.cross_core_wait_flag` operations
-    between consecutive `ascendc.if_aic` and `ascendc.if_aiv` operations when they are
-    of different types.
+    to synchronize data transfers between AIV (AI Vector) and AIC (AI Cube) cores.
 
-    Synchronization rules:
-    - No sync is inserted for the first group operation in sequence.
-    - If two consecutive groups are of the same type (both if_aic or both if_aiv), no sync is inserted.
-    - When an `if_aic` is followed by an `if_aiv`:
-      - `CrossCoreSetFlag<4, pipe>(0)` and `CrossCoreSetFlag<4, pipe>(16)` are inserted at the end
-        of the if_aic block, where `pipe` is determined by the last operation in the block.
-      - `CrossCoreWaitFlag<4, PIPE_S>(0)` is inserted at the beginning of the if_aiv block.
-    - When an `if_aiv` is followed by an `if_aic`:
-      - `CrossCoreSetFlag<4, pipe>(0)` is inserted at the end of the if_aiv block.
-      - `CrossCoreWaitFlag<4, PIPE_S>(0)` is inserted at the beginning of the if_aic block.
+    The pass identifies sync-trigger operations that transfer data between cores:
+    - `DataCopyOp` with direction VECCALC → A1/B1 (UB → L1, in AIV groups)
+    - `FixpipeOp` with direction CO1 → VECCALC (L0C → UB, in AIC groups)
 
-    The pipe for `CrossCoreSetFlag` is determined by the last non-yield operation in the block:
+    For each sync-trigger op, the pass:
+    1. Finds consumers of the trigger's destination tensor on the opposite core
+       (only those appearing after the trigger in IR order, via function walk).
+       If no consumers are found, no synchronization flags are inserted for this trigger.
+    2. Allocates a flag ID (sequential, starting from 0, wrapping at 16).
+    3. Inserts a backward `CrossCoreWaitFlag` before the trigger if this is a second
+       trigger for the same tensor (tensor reuse) or if inside a loop. This waits for
+       the previous consumer's backward `CrossCoreSetFlag` (loop-carried dependency).
+    4. Inserts a producer `CrossCoreSetFlag` after the trigger (forward direction),
+       using the trigger op's pipe. Signals "data is ready" to consumers.
+    5. Inserts consumer flags only in the **first** consumer group after the trigger
+       (cross-core flags are binary semaphores — one set, one wait):
+       - A `CrossCoreWaitFlag` before the first use: the consumer waits for the
+         producer's "data ready" signal from step 4.
+       - A `CrossCoreSetFlag` after the last use in the same group (backward direction):
+         the consumer signals that the buffer can be safely overwritten.
+       Both use the consumer op's pipe (determined by `getOpPipeExt(consumerOp)`).
+       Consumer groups after the first receive no flags — they rely on intra-core
+       ordering, since the data is already loaded by the first group's wait.
+    6. If inside a loop (first trigger only), inserts backward synchronization to prevent
+       the producer from overwriting a shared buffer before the consumer finishes reading:
+       - An initial `CrossCoreSetFlag` before the loop (consumer's core, PIPE_S) —
+         seeds the backward flag to prevent first-iteration deadlock.
+       - A finalization `CrossCoreWaitFlag` after the loop (producer's core, producer's
+         pipe) — consumes the leftover flag.
+
+    When the same destination tensor is reused by a different trigger op (second trigger),
+    the pass recognizes it via a destination-to-flag map and reuses the same flag ID:
+    the second trigger's `CrossCoreSetFlag` re-sets the forward flag, allowing subsequent
+    consumers to wait on it. This avoids exhausting the 16-flag hardware limit.
+
+    The pipe for each flag operation is determined by `getOpPipeExt`:
     - `mmad`, `mmad_with_bias` → `PIPE_M`
     - `fixpipe` → `PIPE_FIX`
     - `copy_to_l0` operations → `PIPE_MTE1`
     - `fill` → `PIPE_MTE2`
     - `data_copy` (GlobalToLocal) → `PIPE_MTE2`
-    - `data_copy` (LocalToGlobal) → `PIPE_MTE3`
+    - `data_copy` (LocalToGlobal or VECCALC→A1) → `PIPE_MTE3`
     - `local_tensor.get_value`, `local_tensor.set_value` → `PIPE_S`
     - All other operations → `PIPE_V`
   }];
