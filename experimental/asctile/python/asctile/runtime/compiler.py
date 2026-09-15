@@ -40,8 +40,8 @@ class CompileOptions(CompileOptionsBase):
     Value Effect
     ===== ======
     ``0`` Disable the feature (default)
-    ``1`` Enable the feature, use a legacy implementation (recommended)
-    ``2`` Enable the feature, use an experimental implementation
+    ``1`` Enable the feature, use a legacy implementation
+    ``2`` Enable the feature, use a modern implementation (recommended)
     ===== ======
     """
 

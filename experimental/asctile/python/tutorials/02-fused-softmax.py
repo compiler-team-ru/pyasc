@@ -9,75 +9,135 @@
 Fused Softmax
 =============
 
-This tutorial demonstrates softmax operator and its launch on Ascend simulator.
+A fused (single-call) softmax over the last dimension of a 2-D matrix -- a pattern that reads and writes global memory
+several times and is therefore memory-bound.
 
+.. currentmodule:: asc.experimental
+
+In this tutorial you will learn about:
+
+* Row-wise tiling: each tile holds a few *complete* rows so a row's reduction never crosses a tile boundary.
+
+* Boundary handling: padding the column tail with the reduction identity (``-inf`` for max) so no special-case branch is
+  needed.
+
+* JIT options for reusing on-chip buffers and overlapping loads with compute (multi-buffering) to hide GM latency.
+
+* The numerically stable softmax formula, implemented by hand as a row-wise reduction function.
+
+* The ``vf_fusion=True`` JIT option, which fuses a chain of elementwise/reduction ops into a single register-level VF
+  (vector function) block.
 """
 
+# %%
+# Motivation
+# ----------
+#
+# A naive, three-pass softmax written with ordinary tensor ops does, per row::
+#
+#     m = max(x)        # pass 1: read  N elements
+#     e = exp(x - m)    # pass 2: read  N, write N
+#     s = sum(e)        # pass 3: read  N
+#     y = e / s         #         read  N, write N
+#
+# Each pass is a separate round-trip through global memory. A *fused* kernel keeps the tile in on-chip UB for the whole
+# computation, so the row is read from and written to GM exactly once. The trick is to keep each row's whole reduction
+# inside one tile: we load a tile of complete rows and reduce along the columns (dim 1), so no row needs data from any
+# other tile.
+#
+# Row-wise softmax implementation
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#
+# ``row_wise_softmax`` is a *device function*: it takes a UB tensor in and returns one out, implementing the numerically
+# stable softmax by hand. The runnable kernel below calls it on each tile. We subtract the row maximum before
+# exponentiating, so ``exp(x - max)`` can never overflow. This assumes each whole row fits Unified Buffer, but for very
+# long rows you would split the reduction across tiles (not shown here).
+
 from asc.experimental import asctile
-import torch
 
 
-# The functions which are executed on Ascend NPU must be marked with `@asctile.jit` decorator.
-# Available parameters for @asctile.jit decorator can be seen in the documentation:
-# https://compiler-team-ru.github.io/pyasc/python-api/rst/runtime/index.html
-@asctile.jit(reuse_alloc=1)
-def fused_softmax(
-        # Pointers to input and output tensors should have `asctile.GlobalAddress` type.
-        input_ptr: asctile.GlobalAddress, output_ptr: asctile.GlobalAddress,
-        # Scalar parameters are passed as Python types (e.g. `int`, `float`).
-        # For optimization purposes it is recommended to pass scalar parameter as constants (e.g. `asctile.ConstExpr[int]`).
-        # Here num_rows and num_cols are compiler-time parameter:
-        num_rows: asctile.ConstExpr, num_cols: asctile.ConstExpr,
-        # tile_shape is a list and must be asctile.ConstExpr
-        tile_shape: asctile.ConstExpr):
+@asctile.jit
+def row_wise_softmax(rows: asctile.LocalTensor) -> asctile.LocalTensor:
+    # Per-row maximum along dim 1, kept as [tile_rows, 1] so it broadcasts back across the columns when we subtract it.
+    row_max = asctile.reduce_max(rows, 1, keep_dims=True)
+    # Subtract the max before exponentiating so exp(x - max) can never overflow.
+    shifted = rows - row_max
+    exp_vals = asctile.exp(shifted)
+    sum_exp = asctile.reduce_sum(exp_vals, 1, keep_dims=True)
+    return exp_vals / sum_exp
 
-    # Tensor descriptor is created from `asctile.GlobalAddress` to represent entire tensor.
+
+# %%
+# Compute Kernel
+# --------------
+#
+# ``fused_softmax`` is the runnable kernel. Its body loads a tile of complete rows into UB, calls the
+# ``row_wise_softmax`` function on it, and stores the result back. The tiling and memory options are:
+#
+# * Each core owns a contiguous chunk of ``rows_per_block`` rows, starting at ``block_idx * rows_per_block``; within it
+#   we step by ``tile_shape[0]`` rows per tile.
+#
+# * Each tile is a ``[tile_rows, tile_cols]`` block of complete rows loaded into UB. ``tile_cols`` is ``num_cols``
+#   rounded up to the 32-byte alignment; the extra columns are padded with ``-inf`` -- the identity for max -- so they
+#   can never raise a row's maximum and the softmax stays correct.
+#
+# * ``unroll_factor=2`` pipelines the next tile's load with this tile's compute (double buffering), hiding the memory
+#   latency behind the compute.
+#
+# * ``reuse_alloc=2`` reuses a finished tile's memory region for the next tile instead of acquiring fresh buffer for
+#   each unrolled loop iteration, reducing peak on-chip memory usage so the multi-buffered tiles fit.
+#
+# * ``vf_fusion=True`` fuses the chain of elementwise/reduction ops (max, subtract, exp, sum, divide) into a single
+#   register-level vector function (VF), avoiding redundant UB reads/writes between the intermediate steps. It is
+#   experimental and best suited to such elementwise chains.
+#
+# See also: :py:class:`asctile.CompileOptions` dataclass.
+#
+# Type hints on kernel arguments are optional -- only ``asctile.ConstExpr`` annotations are necessary, since they tell
+# the compiler which scalars are compile-time constants. Other type hints on arguments are omitted here for brevity.
+
+
+@asctile.jit(reuse_alloc=2, vf_fusion=True)
+def fused_softmax(input_ptr, output_ptr, num_rows, num_cols, tile_shape: asctile.ConstExpr):
     in_gm = asctile.global_tensor(input_ptr, [num_rows, num_cols])
     out_gm = asctile.global_tensor(output_ptr, [num_rows, num_cols])
-
-    # Python expressions are used to calculate offset:
-    # `asctile.block_num()` function provides number of AICOREs launched.
     rows_per_block = asctile.ceildiv(num_rows, asctile.block_num())
-    # `asctile.block_idx()` function is used to get current AICORE index.
     block_offset = asctile.block_idx() * rows_per_block
-    # Define the loop iterating over tiles
-    ub_loop = asctile.cast(asctile.ceildiv(rows_per_block, tile_shape[0]), asctile.int_)
-
-    # `unroll_factor` parameter of `asctile.range` in `for` loop can be used to manage software pipelining. Set it to `2` to enable double buffering.
-    # `parallel` parameter of `asctile.range` in `for` loop enable overlapping of store operation of `i`-th iteration and load of `i+1`-th iteration.
-    # It is user responsibility to ensure that there are no data dependencies between overlapped iterations.
+    ub_loop = asctile.ceildiv(rows_per_block, tile_shape[0])
     for i in asctile.range(ub_loop, unroll_factor=2):
         row_start_offset = block_offset + i * tile_shape[0]
-        # `asctile.copy_in` is used to create 2D tensor object to load from GM to UB and pad with '-inf' all values that are out of global tensor
-        rows = asctile.copy_in(in_gm, [row_start_offset, 0], [tile_shape[0], tile_shape[1]], pad_value=float('-inf'))
-        # Call high-level 2D softmax
-        out = asctile.softmax(rows)
-        # `asctile.copy_out` is used to move data from UB back to GM.
+        rows = asctile.copy_in(in_gm, [row_start_offset, 0], [tile_shape[0], tile_shape[1]], pad_value=float("-inf"))
+        out = row_wise_softmax(rows)
         asctile.copy_out(out, out_gm, [row_start_offset, 0])
 
 
+# %%
+# Launch and Verify
+# -----------------
+#
+# We run ``fused_softmax`` on a single ``[256, 98]`` matrix. ``98`` is deliberately not 32-byte aligned, so the column
+# padding with ``-inf`` is exercised; the row count divides evenly across the 8 cores (256 = 8 * 32 rows per core), so
+# there is no row tail to handle.
+
 if __name__ == "__main__":
-    backend = asctile.Backend.Model  # can be "Model" for simulator or "NPU" for device
-    soc_version = asctile.Platform.Ascend950PR_9599  # Device version
-    device_id = 0  # might be necessary to provide if more than one NPU device is present in the system
-    asctile.set_platform(backend, soc_version, device_id)
+    import torch
 
-    input_shape_2d = [256, 98]
-    rows_per_iter = 5
-    block_num = 56
-    dtype = torch.float32
+    asctile.set_platform(asctile.Backend.Model, asctile.Platform.Ascend950PR_9599)
+    torch.manual_seed(0)
 
-    # Alignment for tile_shape
-    num_rows, num_cols = input_shape_2d
-    ALIGNMENT_ELEMENTS = 32 // dtype.itemsize
-    tile_shape = [rows_per_iter, asctile.ceildiv(num_cols, ALIGNMENT_ELEMENTS) * ALIGNMENT_ELEMENTS]
+    num_rows, num_cols = 256, 98
+    block_num = 8
+    tile_rows = 16
+    # The last UB dimension must be 32-byte aligned: 32 / 4 bytes (float32) = 8 elements.
+    alignment = 32 // torch.float32.itemsize
+    tile_cols = (num_cols + alignment - 1) // alignment * alignment  # 98 -> 104
+    tile_shape = [tile_rows, tile_cols]
 
-    # Allocate tensors
-    in_tensor = torch.randn(input_shape_2d, dtype=dtype)
-    out_tensor = torch.zeros(input_shape_2d, dtype=dtype)
+    x = torch.randn(num_rows, num_cols, dtype=torch.float32)
+    reference = torch.softmax(x, dim=1)
 
-    # For the kernel invocation, number of AICOREs should be provided in brackets:
-    fused_softmax[block_num](in_tensor, out_tensor, input_shape_2d[0], input_shape_2d[1], tile_shape)
-
-    expected = torch.softmax(in_tensor, dim=1)
-    torch.testing.assert_close(out_tensor, expected)
+    out = torch.empty_like(x)
+    fused_softmax[block_num](x, out, num_rows, num_cols, tile_shape)
+    torch.testing.assert_close(out, reference, atol=1e-5, rtol=1e-5)
+    max_diff = (out - reference).abs().max().item()
+    print(f"fused_softmax: PASSED [{num_rows}x{num_cols}] (max diff={max_diff:.2e})")

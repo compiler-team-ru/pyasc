@@ -17,4 +17,4 @@ according to the :doc:`setup guide <../../installation/setup-runtime-env>`.
 
 .. code-block:: bash
 
-    python3 python/tutorials/asctile/01-vector-add.py
+    python3 experimental/asctile/python/tutorials/01-vector-add.py
