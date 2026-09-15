@@ -10,7 +10,7 @@ from asc.experimental import asctile
 import pytest
 import torch
 
-from ..target.helpers import parametrize_is_static
+from ..target.helpers import parametrize_is_static, xfail
 
 
 @asctile.jit
@@ -42,7 +42,9 @@ def matmul_kernel(a_ptr: asctile.GlobalAddress, b_ptr: asctile.GlobalAddress, c_
 
 @parametrize_is_static()
 @pytest.mark.parametrize("block_num, unroll_factor, input_type, output_type, tiling_data", [
-    # (16, 2, torch.float16, torch.float16, (128, 832, 784, 32, 208, 16, 784, 16)), # TODO: L1 overflow in dynamic mode
+    pytest.param(
+        16, 2, torch.float16, torch.float16, (128, 832, 784, 32, 208, 16, 784, 16), marks=xfail(
+            "L1 overflow in dynamic mode", compile_ok=False, when=lambda ctx: not ctx.params.get("is_static"))),
     (16, 2, torch.float32, torch.float32, (1024, 16, 64, 64, 16, 16, 64, 16)),
 ])
 def test_matmul_k_tiled(profiler, runs, is_static, block_num, unroll_factor, input_type, output_type, tiling_data):
