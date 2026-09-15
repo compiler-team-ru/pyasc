@@ -10,6 +10,8 @@
 
 #include "asctile/Dialect/AscTile/Utils/Utils.h"
 
+#include "ascir/Dialect/Utils/ConstantOpBuilder.h"
+
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/Attributes.h"
@@ -35,6 +37,22 @@ OpFoldResult getSplatValue(Value cstTile)
     if (auto splat = cstTile.getDefiningOp<tensor::SplatOp>())
         return splat.getInput();
     return {};
+}
+
+SmallVector<Value> getTensorShape(OpBuilder& builder, asctile::TensorOp tensorOp)
+{
+    ascir::ConstantOpBuilder consts(builder);
+    auto type = tensorOp.getType();
+    auto dynamicSizes = tensorOp.getSizes();
+    size_t dynamicSizeIndex = 0;
+    SmallVector<Value> tensorShape;
+    for (auto dim : type.getShape()) {
+        if (ShapedType::isDynamic(dim))
+            tensorShape.push_back(dynamicSizes[dynamicSizeIndex++]);
+        else
+            tensorShape.push_back(consts.i32(dim));
+    }
+    return tensorShape;
 }
 
 Value materializeSplatValue(OpBuilder& builder, Value cstTile)

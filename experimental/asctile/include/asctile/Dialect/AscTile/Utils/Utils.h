@@ -11,6 +11,8 @@
 #ifndef ASCTILE_DIALECT_ASCTILE_UTILS_UTILS_H
 #define ASCTILE_DIALECT_ASCTILE_UTILS_UTILS_H
 
+#include "asctile/Dialect/AscTile/IR/AscTile.h"
+
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/IR/Builders.h"
 
@@ -20,6 +22,8 @@ namespace asctile {
 TypedAttr getSplatAttr(arith::ConstantOp cstOp);
 
 OpFoldResult getSplatValue(Value cstTile);
+
+SmallVector<Value> getTensorShape(OpBuilder& builder, asctile::TensorOp tensorOp);
 
 Value materializeSplatValue(OpBuilder& builder, Value cstTile);
 

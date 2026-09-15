@@ -356,13 +356,41 @@ func.func @lower_dump_local_tensor(%arg0: tensor<32xf32, #asctile.local<UB>>) {
   return
 }
 
-// CHECK-LABEL: func.func @lower_dump_global_tensor(%arg0: tensor<?xf32, #asctile.global>) {
-// CHECK:        %1 = builtin.unrealized_conversion_cast %arg0 : tensor<?xf32, #asctile.global> to !ascendc.global_tensor<?xf32>
-// CHECK-NEXT:   %2 = ascendc.global_tensor.get_phy_addr %1, %0 : !ascendc.global_tensor<?xf32>, memref<*xf32, 22>, ui64
-// CHECK-NEXT:   ascendc.printf %2 {desc = "Dump tensor: addr=%p, dtype=f32, position=GM\0A"} : memref<*xf32, 22>
+// CHECK-LABEL: func.func @lower_dump_global_tensor_static(%arg0: memref<*xf32, 22>) {
+// CHECK:        %1 = ascendc.global_tensor : !ascendc.global_tensor<4x8x16xf32>
+// CHECK-NEXT:   ascendc.global_tensor.set_global_buffer %1, %arg0 : !ascendc.global_tensor<4x8x16xf32>, memref<*xf32, 22>
+// CHECK-NEXT:   %2 = ascendc.global_tensor.get_phy_addr %1, %0 : !ascendc.global_tensor<4x8x16xf32>, memref<*xf32, 22>, ui64
+// CHECK-NEXT:   ascendc.printf %2, %c4_i32, %c8_i32, %c16_i32 {desc = "GlobalTensor(addr=%p, dtype=f32, shape=[%d, %d, %d])\0A"} : memref<*xf32, 22>, i32, i32, i32
 // CHECK-NEXT:   return
 // CHECK-NEXT: }
-func.func @lower_dump_global_tensor(%arg0: tensor<?xf32, #asctile.global>) {
-  asctile.dump_tensor %arg0 : tensor<?xf32, #asctile.global>
+func.func @lower_dump_global_tensor_static(%arg0: memref<*xf32, 22>) {
+  %0 = asctile.tensor %arg0() : memref<*xf32, 22>, tensor<4x8x16xf32, #asctile.global>
+  asctile.dump_tensor %0 : tensor<4x8x16xf32, #asctile.global>
+  return
+}
+
+// CHECK-LABEL: func.func @lower_dump_global_tensor_dynamic(%arg0: memref<*xf32, 22>, %arg1: i32, %arg2: i32, %arg3: i32) {
+// CHECK:        %1 = ascendc.global_tensor : !ascendc.global_tensor<?x?x?xf32>
+// CHECK-NEXT:   ascendc.global_tensor.set_global_buffer %1, %arg0 : !ascendc.global_tensor<?x?x?xf32>, memref<*xf32, 22>
+// CHECK-NEXT:   %2 = ascendc.global_tensor.get_phy_addr %1, %0 : !ascendc.global_tensor<?x?x?xf32>, memref<*xf32, 22>, ui64
+// CHECK-NEXT:   ascendc.printf %2, %arg1, %arg2, %arg3 {desc = "GlobalTensor(addr=%p, dtype=f32, shape=[%d, %d, %d])\0A"} : memref<*xf32, 22>, i32, i32, i32
+// CHECK-NEXT:   return
+// CHECK-NEXT: }
+func.func @lower_dump_global_tensor_dynamic(%arg0: memref<*xf32, 22>, %arg1: i32, %arg2: i32, %arg3: i32) {
+  %0 = asctile.tensor %arg0(%arg1, %arg2, %arg3) : memref<*xf32, 22>, tensor<?x?x?xf32, #asctile.global>
+  asctile.dump_tensor %0 : tensor<?x?x?xf32, #asctile.global>
+  return
+}
+
+// CHECK-LABEL: func.func @lower_dump_global_tensor_mixed(%arg0: memref<*xf32, 22>, %arg1: i32, %arg2: i32) {
+// CHECK:        %1 = ascendc.global_tensor : !ascendc.global_tensor<?x?x32xf32>
+// CHECK-NEXT:   ascendc.global_tensor.set_global_buffer %1, %arg0 : !ascendc.global_tensor<?x?x32xf32>, memref<*xf32, 22>
+// CHECK-NEXT:   %2 = ascendc.global_tensor.get_phy_addr %1, %0 : !ascendc.global_tensor<?x?x32xf32>, memref<*xf32, 22>, ui64
+// CHECK-NEXT:   ascendc.printf %2, %arg1, %arg2, %c32_i32 {desc = "GlobalTensor(addr=%p, dtype=f32, shape=[%d, %d, %d])\0A"} : memref<*xf32, 22>, i32, i32, i32
+// CHECK-NEXT:   return
+// CHECK-NEXT: }
+func.func @lower_dump_global_tensor_mixed(%arg0: memref<*xf32, 22>, %arg1: i32, %arg2: i32) {
+  %0 = asctile.tensor %arg0(%arg1, %arg2) : memref<*xf32, 22>, tensor<?x?x32xf32, #asctile.global>
+  asctile.dump_tensor %0 : tensor<?x?x32xf32, #asctile.global>
   return
 }
