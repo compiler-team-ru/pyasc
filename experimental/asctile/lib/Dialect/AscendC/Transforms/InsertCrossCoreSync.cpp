@@ -9,11 +9,14 @@
  */
 
 #include "asctile/Dialect/AscendC/Transforms/Passes.h"
+#include "asctile/Dialect/AscendC/Utils/Utils.h"
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
+#include "ascir/Dialect/Asc/Transforms/Passes.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 
 namespace mlir {
 namespace ascendc {
@@ -27,53 +30,171 @@ using namespace mlir;
 namespace {
 
 constexpr uint8_t crossCoreMode = 4;
+constexpr int32_t maxTensorId = 16;
 
-SmallVector<ascendc::Pipe> getGroupOutPipes(Operation* groupOp)
+bool isSyncTriggerOp(Operation* op)
 {
-    // TODO: Reduce number of pipes requiring syncronization based on copy operations in group
-    if (isa<ascendc::IfAICOp>(groupOp))
-        return {ascendc::Pipe::PIPE_FIX, ascendc::Pipe::PIPE_MTE1};
-    return {ascendc::Pipe::PIPE_MTE3};
+    auto copyOp = dyn_cast<ascendc::DataCopyOp>(op);
+    if (!copyOp)
+        return false;
+    auto direction = copyOp.getDirection();
+    if (!direction)
+        return false;
+    auto [src, dst] = *direction;
+    return (src == ascendc::TPosition::VECCALC && (dst == ascendc::TPosition::A1 || dst == ascendc::TPosition::B1)) ||
+           (src == ascendc::TPosition::CO1 && dst == ascendc::TPosition::VECCALC);
+}
+
+Operation* findGroupAncestor(Operation* op)
+{
+    for (Operation* p = op->getParentOp(); p; p = p->getParentOp())
+        if (isa<ascendc::IfAICOp, ascendc::IfAIVOp>(p))
+            return p;
+    return nullptr;
+}
+
+Operation* findSyncInsertionPoint(Operation* user)
+{
+    for (Operation* p = user->getParentOp(); p; p = p->getParentOp()) {
+        if (isa<scf::ForOp>(p))
+            return p;
+        if (isa<ascendc::IfAICOp, ascendc::IfAIVOp>(p))
+            return user;
+    }
+    return user;
+}
+
+SmallVector<Operation*> collectUsers(Operation* dstDefiningOp, bool triggerIsAIV, Operation* afterOp = nullptr)
+{
+    SmallVector<Operation*> users;
+    bool seen = !afterOp;
+    dstDefiningOp->getParentOfType<func::FuncOp>()->walk([&](Operation* op) {
+        if (op == afterOp) {
+            seen = true;
+            return;
+        }
+        if (!seen || isa<ascendc::IfAICOp, ascendc::IfAIVOp>(op))
+            return;
+        if (!llvm::any_of(op->getOperands(), [&](Value v) { return v.getDefiningOp() == dstDefiningOp; }))
+            return;
+        if (Operation* group = findGroupAncestor(op); isa_and_present<ascendc::IfAICOp>(group) == triggerIsAIV)
+            users.push_back(op);
+    });
+    return users;
+}
+
+void createSetFlag(OpBuilder& builder, Location loc, int32_t flagId, ascendc::Pipe pipe)
+{
+    ascir::ConstantOpBuilder consts(builder);
+    builder.create<ascendc::CrossCoreSetFlagOp>(loc, consts.i32(flagId), crossCoreMode, pipe);
+}
+
+void createWaitFlag(OpBuilder& builder, Location loc, int32_t flagId, ascendc::Pipe pipe)
+{
+    ascir::ConstantOpBuilder consts(builder);
+    builder.create<ascendc::CrossCoreWaitFlagOp>(loc, consts.i32(flagId), crossCoreMode, pipe);
+}
+
+template <typename FlagOp>
+void insertFlagGroup(OpBuilder& builder, Operation* op, bool isAIV, int32_t flagId, ascendc::Pipe pipe)
+{
+    Location loc = op->getLoc();
+    ascir::ConstantOpBuilder consts(builder);
+    Operation* group = isAIV ? builder.create<ascendc::IfAIVOp>(loc, TypeRange{}, ValueRange{}).getOperation() :
+                               builder.create<ascendc::IfAICOp>(loc, TypeRange{}, ValueRange{}).getOperation();
+    builder.createBlock(&group->getRegion(0));
+    builder.create<FlagOp>(loc, consts.i32(flagId), crossCoreMode, pipe);
+    builder.create<ascendc::YieldOp>(loc);
+}
+
+SmallVector<Operation*> collectGroupOps(func::FuncOp funcOp)
+{
+    SmallVector<Operation*> groups;
+    funcOp.walk<WalkOrder::PreOrder>([&](Operation* op) {
+        if (isa<ascendc::IfAICOp, ascendc::IfAIVOp>(op)) {
+            groups.push_back(op);
+            return WalkResult::skip();
+        }
+        return WalkResult::advance();
+    });
+    return groups;
+}
+
+SmallVector<Operation*> collectSyncOps(Operation* groupOp)
+{
+    SmallVector<Operation*> syncOps;
+    groupOp->walk([&](Operation* op) {
+        if (isSyncTriggerOp(op))
+            syncOps.push_back(op);
+    });
+    return syncOps;
+}
+
+void processUsers(OpBuilder& builder, ArrayRef<Operation*> users, int32_t flagId)
+{
+    Operation* first = users.front();
+    Operation* firstGroup = findGroupAncestor(first);
+    Operation* last = first;
+    for (auto* user : users) {
+        if (findGroupAncestor(user) != firstGroup)
+            break;
+        last = user;
+    }
+    builder.setInsertionPoint(findSyncInsertionPoint(first));
+    createWaitFlag(builder, first->getLoc(), flagId, ascendc::getOpPipeExt(first));
+    Operation* setFlagPos = findSyncInsertionPoint(last);
+    builder.setInsertionPointAfter(isa<scf::ForOp>(setFlagPos) ? setFlagPos : last);
+    createSetFlag(builder, last->getLoc(), flagId, ascendc::getOpPipeExt(last));
 }
 
 struct InsertCrossCoreSyncPass : public ascendc::impl::InsertCrossCoreSyncBase<InsertCrossCoreSyncPass> {
     void runOnOperation() override
     {
         func::FuncOp funcOp = getOperation();
-        SmallVector<Operation*> groupOps;
-        funcOp.walk<WalkOrder::PreOrder>([&](Operation* op) {
-            if (isa<ascendc::IfAICOp, ascendc::IfAIVOp>(op)) {
-                groupOps.push_back(op);
-                return WalkResult::skip();
-            }
-            return WalkResult::advance();
-        });
+        SmallVector<Operation*> groupOps = collectGroupOps(funcOp);
         if (groupOps.size() < 2)
             return;
         OpBuilder builder(funcOp.getContext());
-        ascir::ConstantOpBuilder consts(builder);
-        for (size_t i = 1; i < groupOps.size(); ++i) {
-            Operation* prev = groupOps[i - 1];
-            Operation* next = groupOps[i];
-            if (prev->getName() == next->getName())
+        int32_t nextFlagId = 0;
+        llvm::DenseMap<Operation*, int32_t> dstFlagMap;
+        for (auto* groupOp : groupOps) {
+            bool isAIV = isa<ascendc::IfAIVOp>(groupOp);
+            SmallVector<Operation*> syncOps = collectSyncOps(groupOp);
+            if (syncOps.empty())
                 continue;
-            Block& prevBlock = prev->getRegion(0).front();
-            Operation* prevYield = prevBlock.getTerminator();
-            builder.setInsertionPoint(prevYield);
-            auto syncPipes = getGroupOutPipes(prev);
-            for (auto setPipe : syncPipes) {
-                builder.create<ascendc::CrossCoreSetFlagOp>(prev->getLoc(), consts.i32(0), crossCoreMode, setPipe);
-                if (isa<ascendc::IfAICOp>(prev)) {
-                    // TODO: Add only if MIX_1_2 is used
-                    builder.create<ascendc::CrossCoreSetFlagOp>(prev->getLoc(), consts.i32(16), crossCoreMode, setPipe);
+            scf::ForOp forOp = groupOp->getParentOfType<scf::ForOp>();
+            for (auto* op : syncOps) {
+                Operation* dstDefiningOp = cast<ascendc::DataCopyOp>(op).getDst().getDefiningOp();
+                if (!dstDefiningOp)
+                    continue;
+                ascendc::Pipe producerPipe = ascendc::getOpPipeExt(op);
+                auto it = dstFlagMap.find(dstDefiningOp);
+                bool isSecondTrigger = it != dstFlagMap.end();
+                int32_t flagId = isSecondTrigger ? it->second : nextFlagId;
+                SmallVector<Operation*> users = collectUsers(dstDefiningOp, isAIV, op);
+                if (users.empty() && !isSecondTrigger)
+                    continue;
+                if (!isSecondTrigger) {
+                    nextFlagId = (nextFlagId + 1) % maxTensorId;
+                    dstFlagMap[dstDefiningOp] = flagId;
+                }
+                if (isSecondTrigger || forOp) {
+                    builder.setInsertionPoint(op);
+                    createWaitFlag(builder, op->getLoc(), flagId, producerPipe);
+                }
+                if (!users.empty()) {
+                    builder.setInsertionPointAfter(op);
+                    createSetFlag(builder, op->getLoc(), flagId, producerPipe);
+                    processUsers(builder, users, flagId);
+                }
+                if (!isSecondTrigger && forOp) {
+                    builder.setInsertionPoint(forOp);
+                    insertFlagGroup<ascendc::CrossCoreSetFlagOp>(
+                        builder, groupOp, !isAIV, flagId, ascendc::Pipe::PIPE_S);
+                    builder.setInsertionPointAfter(forOp);
+                    insertFlagGroup<ascendc::CrossCoreWaitFlagOp>(builder, groupOp, isAIV, flagId, producerPipe);
                 }
             }
-            Block& nextBlock = next->getRegion(0).front();
-            builder.setInsertionPointToStart(&nextBlock);
-            // TODO: Add second wait on Cube from second AIV if MIX_1_2 is used
-            for (int i = 0; i < syncPipes.size(); i++)
-                builder.create<ascendc::CrossCoreWaitFlagOp>(
-                    next->getLoc(), consts.i32(0), crossCoreMode, ascendc::Pipe::PIPE_S);
         }
     }
 };
