@@ -71,23 +71,42 @@ The following environment variables can be **exported** to configure the install
     `x86_64 <https://cann-ai.obs.cn-north-4.myhuaweicloud.com/llvm/llvm-19.1.7-x86_64.tar.xz>`__ or
     `aarch64 <https://cann-ai.obs.cn-north-4.myhuaweicloud.com/llvm/llvm-19.1.7-aarch64.tar.xz>`__ platform)
 
-``PYASC_SETUP_BUILD_DIR=<path>`` (optional)
-    provide the directory for the temporary build files (default: ``build``)
-
 ``PYASC_SETUP_CCACHE=1`` (optional)
     enable ccache to speed up the repetitive build flow
 
-``PYASC_SETUP_CLANG_LLD=1`` (optional)
-    use clang and lld instead of the default toolchain
+``PYASC_SETUP_EXPERIMENTAL=1`` (optional)
+    enable the compilation and packaging of experimental modules (including ``asctile``)
+
+``PYASC_SETUP_JOBS=<num>`` (optional)
+    number of build jobs (default: number of available CPU cores)
+
+.. raw:: html
+
+    <details>
+        <summary><strong>Additional environment variables</strong></summary>
+
+``PYASC_SETUP_BUILD_DIR=<path>`` (optional)
+    provide the directory for the temporary build files (default: ``build``)
+
+``PYASC_SETUP_COMPILER=<bin>`` (optional)
+    name or path of the compiler executable (default: system compiler, recommended: ``clang++``)
 
 ``PYASC_SETUP_CONFIG=<config>`` (optional)
     build configuration for CMake (default: ``Release``)
 
-``PYASC_HOME=<path>`` (optional)
-    provide the directory that should be used to store pre-built dependencies (default: user home directory)
+``PYASC_SETUP_LINKER=<bin>`` (optional)
+    name or path of the linker executable (default: system linker, recommended: ``lld``)
+
+.. raw:: html
+
+    </details><br />
 
 Also, ``-v`` option can be added to pip arguments to increase the output verbosity.
 This will allow to see e.g. CMake and C++ compiler commands.
+
+.. warning::
+
+    Remember to set ``PYASC_SETUP_EXPERIMENTAL=1`` if the **AscTile** module is required.
 
 
 Install the package (recommended)
