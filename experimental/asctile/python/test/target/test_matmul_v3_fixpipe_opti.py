@@ -9,12 +9,12 @@
 import pytest
 import torch
 
-from .helpers import parametrize_is_static
+from .helpers import parametrize_is_static, xfail
 from .matmul_v3 import FullLoadMode, run_matmul_v3_test
 
 test_cases = [
-    # (36, (1500, 1669, 113, 256, 256, 128, 256, 256, 32), torch.float32, False, True, FullLoadMode.NONE, True, False,
-    #    (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3)), # FAILED with UB overflow
+    pytest.param(36, (1500, 1669, 113, 256, 256, 128, 256, 256, 32), torch.float32, False, True, FullLoadMode.NONE,
+                 True, False, (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), marks=xfail("UB overflow", compile_ok=False)),
     (36, (45000, 92, 32, 336, 96, 32, 336, 96, 16), torch.float32, False, True, FullLoadMode.B, True, False,
      (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3)),
     (36, (10000, 200, 256, 144, 208, 256, 144, 208, 64), torch.float16, False, False, FullLoadMode.B, False, False,
@@ -29,12 +29,12 @@ test_cases = [
      (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3)),
     (36, (192000, 66, 64, 400, 80, 64, 400, 80, 16), torch.float32, False, False, FullLoadMode.B, True, False,
      (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3)),
-    # (36, (250000, 120, 145, 256, 128, 64, 256, 128, 16), torch.float32, False, False, FullLoadMode.B, True, False,
-    #    (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3)), # FAILED: Accuracy mismatch
+    pytest.param(36, (250000, 120, 145, 256, 128, 64, 256, 128, 16), torch.float32, False, False, FullLoadMode.B, True,
+                 False, (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), marks=xfail("Accuracy mismatch", compile_ok=True)),
     (36, (96000, 104, 64, 288, 112, 64, 288, 112, 16), torch.float32, False, True, FullLoadMode.B, True, False,
      (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3)),
-    # (36, (75000, 116, 116, 256, 128, 64, 256, 128, 16), torch.float32, False, True, FullLoadMode.B, True, False,
-    #    (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3)), # FAILED: Accuracy mismatch
+    pytest.param(36, (75000, 116, 116, 256, 128, 64, 256, 128, 16), torch.float32, False, True, FullLoadMode.B, True,
+                 False, (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), marks=xfail("Accuracy mismatch", compile_ok=True)),
     (36, (150000, 76, 64, 400, 80, 64, 400, 80, 16), torch.float16, False, True, FullLoadMode.B, False, False,
      (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3)),
     (36, (40960, 280, 256, 112, 288, 64, 112, 288, 16), torch.float32, False, True, FullLoadMode.B, True, False,
@@ -45,12 +45,13 @@ test_cases = [
      (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3)),
     (36, (250000, 145, 120, 192, 160, 64, 192, 160, 16), torch.float32, False, True, FullLoadMode.B, True, False,
      (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3)),
-    # (36, (307200, 200, 128, 144, 208, 64, 144, 208, 16), torch.float32, False, True, FullLoadMode.B, True, False,
-    #    (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3)), # FAILED: Accuracy mismatch
-    # (36, (375000, 148, 148, 192, 160, 64, 192, 160, 16), torch.float32, False, True, FullLoadMode.B, True, False, # TODO: Fix accuracy
-    #  (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3)),
-    # (36, (4096, 13664, 32, 256, 256, 32, 256, 256, 32), torch.float16, True, False, FullLoadMode.NONE, False, False,
-    #    (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3)), # FAILED: Accuracy mismatch
+    pytest.param(36, (307200, 200, 128, 144, 208, 64, 144, 208, 16), torch.float32, False, True, FullLoadMode.B, True,
+                 False, (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), marks=xfail("Accuracy mismatch", compile_ok=True)),
+    pytest.param(36, (375000, 148, 148, 192, 160, 64, 192, 160, 16), torch.float32, False, True, FullLoadMode.B, True,
+                 False, (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), marks=xfail("Accuracy mismatch", compile_ok=True)),
+    pytest.param(36, (4096, 13664, 32, 256, 256, 32, 256, 256, 32), torch.float16, True, False, FullLoadMode.NONE,
+                 False, False, (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), marks=xfail("Accuracy mismatch",
+                                                                                  compile_ok=True)),
     (36, (4800, 2864, 128, 320, 192, 64, 320, 192, 16), torch.float32, False, False, FullLoadMode.NONE, True, False,
      (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3))
 ]
@@ -59,7 +60,8 @@ test_cases = [
 @parametrize_is_static()
 @pytest.mark.parametrize(
     "core_num, tiling_data, dtype, is_a_transpose_l0, is_b_transpose_l0, full_load_mode, enable_hf32_mode, has_bias, double_buffering, input_range, accuracy",
-    test_cases, ids=["_".join(map(str, tc[1][:3])) for tc in test_cases])
+    test_cases, ids=["_".join(map(str,
+                                  getattr(tc, "values", tc)[1][:3])) for tc in test_cases])
 def test_matmul_v3(profiler, runs, is_static, core_num, tiling_data, dtype, is_a_transpose_l0, is_b_transpose_l0,
                    full_load_mode, enable_hf32_mode, has_bias, double_buffering, input_range, accuracy):
     run_matmul_v3_test(profiler, runs, is_static, core_num, tiling_data, dtype, is_a_transpose_l0, is_b_transpose_l0,

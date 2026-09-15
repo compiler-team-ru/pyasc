@@ -10,6 +10,7 @@ from contextlib import ExitStack
 import importlib
 import importlib.util
 import os
+import types
 from unittest.mock import patch
 
 from asc.lib.profiling import Profiler, task_time_median
@@ -43,6 +44,10 @@ def pytest_addoption(parser: pytest.Parser):
 
 def pytest_configure(config):
     config.profiling_results = []
+    config.addinivalue_line(
+        "markers",
+        "asctile_xfail(reason, compile_ok, when): expected failure; the apply_xfail fixture attaches xfail at run time",
+    )
 
 
 def pytest_make_parametrize_id(val):
@@ -57,6 +62,28 @@ def pytest_terminal_summary(terminalreporter, config):
     terminalreporter.write_sep("=", "Profiling results")
     for entry in config.profiling_results:
         terminalreporter.write_line(f"{entry['test']}: {entry['duration']} μs")
+
+
+@pytest.fixture(autouse=True)
+def apply_xfail(request: pytest.FixtureRequest, compile_only):
+    mark = request.node.get_closest_marker("asctile_xfail")
+    if mark is None:
+        return
+    reason = mark.kwargs.get("reason", "")
+    compile_ok = mark.kwargs.get("compile_ok", False)
+    when = mark.kwargs.get("when")
+    if compile_ok and compile_only:
+        return
+    if when is not None:
+        callspec = getattr(request.node, "callspec", None)
+        ctx = types.SimpleNamespace(
+            params=callspec.params if callspec else {},
+            config=request.config,
+            node=request.node,
+        )
+        if not when(ctx):
+            return
+    request.node.add_marker(pytest.mark.xfail(reason=reason, strict=True))
 
 
 @pytest.fixture
