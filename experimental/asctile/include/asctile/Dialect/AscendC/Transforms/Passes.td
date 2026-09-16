@@ -180,9 +180,14 @@ def InsertCrossCoreSync : Pass<"ascendc-insert-cross-core-sync", "func::FuncOp">
     This pass inserts `ascendc.cross_core_set_flag` and `ascendc.cross_core_wait_flag` operations
     to synchronize data transfers between AIV (AI Vector) and AIC (AI Cube) cores.
 
-    The pass identifies sync-trigger operations that transfer data between cores:
+    The pass identifies sync-trigger operations that transfer data between cores
+    through an on-chip local tensor:
     - `DataCopyOp` with direction VECCALC → A1/B1 (UB → L1, in AIV groups)
     - `FixpipeOp` with direction CO1 → VECCALC (L0C → UB, in AIC groups)
+
+    `FixpipeOp` with direction CO1 → GM (L0C → GM) is NOT a sync trigger: its
+    destination is a GlobalTensor reached through `global_tensor.subindex` chains,
+    so it is handled by a dedicated FixPipe-to-GM phase described below.
 
     For each sync-trigger op, the pass:
     1. Finds consumers of the trigger's destination tensor on the opposite core
@@ -214,6 +219,25 @@ def InsertCrossCoreSync : Pass<"ascendc-insert-cross-core-sync", "func::FuncOp">
     the pass recognizes it via a destination-to-flag map and reuses the same flag ID:
     the second trigger's `CrossCoreSetFlag` re-sets the forward flag, allowing subsequent
     consumers to wait on it. This avoids exhausting the 16-flag hardware limit.
+
+    ### FixPipe-to-GM phase
+
+    FixPipe-to-GM transfers (`FixpipeOp` CO1 → GM) are synchronized by a separate phase,
+    independent of the sync-trigger mechanism above and of loop-carried forward/backward
+    sync. Walking the groups in pre-order, the pass:
+
+    - Producer (the AIC group containing the `fixpipe`): inserts two
+      `CrossCoreSetFlag` operations at the end of the group (before its terminator),
+      with flag ids `id` and `id + 16` on the fixpipe's pipe (`PIPE_FIX`), and records
+      the root GlobalTensor — traced back through `global_tensor.subindex` chains via
+      `getRootGlobalTensor` — paired with `id`.
+    - Consumer (a later group whose operand traces, via `getRootGlobalTensor`, to a
+      recorded root): inserts a single `CrossCoreWaitFlag` with flag id `id` on `PIPE_S`,
+      placed before the group's `sync_all` barrier (`sync_all_soft`/`sync_all_hard`), or
+      at the start of the group body if no `sync_all` is present.
+
+    The producer emits a mirrored flag pair (`id` and `id + 16`) while the consumer
+    waits only on `id`. No loop-carried synchronization is inserted for the GM path.
 
     The pipe for each flag operation is determined by `getOpPipeExt`:
     - `mmad`, `mmad_with_bias` → `PIPE_M`

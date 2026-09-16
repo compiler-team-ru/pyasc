@@ -32,7 +32,7 @@ namespace {
 constexpr uint8_t crossCoreMode = 4;
 constexpr int32_t maxTensorId = 16;
 
-bool isSyncTriggerOp(Operation* op)
+bool isDataCopyOp(Operation* op, llvm::function_ref<bool(ascendc::TPosition, ascendc::TPosition)> pred)
 {
     auto copyOp = dyn_cast<ascendc::DataCopyOp>(op);
     if (!copyOp)
@@ -41,8 +41,23 @@ bool isSyncTriggerOp(Operation* op)
     if (!direction)
         return false;
     auto [src, dst] = *direction;
-    return (src == ascendc::TPosition::VECCALC && (dst == ascendc::TPosition::A1 || dst == ascendc::TPosition::B1)) ||
-           (src == ascendc::TPosition::CO1 && dst == ascendc::TPosition::VECCALC);
+    return pred(src, dst);
+}
+
+bool isSyncTriggerOp(Operation* op)
+{
+    return isDataCopyOp(op, [](ascendc::TPosition src, ascendc::TPosition dst) {
+        return (src == ascendc::TPosition::VECCALC &&
+                (dst == ascendc::TPosition::A1 || dst == ascendc::TPosition::B1)) ||
+               (src == ascendc::TPosition::CO1 && dst == ascendc::TPosition::VECCALC);
+    });
+}
+
+bool isL0CToGMCopy(Operation* op)
+{
+    return isDataCopyOp(op, [](ascendc::TPosition src, ascendc::TPosition dst) {
+        return src == ascendc::TPosition::CO1 && dst == ascendc::TPosition::GM;
+    });
 }
 
 Operation* findGroupAncestor(Operation* op)
@@ -56,8 +71,6 @@ Operation* findGroupAncestor(Operation* op)
 Operation* findSyncInsertionPoint(Operation* user)
 {
     for (Operation* p = user->getParentOp(); p; p = p->getParentOp()) {
-        if (isa<scf::ForOp>(p))
-            return p;
         if (isa<ascendc::IfAICOp, ascendc::IfAIVOp>(p))
             return user;
     }
@@ -81,6 +94,33 @@ SmallVector<Operation*> collectUsers(Operation* dstDefiningOp, bool triggerIsAIV
             users.push_back(op);
     });
     return users;
+}
+
+Value getRootGlobalTensor(Value v)
+{
+    while (auto subOp = v.getDefiningOp<ascendc::GlobalTensorSubIndexOp>())
+        v = subOp.getTensor();
+    return v;
+}
+
+int32_t findGMLoadFlag(Operation* groupOp, const llvm::DenseMap<Value, int32_t>& gmRootsWithFlags)
+{
+    int32_t flagId = -1;
+    groupOp->walk([&](Operation* op) {
+        if (op == groupOp || isa<ascendc::FixpipeOp>(op))
+            return WalkResult::advance();
+        for (Value operand : op->getOperands()) {
+            if (!isa<ascendc::GlobalTensorType>(operand.getType()))
+                continue;
+            Value root = getRootGlobalTensor(operand);
+            if (auto it = gmRootsWithFlags.find(root); it != gmRootsWithFlags.end()) {
+                flagId = it->second;
+                return WalkResult::interrupt();
+            }
+        }
+        return WalkResult::advance();
+    });
+    return flagId;
 }
 
 void createSetFlag(OpBuilder& builder, Location loc, int32_t flagId, ascendc::Pipe pipe)
@@ -120,14 +160,14 @@ SmallVector<Operation*> collectGroupOps(func::FuncOp funcOp)
     return groups;
 }
 
-SmallVector<Operation*> collectSyncOps(Operation* groupOp)
+SmallVector<Operation*> collectOps(Operation* groupOp, llvm::function_ref<bool(Operation*)> pred)
 {
-    SmallVector<Operation*> syncOps;
+    SmallVector<Operation*> ops;
     groupOp->walk([&](Operation* op) {
-        if (isSyncTriggerOp(op))
-            syncOps.push_back(op);
+        if (pred(op))
+            ops.push_back(op);
     });
-    return syncOps;
+    return ops;
 }
 
 void processUsers(OpBuilder& builder, ArrayRef<Operation*> users, int32_t flagId)
@@ -157,43 +197,66 @@ struct InsertCrossCoreSyncPass : public ascendc::impl::InsertCrossCoreSyncBase<I
         OpBuilder builder(funcOp.getContext());
         int32_t nextFlagId = 0;
         llvm::DenseMap<Operation*, int32_t> dstFlagMap;
+        llvm::DenseMap<Value, int32_t> gmRootsWithFlags;
         for (auto* groupOp : groupOps) {
             bool isAIV = isa<ascendc::IfAIVOp>(groupOp);
-            SmallVector<Operation*> syncOps = collectSyncOps(groupOp);
-            if (syncOps.empty())
+            if (!gmRootsWithFlags.empty()) {
+                int32_t gmFlagId = findGMLoadFlag(groupOp, gmRootsWithFlags);
+                if (gmFlagId >= 0) {
+                    Block& body = groupOp->getRegion(0).front();
+                    builder.setInsertionPointToStart(&body);
+                    createWaitFlag(builder, groupOp->getLoc(), gmFlagId, ascendc::Pipe::PIPE_S);
+                }
+            }
+            SmallVector<Operation*> syncOps = collectOps(groupOp, isSyncTriggerOp);
+            if (!syncOps.empty()) {
+                scf::ForOp forOp = groupOp->getParentOfType<scf::ForOp>();
+                for (auto* op : syncOps) {
+                    Operation* dstDefiningOp = cast<ascendc::DataCopyOp>(op).getDst().getDefiningOp();
+                    if (!dstDefiningOp)
+                        continue;
+                    ascendc::Pipe producerPipe = ascendc::getOpPipeExt(op);
+                    auto it = dstFlagMap.find(dstDefiningOp);
+                    bool isSecondTrigger = it != dstFlagMap.end();
+                    int32_t flagId = isSecondTrigger ? it->second : nextFlagId;
+                    SmallVector<Operation*> users = collectUsers(dstDefiningOp, isAIV, op);
+                    if (users.empty() && !isSecondTrigger)
+                        continue;
+                    if (!isSecondTrigger) {
+                        nextFlagId = (nextFlagId + 1) % maxTensorId;
+                        dstFlagMap[dstDefiningOp] = flagId;
+                    }
+                    if (isSecondTrigger || forOp) {
+                        builder.setInsertionPoint(op);
+                        createWaitFlag(builder, op->getLoc(), flagId, producerPipe);
+                    }
+                    if (!users.empty()) {
+                        builder.setInsertionPointAfter(op);
+                        createSetFlag(builder, op->getLoc(), flagId, producerPipe);
+                        processUsers(builder, users, flagId);
+                    }
+                    if (!isSecondTrigger && forOp) {
+                        builder.setInsertionPoint(forOp);
+                        insertFlagGroup<ascendc::CrossCoreSetFlagOp>(
+                            builder, groupOp, !isAIV, flagId, ascendc::Pipe::PIPE_S);
+                        builder.setInsertionPointAfter(forOp);
+                        insertFlagGroup<ascendc::CrossCoreWaitFlagOp>(builder, groupOp, isAIV, flagId, producerPipe);
+                    }
+                }
+            }
+            SmallVector<Operation*> gmOps = collectOps(groupOp, isL0CToGMCopy);
+            if (gmOps.empty())
                 continue;
-            scf::ForOp forOp = groupOp->getParentOfType<scf::ForOp>();
-            for (auto* op : syncOps) {
-                Operation* dstDefiningOp = cast<ascendc::DataCopyOp>(op).getDst().getDefiningOp();
-                if (!dstDefiningOp)
-                    continue;
+            Block& body = groupOp->getRegion(0).front();
+            builder.setInsertionPoint(body.getTerminator());
+            for (auto* op : gmOps) {
                 ascendc::Pipe producerPipe = ascendc::getOpPipeExt(op);
-                auto it = dstFlagMap.find(dstDefiningOp);
-                bool isSecondTrigger = it != dstFlagMap.end();
-                int32_t flagId = isSecondTrigger ? it->second : nextFlagId;
-                SmallVector<Operation*> users = collectUsers(dstDefiningOp, isAIV, op);
-                if (users.empty() && !isSecondTrigger)
-                    continue;
-                if (!isSecondTrigger) {
-                    nextFlagId = (nextFlagId + 1) % maxTensorId;
-                    dstFlagMap[dstDefiningOp] = flagId;
-                }
-                if (isSecondTrigger || forOp) {
-                    builder.setInsertionPoint(op);
-                    createWaitFlag(builder, op->getLoc(), flagId, producerPipe);
-                }
-                if (!users.empty()) {
-                    builder.setInsertionPointAfter(op);
-                    createSetFlag(builder, op->getLoc(), flagId, producerPipe);
-                    processUsers(builder, users, flagId);
-                }
-                if (!isSecondTrigger && forOp) {
-                    builder.setInsertionPoint(forOp);
-                    insertFlagGroup<ascendc::CrossCoreSetFlagOp>(
-                        builder, groupOp, !isAIV, flagId, ascendc::Pipe::PIPE_S);
-                    builder.setInsertionPointAfter(forOp);
-                    insertFlagGroup<ascendc::CrossCoreWaitFlagOp>(builder, groupOp, isAIV, flagId, producerPipe);
-                }
+                int32_t flagId1 = nextFlagId;
+                nextFlagId = (nextFlagId + 1) % maxTensorId;
+                int32_t flagId2 = flagId1 + maxTensorId;
+                createSetFlag(builder, op->getLoc(), flagId1, producerPipe);
+                createSetFlag(builder, op->getLoc(), flagId2, producerPipe);
+                gmRootsWithFlags[getRootGlobalTensor(cast<ascendc::FixpipeOp>(op).getDst())] = flagId1;
             }
         }
     }
