@@ -20,8 +20,8 @@ Recommended Skills
 ------------------
 
 .. list-table::
-   :header-rows: 1
-   :widths: 30 70
+    :header-rows: 1
+    :widths: 30 70
 
     * - Skill
       - Purpose
@@ -84,25 +84,31 @@ Installation
     git clone https://gitcode.com/cann/cannbot-skills.git $CANNBOT_SKILLS
 
     # Clone asc-devkit (API docs + examples)
-    git clone https://gitcode.com/cann/asc-devkit.git \
-        $CANNBOT_SKILLS/plugins-official/ops-direct-invoke/asc-devkit
+    git clone https://gitcode.com/cann/asc-devkit.git $CANNBOT_SKILLS/plugins-official/ops-direct-invoke/asc-devkit
 
     # Create symlinks
-    ln -sfn $CANNBOT_SKILLS/ops/ascendc-api-best-practices .opencode/skills/ascendc-api-best-practices
-    ln -sfn $CANNBOT_SKILLS/ops/ascendc-blaze-best-practice .opencode/skills/ascendc-blaze-best-practice
-    ln -sfn $CANNBOT_SKILLS/ops/ascendc-code-review .opencode/skills/ascendc-code-review
-    ln -sfn $CANNBOT_SKILLS/ops/ascendc-crash-debug .opencode/skills/ascendc-crash-debug
-    ln -sfn $CANNBOT_SKILLS/ops/ascendc-docs-search .opencode/skills/ascendc-docs-search
-    ln -sfn $CANNBOT_SKILLS/ops/ascendc-performance-best-practices .opencode/skills/ascendc-performance-best-practices
-    ln -sfn $CANNBOT_SKILLS/ops/ascendc-perf-optimize .opencode/skills/ascendc-perf-optimize
-    ln -sfn $CANNBOT_SKILLS/ops/ascendc-precision-debug .opencode/skills/ascendc-precision-debug
-    ln -sfn $CANNBOT_SKILLS/ops/ascendc-runtime-debug .opencode/skills/ascendc-runtime-debug
-    ln -sfn $CANNBOT_SKILLS/ops/ascendc-tiling-design .opencode/skills/ascendc-tiling-design
-    ln -sfn $CANNBOT_SKILLS/ops/npu-arch .opencode/skills/npu-arch
+    skills=(
+        ascendc-api-best-practices
+        ascendc-blaze-best-practice
+        ascendc-code-review
+        ascendc-crash-debug
+        ascendc-docs-search
+        ascendc-performance-best-practices
+        ascendc-perf-optimize
+        ascendc-precision-debug
+        ascendc-runtime-debug
+        ascendc-tiling-design
+        npu-arch
+    )
+    for skill in "${skills[@]}"; do
+        ln -sfn $CANNBOT_SKILLS/ops/$skill .opencode/skills/$skill
+    done
     ln -sfn $CANNBOT_SKILLS/plugins-official/ops-direct-invoke/asc-devkit ./asc-devkit
 
     # Verify skills installation
-    for s in .opencode/skills/*/; do [ -f "$s/SKILL.md" ] && echo "OK: $s" || echo "MISSING: $s"; done
+    for s in .opencode/skills/*/; do
+      [ -f "$s/SKILL.md" ] && echo "OK: $s" || echo "MISSING: $s"
+    done
 
 Restart OpenCode to load the skills.
 
@@ -119,8 +125,6 @@ dependencies and should not be tracked by git. It is recommended to add them to 
     asc-devkit
     .opencode/skills/ascendc-*
     .opencode/skills/npu-arch" >> .git/info/exclude
-
-This file is local-only and will not be committed.
 
 
 Updating
