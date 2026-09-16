@@ -81,7 +81,7 @@ def test_rms_norm(profiler, runs, is_static, test_name, block_num, input_shapes,
         asctile.ConstExpr(ub_factor), epsilon, avg_factor, last_block_factor
     ]
     if is_static:
-        params = map(asctile.ConstExpr, params)
+        params = list(map(asctile.ConstExpr, params))
 
     with profiler.profile():
         for _ in range(runs):
