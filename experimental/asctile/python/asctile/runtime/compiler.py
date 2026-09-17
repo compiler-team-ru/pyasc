@@ -30,6 +30,10 @@ class CompileOptions(CompileOptionsBase):
     """
 
     insert_sync: bool = True
+    """
+    Insert synchronization instructions automatically.
+    **This feature is enabled by default**, which is usually a must, but may be disabled for the debugging purposes.
+    """
 
     reuse_alloc: Literal[0, 1, 2] = 0
     """
