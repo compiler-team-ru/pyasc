@@ -34,14 +34,37 @@ class CompileOptions:
     print_ir_before_all: bool = False
     run_passes: bool = True
     kernel_type: Optional[KernelType] = None
-    opt_level: int = 3
     auto_sync: Optional[bool] = True
     auto_sync_log: Optional[str] = ""
-    bisheng_options: Optional[Tuple[str, ...]] = None
-    always_compile: bool = False
     matmul_cube_only: bool = False
     insert_sync: Optional[bool] = None
+
+    always_compile: bool = False
+    """
+    Always run full compilation pipeline instead of fetching a cached objects from the prevoius runs.
+    This option may be useful for testing and parallel execution.
+    """
+
+    bisheng_options: Optional[Tuple[str, ...]] = None
+    """
+    Append extra arguments to the ``bisheng`` command line used to produce an object file for the kernel.
+    Please, run ``bisheng --help`` to get the list of options supported by the compiler.
+
+    Note: To pass a single argument, use ``("-O3",)`` (with a trailing comma).
+    Without the comma, ``("-O3")`` is just a string, not a tuple.
+    """
+
+    opt_level: int = 3
+    """
+    Optimization level for the Bisheng compiler. Supported values are ``1``, ``2``, ``3``.
+    Typically, this parameter affects the ``-O`` argument of the command line for the compiler.
+    """
+
     vf_vec_len: Optional[int] = None
+    """
+    Vector register length for the C310 architecture.
+    This option is only available on supported platforms (such as ``Ascend950PR_9599``). The default value is 256.
+    """
 
 
 @dataclass(frozen=True)
@@ -186,7 +209,7 @@ class Compiler:
     def run_passes(self, mod: ir.ModuleOp) -> None:
         pm = passes.PassManager(mod.get_context())
         pm.enable_verifier()
-        if self.options.print_ir_before_all:
+        if self.options.print_ir_before_all or os.environ.get("PYASC_PRINT_IR"):
             pm.enable_printing()
         if self.options.insert_sync is None:
             self.options.insert_sync = mod.need_insert_sync()
@@ -219,7 +242,8 @@ class Compiler:
 
     def _check_compile_options(self) -> bool:
         is_soc_version_valid = (self.soc_version.value.startswith("Ascend910B")
-                                or self.soc_version.value.startswith("Ascend910_93"))
+                                or self.soc_version.value.startswith("Ascend910_93")
+                                or self.soc_version.value.startswith("Ascend950PR_95"))
         is_core_type_valid = (self.options.kernel_type is None
                               or (isinstance(self.options.kernel_type, KernelType)
                                   and self.options.kernel_type.value <= 7 and self.options.kernel_type.value >= 0))

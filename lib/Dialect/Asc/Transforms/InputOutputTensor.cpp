@@ -10,8 +10,12 @@
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Transforms/Passes.h"
+#include "ascir/Dialect/Asc/Utils/Attributes.h"
+#include "ascir/Dialect/Asc/Utils/Constants.h"
+#include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
+#include "mlir/Analysis/Liveness.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/ValueRange.h"
@@ -30,8 +34,14 @@ namespace {
 
 using TensorOp = ascendc::LocalTensorAutoOp;
 
+int getCopyCount(ascendc::BaseTensorType type)
+{
+    size_t byteSize = llvm::alignTo<ascendc::ubBlockSize>(getTypeSize(type));
+    return static_cast<int>(byteSize / ascendc::getElementTypeSize(type));
+}
+
 template <typename ControlFlowOp>
-void createDataCopyIfNeeded(ControlFlowOp op)
+void createResultDataCopy(ControlFlowOp op)
 {
     for (auto& use : op->getUses()) {
         auto copyOp = dyn_cast<ascendc::DataCopyOp>(use.getOwner());
@@ -42,10 +52,86 @@ void createDataCopyIfNeeded(ControlFlowOp op)
         auto type = cast<ascendc::BaseTensorType>(use.get().getType());
         auto dst = builder.create<TensorOp>(op->getLoc(), type, /*input*/ false, /*output*/ true, ValueRange{});
         builder.setInsertionPointAfter(op);
-        Value calCount = consts.i64(type.getNumElements());
+        Value calCount = consts.i64(getCopyCount(type));
         auto extraOp = builder.create<ascendc::DataCopyL2Op>(op->getLoc(), dst, use.get(), calCount);
         extraOp.setDirection(ascendc::TPosition::VECCALC, ascendc::TPosition::VECCALC);
         copyOp.setSrc(dst);
+    }
+}
+
+template <typename ControlFlowOp>
+void createDataCopyIfNeeded(ControlFlowOp op)
+{
+    createResultDataCopy(op);
+}
+
+template <>
+void createDataCopyIfNeeded(scf::ForOp forOp)
+{
+    createResultDataCopy(forOp);
+
+    auto isUBTensor = [](Value val) {
+        auto argPos = ascendc::TPosition::MAX;
+        if (auto tensor = val.getDefiningOp<ascendc::LocalTensorAutoOp>())
+            argPos = tensor.getPosition();
+        return argPos == ascendc::TPosition::VECCALC || argPos == ascendc::TPosition::VECIN ||
+               argPos == ascendc::TPosition::VECOUT;
+    };
+
+    Liveness liveness(forOp->template getParentOfType<func::FuncOp>());
+
+    const auto& forOpInVals = liveness.getLiveIn(forOp.getBody());
+    DenseSet<Value> initVals;
+    SmallVector<OpOperand*, 4> operandsForCopy;
+    for (auto& operand : forOp.getInitArgsMutable()) {
+        Value operandVal = operand.get();
+        if (!isUBTensor(operandVal))
+            continue;
+
+        // Iter args initialization may be emitted into shallow copy of local tensor objects.
+        // Make a deep copy of initialization buffer if it is used as init value multiple times within same forOp,
+        // or used in or after the loop to prevent data corruption through writes into iteration argument's buffer.
+        if (initVals.contains(operandVal) || forOpInVals.contains(operandVal) ||
+            !liveness.isDeadAfter(operandVal, forOp))
+            operandsForCopy.push_back(&operand);
+        initVals.insert(operandVal);
+
+        // Iter args re-assignment at yield may be emitted into shallow copy of local tensor objects as well.
+        // Make a deep copy of yielded arg buffer before yield if corresponding iter arg is used after yielded value
+        // definition to prevent data corruption of iter arg buffer through writes into yielded buffer.
+        BlockArgument blockIterArg = forOp.getTiedLoopRegionIterArg(&operand);
+        OpOperand* yieldOperand = forOp.getTiedLoopYieldedValue(blockIterArg);
+        Operation* yieldValDefOp = yieldOperand->get().getDefiningOp();
+        if (auto aivOp = dyn_cast_if_present<ascendc::IfAIVOp>(yieldValDefOp)) {
+            int resIdx = 0;
+            for (auto aivOpRes : aivOp->getResults()) {
+                if (aivOpRes == yieldOperand->get())
+                    break;
+                resIdx++;
+            }
+            Operation* aivYieldOp = aivOp.getRegion().front().getTerminator();
+            yieldOperand = &aivYieldOp->getOpOperand(resIdx);
+        }
+        if (auto yieldOperandDefOp = ascendc::getAllocationRoot(yieldOperand->get()))
+            for (Operation* user : yieldOperand->get().getUsers())
+                if (isWriteToAllocation(user, yieldOperandDefOp) && !liveness.isDeadAfter(blockIterArg, user))
+                    operandsForCopy.push_back(yieldOperand);
+    }
+
+    for (auto* operand : operandsForCopy) {
+        Operation* user = operand->getOwner();
+        Location loc = user->getLoc();
+        OpBuilder builder(user);
+        ascir::ConstantOpBuilder consts(builder);
+        auto type = cast<ascendc::BaseTensorType>(operand->get().getType());
+        Value dst = builder.create<TensorOp>(loc, type, /*input*/ false, /*output*/ false, ValueRange{});
+        auto ifAIVOp = builder.create<ascendc::IfAIVOp>(loc, TypeRange{}, ValueRange{});
+        builder.setInsertionPointToStart(&ifAIVOp.getRegion().emplaceBlock());
+        Value calCount = consts.i64(getCopyCount(type));
+        auto copyOp = builder.create<ascendc::DataCopyL2Op>(loc, dst, operand->get(), calCount);
+        copyOp.setDirection(ascendc::TPosition::VECCALC, ascendc::TPosition::VECCALC);
+        builder.create<ascendc::YieldOp>(loc);
+        operand->set(dst);
     }
 }
 
@@ -101,7 +187,7 @@ void fixInOutTensor(func::FuncOp& funcOp)
             if (!copyOp || !copyOp.isLocalToGlobal())
                 return builder.setInsertionPoint(owner);
             ascir::ConstantOpBuilder consts(builder);
-            Value calCount = consts.i64(tensorType.getNumElements());
+            Value calCount = consts.i64(getCopyCount(tensorType));
             auto outTensor = builder.create<TensorOp>(loc, tensorType, /*input*/ false, /*output*/ true, ValueRange{});
             auto extraOp = builder.create<ascendc::DataCopyL2Op>(loc, outTensor, inTensor, calCount);
             extraOp.setDirection(ascendc::TPosition::VECCALC, ascendc::TPosition::VECCALC);
@@ -116,10 +202,6 @@ struct InputOutputTensorPass : public ascendc::impl::InputOutputTensorBase<Input
         func::FuncOp funcOp = getOperation();
         setInOutTensors(funcOp);
         fixInOutTensor(funcOp);
-        MLIRContext* context = &getContext();
-        RewritePatternSet patterns(context);
-        if (applyPatternsAndFoldGreedily(funcOp, std::move(patterns)).failed())
-            signalPassFailure();
     }
 };
 

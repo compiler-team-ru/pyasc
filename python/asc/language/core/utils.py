@@ -223,10 +223,7 @@ def static_assert(test: bool, message: Optional[str] = None) -> None:
     if not isinstance(test, bool):
         raise TypeError(f"Assertion condition could not be determined, expected bool, got {test.__class__.__name__}")
     if not test:
-        if message is not None:
-            raise AssertionError(message)
-        else:
-            raise ValueError("miss message")
+        raise AssertionError(message)
 
 
 class GlobalTensorDocstring:

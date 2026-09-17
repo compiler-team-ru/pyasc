@@ -25,6 +25,7 @@ class EmitAsc_Attr<string name, string attrMnemonic, list<Trait> traits = []>
 def EmitAsc_KernelArgument : I32EnumAttr<"KernelArgument", "kernel argument", [
   I32EnumAttrCase<"Explicit", 0, "explicit">,
   I32EnumAttrCase<"FftsAddr", 1, "ffts_addr">,
+  I32EnumAttrCase<"DumpAddr", 2, "dump_addr">,
 ]> {
   let cppNamespace = "::mlir::emitasc";
   let genSpecializedAttr = 0;

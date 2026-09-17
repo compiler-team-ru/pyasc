@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Huawei Technologies Co., Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co., Ltd.
  * This program is free software, you can redistribute it and/or modify it under the terms and conditions of
  * CANN Open Software License Agreement Version 2.0 (the "License").
  * Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -8,23 +8,20 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#ifndef ASCIR_TARGET_ASC_BASIC_SYS_VAR_H
-#define ASCIR_TARGET_ASC_BASIC_SYS_VAR_H
+#ifndef ASCTILE_DIALECT_ASCENDC_UTILS_UTILS_H
+#define ASCTILE_DIALECT_ASCENDC_UTILS_UTILS_H
 
-#include "ascir/Target/Asc/Common.h"
+#include "ascir/Dialect/Asc/IR/Asc.h"
+
+#include "mlir/IR/Dominance.h"
+#include "mlir/IR/Operation.h"
 
 namespace mlir {
 namespace ascendc {
 
-//===----------------------------------------------------------------------===//
-// System Variable operations
-//===----------------------------------------------------------------------===//
-
-LogicalResult printOperation(CodeEmitter& emitter, ascendc::GetBlockIdxOp op);
-
-LogicalResult printOperation(CodeEmitter& emitter, ascendc::GetBlockNumOp op);
+Pipe getOpPipeExt(Operation* op, Pipe defaultPipe = Pipe::PIPE_S);
 
 } // namespace ascendc
 } // namespace mlir
 
-#endif // ASCIR_TARGET_ASC_BASIC_SYS_VAR_H
+#endif // ASCTILE_DIALECT_ASCENDC_UTILS_UTILS_H

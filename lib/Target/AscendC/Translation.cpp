@@ -28,7 +28,6 @@
 #include "ascir/Target/Asc/Basic/Reg.h"
 #include "ascir/Target/Asc/Basic/Scalar.h"
 #include "ascir/Target/Asc/Basic/SwapMem.h"
-#include "ascir/Target/Asc/Basic/SysVar.h"
 #include "ascir/Target/Asc/Basic/VecBilinearInterpolation.h"
 #include "ascir/Target/Asc/Basic/VecBinary.h"
 #include "ascir/Target/Asc/Basic/VecBinaryScalar.h"
@@ -111,7 +110,8 @@ using PrintableOpTypes = std::tuple<
     // EmitAsc operations
     emitasc::CallOpaqueOp, emitasc::DeclarePyStructOp, emitasc::DereferenceOp, emitasc::MaskOp, emitasc::MemberOp,
     emitasc::MemberPtrOp, emitasc::MemberRefOp, emitasc::PtrOffsetOp, emitasc::ReinterpretCastOp, emitasc::SetMemberOp,
-    emitasc::VariableOp, emitasc::VerbatimOp, emitasc::CopyStructOp, emitasc::InitStructOp,
+    emitasc::VariableOp, emitasc::VerbatimOp, emitasc::CopyStructOp, emitasc::InitStructOp, emitasc::VecScopeOp,
+    emitasc::VFForOp, emitasc::YieldOp,
     // Adv
     // Activation operations
     ascendc::SimpleSoftMaxOp, ascendc::SoftMaxOp, ascendc::SoftmaxFlashV2Op, ascendc::SwiGLUOp,
@@ -165,8 +165,6 @@ using PrintableOpTypes = std::tuple<
     ascendc::ScalarCastOp,
     // Swap and workspace operations
     ascendc::GetSysWorkspacePtrOp, ascendc::SetSysWorkspaceOp,
-    // System variable operations
-    ascendc::GetBlockIdxOp, ascendc::GetBlockNumOp, ascendc::GetVecLenOp,
     // Vector bilinear interpolation
     ascendc::BilinearInterpolationL0Op, ascendc::BilinearInterpolationL1Op,
     // Vector binary operations

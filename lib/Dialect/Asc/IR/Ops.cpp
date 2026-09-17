@@ -10,6 +10,7 @@
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Utils/CVGroupCanonicalization.h"
+#include "ascir/Dialect/Utils/Utils.h"
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/Matchers.h"
@@ -23,14 +24,22 @@ using namespace mlir::ascendc;
 
 namespace {
 
-LogicalResult eraseUnusedOp(Operation* op, PatternRewriter& rewriter)
-{
-    if (!op->getUses().empty()) {
-        return failure();
+template <typename CVCondOp>
+struct InlineNestedGroup : public OpRewritePattern<CVCondOp> {
+    using OpRewritePattern<CVCondOp>::OpRewritePattern;
+
+    LogicalResult matchAndRewrite(CVCondOp op, PatternRewriter& rewriter) const override
+    {
+        if (!op->template getParentOfType<CVCondOp>())
+            return failure();
+        Block* body = op.getBody();
+        auto yieldOp = cast<YieldOp>(body->getTerminator());
+        rewriter.inlineBlockBefore(body, op);
+        rewriter.replaceOp(op, yieldOp.getOperands());
+        rewriter.eraseOp(yieldOp);
+        return success();
     }
-    rewriter.eraseOp(op);
-    return success();
-}
+};
 
 } // namespace
 
@@ -40,7 +49,7 @@ LogicalResult eraseUnusedOp(Operation* op, PatternRewriter& rewriter)
 
 LogicalResult GlobalTensorOp::canonicalize(GlobalTensorOp op, PatternRewriter& rewriter)
 {
-    return eraseUnusedOp(op, rewriter);
+    return ascir::eraseUnusedOp(op, rewriter);
 }
 
 //===----------------------------------------------------------------------===//
@@ -51,7 +60,7 @@ void IfAICOp::getCanonicalizationPatterns(RewritePatternSet& results, MLIRContex
 {
     results.add<
         ascir::EraseEmptyGroup<IfAICOp, YieldOp>, ascir::EraseUnusedOperands<IfAICOp, YieldOp>,
-        ascir::EraseUnusedResults<IfAICOp, YieldOp>>(context);
+        ascir::EraseUnusedResults<IfAICOp, YieldOp>, InlineNestedGroup<IfAICOp>>(context);
 }
 
 //===----------------------------------------------------------------------===//
@@ -62,7 +71,7 @@ void IfAIVOp::getCanonicalizationPatterns(RewritePatternSet& results, MLIRContex
 {
     results.add<
         ascir::EraseEmptyGroup<IfAIVOp, YieldOp>, ascir::EraseUnusedOperands<IfAIVOp, YieldOp>,
-        ascir::EraseUnusedResults<IfAIVOp, YieldOp>>(context);
+        ascir::EraseUnusedResults<IfAIVOp, YieldOp>, InlineNestedGroup<IfAIVOp>>(context);
 }
 
 //===----------------------------------------------------------------------===//
@@ -82,7 +91,7 @@ OpFoldResult GlobalTensorSubIndexOp::fold([[maybe_unused]] FoldAdaptor adaptor)
 
 LogicalResult LocalTensorOp::canonicalize(LocalTensorOp op, PatternRewriter& rewriter)
 {
-    return eraseUnusedOp(op, rewriter);
+    return ascir::eraseUnusedOp(op, rewriter);
 }
 
 //===----------------------------------------------------------------------===//
@@ -151,7 +160,7 @@ OpFoldResult LocalTensorReinterpretCastOp::fold([[maybe_unused]] FoldAdaptor ada
 
 LogicalResult LocalTensorAutoOp::canonicalize(LocalTensorAutoOp op, PatternRewriter& rewriter)
 {
-    return eraseUnusedOp(op, rewriter);
+    return ascir::eraseUnusedOp(op, rewriter);
 }
 
 //===----------------------------------------------------------------------===//
@@ -160,7 +169,7 @@ LogicalResult LocalTensorAutoOp::canonicalize(LocalTensorAutoOp op, PatternRewri
 
 LogicalResult RegTensorOp::canonicalize(RegTensorOp op, PatternRewriter& rewriter)
 {
-    return eraseUnusedOp(op, rewriter);
+    return ascir::eraseUnusedOp(op, rewriter);
 }
 
 //===----------------------------------------------------------------------===//

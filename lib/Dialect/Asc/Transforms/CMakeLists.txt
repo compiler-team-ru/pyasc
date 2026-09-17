@@ -9,6 +9,7 @@
 add_mlir_dialect_library(MLIRAscTransforms
   DeclarePyStructPass.cpp
   DefineCubeOnlyPass.cpp
+  DetectEnableDebugPass.cpp
   DetectKernelTypePass.cpp
   EraseSync.cpp
   GenerateBoilerplatePass.cpp
@@ -22,7 +23,6 @@ add_mlir_dialect_library(MLIRAscTransforms
   PrivatizeFunc.cpp
   UnifyPipe.cpp
   VerifySync.cpp
-  DetectEnableDebugPass.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${ASCIR_INCLUDE_DIR}/ascir/Dialect/Asc

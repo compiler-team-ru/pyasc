@@ -9,6 +9,7 @@
  */
 
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
+#include "ascir/Dialect/Utils/Utils.h"
 
 #include "mlir/Dialect/Utils/StaticValueUtils.h"
 #include "mlir/IR/Builders.h"
@@ -152,11 +153,53 @@ OpFoldResult VariableOp::getInit(bool fold)
 
 LogicalResult VariableOp::canonicalize(VariableOp op, PatternRewriter& rewriter)
 {
-    if (op->getUses().empty()) {
+    return ascir::eraseUnusedOp(op, rewriter);
+}
+
+//===----------------------------------------------------------------------===//
+// VFForOp
+//===----------------------------------------------------------------------===//
+
+void VFForOp::build(OpBuilder& builder, OperationState& state, Value upperBound)
+{
+    OpBuilder::InsertionGuard guard(builder);
+    state.addOperands(upperBound);
+    Type type = builder.getIndexType();
+    Region* bodyRegion = state.addRegion();
+    Block* bodyBlock = builder.createBlock(bodyRegion);
+    bodyBlock->addArgument(type, state.location);
+    ensureTerminator(*bodyRegion, builder, state.location);
+}
+
+LogicalResult VFForOp::canonicalize(VFForOp op, PatternRewriter& rewriter)
+{
+    Block& block = op.getRegion().front();
+    if (block.without_terminator().empty()) {
+        rewriter.eraseOp(op);
+        return success();
+    }
+    if (auto ub = getConstantIntValue(op.getUpperBound()); ub && ub.value() == 0) {
         rewriter.eraseOp(op);
         return success();
     }
     return failure();
+}
+
+LogicalResult VFForOp::verify()
+{
+    if (getBody()->getArguments().size() != 1)
+        return emitOpError("block must have one argument");
+    if (!getOperation()->getParentOfType<emitasc::VecScopeOp>()) {
+        return emitOpError("must be inside emitasc.vec_scope block");
+    }
+    return success();
+}
+
+SmallVector<Region*> VFForOp::getLoopRegions()
+{
+    SmallVector<Region*> regions;
+    regions.push_back(&getRegion());
+    return regions;
 }
 
 //===----------------------------------------------------------------------===//

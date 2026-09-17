@@ -1,0 +1,632 @@
+.. Copyright (c) 2026 Huawei Technologies Co., Ltd.
+.. This program is free software, you can redistribute it and/or modify it under the terms and conditions of
+.. CANN Open Software License Agreement Version 2.0 (the "License").
+.. Please refer to the License for details. You may not use this file except in compliance with the License.
+.. THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+.. INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+.. See LICENSE in the root of the software repository for the full text of the License.
+
+Cube programming capabilities
+=============================
+
+.. contents:: Table of Contents
+   :local:
+
+This guide covers cube (matrix multiply-accumulate) operations in AscTile, which leverage dedicated matrix multiplication units (cube units) on Ascend NPU hardware.
+
+**Supported Features:**
+
+* Data types: float16, bfloat16, float32
+* Memory locations: L0A, L0B, L0C, L1 (required)
+* Transpose (fused into load)
+* Accumulator (K-axis tiling)
+* Quantization: float32 → float16/bfloat16
+* ReLU activation (fused)
+* HF32 mode (for float32)
+* Multi-core execution
+* Flexible tile shapes
+
+**Not Supported:**
+
+* INT8/INT4 quantization
+* DeqScalar parameter
+* Dequantization (DEQF16, VDEQF16)
+* Bias addition
+* Gemm from L1 (direct L1→L0C matmul)
+* Batch matmul
+* Sparse matrices
+* L0C → UB via FixPipe
+* 3D tensors
+* Standalone transpose on L0A/L0B
+* Cast to int types
+
+Basic Matrix Multiplication
+---------------------------
+
+AscTile provides simple and intuitive matrix multiplication operations using the :func:`~asctile.matmul` function or the ``@`` operator:
+
+.. code-block:: python
+
+   from asc.experimental import asctile
+
+   @asctile.jit
+   def matmul_kernel(a_ptr, b_ptr, c_ptr, m, k, n):
+       a_gm = asctile.global_tensor(a_ptr, [m, k])
+       b_gm = asctile.global_tensor(b_ptr, [k, n])
+       c_gm = asctile.global_tensor(c_ptr, [m, n])
+
+       # Load matrices to L0A and L0B
+       a = asctile.copy_in(a_gm, [0, 0], [m, k], asctile.TensorLocation.L0A)
+       b = asctile.copy_in(b_gm, [0, 0], [k, n], asctile.TensorLocation.L0B)
+
+       # Perform matrix multiplication
+       c = a @ b  # or asctile.matmul(a, b)
+
+       # Store result
+       asctile.copy_out(c, c_gm, [0, 0])
+
+Data Types and Memory Locations
+--------------------------------
+
+Supported Data Types
+~~~~~~~~~~~~~~~~~~~~
+
+The :func:`~asctile.matmul` operation supports the following data types:
+
+* **float16** (half) - Full support
+* **bfloat16** - Full support
+* **float32** - Full support (with optional HF32 mode)
+
+**Important:** Input matrices must have the same dtype. INT8 and INT4 are not supported.
+
+Memory Location Requirements
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Cube operations have strict memory location requirements:
+
+=====================  =================  ========================================
+Component              Required Location  Description
+=====================  =================  ========================================
+Matrix A (left)        **L0A**            Dedicated memory for left matrix
+Matrix B (right)       **L0B**            Dedicated memory for right matrix
+Result/Accumulator     **L0C**            Dedicated memory for C matrix
+L1 buffer              **L1**             Buffer between GM and L0A/L0B
+=====================  =================  ========================================
+
+**Memory Flow Pattern:**
+
+.. code-block::
+
+                         ↱ GM
+   GM ➔ L1 ➔ L0A/L0B ➔ L0C
+             (matmul)    ↳ L1
+
+L1 is a required buffer for loading data from GM to L0A/L0B. When you call :func:`~asctile.copy_in` with ``location=TensorLocation.L0A`` or ``TensorLocation.L0B``, the compiler automatically splits the operation into ``GM → L1 → L0A/L0B``.
+
+Example with explicit L1 usage:
+
+.. code-block:: python
+
+   @asctile.jit
+   def matmul_explicit_l1_kernel(a_ptr, b_ptr, c_ptr, m, k, n):
+       a_gm = asctile.global_tensor(a_ptr, [m, k])
+       b_gm = asctile.global_tensor(b_ptr, [k, n])
+       c_gm = asctile.global_tensor(c_ptr, [m, n])
+
+       # Explicitly load to L1 first
+       a_l1 = asctile.copy_in(a_gm, [0, 0], [m, k], asctile.TensorLocation.L1)
+       b_l1 = asctile.copy_in(b_gm, [0, 0], [k, n], asctile.TensorLocation.L1)
+
+       # Copy from L1 to L0A/L0B
+       a = asctile.copy(a_l1, [0, 0], [m, k], asctile.TensorLocation.L0A)
+       b = asctile.copy(b_l1, [0, 0], [k, n], asctile.TensorLocation.L0B)
+
+       c = a @ b
+       asctile.copy_out(c, c_gm, [0, 0])
+
+Accumulator Operations
+----------------------
+
+For iterative matrix multiplication (e.g., tiling along K dimension), use the accumulator pattern with :func:`~asctile.zeros_acc` and :func:`~asctile.matmul_acc`:
+
+.. code-block:: python
+
+   @asctile.jit
+   def matmul_tiled_kernel(a_ptr, b_ptr, c_ptr, m, k, n, k_tiles):
+       a_gm = asctile.global_tensor(a_ptr, [m, k])
+       b_gm = asctile.global_tensor(b_ptr, [k, n])
+       c_gm = asctile.global_tensor(c_ptr, [m, n])
+
+       # Initialize accumulator in L0C
+       acc = asctile.zeros_acc([m, n], dtype=asctile.float32)
+
+       # Tile along K dimension
+       tile_k = k // k_tiles
+       for i in asctile.range(k_tiles):
+           # Load tiles
+           a_tile = asctile.copy_in(a_gm, [0, i * tile_k], [m, tile_k], asctile.TensorLocation.L0A)
+           b_tile = asctile.copy_in(b_gm, [i * tile_k, 0], [tile_k, n], asctile.TensorLocation.L0B)
+
+           # Accumulate: acc += a_tile @ b_tile
+           asctile.matmul_acc(acc, a_tile, b_tile)
+
+       # Store final result
+       asctile.copy_out(acc, c_gm, [0, 0])
+
+**Accumulator Requirements:**
+
+* Must be created with :func:`~asctile.zeros_acc` (not regular :func:`~asctile.zeros`)
+* Must be in L0C location
+* Must be float32 dtype
+* Must be 2D tensor
+
+Bias Support
+~~~~~~~~~~~~
+
+Both :func:`~asctile.matmul` and :func:`~asctile.zeros_acc` support optional bias initialization. Bias tiles must be 1D tiles in ``BT`` location with shape matching the last dimension of the output.
+
+**Supported bias dtypes:** ``float16``, ``bfloat16``, or ``float32``. Bias with ``float16`` or ``bfloat16`` dtype is automatically promoted to ``float32`` to match the accumulator/result type.
+
+**Using bias with matmul:**
+
+.. code-block:: python
+
+   @asctile.jit
+   def matmul_bias_kernel(a_ptr, b_ptr, bias_ptr, c_ptr, m, k, n):
+       a_gm = asctile.global_tensor(a_ptr, [m, k])
+       b_gm = asctile.global_tensor(b_ptr, [k, n])
+       bias_gm = asctile.global_tensor(bias_ptr, [n])
+       c_gm = asctile.global_tensor(c_ptr, [m, n])
+
+       a = asctile.copy_in(a_gm, [0, 0], [m, k], asctile.TensorLocation.L0A)
+       b = asctile.copy_in(b_gm, [0, 0], [k, n], asctile.TensorLocation.L0B)
+       bias = asctile.copy_in(bias_gm, [0], [n], asctile.TensorLocation.BT)
+
+       # C = A @ B + bias
+       c = asctile.matmul(a, b, bias)
+       asctile.copy_out(c, c_gm, [0, 0])
+
+**Using bias with zeros_acc for K-tiled accumulation:**
+
+.. code-block:: python
+
+   @asctile.jit
+   def matmul_tiled_bias_kernel(a_ptr, b_ptr, bias_ptr, c_ptr, m, k, n, k_tiles):
+       a_gm = asctile.global_tensor(a_ptr, [m, k])
+       b_gm = asctile.global_tensor(b_ptr, [k, n])
+       bias_gm = asctile.global_tensor(bias_ptr, [n])
+       c_gm = asctile.global_tensor(c_ptr, [m, n])
+
+       bias = asctile.copy_in(bias_gm, [0], [n], asctile.TensorLocation.BT)
+       # Initialize accumulator with bias
+       acc = asctile.zeros_acc([m, n], dtype=asctile.float32, bias=bias)
+
+       tile_k = k // k_tiles
+       for i in asctile.range(k_tiles):
+           a_tile = asctile.copy_in(a_gm, [0, i * tile_k], [m, tile_k], asctile.TensorLocation.L0A)
+           b_tile = asctile.copy_in(b_gm, [i * tile_k, 0], [tile_k, n], asctile.TensorLocation.L0B)
+           asctile.matmul_acc(acc, a_tile, b_tile)
+
+       asctile.copy_out(acc, c_gm, [0, 0])
+
+Supported Features
+------------------
+
+Matrix Transpose
+~~~~~~~~~~~~~~~~
+
+AscTile supports transposing matrices before multiplication using :func:`~asctile.transpose` or the ``.T`` property of a tensor. Transpose operations on L0A/L0B tiles are automatically fused into the load operation by the compiler.
+
+.. code-block:: python
+
+   @asctile.jit
+   def matmul_transpose_kernel(a_ptr, b_ptr, c_ptr, m, k, n):
+       a_gm = asctile.global_tensor(a_ptr, [k, m])  # Note: shape is [k, m] not [m, k]
+       b_gm = asctile.global_tensor(b_ptr, [n, k])  # Note: shape is [n, k] not [k, n]
+       c_gm = asctile.global_tensor(c_ptr, [m, n])
+
+       # Load to L1
+       a_l1 = asctile.copy_in(a_gm, [0, 0], [k, m], asctile.TensorLocation.L1)
+       b_l1 = asctile.copy_in(b_gm, [0, 0], [n, k], asctile.TensorLocation.L1)
+
+       # Copy to L0A/L0B and transpose
+       a = asctile.copy(a_l1, [0, 0], [k, m], asctile.TensorLocation.L0A)
+       a_transpose = asctile.transpose(a)  # Transpose on L0A
+
+       b = asctile.copy(b_l1, [0, 0], [n, k], asctile.TensorLocation.L0B)
+       b_transpose = b.T  # Transpose using .T property of a local tensor
+
+       # C = A.T @ B.T
+       c = a_transpose @ b_transpose
+       asctile.copy_out(c, c_gm, [0, 0])
+
+**Important:**
+
+* Transpose on L0A/L0B is fused automatically by the compiler into load operation
+* Standalone transpose on L0A/L0B after matmul is **NOT supported**
+* Use ``.T`` property of a local tensor or :func:`~asctile.transpose` function
+
+Quantization and Type Casting
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+After matmul, the result can be cast to other types using the ``.to()`` method. Quantization is achieved by explicit L0C tensor cast to the desired type.
+
+**Supported Quantization Modes (from L0C float32):**
+
+1. float32 → float32 (no conversion)
+2. float32 → float16
+3. float32 → bfloat16
+
+Example:
+
+.. code-block:: python
+
+   @asctile.jit
+   def matmul_quant_kernel(a_ptr, b_ptr, c_ptr, m, k, n, quant_type):
+       a_gm = asctile.global_tensor(a_ptr, [m, k])
+       b_gm = asctile.global_tensor(b_ptr, [k, n])
+       c_gm = asctile.global_tensor(c_ptr, [m, n])
+
+       a = asctile.copy_in(a_gm, [0, 0], [m, k], asctile.TensorLocation.L0A)
+       b = asctile.copy_in(b_gm, [0, 0], [k, n], asctile.TensorLocation.L0B)
+
+       # Matmul produces float32 in L0C
+       c = a @ b
+
+       # Cast to quantized type (float16 or bfloat16)
+       c_quant = c.to(quant_type)  # Uses F322F16 or F322BF16 mode
+       asctile.copy_out(c_quant, c_gm, [0, 0])
+
+**Not Supported Quantization Modes:**
+
+The following modes require integer input types or ``deqScalar`` parameter, which are not supported:
+
+* int32 → float16 (dequantization)
+* float32 → int8/uint8 (quantization to int8)
+* int32 → int8/uint8 (requantization)
+
+ReLU Activation
+~~~~~~~~~~~~~~~
+
+ReLU can be applied after matmul using :func:`~asctile.relu` and is automatically fused into the Fixpipe operation for optimization:
+
+.. code-block:: python
+
+   @asctile.jit
+   def matmul_relu_quant_kernel(a_ptr, b_ptr, c_ptr, m, k, n, quant_type):
+       a_gm = asctile.global_tensor(a_ptr, [m, k])
+       b_gm = asctile.global_tensor(b_ptr, [k, n])
+       c_gm = asctile.global_tensor(c_ptr, [m, n])
+
+       a = asctile.copy_in(a_gm, [0, 0], [m, k], asctile.TensorLocation.L0A)
+       b = asctile.copy_in(b_gm, [0, 0], [k, n], asctile.TensorLocation.L0B)
+
+       # Matmul + ReLU + Quantization (fused into Fixpipe)
+       c = a @ b
+       c = asctile.relu(c).to(quant_type)
+
+       asctile.copy_out(c, c_gm, [0, 0])
+
+**ReLU Fusion:** The compiler automatically fuses ReLU into the Fixpipe operation when ReLU is applied directly to L0C result
+
+HF32 Mode
+~~~~~~~~~
+
+For float32 inputs, HF32 (high-performance float32) mode can be enabled for optimized performance:
+
+.. code-block:: python
+
+   @asctile.jit
+   def matmul_hf32_kernel(a_ptr, b_ptr, c_ptr, m, k, n):
+       a_gm = asctile.global_tensor(a_ptr, [m, k])
+       b_gm = asctile.global_tensor(b_ptr, [k, n])
+       c_gm = asctile.global_tensor(c_ptr, [m, n])
+
+       a = asctile.copy_in(a_gm, [0, 0], [m, k], asctile.TensorLocation.L0A)
+       b = asctile.copy_in(b_gm, [0, 0], [k, n], asctile.TensorLocation.L0B)
+
+       # Use HF32 mode for float32 inputs
+       c = asctile.matmul(a, b, hf32=True)
+
+       asctile.copy_out(c, c_gm, [0, 0])
+
+Advanced Usage
+--------------
+
+Chained Matmul Operations
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Chain multiple matmul operations by moving L0C result to L1 and then to L0A for subsequent operations:
+
+.. code-block:: python
+
+   @asctile.jit
+   def chained_matmul_kernel(a_ptr, b_ptr, c_ptr, m, k, n, dtype):
+       a_gm = asctile.global_tensor(a_ptr, [m, k])
+       b_gm = asctile.global_tensor(b_ptr, [k, n])
+       c_gm = asctile.global_tensor(c_ptr, [m, n])
+
+       # First matmul: A @ B
+       a = asctile.copy_in(a_gm, [0, 0], [m, k], asctile.TensorLocation.L0A)
+       b = asctile.copy_in(b_gm, [0, 0], [k, n], asctile.TensorLocation.L0B)
+       c = a @ b
+
+       # Cast and move to L1
+       c_cast = c.to(dtype)
+       c_l1 = asctile.copy(c_cast, [0, 0], [m, n], asctile.TensorLocation.L1)
+
+       # Move to L0A for second matmul
+       c_l0a = asctile.copy(c_l1, [0, 0], [m, n], asctile.TensorLocation.L0A)
+
+       # Second matmul: C @ B
+       result = c_l0a @ b
+
+       asctile.copy_out(result, c_gm, [0, 0])
+
+Multi-Core Execution
+~~~~~~~~~~~~~~~~~~~~
+
+AscTile supports multi-core parallel execution using :func:`~asctile.block_idx` and :func:`~asctile.block_num`:
+
+.. code-block:: python
+
+   @asctile.jit
+   def parallel_matmul_kernel(a_ptr, b_ptr, c_ptr, m, k, n):
+       a_gm = asctile.global_tensor(a_ptr, [m, k])
+       b_gm = asctile.global_tensor(b_ptr, [k, n])
+       c_gm = asctile.global_tensor(c_ptr, [m, n])
+
+       # Get block index for parallel execution
+       block_id = asctile.block_idx()
+       num_blocks = asctile.block_num()
+
+       # Compute tile for this block
+       tile_m = m // num_blocks
+       local_m_start = block_id * tile_m
+
+       # Load local tiles
+       a_tile = asctile.copy_in(a_gm, [local_m_start, 0], [tile_m, k], asctile.TensorLocation.L0A)
+       b = asctile.copy_in(b_gm, [0, 0], [k, n], asctile.TensorLocation.L0B)
+
+       # Matmul
+       c_tile = a_tile @ b
+
+       # Store result for this block
+       asctile.copy_out(c_tile, c_gm, [local_m_start, 0])
+
+   # Launch with multiple cores
+   parallel_matmul_kernel[8](a, b, c, m, k, n)  # Use 8 cores
+
+Flexible Tile Shapes
+~~~~~~~~~~~~~~~~~~~~
+
+Cube operations in AscTile support flexible tile shapes without strict alignment requirements:
+
+.. code-block:: python
+
+   @asctile.jit
+   def matmul_flexible_shapes_kernel(a_ptr, b_ptr, c_ptr):
+       # Various shapes are supported
+       a_gm = asctile.global_tensor(a_ptr, [1, 32])    # Small tiles
+       b_gm = asctile.global_tensor(b_ptr, [32, 11])
+       c_gm = asctile.global_tensor(c_ptr, [1, 11])
+
+       a = asctile.copy_in(a_gm, [0, 0], [1, 32], asctile.TensorLocation.L0A)
+       b = asctile.copy_in(b_gm, [0, 0], [32, 11], asctile.TensorLocation.L0B)
+       c = a @ b
+       asctile.copy_out(c, c_gm, [0, 0])
+
+**Supported Shape Examples:**
+
+* ``[1, 32] × [32, 11]`` - Small tiles
+* ``[11, 19] × [19, 41]`` - Irregular shapes
+* ``[47, 21] × [21, 35]`` - Non-power-of-2
+* ``[64, 128] × [128, 256]`` - Standard sizes
+
+**Shape Requirements:**
+
+* Must be 2D tiles
+* Shapes must be compatible: ``A[M, K] × B[K, N]``
+* K dimension must match
+
+Limitations and Constraints
+----------------------------
+
+Memory Location Constraints
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Matrix A must be in L0A (not L0B, L1, or UB)
+* Matrix B must be in L0B (not L0A, L1, or UB)
+* Result must be in L0C (not L1 or UB)
+* L1 tiles cannot be used directly in matmul - must be copied to L0A or L0B
+
+Transpose Constraints
+~~~~~~~~~~~~~~~~~~~~~
+
+* Standalone transpose on L0A/L0B after matmul is NOT supported
+* Transpose on L0C is NOT supported
+* Multiple chained transposes on cube tiles are NOT supported
+
+Accumulator Constraints
+~~~~~~~~~~~~~~~~~~~~~~~
+
+* Cannot use regular tiles as accumulators - must use :func:`~asctile.zeros_acc`
+* Accumulator must be float32
+* Accumulator must be in L0C
+* Accumulator must be 2D
+
+HF32 Mode Constraints
+~~~~~~~~~~~~~~~~~~~~~
+
+* HF32 mode only works with float32 inputs
+
+Operations Order Constraints
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* ReLU must be applied to L0C directly before moving to other locations
+* Cannot apply unary/binary ops on L0A/L0B tiles before matmul
+
+Unsupported Features
+~~~~~~~~~~~~~~~~~~~~
+
+* **Data Types:** INT8/INT4 quantization, unsigned integers, cast to int types
+* **Quantization:** DeqScalar parameter, dequantization modes (int32 → float16), quantization to int8, vector quantization (VDEQF16, VQF322B8_PRE, VREQ8)
+* **Dimensions:** Batch matmul, 3D tensors
+* **Gemm from L1:** Direct L1 → L0C matmul operation is not supported
+* **L0C → UB via FixPipe:** Copying data from L0C to UB through FixPipe operation is not yet implemented
+* **Sparse matrices:** Sparse matrix multiplication is not supported
+
+Best Practices
+--------------
+
+Loop Unrolling
+~~~~~~~~~~~~~~
+
+Improve performance with loop unrolling in tiled execution:
+
+.. code-block:: python
+
+   for i in asctile.range(k_tiles, unroll_factor=4):
+       asctile.matmul_acc(acc, a_tile, b_tile)
+
+Multi-Core Parallelization
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Distribute large matrices across multiple cores:
+
+.. code-block:: python
+
+   # Good: Parallel execution
+   parallel_matmul_kernel[8](...)  # Use 8 cores
+
+   # Avoid: Single core for large matrices
+   matmul_kernel[1](...)  # Only 1 core
+
+Memory Flow Pattern
+~~~~~~~~~~~~~~~~~~~
+
+Follow the standard memory flow pattern:
+
+.. code-block::
+
+   # Standard flow
+   GM ➔ L1 ➔ L0A/L0B ➔ L0C ➔ GM
+
+   # With chaining
+   GM ➔ L1 ➔ L0A/L0B ➔ L0C ➔ L1 ➔ L0A ➔ L0C ➔ GM
+
+L2 Cache Optimization via M-Block Grouping
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When tiling along the M dimension, multiple M-blocks share the same B matrix tiles across the K and N dimensions. By grouping adjacent M-blocks together and processing all N-blocks for each group before moving to the next group, the B matrix tiles remain in L2 cache and are reused across M-blocks within the group, significantly reducing GM bandwidth.
+
+**Algorithm:**
+
+1. Divide M-blocks into groups of size ``group_size`` (typically 2–4).
+2. For each group, iterate over all N-blocks, loading B tiles once and reusing them for every M-block in the group.
+3. Apply snake-order traversal: reverse the N-block iteration direction for odd group rows to improve spatial locality between consecutive groups.
+4. Handle the tail group (remaining M-blocks that do not fill a complete group) separately.
+
+.. code-block::
+
+   M-blocks layout (group_size=4, m_blocks=10):
+
+   Group row 0:  [m0 m1 m2 m3] → N: 0, 1, 2, ..., n-1        (forward)
+   Group row 1:  [m4 m5 m6 m7] → N: n-1, n-2, ..., 1, 0      (reversed)
+   Tail group:   [m8 m9]       → N: 0, 1, 2, ..., n-1        (forward)
+
+Example:
+
+.. code-block:: python
+
+   @asctile.jit
+   def matmul_l2_cache_kernel(a_ptr, b_ptr, c_ptr, m, k, n, m_L1, n_L1, k_L1, base_m, base_n, base_k):
+       a_gm = asctile.global_tensor(a_ptr, [m, k])
+       b_gm = asctile.global_tensor(b_ptr, [k, n])
+       c_gm = asctile.global_tensor(c_ptr, [m, n])
+
+       m_blocks = asctile.ceildiv(m, m_L1)
+       n_blocks = asctile.ceildiv(n, n_L1)
+       tiles_num = m_blocks * n_blocks
+
+       group_size = 4
+       main_group = min(group_size, m_blocks)
+       main_row = (m_blocks // main_group - 1) if m_blocks >= main_group else 0
+       tail_group = m_blocks - main_row * main_group
+
+       for tile_id in range(asctile.block_idx(), tiles_num, asctile.block_num()):
+           tile_idx = tile_id % tiles_num
+           row_idx = tile_idx // n_blocks // main_group
+           m_idx = row_idx * main_group + tile_idx % main_group
+           n_idx = (tile_idx // main_group) % n_blocks
+
+           # Handle tail group
+           if row_idx >= main_row:
+               tail_index = tile_idx - main_row * main_group * n_blocks
+               m_idx = main_row * main_group + tail_index % tail_group
+               n_idx = (tail_index // tail_group) % n_blocks
+               row_idx = m_idx // main_group
+
+           # Snake-order: reverse N direction for odd rows
+           if row_idx % 2 != 0:
+               n_idx = n_blocks - 1 - n_idx
+
+           m_gm_off = m_L1 * m_idx
+           n_gm_off = n_L1 * n_idx
+
+           acc = asctile.zeros_acc([base_m, base_n], dtype=asctile.float32)
+           for outer_k in range(asctile.ceildiv(k, k_L1)):
+               a_l1 = asctile.copy_in(a_gm, [m_gm_off, outer_k * k_L1], [base_m, k_L1], asctile.TensorLocation.L1)
+               b_l1 = asctile.copy_in(b_gm, [outer_k * k_L1, n_gm_off], [k_L1, base_n], asctile.TensorLocation.L1)
+               for inner_k in range(asctile.ceildiv(k_L1, base_k)):
+                   a_l0 = asctile.copy(a_l1, [0, inner_k * base_k], [base_m, base_k], asctile.TensorLocation.L0A)
+                   b_l0 = asctile.copy(b_l1, [inner_k * base_k, 0], [base_k, base_n], asctile.TensorLocation.L0B)
+                   asctile.matmul_acc(acc, a_l0, b_l0)
+           asctile.copy_out(acc, c_gm, offsets=[m_gm_off, n_gm_off])
+
+**Key benefits:**
+
+* B matrix tiles loaded for one M-block are reused by other M-blocks in the same group via L2 cache
+* Snake-order traversal improves locality between consecutive groups
+* Larger ``group_size`` increases B tile reuse but requires more L2 cache capacity
+
+Complete Example
+----------------
+
+.. code-block:: python
+
+   from asc.experimental import asctile
+   import torch
+
+   @asctile.jit
+   def complete_matmul_pipeline(a_ptr, b_ptr, c_ptr, m, k, n, k_tiles):
+       a_gm = asctile.global_tensor(a_ptr, [m, k])
+       b_gm = asctile.global_tensor(b_ptr, [k, n])
+       c_gm = asctile.global_tensor(c_ptr, [m, n])
+
+       # Initialize accumulator
+       acc = asctile.zeros_acc([m, n], dtype=asctile.float32)
+
+       # K-axis tiling with loop unrolling
+       tile_k = k // k_tiles
+       for i in asctile.range(k_tiles, unroll_factor=4):
+           # Load tiles (internally GM → L1 → L0A/L0B)
+           a_tile = asctile.copy_in(a_gm, [0, i * tile_k], [m, tile_k], asctile.TensorLocation.L0A)
+           b_tile = asctile.copy_in(b_gm, [i * tile_k, 0], [tile_k, n], asctile.TensorLocation.L0B)
+
+           # Accumulate
+           asctile.matmul_acc(acc, a_tile, b_tile)
+
+       # Apply ReLU and cast to float16 (fused)
+       result = asctile.relu(acc).to(asctile.float16)
+
+       # Store result
+       asctile.copy_out(result, c_gm, [0, 0])
+
+   # Launch with multiple cores
+   m, k, n, k_tiles = 256, 512, 128, 8
+   a = torch.rand(m, k, dtype=torch.float16)
+   b = torch.rand(k, n, dtype=torch.float16)
+   c = torch.zeros(m, n, dtype=torch.float16)
+
+   complete_matmul_pipeline[4](a, b, c, m, k, n, k_tiles)

@@ -21,6 +21,7 @@ namespace ascendc {
 
 std::unique_ptr<Pass> createDeclarePyStructPass();
 std::unique_ptr<Pass> createDefineCubeOnlyPass();
+std::unique_ptr<Pass> createDetectEnableDebugPass();
 std::unique_ptr<Pass> createDetectKernelTypePass();
 std::unique_ptr<Pass> createEraseSyncPass();
 std::unique_ptr<Pass> createGenerateBoilerplatePass();
@@ -34,7 +35,6 @@ std::unique_ptr<Pass> createNoopPass();
 std::unique_ptr<Pass> createPrivatizeFuncPass();
 std::unique_ptr<Pass> createUnifyPipePass();
 std::unique_ptr<Pass> createVerifySyncPass();
-std::unique_ptr<Pass> createDetectEnableDebugPass();
 
 } // namespace ascendc
 

@@ -14,6 +14,7 @@ from typing import Any, NoReturn, Optional, Union
 from typing_extensions import Self, TypeAlias
 
 from ..._C import ir
+from ...common.compat import isinstance
 from .constexpr import ConstExpr
 from .dtype import DataType, KnownTypes as KT
 from .utils import require_jit, global_builder
@@ -100,8 +101,8 @@ class PlainValue(IRValue):
         return self.apply_binary_op(self, other, "RemSI", None)
 
     @require_jit
-    def __pow__(self, other) -> NoReturn:
-        raise NotImplementedError("Power operator is not implemented for PlainValue")
+    def __pow__(self, other):
+        return NotImplemented
 
     @require_jit
     def __lshift__(self, other) -> PlainValue:
@@ -153,8 +154,8 @@ class PlainValue(IRValue):
         return self.apply_binary_op(other, self, "RemSI", None)
 
     @require_jit
-    def __rpow__(self, other) -> NoReturn:
-        raise NotImplementedError("Power operator is not implemented for PlainValue")
+    def __rpow__(self, other):
+        return NotImplemented
 
     @require_jit
     def __rlshift__(self, other) -> PlainValue:
@@ -254,6 +255,8 @@ class PlainValue(IRValue):
 
     @classmethod
     def apply_binary_op(cls, lhs: Any, rhs: Any, build_int: str, build_float: str) -> PlainValue:
+        if not isinstance(lhs, RuntimeNumeric) or not isinstance(rhs, RuntimeNumeric):
+            return NotImplemented
         result_type = cls.infer_common_type(lhs, rhs)
         lhs = materialize_ir_value(lhs, result_type)
         rhs = materialize_ir_value(rhs, result_type)
@@ -265,6 +268,8 @@ class PlainValue(IRValue):
 
     @classmethod
     def apply_bool_op(cls, lhs: Any, rhs: Any, builder_attr: str) -> PlainValue:
+        if not isinstance(lhs, RuntimeNumeric) or not isinstance(rhs, RuntimeNumeric):
+            return NotImplemented
         lhs = materialize_ir_value(lhs, KT.bit)
         rhs = materialize_ir_value(rhs, KT.bit)
         handle = getattr(global_builder.get_ir_builder(), f"create_arith_{builder_attr}Op")(lhs.to_ir(), rhs.to_ir())
@@ -272,6 +277,8 @@ class PlainValue(IRValue):
 
     @classmethod
     def apply_compare_op(cls, lhs: Any, rhs: Any, pred_int: int, pred_float: int) -> PlainValue:
+        if not isinstance(lhs, RuntimeNumeric) or not isinstance(rhs, RuntimeNumeric):
+            return NotImplemented
         common_type = cls.infer_common_type(lhs, rhs)
         lhs = materialize_ir_value(lhs, common_type)
         rhs = materialize_ir_value(rhs, common_type)

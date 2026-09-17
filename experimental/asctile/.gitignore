@@ -1,0 +1,7 @@
+/docs/_build/
+/docs/mlir/dialects/*.md
+/docs/mlir/passes/*.md
+/docs/programming-guide/tutorials/
+/docs/python-api/**/generated/
+/docs/sg_execution_times.rst
+.lit_test_times.txt

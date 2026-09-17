@@ -20,7 +20,9 @@ using namespace mlir::ascendc;
 LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::PrintfOp op)
 {
     auto& os = emitter.ostream();
-    os << ascNamespace << "::" << op.getAPIName() << "(\"" << op.getDesc() << "\"";
+    os << ascNamespace << "::" << op.getAPIName() << "(\"";
+    os.write_escaped(op.getDesc());
+    os << "\"";
     if (!op.getVars().empty()) {
         os << ", ";
         llvm::interleaveComma(op.getVars(), os, [&](Value var) { os << emitter.getOrCreateName(var); });

@@ -306,7 +306,7 @@ def AscendC_LocalTensorSetUserTagOp : APIOp<"local_tensor.set_user_tag", "SetUse
   let arguments = (ins AscendC_LocalTensor:$tensor, I32:$tag);
 }
 
-def AscendC_LocalTensorSetValueOp : APIOp<"local_tensor.set_value", "SetValue", [AscMemberFunc, OpWithSrcInterface]> {
+def AscendC_LocalTensorSetValueOp : APIOp<"local_tensor.set_value", "SetValue", [AscMemberFunc, OpWithDstInterface]> {
   let summary = "Call `AscendC::LocalTensor::SetValue` method";
   let arguments = (ins AscendC_LocalTensor:$tensor, AnyType:$index, AnyType:$value);
   let assemblyFormat = [{
@@ -314,7 +314,7 @@ def AscendC_LocalTensorSetValueOp : APIOp<"local_tensor.set_value", "SetValue", 
     type($index) `,` type($value)
   }];
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    SmallVector<Value> getSrcTensors() { return {getTensor()}; }
+    Value getDst() { return {getTensor()}; }
   }];
 }
 

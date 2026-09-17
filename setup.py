@@ -9,6 +9,7 @@
 from dataclasses import dataclass
 from distutils.command.clean import clean
 import functools
+import importlib.util
 import os
 from pathlib import Path
 import shlex
@@ -16,7 +17,7 @@ import shutil
 import subprocess
 import sys
 import sysconfig
-from typing import List, Optional, Tuple
+from typing import Iterable, List, Mapping, Tuple
 
 import pybind11
 import setuptools
@@ -26,25 +27,8 @@ from setuptools.command import bdist_wheel, build_ext, build_py, egg_info, insta
 DEFAULT_VERSION = "1.1.1"
 
 
-@dataclass
-class Package:
-    url: str
-    short_name: str
-    full_name: str
-    sym_name: Optional[str] = None
-
-
 def check_env_bool(env: str) -> bool:
     return os.environ.get(env) in ["1", "true", "ON"]
-
-
-def get_cache_dir() -> Path:
-    user_home = os.getenv("PYASC_HOME")
-    if not user_home:
-        user_home = os.getenv("HOME") or os.getenv("USERPROFILE") or os.getenv("HOMEPATH") or None
-    if not user_home:
-        raise RuntimeError("Could not find user home directory")
-    return Path(user_home).resolve() / ".pyasc"
 
 
 @functools.lru_cache(maxsize=1)
@@ -80,6 +64,11 @@ def get_llvm_install_prefix():
     return llvm_path if (llvm_path and llvm_path.strip()) else None
 
 
+@functools.lru_cache(maxsize=1)
+def experimental_enabled() -> bool:
+    return check_env_bool("PYASC_SETUP_EXPERIMENTAL")
+
+
 def require_tool(name: str) -> str:
     tool = shutil.which(name)
     if tool is None:
@@ -91,17 +80,11 @@ def require_tools(*names) -> Tuple[str, ...]:
     return tuple(require_tool(name) for name in names)
 
 
-@functools.lru_cache(maxsize=1)
-def get_requested_devtools() -> Tuple[str, ...]:
-    if check_env_bool("PYASC_SETUP_DEVTOOLS"):
-        return "ascir-lsp", "ascir-opt", "ascir-translate"
-    return tuple()
-
-
 class LocalExtension(setuptools.Extension):
 
-    def __init__(self, modulename):
-        super().__init__(modulename, sources=[])
+    def __init__(self, module_name: str, cmake_targets: Tuple[str, ...]):
+        super().__init__(module_name, sources=[])
+        self.cmake_targets = cmake_targets
 
 
 class LocalBuildPy(build_py.build_py):
@@ -160,6 +143,8 @@ class LocalBuildExt(build_ext.build_ext):
             args.append("-DASCIR_COVERAGE=ON")
         if check_env_bool("PYASC_SETUP_ASAN"):
             args.append("-DASCIR_ASAN=ON")
+        if experimental_enabled():
+            args.append("-DCANN_ASC_USE_EXPERIMENTAL=ON")
         llvm_dir = get_llvm_install_prefix()
         if llvm_dir:
             args.append("-DLLVM_PREFIX_PATH=" + str(llvm_dir))
@@ -175,7 +160,7 @@ class LocalBuildExt(build_ext.build_ext):
         extdir = os.path.abspath(os.path.dirname(self.get_ext_fullpath(ext.name)))
         configure_args = self.get_configure_args(cmake, ninja, cmake_dir, extdir)
         subprocess.check_call(configure_args)
-        targets = ["libpyasc", *get_requested_devtools()]
+        targets = ["libpyasc", *ext.cmake_targets]
         if check_env_bool("PYASC_SETUP_DOCS"):
             targets.append("mlir-doc")
         build_args = [cmake, "--build", cmake_dir, "--target", *targets, "--parallel"]
@@ -259,22 +244,23 @@ def get_project_version():
         return DEFAULT_VERSION
 
 
-packages = [
+local_packages = (
     "asc",
-    "asc/_C",
-    "asc/codegen",
-    "asc/common",
-    "asc/language",
-    "asc/language/adv",
-    "asc/language/basic",
-    "asc/language/core",
-    "asc/language/fwk",
-    "asc/lib",
-    "asc/lib/host",
-    "asc/lib/profiling",
-    "asc/lib/runtime",
-    "asc/runtime",
-]
+    "asc._C",
+    "asc.codegen",
+    "asc.common",
+    "asc.experimental",
+    "asc.language",
+    "asc.language.adv",
+    "asc.language.basic",
+    "asc.language.core",
+    "asc.language.fwk",
+    "asc.lib",
+    "asc.lib.host",
+    "asc.lib.profiling",
+    "asc.lib.runtime",
+    "asc.runtime",
+)
 
 extras_require = {
     "coverage": [
@@ -290,7 +276,8 @@ extras_require = {
     ],
     "docs": [
         "myst-parser==4.0.0",
-        "Sphinx==8.2.3",
+        "Sphinx",
+        "sphinx-gallery==0.21.0",
         "sphinx-rtd-theme==3.0.2",
         "sphinx-markdown-builder==0.6.8",
     ],
@@ -302,33 +289,85 @@ extras_require = {
 }
 
 
+class SetupExtension:
+    ext_package = "asc.experimental"
+
+    def __init__(self, name: str, base_dir: Path) -> None:
+        self.name = name
+        spec = importlib.util.spec_from_file_location(f"asc_ext_{self.name}", base_dir / "extension.py")
+        self.mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.mod)
+
+    def get_packages(self) -> Iterable[str]:
+        if func := getattr(self.mod, "get_packages", None):
+            return func(self.ext_package)
+        return tuple()
+
+    def get_package_dirs(self) -> Mapping[str, str]:
+        if func := getattr(self.mod, "get_package_dirs", None):
+            return func(self.ext_package)
+        return {}
+
+    def get_devtools(self) -> Mapping[str, str]:
+        if func := getattr(self.mod, "get_devtools", None):
+            return func(str(get_cmake_dir()))
+        return {}
+
+
+@dataclass
+class SetupOptions:
+    packages: List[str]
+    package_dirs: Mapping[str, str]
+    devtools: Mapping[str, str]
+
+    @property
+    def cmake_targets(self) -> Tuple[str, ...]:
+        return tuple(self.devtools.keys())
+
+    @property
+    def data_files(self) -> List[Tuple[str, Tuple[str, ...]]]:
+        return [("bin", tuple(self.devtools.values()))] if self.devtools else None
+
+
+def get_setup_options() -> SetupOptions:
+    options = SetupOptions(packages=list(local_packages), package_dirs={"": "python"}, devtools={})
+    build_devtools = check_env_bool("PYASC_SETUP_DEVTOOLS")
+    if build_devtools:
+        options.devtools |= {
+            target: str(get_cmake_dir() / "bin" / target)
+            for target in ("ascir-lsp", "ascir-opt", "ascir-translate")
+        }
+    if not experimental_enabled():
+        return options
+    extensions = [SetupExtension("asctile", get_base_dir() / "experimental" / "asctile")]
+    for ext in extensions:
+        options.packages.extend(ext.get_packages())
+        options.package_dirs |= ext.get_package_dirs()
+        if build_devtools:
+            options.devtools |= ext.get_devtools()
+    return options
+
+
 def setup() -> None:
     if sys.version_info < (3, 9):
         raise RuntimeError("Python 3.9+ is required")
-    data_files = None
-    devtools = get_requested_devtools()
-    if devtools:
-        print("packaging development tools:", *devtools)
-        data_files = [("bin", [str(get_cmake_dir() / "bin" / tool) for tool in devtools])]
-    cur_dir = Path(__file__).parent
+    options = get_setup_options()
     setuptools.setup(
         name=os.environ.get("PYASC_SETUP_NAME", "pyasc"),
         description="Programming language for writing efficient custom operators " \
             "with native support for Python standard specifications",
-        long_description=(cur_dir / "README.md").read_text(encoding="utf-8"),
+        long_description=(get_base_dir() / "README.md").read_text(encoding="utf-8"),
         long_description_content_type="text/markdown",
         version=get_project_version(),
         license="CANN Open Software License Agreement Version 2.0",
         url="https://gitcode.com/cann/pyasc",
-        packages=packages,
-        package_dir={"": "python"},
-        data_files=data_files,
-        ext_modules=[
-            LocalExtension("asc._C.libpyasc"),
-        ],
+        packages=options.packages,
+        package_dir=options.package_dirs,
+        data_files=options.data_files,
+        ext_modules=[LocalExtension("asc._C.libpyasc", options.cmake_targets)],
         package_data={
-            "asc/lib/runtime": ["rt_wrapper.cpp", "npu_utils.cpp", "print_utils.cpp"],
-            "asc/lib/host": ["bindings/*.cpp"],
+            "asc.lib.runtime": ["rt_wrapper.cpp", "npu_utils.cpp", "print_utils.cpp"],
+            "asc.lib.host": ["bindings/*.cpp"],
         },
         install_requires=[
             "pybind11==2.10.3",
@@ -355,5 +394,5 @@ def setup() -> None:
 
 
 if __name__ == "__main__":
-    os.chdir(os.path.dirname(__file__))
+    os.chdir(get_base_dir())
     setup()

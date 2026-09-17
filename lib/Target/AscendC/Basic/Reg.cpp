@@ -20,16 +20,23 @@ using namespace mlir::ascendc;
 LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::DataCopyLoadOp op)
 {
     auto& os = emitter.ostream();
-    os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDstReg()) << ", "
-       << emitter.getOrCreateName(op.getSrc()) << ")";
+    auto srcTensor = op.getSrc();
+    os << ascNamespace << "::" << op.getAPIName() << "<";
+    FAIL_OR(emitter.emitType(op.getLoc(), srcTensor.getType().getElementType()));
+    os << ", " << ascNamespace << "::Reg::LoadDist::" << ascendc::stringifyEnum(op.getDist()) << ">" << "("
+       << emitter.getOrCreateName(op.getDstReg()) << ", " << emitter.getOrCreateName(srcTensor) << ")";
     return success();
 }
 
 LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::DataCopyStoreOp op)
 {
     auto& os = emitter.ostream();
-    os << ascNamespace << "::" << op.getAPIName() << "(" << emitter.getOrCreateName(op.getDst()) << ", "
-       << emitter.getOrCreateName(op.getSrcReg()) << ", " << emitter.getOrCreateName(op.getMaskReg()) << ")";
+    auto dstTensor = op.getDst();
+    os << ascNamespace << "::" << op.getAPIName() << "<";
+    FAIL_OR(emitter.emitType(op.getLoc(), dstTensor.getType().getElementType()));
+    os << ", " << ascNamespace << "::Reg::StoreDist::" << ascendc::stringifyEnum(op.getDist()) << ">" << "("
+       << emitter.getOrCreateName(dstTensor) << ", " << emitter.getOrCreateName(op.getSrcReg()) << ", "
+       << emitter.getOrCreateName(op.getMaskReg()) << ")";
     return success();
 }
 
@@ -55,14 +62,6 @@ LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::Dupli
     auto& os = emitter.ostream();
     os << "Duplicate(" << emitter.getOrCreateName(op.getDstReg()) << ", " << emitter.getOrCreateName(op.getScalar())
        << ")";
-    return success();
-}
-
-LogicalResult mlir::ascendc::printOperation(CodeEmitter& emitter, ascendc::GetVecLenOp op)
-{
-    FAIL_OR(emitter.emitVariableDeclaration(op->getResult(0), false));
-    auto& os = emitter.ostream();
-    os << " = " << ascNamespace << "::" << op.getAPIName() << "()";
     return success();
 }
 

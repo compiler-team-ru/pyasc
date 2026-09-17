@@ -82,8 +82,6 @@ LogicalResult printOperation(CodeEmitter& emitter, ascendc::RegTensorOp op);
 
 LogicalResult printOperation(CodeEmitter& emitter, ascendc::DuplicateScalarRegOp op);
 
-LogicalResult printOperation(CodeEmitter& emitter, ascendc::GetVecLenOp op);
-
 LogicalResult printOperation(CodeEmitter& emitter, ascendc::LocalMemBarOp op);
 
 LogicalResult printOperation(CodeEmitter& emitter, ascendc::SelectRegOp op);

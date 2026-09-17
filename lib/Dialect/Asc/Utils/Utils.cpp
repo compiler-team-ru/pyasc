@@ -10,6 +10,7 @@
 
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/Asc/Utils/Attributes.h"
+#include "ascir/Dialect/Asc/Utils/Constants.h"
 #include "ascir/Dialect/Utils/Inlining.h"
 
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
@@ -53,7 +54,9 @@ void appendImplicitUsers(Value value, SmallVectorImpl<Operation*>& allUsers)
         }
         // if value return in yield op then it is accumulator and he used as return value in forOp
         if (auto yieldOp = dyn_cast<scf::YieldOp>(user)) {
-            auto forOp = cast<scf::ForOp>(yieldOp->getParentOp());
+            auto forOp = dyn_cast<scf::ForOp>(yieldOp->getParentOp());
+            if (!forOp)
+                return;
             allUsers.push_back(forOp);
             auto opnds = yieldOp.getOperands();
             auto iterArgs = forOp.getRegionIterArgs();
@@ -61,6 +64,17 @@ void appendImplicitUsers(Value value, SmallVectorImpl<Operation*>& allUsers)
                 if (opnds[i] == value) {
                     appendImplicitUsers(iterArgs[i], allUsers);
                     appendImplicitUsers(forOp->getResult(i), allUsers);
+                }
+            }
+        }
+        if (auto yieldOp = dyn_cast<ascendc::YieldOp>(user)) {
+            Operation* ifCoreOp = yieldOp->getParentOp();
+            if (!isa<ascendc::IfAIVOp>(ifCoreOp) && !isa<ascendc::IfAICOp>(ifCoreOp))
+                return;
+            auto opnds = yieldOp.getOperands();
+            for (int i = 0; i < opnds.size(); ++i) {
+                if (opnds[i] == value) {
+                    appendImplicitUsers(ifCoreOp->getResult(i), allUsers);
                 }
             }
         }
@@ -80,13 +94,11 @@ int64_t getTypeSizeCubeBlockAlign(ShapedType type, TPosition position)
 {
     auto shape = type.getShape();
     int64_t elemSize = getElementTypeSize(type);
-    int64_t elemAlign = cubeKBlockBytes / elemSize;
     int64_t size = 1;
     for (size_t i = 0; i < shape.size(); ++i) {
-        int64_t align = cubeBlockSize;
-        if (((position == TPosition::A1 || position == TPosition::A2) && i == 1) ||
-            ((position == TPosition::B1 || position == TPosition::B2) && i == 0))
-            align = elemAlign;
+        int64_t align = ((position == TPosition::A1 || position == TPosition::A2) && i == 1) ?
+                            cubeKBlockBytes / elemSize :
+                            cubeBlockSize;
         size *= static_cast<int64_t>(llvm::alignTo(shape[i], align));
     }
     return size * elemSize;
@@ -210,6 +222,18 @@ Pipe getOpPipe(Operation* op, Pipe defaultPipe)
         })
         .Case<LocalTensorGetValueOp, LocalTensorSetValueOp>([](auto) { return Pipe::PIPE_S; })
         .Default(defaultPipe);
+}
+
+bool isWriteToAllocation(Operation* op, ascendc::LocalTensorAutoOp root)
+{
+    if (auto dstOp = dyn_cast<ascendc::OpWithDst>(op)) {
+        for (Value dst : dstOp.getDstTensors()) {
+            auto dstRoot = ascendc::getAllocationRoot(dst);
+            if (dstRoot && dstRoot == root)
+                return true;
+        }
+    }
+    return false;
 }
 
 } // namespace ascendc
