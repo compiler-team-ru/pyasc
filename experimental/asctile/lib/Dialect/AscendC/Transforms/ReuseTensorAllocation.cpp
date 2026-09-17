@@ -68,6 +68,7 @@ using TensorOp = ascendc::LocalTensorAutoOp;
 using Color = int64_t;
 using ColorMap = std::unordered_map<TensorOp, Color, PointerLikeTypeHash<TensorOp>>;
 using ColorSet = std::unordered_set<Color>;
+using TensorSet = std::unordered_set<TensorOp, PointerLikeTypeHash<TensorOp>>;
 
 struct LifetimeInfo {
     Operation* endLife = nullptr;
@@ -97,6 +98,24 @@ bool isReusablePosition(ascendc::TPosition pos)
 }
 
 bool isReusable(TensorOp op) { return isReusablePosition(op.getPosition()) && op.getType().hasStaticShape(); }
+
+TensorSet collectCrossGroupTensors(func::FuncOp funcOp)
+{
+    TensorSet crossGroup;
+    funcOp.walk([&](ascendc::DataCopyOp copyOp) {
+        auto direction = copyOp.getDirection();
+        if (!direction)
+            return;
+        auto [src, dst] = *direction;
+        if (src == ascendc::TPosition::VECCALC && (dst == ascendc::TPosition::A1 || dst == ascendc::TPosition::B1))
+            if (auto root = ascendc::getAllocationRoot(copyOp.getSrc()))
+                crossGroup.insert(root);
+        if (src == ascendc::TPosition::CO1 && dst == ascendc::TPosition::VECCALC)
+            if (auto root = ascendc::getAllocationRoot(copyOp.getDst()))
+                crossGroup.insert(root);
+    });
+    return crossGroup;
+}
 
 std::optional<int64_t> getReuseGroup(Operation* op)
 {
@@ -192,8 +211,12 @@ bool isReadToAllocation(Operation* op, TensorOp root)
     return false;
 }
 
-bool canReuse(TensorOp top, TensorOp bottom, DominanceInfo& di)
+bool canReuse(TensorOp top, TensorOp bottom, DominanceInfo& di, const TensorSet& crossGroup)
 {
+    if (crossGroup.count(top) || crossGroup.count(bottom)) {
+        LLVM_DEBUG(llvm::dbgs() << "  reject: cross-group transfer tensor\n");
+        return false;
+    }
     // On-the-fly computation avoids stale data from prior reuses.
     LifetimeInfo topInfo = computeLifetimeInfo(top, di);
     LifetimeInfo bottomInfo = computeLifetimeInfo(bottom, di);
@@ -237,13 +260,13 @@ bool canReuse(TensorOp top, TensorOp bottom, DominanceInfo& di)
     return true;
 }
 
-auto getConflictedTensors(ArrayRef<TensorOp> allTensors, TensorOp op, DominanceInfo& di)
+auto getConflictedTensors(ArrayRef<TensorOp> allTensors, TensorOp op, DominanceInfo& di, const TensorSet& crossGroup)
 {
     SmallVector<TensorOp> conflicted;
     for (auto tensor : allTensors) {
         if (tensor == op)
             continue;
-        if (!canReuse(op, tensor, di))
+        if (!canReuse(op, tensor, di, crossGroup))
             conflicted.emplace_back(tensor);
     }
     return conflicted;
@@ -268,14 +291,17 @@ Color getFirstFree(const ColorSet& colors)
     return freeColor;
 }
 
-void processTensorList(ArrayRef<TensorOp> allTensors, SmallVectorImpl<TensorOp>& tensorList, DominanceInfo& di)
+void processTensorList(
+    ArrayRef<TensorOp> allTensors, SmallVectorImpl<TensorOp>& tensorList, DominanceInfo& di,
+    const TensorSet& crossGroup)
 {
     ColorMap colors;
     LLVM_DEBUG(llvm::dbgs() << "Processing tensor list with " << tensorList.size() << " tensors\n");
     while (!tensorList.empty()) {
         TensorOp topTensor = tensorList.pop_back_val();
         LLVM_DEBUG(llvm::dbgs() << "Trying coloring: " << topTensor << "\n");
-        Color freeColor = getFirstFree(getColorsSet(colors, getConflictedTensors(allTensors, topTensor, di)));
+        Color freeColor =
+            getFirstFree(getColorsSet(colors, getConflictedTensors(allTensors, topTensor, di, crossGroup)));
         LLVM_DEBUG(llvm::dbgs() << "Set Color: " << freeColor << "\n");
         colors.insert({topTensor, freeColor});
     }
@@ -327,6 +353,7 @@ struct ReuseTensorAllocationPass : public ascendc::impl::ReuseTensorAllocationBa
         func::FuncOp funcOp = getOperation();
 
         DominanceInfo di(funcOp);
+        TensorSet crossGroup = collectCrossGroupTensors(funcOp);
         SmallVector<TensorOp> allTensors;
         std::map<TensorOp, LifetimeInfo> lifetimeInfoMap;
         funcOp.walk<WalkOrder::PreOrder>([&](TensorOp tensor) {
@@ -360,7 +387,7 @@ struct ReuseTensorAllocationPass : public ascendc::impl::ReuseTensorAllocationBa
         for (auto& [position, tensors] : filtered) {
             std::reverse(tensors.begin(), tensors.end());
             auto order = tensors;
-            processTensorList(tensors, order, di);
+            processTensorList(tensors, order, di, crossGroup);
         }
         funcOp.walk([](TensorOp op) {
             if (op->hasAttr(eraseMeAttr))
