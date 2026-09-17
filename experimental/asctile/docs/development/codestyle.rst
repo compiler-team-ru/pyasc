@@ -12,7 +12,7 @@ Coding style conventions
 This document outlines the coding style conventions for the project. These guidelines are primarily based on the LLVM coding style with a few exceptions and project-specific tweaks. Below are the main rules and conventions:
 
 General conventions for C++ files
-----------------------------------
+---------------------------------
 
 1. **File Extensions**:
 
@@ -24,7 +24,7 @@ General conventions for C++ files
    - All header files must include traditional include guards (e.g., ``#ifndef HEADER_H``, ``#define HEADER_H``, ``#endif``).
    - **Note**: The use of ``#pragma once`` is **not allowed**.
 
-3. **Indentation**: The code should use **4 spaces** for indentation (no tabs). Case/default labels should be indented relative to switch statement.
+3. **Indentation**: The code should use **4 spaces** for indentation (no tabs). ``case``/``default`` labels should be indented relative to the ``switch`` statement. Access specifiers (``public``/``protected``/``private``) are aligned with the enclosing ``class``/``struct`` declaration (i.e., not indented relative to it).
 
 4. **Naming Conventions**:
 
@@ -38,11 +38,11 @@ General conventions for C++ files
    - After closing a namespace, add a comment ``// namespace <namespace_name>``. If the namespace is anonymous, omit the name.
    - **Note**: Do not use ``using namespace`` in header files.
 
-6. **Brace Placement**: Opening brace on new line for function definitions, same line for classes/structs/enums/namespaces. Empty functions can be single-line.
+6. **Brace Placement**: Opening brace on a new line for function definitions; on the same line for classes/structs/enums/namespaces and for control statements (``if``/``for``/``while``/``switch``). ``else`` and ``catch`` remain on the same line as the preceding closing brace. Empty function definitions may be kept on a single line.
 
-7. **Short Statements**: Single-line if/loops not allowed. Only empty blocks can be single-line. Inline functions can be single-line.
+7. **Short Statements**: Single-line ``if`` statements, loops, and ``case`` labels are not allowed. Empty blocks and empty/short inline function definitions may be kept on a single line.
 
-8. **Spacing**: Pointers/references aligned left (e.g., ``int* ptr``). Space before control statement parentheses. Space before C++11 braced lists. No space in empty parentheses, C-style casts, regular parentheses, or square brackets.
+8. **Spacing and Alignment**: Pointers/references aligned left (e.g., ``int* ptr``). Space before control statement parentheses and before C++11 braced lists. No space in empty parentheses, C-style casts, regular parentheses, or square brackets. Exactly one space before trailing line comments. Operands of multi-line expressions and trailing comments are aligned. When the arguments of a call or declaration do not fit on one line, the line is broken right after the opening bracket.
 
 9. **Templates**: Always break before template declarations.
 
@@ -55,28 +55,29 @@ General conventions for C++ files
 
 12. **Include Ordering**:
 
-   - The order of ``#include`` statements should follow this pattern:
+   - ``#include`` statements are regrouped and sorted automatically by ``clang-format`` (see ``experimental/asctile/.clang-format``). The groups, in order, are:
 
-     1. Local project includes.
-     2. (An empty line).
-     3. MLIR/LLVM/Clang includes.
-     4. (An empty line).
+     1. ``asctile/`` project includes.
+     2. ``ascir/`` project includes.
+     3. MLIR, Clang, and LLVM includes (MLIR headers are sorted before Clang/LLVM headers within the group).
+     4. ``pybind11/`` includes.
      5. Standard library includes (``<optional>``, ``<vector>``, etc.).
+     6. Other local includes (quoted includes not matching any of the above, e.g., project-internal headers like ``"Common.h"``).
 
-   - Within each subsection, statements should be sorted alphabetically by file name.
+   - Each group is separated by an empty line. Within each group, includes are sorted alphabetically by file name.
    - Example:
 
      .. code-block:: cpp
 
-        #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
-        #include "ascir/Target/Asc/Utils.h"
+        #include "asctile/Conversion/LowerToAsc/Passes.h"
 
-        #include "mlir/IR/Builders.h"
-        #include "mlir/IR/DialectImplementation.h"
-        #include "llvm/ADT/TypeSwitch.h"
+        #include "ascir/Dialect/Asc/IR/Asc.h"
+        #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
-        #include <optional>
-        #include <unordered_map>
+        #include "mlir/Dialect/Arith/IR/Arith.h"
+        #include "mlir/Dialect/Func/IR/FuncOps.h"
+
+        #include "Common.h"
 
 
 13. **Anonymous Namespace**: If a class or function is defined and declared in a ``.cpp`` file but not used elsewhere in the project, it should be placed inside an anonymous namespace. It should **not** be marked as ``static``.
@@ -87,13 +88,48 @@ General conventions for C++ files
    - Non-type template arguments should follow **camelCase**. Example: ``size_t size``.
    - Always use ``typename`` instead of ``class`` for template arguments.
 
+General conventions for Python files
+------------------------------------
+
+The Python codebase follows PEP 8 with the project-specific tweaks. The main rules are:
+
+1. **File Header**: Every Python file must start with the project copyright/license header (the same header used for C++ files).
+
+2. **Line Length**: Maximum **120 characters** (applied consistently by ``yapf`` and ``ruff``).
+
+3. **Indentation**: **4 spaces**, no tabs.
+
+4. **Naming Conventions**:
+
+   - **PascalCase**: Classes, dataclasses, exceptions, type aliases, and enums. Example: ``LocalTensor``, ``CompileOptions``, ``RoundMode``.
+   - **snake_case**: Functions, methods, variables, and module-level constants. Example: ``ceildiv``, ``constant_tile``, ``all_dtypes``.
+   - Single uppercase letter for ``TypeVar`` parameters (e.g., ``T``).
+
+5. **Imports**: Imports are organized into three groups, separated by a blank line:
+
+   1. Standard library imports (e.g., ``from typing import ...``).
+   2. Project and third-party imports (``asc.*``, ``pybind11``, and other external packages).
+   3. Local relative imports (e.g., ``from .local_tensor import LocalTensor``).
+
+   - Imports within each group are sorted alphabetically. Wildcard imports (``import *``) are not allowed.
+
+6. **Type Hints**: Public functions and methods must be annotated (PEP 484). Use ``from __future__ import annotations`` where forward references are needed, and declare overloads with ``@overload``.
+
+7. **Docstrings**: Public functions, classes, and modules should have triple-quoted docstrings. Use Google-style sections (``Args``, ``Returns``, ``Raises``, ``Examples``) for non-trivial callables, and include runnable usage examples for user-facing APIs.
+
+8. **String Quotes**: Double quotes (``"..."``) are preferred for string literals and f-strings.
+
+9. **Testing**: Tests use ``pytest`` and live under the ``test/`` directory. Test files are named ``test_*.py`` and test functions are named ``test_*``. Shared fixtures and helpers go in ``conftest.py`` or ``helpers.py``.
+
+10. **Error Handling**: Raise specific exceptions (e.g., ``ValueError``, ``RuntimeError``, ``TypeError``) with descriptive messages. Prefer exceptions over returning error codes.
+
 Conventions for MLIR dialects
 -----------------------------
 
 Definitions of operations, types, attributes, interfaces, and other entities should be sorted alphabetically within the corresponding TableGen file.
 
 Conventions for MLIR passes
-----------------------------
+---------------------------
 
 1. **Pass File Organization**: Each MLIR pass should be placed in a **separate** ``.cpp`` file under the ``Transforms`` directory, within the directory corresponding to the specific MLIR dialect.
 
@@ -102,7 +138,7 @@ Conventions for MLIR passes
 3. **Pass Declarations**: In the ``Passes.td`` file, in ``CMakeLists.txt``, and in the constructor functions header ``Passes.h``, pass names should be listed in **alphabetical order**.
 
 Conventions for LIT tests
---------------------------
+-------------------------
 
 1. **Test Directory Structure**:
 
@@ -152,5 +188,18 @@ To help ensure that the code adheres to the coding style conventions automatical
 
    - ``clang-tidy`` is a static analysis tool that helps catch common issues and enforces coding standards and best practices. It works by checking your code against predefined or custom checks.
    - ``clang-tidy`` can help identify issues related to code quality, unused variables, potential bugs, and performance improvements. It is recommended to check an output log of *clang-tidy* tool and address issues before merge.
+
+3. **yapf** and **ruff**:
+
+   - ``yapf`` is the Python formatter used by the project. Its configuration (based on the ``pep8`` style, a 120-column limit, and several layout tweaks) is defined under ``[tool.yapf]`` in ``pyproject.toml``.
+   - ``ruff`` is used for fast linting of Python code; the selected rule sets (``E4``, ``E7``, ``E9``, ``F``) and the ignored rules (e.g., ``E731``) are configured under ``[tool.ruff]`` in ``pyproject.toml``.
+   - Format and lint files in place with:
+
+     .. code-block:: bash
+
+        yapf -rip <filename-or-dir>
+        ruff check <filename-or-dir>
+
+   - Both run automatically through ``pre-commit``.
 
 This style guide serves to maintain consistency across the codebase, making it easier to read, maintain, and extend. Adhering to these conventions will improve collaboration, reduce errors, and make it easier for new contributors to get up to speed.

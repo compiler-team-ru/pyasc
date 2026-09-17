@@ -26,8 +26,6 @@ To get the source code, the repository should be downloaded with git:
 
     git clone https://gitcode.com/cann/pyasc.git
     cd pyasc
-    git fetch origin +refs/merge-requests/85/head:v2
-    git checkout v2
 
 
 Setup the build environment

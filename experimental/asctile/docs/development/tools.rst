@@ -13,7 +13,7 @@ The following tools are provided to project contributors to enhance their develo
 
 
 MLIR LSP server: ``ascir-lsp``
-----------------------------------
+------------------------------
 
 The tool implements language server protocol which is used by IDEs to effectively provide syntax highlighting, as well
 as other language processing features, both for built-in MLIR dialects and AscendIR extensions.
@@ -25,8 +25,8 @@ To enable ``ascir-lsp`` server in Visual Studio Code:
 3. Paste the path to *Mlir: Server_path* setting (``mlir.server_path``).
 
 
-MLIR optimizer driver: ``ascir-opt``
-----------------------------------------
+MLIR optimizer driver: ``asctile-opt``
+--------------------------------------
 
 The tool supports all features and command line options that are supported by ``mlir-opt`` (LLVM built-in application),
 and is also able to run AscendIR passes with its dialects and extensions.
@@ -35,4 +35,4 @@ For example:
 
 .. code-block:: bash
 
-    ascir-opt -ascendc-insert-bufid-sync -canonicalize -mlir-print-ir-before-all test.mlir
+    asctile-opt -ascendc-insert-bufid-sync -canonicalize -mlir-print-ir-before-all test.mlir

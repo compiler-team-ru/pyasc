@@ -32,6 +32,7 @@ ver=$(grep -E "^VERSION_ID=" /etc/os-release | cut -d'"' -f2)
     #     update-alternatives --set gcc /usr/bin/gcc-14
     # fi
 # fi
+export PYASC_SETUP_EXPERIMENTAL=1
 gcc --version
 cmake --version
 lcov --version

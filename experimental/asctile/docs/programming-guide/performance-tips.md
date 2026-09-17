@@ -39,7 +39,7 @@ Each core processes its own slice of data in parallel — doubling active cores 
 
 ### 2. Bigger Tiles = Better Performance, Less Transfer Overhead
 
-Every `asctile.copy_in` / `asctile.copy_out` is a DMA transfer between global memory (HBM) and on-chip UB. **Larger tiles amortize transfer latency and reduce the total number of transfers.**
+Every `asctile.copy_in` / `asctile.copy_out` is a DMA transfer between global memory (HBM) and on-chip memory. **Larger tiles amortize transfer latency and reduce the total number of transfers.**
 
 ```python
 # Good: large tile, fewer transfers
@@ -59,7 +59,7 @@ for i in asctile.range(huge_loop_count, ...):
 
 **All tiling parameters, shapes, and loop bounds must be typed as `asctile.ConstExpr`.** This tells the JIT compiler to treat them as compile-time constants, enabling:
 - Full loop unrolling (`unroll_factor` baked into generated code)
-- Static UB allocation (`static_alloc=True`) — no runtime memory management overhead
+- Static tensor allocation (`static_alloc=True`) — no runtime memory management overhead
 - Dead-code elimination and constant folding in the MLIR pipeline
 
 ```python
@@ -85,8 +85,8 @@ def kernel(input_ptr, output_ptr, input_length: int, tile_length: int):
 
 | Option | Purpose | Recommended Usage |
 |--------|---------|-------------------|
-| `static_alloc` | Static UB allocation at compile time | Enabling recommended for most kernels. Leads to faster execution, no runtime memory management. Requires all local tensor shapes to be `ConstExpr`. When disabled provides TPipe-managed dynamic UB allocation. Use only for complex control flow with variable tile sizes. Slower but more flexible. |
-| `reuse_alloc` | Reuse freed UB regions across iterations | Setting to `1` recommended for most kernels. Reduces peak UB consumption by reusing memory. |
+| `static_alloc` | Static tensor allocation at compile time | Enabling recommended for most kernels. Leads to faster execution, no runtime memory management. Requires all local tensor shapes to be `ConstExpr`. When disabled provides TPipe-backed (dynamic) allocation. Use only for complex control flow with variable tile sizes. Slower but more flexible. |
+| `reuse_alloc` | Reuse freed memory regions across iterations | Setting to mode `2` recommended for most kernels. Reduces peak on-chip memory consumption by reusing buffers. |
 | `vf_fusion` | Enable vector fusion (experimental) | Advanced option, when enabled lowering generated code to register level API. Experimental feature. May improve performance for element-wise chains. |
 | `always_compile` | Cached kernels usage | When enabled ignores cached kernels, provides recompilation. |
 
