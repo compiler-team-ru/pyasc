@@ -156,23 +156,6 @@ LogicalResult VariableOp::canonicalize(VariableOp op, PatternRewriter& rewriter)
     return ascir::eraseUnusedOp(op, rewriter);
 }
 
-LogicalResult VFForOp::verify()
-{
-    if (getBody()->getArguments().size() != 1)
-        return emitOpError("block must have one argument");
-    if (!getOperation()->getParentOfType<emitasc::VecScopeOp>()) {
-        return emitOpError("must be inside emitasc.vec_scope block");
-    }
-    return success();
-}
-
-SmallVector<Region*> VFForOp::getLoopRegions()
-{
-    SmallVector<Region*> regions;
-    regions.push_back(&getRegion());
-    return regions;
-}
-
 //===----------------------------------------------------------------------===//
 // VFForOp
 //===----------------------------------------------------------------------===//

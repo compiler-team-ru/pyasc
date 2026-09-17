@@ -37,6 +37,7 @@ class CompileOptions:
     auto_sync: Optional[bool] = True
     auto_sync_log: Optional[str] = ""
     matmul_cube_only: bool = False
+    insert_sync: Optional[bool] = None
 
     always_compile: bool = False
     """
@@ -57,12 +58,6 @@ class CompileOptions:
     """
     Optimization level for the Bisheng compiler. Supported values are ``1``, ``2``, ``3``.
     Typically, this parameter affects the ``-O`` argument of the command line for the compiler.
-    """
-
-    insert_sync: Optional[bool] = None
-    """
-    Insert synchronization instructions automatically.
-    **This feature is enabled by default**, which is usually a must, but may be disabled for the debugging purposes.
     """
 
     vf_vec_len: Optional[int] = None
