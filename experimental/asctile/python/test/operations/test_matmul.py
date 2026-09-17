@@ -10,8 +10,6 @@ from asc.experimental import asctile
 import pytest
 import torch
 
-from ..target.helpers import xfail
-
 
 @pytest.fixture(autouse=True)
 def require_c310_auto(require_c310):
@@ -270,7 +268,7 @@ def matmul_ub_l1_kernel(a_ptr: asctile.GlobalAddress, b_ptr: asctile.GlobalAddre
     (128, 32, 64, torch.float16, 16),
     (16, 16, 16, torch.float32, 16),
     (16, 32, 16, torch.float32, 16),
-    pytest.param(1, 32, 16, torch.float32, 16, marks=xfail("Accuracy mismatch", compile_ok=True)),
+    (1, 32, 16, torch.float32, 16),
     (1, 32, 16, torch.float16, 16),
     (8, 16, 16, torch.float32, 16),
     (8, 32, 16, torch.float32, 16),

@@ -954,7 +954,8 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
             auto cubeKBlockSize = static_cast<int64_t>(ascendc::cubeKBlockBytes) / elementSize;
             auto colBlocks = width / cubeKBlockSize;
             auto srcColBlocks = srcWidth / cubeKBlockSize;
-            auto heightAligned = static_cast<int64_t>(llvm::alignTo(height, ascendc::cubeBlockSize));
+            auto heightAligned =
+                srcShape[0] > 1 ? static_cast<int64_t>(llvm::alignTo(height, ascendc::cubeBlockSize)) : height;
             auto totalElements = heightAligned * width;
             auto const0 = consts.i32(0);
             auto const1 = consts.i32(1);
