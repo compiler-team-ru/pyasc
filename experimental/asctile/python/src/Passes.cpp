@@ -49,6 +49,7 @@ void defineAscendCPasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_bias_bufid_sync", createInsertBiasBufIdSyncPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_bufid_sync", createInsertBufIdSyncPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_cross_core_sync", createInsertCrossCoreSyncPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_cross_core_sync_gm", createInsertCrossCoreSyncGMPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_init_dump", createInsertInitDumpPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_insert_subblock_guard", createInsertSubBlockGuardPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_to_l0", createLowerToL0Pass);
