@@ -284,3 +284,35 @@ def test_matmul_ub_l1(m, k, n, dtype, tile_k):
     matmul_ub_l1_kernel[1](a, b, c, a.shape, b.shape, c.shape, tile_k)
     c_ref = a.to(torch.float32) @ b.to(torch.float32)
     torch.testing.assert_close(c, c_ref, atol=1e-2, rtol=1e-2)
+
+
+@asctile.jit(always_compile=True)
+def matmul_gm_l1_kernel(a_ptr: asctile.GlobalAddress, b_ptr: asctile.GlobalAddress, c_ptr: asctile.GlobalAddress,
+                        a_shape: asctile.ConstExpr, b_shape: asctile.ConstExpr, c_shape: asctile.ConstExpr,
+                        tile_k: asctile.ConstExpr):
+    a_gm = asctile.global_tensor(a_ptr, a_shape)
+    b_gm = asctile.global_tensor(b_ptr, b_shape)
+    c_gm = asctile.global_tensor(c_ptr, c_shape)
+    acc = asctile.zeros_acc(c_shape, dtype=asctile.float32)
+    k_tiles = asctile.ceildiv(a_shape[1], tile_k)
+    for i in range(k_tiles, unroll_factor=1):
+        a_l1 = asctile.copy_in(a_gm, [0, i * tile_k], [a_shape[0], tile_k], asctile.TensorLocation.L1)
+        b_l1 = asctile.copy_in(b_gm, [i * tile_k, 0], [tile_k, b_shape[1]], asctile.TensorLocation.L1)
+        a_l0a = asctile.copy(a_l1, [0, 0], [a_shape[0], tile_k], asctile.TensorLocation.L0A)
+        b_l0b = asctile.copy(b_l1, [0, 0], [tile_k, b_shape[1]], asctile.TensorLocation.L0B)
+        asctile.matmul_acc(acc, a_l0a, b_l0b)
+    asctile.copy_out(acc, c_gm, [0, 0])
+
+
+@pytest.mark.parametrize("m, k, n, tile_k", [
+    (256, 16, 64, 64),
+    (256, 16, 65, 64),
+])
+def test_matmul_gm_l1(m, k, n, tile_k):
+    dtype = torch.float32
+    a = torch.rand((m, k), dtype=dtype)
+    b = torch.rand((k, n), dtype=dtype)
+    c = torch.zeros((m, n), dtype=dtype)
+    matmul_gm_l1_kernel[1](a, b, c, a.shape, b.shape, c.shape, tile_k)
+    c_ref = a @ b
+    torch.testing.assert_close(c, c_ref, atol=1e-3, rtol=1e-3)
