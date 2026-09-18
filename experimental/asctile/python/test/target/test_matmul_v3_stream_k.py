@@ -11,8 +11,6 @@ from asc.experimental import asctile
 import pytest
 import torch
 
-from .helpers import xfail
-
 
 @asctile.jit(reuse_alloc=2)
 def mm3_streamk_kernel(a_ptr: asctile.GlobalAddress, b_ptr: asctile.GlobalAddress, c_ptr: asctile.GlobalAddress,
@@ -195,7 +193,7 @@ def mm3_streamk_kernel(a_ptr: asctile.GlobalAddress, b_ptr: asctile.GlobalAddres
             tail_index = v_mn_idx - main_row * main_group * n_tiles
             v_m_idx = main_row * main_group + tail_index % tail_group
             v_n_idx = (tail_index // tail_group) % n_tiles
-            v_row_idx = asctile.cast(main_row, asctile.int32)
+            v_row_idx = v_m_idx // main_group
         if v_row_idx % 2 != 0:
             v_n_idx = n_tiles - 1 - v_n_idx
         m_per_vec_unit = asctile.ceildiv(m_L1, sk_k_tiles * task_ration)
@@ -265,10 +263,10 @@ test_cases = [
      (1, 1, 1, 2, 2), (-1, 1)),
     (36, (4096, 1280, 10240, 256, 256, 256, 256, 256, 64, 2560), torch.float16, False, False, False, False,
      (1, 1, 1, 2, 2), (-1, 1)),
-    pytest.param(36, (448, 256, 384000, 224, 256, 64, 224, 256, 32, 21334), torch.float32, True, False, True, False,
-                 (1, 1, 1, 2, 2), (-1, 1), marks=xfail("Accuracy mismatch", compile_ok=True)),
-    pytest.param(36, (16640, 10240, 4096, 256, 256, 256, 256, 256, 64, 1024), torch.float16, False, False, False, False,
-                 (1, 1, 1, 2, 2), (-1, 1), marks=xfail("Accuracy mismatch", compile_ok=True)),
+    (36, (448, 256, 384000, 224, 256, 64, 224, 256, 32, 21334), torch.float32, True, False, True, False, (1, 1, 1, 2,
+                                                                                                          2), (0, 1)),
+    (36, (16640, 10240, 4096, 256, 256, 256, 256, 256, 64, 1024), torch.float16, False, False, False, False,
+     (1, 1, 1, 2, 2), (-1, 1)),
     (36, (4096, 129280, 7168, 256, 256, 256, 256, 256, 64, 3584), torch.bfloat16, False, True, False, False,
      (1, 1, 1, 2, 2), (-1, 1)),
 ]
