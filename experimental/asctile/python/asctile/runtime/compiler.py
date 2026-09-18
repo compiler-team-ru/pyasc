@@ -166,6 +166,7 @@ class Compiler(CompilerBase):
         passes.common.add_canonicalizer(pm)
         asctile.passes.ascendc.add_promote_cv_block(pm)
         asctile.passes.ascendc.add_insert_cross_core_sync(pm)
+        asctile.passes.ascendc.add_insert_cross_core_sync_gm(pm)
         if self.options.insert_sync:
             passes.ascendc.add_erase_sync(pm)
             passes.ascendc.add_hoist_que_bind(pm)
