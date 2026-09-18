@@ -187,6 +187,8 @@ class Compiler(CompilerBase):
         passes.ascendc.add_legalize_kernel_args(pm, set_ffts_addr=not arch_c310)
         passes.ascendc.add_detect_kernel_type(pm)
         asctile.passes.ascendc.add_insert_init_dump(pm)
+        passes.common.add_canonicalizer(pm)
+        passes.common.add_cse(pm)
         if self.options.verify_sync:
             passes.ascendc.add_verify_sync(pm)
         if self.options.strip_loc:
