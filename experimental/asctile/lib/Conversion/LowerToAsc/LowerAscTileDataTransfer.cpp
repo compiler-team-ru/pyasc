@@ -519,17 +519,17 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
                 rewriter.create<ascendc::FillOp>(loc, padTensor, params.getResult());
             }
         } else {
-            auto dValueBytes = rewriter.create<arith::MulIOp>(loc, dValue, elemSizeVal);
-            auto totalBytes = consts.i32((isTransposeBL1 ? dstShape[0] : dstShape[1]) * elementSize);
-            auto padBytes = rewriter.create<arith::SubIOp>(loc, totalBytes, dValueBytes);
-            auto padBlocks = rewriter.create<arith::DivSIOp>(loc, padBytes, blockSizeVal);
+            auto dValueC0 = rewriter.create<arith::CeilDivSIOp>(loc, dValue, c0Size);
+            auto totalWidthC0 =
+                consts.i32(llvm::divideCeilSigned(isTransposeBL1 ? dstShape[0] : dstShape[1], cubeKBlockSize));
+            auto padBlocks = rewriter.create<arith::SubIOp>(loc, totalWidthC0, dValueC0);
             auto needsColPad = rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::sgt, padBlocks, const0);
             auto colPadIf = rewriter.create<scf::IfOp>(loc, needsColPad);
             {
                 ConvertRewriter::InsertionGuard guard(rewriter);
                 rewriter.setInsertionPointToStart(colPadIf.thenBlock());
-                auto colOffset =
-                    rewriter.create<arith::MulIOp>(loc, dValue, consts.i32(isTransposeBL1 ? dstShape[1] : dstShape[0]));
+                auto colOffset = rewriter.create<arith::MulIOp>(
+                    loc, dValueC0, consts.i32((isTransposeBL1 ? dstShape[1] : dstShape[0]) * cubeKBlockSize));
                 auto blockNum = rewriter.create<arith::MulIOp>(
                     loc, padBlocks, consts.i32(isTransposeBL1 ? dstShape[1] : dstShape[0]));
                 auto padTensor = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, dst.getType(), dst, colOffset);
