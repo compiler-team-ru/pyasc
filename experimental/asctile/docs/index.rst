@@ -24,6 +24,7 @@ PyAsc documentation
    programming-guide/quick-start.md
    programming-guide/cube-programming-capabilities
    programming-guide/performance-tips.md
+   programming-guide/debug-capabilities
    programming-guide/tutorials/index
 
 

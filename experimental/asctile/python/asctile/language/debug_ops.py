@@ -73,7 +73,7 @@ def device_print(*values: Any, sep: Optional[str] = None, end: Optional[str] = N
     Args:
         values: Values to print (strings, scalars, or tensors).
         sep: Separator between values (default ``" "``).
-        end: Line terminator (default ``"\n"``).
+        end: Line terminator (default ``"\\n"``).
 
     Note:
         Only active when ``debug=True`` is set in the JIT decorator. The built-in ``print()``
