@@ -117,3 +117,44 @@ func.func @ub_to_gm_sync(%arg0: !ascendc.global_tensor<32x32xf32>, %arg1: !ascen
   }
   return %0 : !ascendc.local_tensor<16x16xf32>
 }
+
+// CHECK-LABEL: func.func @ub_to_gm_no_consumer
+// CHECK: ascendc.data_copy_l2 {{%.*}}, {{%.*}}, {{%.*}} {direction = #ascendc.copy_direction<veccalc, gm>}
+// CHECK-NOT: cross_core
+func.func @ub_to_gm_no_consumer(%arg0: !ascendc.global_tensor<32x32xf32>, %arg1: !ascendc.local_tensor<16x16xf16>, %arg2: !ascendc.local_tensor<16x16xf16>, %arg3: !ascendc.mmad_params) -> !ascendc.local_tensor<16x16xf32> {
+  %c0_i32 = arith.constant 0 : i32
+  %c256_i32 = arith.constant 256 : i32
+  %ub = ascendc.local_tensor_v3 veccalc, 0, 256 : !ascendc.local_tensor<16x16xf32>
+  %co1 = ascendc.local_tensor_v3 co1, 0, 1024 : !ascendc.local_tensor<16x16xf32>
+  %gm_sub = ascendc.global_tensor.subindex %arg0[%c0_i32] : !ascendc.global_tensor<32x32xf32>, i32, !ascendc.global_tensor<32x32xf32>
+  ascendc.if_aiv {
+    ascendc.data_copy_l2 %gm_sub, %ub, %c256_i32 {direction = #ascendc.copy_direction<veccalc, gm>} : !ascendc.global_tensor<32x32xf32>, !ascendc.local_tensor<16x16xf32>, i32
+    ascendc.yield
+  }
+  %0 = ascendc.if_aic -> !ascendc.local_tensor<16x16xf32> {
+    ascendc.mmad %co1, %arg1, %arg2, %arg3 : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf16>, !ascendc.local_tensor<16x16xf16>, !ascendc.mmad_params
+    ascendc.yield %co1 : !ascendc.local_tensor<16x16xf32>
+  }
+  return %0 : !ascendc.local_tensor<16x16xf32>
+}
+
+// CHECK-LABEL: func.func @fixpipe_to_gm_no_consumer
+// CHECK: ascendc.fixpipe {{%.*}}, {{%.*}}, {{%.*}}, {{%.*}} {direction = #ascendc.copy_direction<co1, gm>}
+// CHECK-NOT: cross_core
+func.func @fixpipe_to_gm_no_consumer(%arg0: !ascendc.global_tensor<32x32xf32>, %arg1: !ascendc.local_tensor<16x16xf16>, %arg2: !ascendc.local_tensor<16x16xf16>, %arg3: !ascendc.mmad_params, %arg4: !ascendc.fixpipe_params_v220, %arg5: !ascendc.fixpipe_config) {
+  %c0_i32 = arith.constant 0 : i32
+  %c256_i32 = arith.constant 256 : i32
+  %co1 = ascendc.local_tensor_v3 co1, 0, 1024 : !ascendc.local_tensor<16x16xf32>
+  %ub = ascendc.local_tensor_v3 veccalc, 0, 256 : !ascendc.local_tensor<16x16xf32>
+  %gm_sub = ascendc.global_tensor.subindex %arg0[%c0_i32] : !ascendc.global_tensor<32x32xf32>, i32, !ascendc.global_tensor<32x32xf32>
+  ascendc.if_aic {
+    ascendc.mmad %co1, %arg1, %arg2, %arg3 : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf16>, !ascendc.local_tensor<16x16xf16>, !ascendc.mmad_params
+    ascendc.fixpipe %gm_sub, %co1, %arg4, %arg5 {direction = #ascendc.copy_direction<co1, gm>} : !ascendc.global_tensor<32x32xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
+    ascendc.yield
+  }
+  ascendc.if_aiv {
+    ascendc.duplicate_l2 %ub, %c0_i32, %c256_i32 : !ascendc.local_tensor<16x16xf32>, i32, i32
+    ascendc.yield
+  }
+  return
+}

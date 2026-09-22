@@ -178,7 +178,8 @@ def InsertCrossCoreSync : Pass<"ascendc-insert-cross-core-sync", "func::FuncOp">
   let dependentDialects = ["arith::ArithDialect", "ascendc::AscendCDialect"];
   let description = [{
     This pass inserts `ascendc.cross_core_set_flag` and `ascendc.cross_core_wait_flag` operations
-    to synchronize data transfers between AIV (AI Vector) and AIC (AI Cube) cores.
+    to synchronize data transfers between AIV (AI Vector) and AIC (AI Cube) cores. It is a no-op
+    unless the function contains at least two `if_aic`/`if_aiv` core groups.
 
     The pass identifies sync-trigger operations that transfer data between cores
     through an on-chip local tensor:
@@ -194,18 +195,21 @@ def InsertCrossCoreSync : Pass<"ascendc-insert-cross-core-sync", "func::FuncOp">
        trigger for the same tensor (tensor reuse) or if inside a loop. This waits for
        the previous consumer's backward `CrossCoreSetFlag` (loop-carried dependency).
     4. Inserts a producer `CrossCoreSetFlag` after the trigger (forward direction),
-       using the trigger op's pipe. Signals "data is ready" to consumers.
+       using the trigger op's pipe, only when consumers exist. Signals "data is ready"
+       to consumers.
     5. Inserts consumer flags only in the **first** consumer group after the trigger
        (cross-core flags are binary semaphores -- one set, one wait):
-       - A `CrossCoreWaitFlag` before the first use: the consumer waits for the
-         producer's "data ready" signal from step 4.
-       - A `CrossCoreSetFlag` after the last use in the same group (backward direction):
+       - A `CrossCoreWaitFlag` at the start of the consumer group's body: the consumer
+         waits for the producer's "data ready" signal from step 4.
+       - A `CrossCoreSetFlag` before the consumer group's terminator (backward direction):
          the consumer signals that the buffer can be safely overwritten.
        Both use the consumer op's pipe (determined by `getOpPipeExt(consumerOp)`).
        Consumer groups after the first receive no flags -- they rely on intra-core
        ordering, since the data is already loaded by the first group's wait.
-    6. If inside a loop (first trigger only), inserts backward synchronization to prevent
-       the producer from overwriting a shared buffer before the consumer finishes reading:
+    6. Seeds backward synchronization to prevent the producer from overwriting a shared
+       buffer before the consumer finishes reading. This happens for a first trigger
+       inside a loop, or for a second trigger whose enclosing loop differs from the
+       one recorded previously:
        - An initial `CrossCoreSetFlag` before the loop (consumer's core, PIPE_S) --
          seeds the backward flag to prevent first-iteration deadlock.
        - A finalization `CrossCoreWaitFlag` after the loop (producer's core, producer's
@@ -213,8 +217,9 @@ def InsertCrossCoreSync : Pass<"ascendc-insert-cross-core-sync", "func::FuncOp">
 
     When the same destination tensor is reused by a different trigger op (second trigger),
     the pass recognizes it via a destination-to-flag map and reuses the same flag ID:
-    the second trigger's `CrossCoreSetFlag` re-sets the forward flag, allowing subsequent
-    consumers to wait on it. This avoids exhausting the 16-flag hardware limit.
+    the second trigger's `CrossCoreSetFlag` re-sets the forward flag (when it has
+    consumers), allowing subsequent consumers to wait on it. This avoids exhausting
+    the 16-flag hardware limit.
   }];
 }
 
@@ -238,6 +243,10 @@ def InsertCrossCoreSyncGM : Pass<"ascendc-insert-cross-core-sync-gm", "func::Fun
       through `global_tensor.subindex` chains via `getRootGlobalTensor`:
       - CO1 -> GM (`FixpipeOp`): inserts two flags with ids `id` and `id + 16`.
       - VECCALC -> GM (`DataCopyOp`): inserts a single flag with id `id`.
+      Flags are only emitted when a subsequent consumer group exists (a later group
+      whose operand traces to the same root); otherwise the `CrossCoreSetFlag` and the
+      flag ID allocation are skipped, since no `CrossCoreWaitFlag` would ever consume
+      the flag.
     - Consumer (a later group whose operand traces, via `getRootGlobalTensor`, to a
       recorded root): inserts `CrossCoreWaitFlag` operations at the start of the group
       body (before any group operation), on `PIPE_S`:

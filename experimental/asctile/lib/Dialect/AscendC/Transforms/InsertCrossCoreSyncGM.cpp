@@ -33,6 +33,11 @@ struct GMFlagInfo {
     bool isUBToGM = false;
 };
 
+struct GMLoadInfo {
+    Value root;
+    GMFlagInfo flag;
+};
+
 bool isL0CToGMCopy(Operation* op)
 {
     return isDataCopyOp(op, [](ascendc::TPosition src, ascendc::TPosition dst) {
@@ -54,26 +59,46 @@ Value getRootGlobalTensor(Value v)
     return v;
 }
 
-GMFlagInfo findGMLoadFlag(Operation* groupOp, const llvm::DenseMap<Value, GMFlagInfo>& gmRootsWithFlags)
+GMLoadInfo findGMLoad(Operation* groupOp, const llvm::DenseMap<Value, GMFlagInfo>& roots)
 {
-    GMFlagInfo info;
+    GMLoadInfo result;
     groupOp->walk([&](Operation* op) {
         if (op == groupOp)
             return WalkResult::advance();
         if (isDataCopyOp(op, [](ascendc::TPosition, ascendc::TPosition dst) { return dst == ascendc::TPosition::GM; }))
             return WalkResult::advance();
+        if (isa<ascendc::GlobalTensorSubIndexOp>(op))
+            return WalkResult::advance();
         for (Value operand : op->getOperands()) {
             if (!isa<ascendc::GlobalTensorType>(operand.getType()))
                 continue;
             Value root = getRootGlobalTensor(operand);
-            if (auto it = gmRootsWithFlags.find(root); it != gmRootsWithFlags.end()) {
-                info = it->second;
+            if (auto it = roots.find(root); it != roots.end()) {
+                result.root = root;
+                result.flag = it->second;
                 return WalkResult::interrupt();
             }
         }
         return WalkResult::advance();
     });
-    return info;
+    return result;
+}
+
+bool hasSubsequentConsumer(Operation* currentGroup, Value root, ArrayRef<Operation*> groupOps)
+{
+    llvm::DenseMap<Value, GMFlagInfo> single{{root, {}}};
+    bool seen = false;
+    for (auto* g : groupOps) {
+        if (g == currentGroup) {
+            seen = true;
+            continue;
+        }
+        if (!seen)
+            continue;
+        if (findGMLoad(g, single).root)
+            return true;
+    }
+    return false;
 }
 
 struct InsertCrossCoreSyncGMPass : public ascendc::impl::InsertCrossCoreSyncGMBase<InsertCrossCoreSyncGMPass> {
@@ -92,13 +117,14 @@ struct InsertCrossCoreSyncGMPass : public ascendc::impl::InsertCrossCoreSyncGMBa
         llvm::DenseMap<Value, GMFlagInfo> gmRootsWithFlags;
         for (auto* groupOp : groupOps) {
             if (!gmRootsWithFlags.empty()) {
-                GMFlagInfo info = findGMLoadFlag(groupOp, gmRootsWithFlags);
-                if (info.flagId >= 0) {
+                GMLoadInfo load = findGMLoad(groupOp, gmRootsWithFlags);
+                if (load.flag.flagId >= 0) {
                     Block& body = groupOp->getRegion(0).front();
                     builder.setInsertionPointToStart(&body);
-                    createWaitFlag(builder, groupOp->getLoc(), info.flagId, ascendc::Pipe::PIPE_S);
-                    if (info.isUBToGM)
-                        createWaitFlag(builder, groupOp->getLoc(), info.flagId + maxTensorId, ascendc::Pipe::PIPE_S);
+                    createWaitFlag(builder, groupOp->getLoc(), load.flag.flagId, ascendc::Pipe::PIPE_S);
+                    if (load.flag.isUBToGM)
+                        createWaitFlag(
+                            builder, groupOp->getLoc(), load.flag.flagId + maxTensorId, ascendc::Pipe::PIPE_S);
                 }
             }
             Block& body = groupOp->getRegion(0).front();
@@ -108,13 +134,15 @@ struct InsertCrossCoreSyncGMPass : public ascendc::impl::InsertCrossCoreSyncGMBa
                     return;
                 builder.setInsertionPoint(body.getTerminator());
                 for (auto* op : ops) {
+                    Value root = getRootGlobalTensor(cast<ascendc::DataCopyOp>(op).getDst());
+                    if (!hasSubsequentConsumer(groupOp, root, groupOps))
+                        continue;
                     ascendc::Pipe producerPipe = ascendc::getOpPipeExt(op);
                     int32_t flagId = crossCoreFlagId;
                     crossCoreFlagId = (crossCoreFlagId + 1) % maxTensorId;
                     createSetFlag(builder, op->getLoc(), flagId, producerPipe);
                     if (emitPair)
                         createSetFlag(builder, op->getLoc(), flagId + maxTensorId, producerPipe);
-                    Value root = getRootGlobalTensor(cast<ascendc::DataCopyOp>(op).getDst());
                     gmRootsWithFlags[root] = {flagId, isUBToGM};
                 }
             };
