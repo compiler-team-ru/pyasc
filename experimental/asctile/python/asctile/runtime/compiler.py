@@ -148,6 +148,7 @@ class Compiler(CompilerBase):
             asctile.passes.ascendc.add_reuse_tensor_allocation(pm)
         passes.common.add_canonicalizer(pm)
         if self.options.vf_fusion:
+            asctile.passes.ascvf.add_promote_cast_ops(pm)
             asctile.passes.ascvf.add_find_vf_group(pm)
             asctile.passes.ascvf.add_lower_to_reg(pm)
             passes.common.add_canonicalizer(pm)

@@ -112,6 +112,7 @@ void defineAscVFPasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_inline_vf_group", createInlineVFGroupPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_to_reg", createLowerToRegPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_materialize_load_store", createMaterializeLoadStorePass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_promote_cast_ops", createPromoteCastOpsPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_reorder_ops_in_vec_scope", createReorderOpsInVecScopePass);
 }
 
