@@ -101,6 +101,7 @@ from .language.debug_ops import (
     static_print,
 )
 from .language.memory_ops import (
+    SplitMode,
     copy,
     copy_in,
     copy_out,
@@ -215,6 +216,7 @@ __all__ += [
     "static_assert",
     "static_print",
     # .language.memory_ops
+    "SplitMode",
     "copy",
     "copy_in",
     "copy_out",

@@ -252,6 +252,57 @@ class TestCopy:
         kernel[1]()
         assert mock_launch.call_count == 1
 
+    @pytest.mark.parametrize("split, expected_shape", (
+        (asctile.SplitMode.FullVec0, (32, 64)),
+        (asctile.SplitMode.FullVec1, (32, 64)),
+        (asctile.SplitMode.SplitByM, (16, 64)),
+        (asctile.SplitMode.SplitByN, (32, 32)),
+    ))
+    def test_with_split(self, jit_test, mock_launch, zero_tile, split, expected_shape):
+
+        @jit_test
+        def kernel():
+            src = zero_tile([32, 64], asctile.float32, asctile.TensorLocation.L0C)
+            result = asctile.copy(src, location=asctile.TensorLocation.UB, split=split)
+            assert result.shape == expected_shape
+
+        kernel[1]()
+        assert mock_launch.call_count == 1
+
+    def test_split_wrong_rank(self, jit_test, zero_tile):
+
+        @jit_test
+        def kernel():
+            src = zero_tile([32], asctile.float32, asctile.TensorLocation.L0C)
+            asctile.copy(src, location=asctile.TensorLocation.UB, split=asctile.SplitMode.SplitByM)
+
+        with pytest.raises(RuntimeError, match="2D"):
+            kernel[1]()
+
+    def test_split_wrong_shape(self, jit_test, zero_tile):
+
+        @jit_test
+        def kernel():
+            src = zero_tile([32, 64], asctile.float32, asctile.TensorLocation.L0C)
+            asctile.copy(src, [0, 0], [16, 64], asctile.TensorLocation.UB, asctile.SplitMode.SplitByM)
+
+        with pytest.raises(RuntimeError, match="full shape"):
+            kernel[1]()
+
+    @pytest.mark.parametrize("shape, split", (
+        ([31, 64], asctile.SplitMode.SplitByM),
+        ([32, 31], asctile.SplitMode.SplitByN),
+    ))
+    def test_split_unaligned_shape(self, jit_test, zero_tile, shape, split):
+
+        @jit_test
+        def kernel():
+            src = zero_tile(shape, asctile.float32, asctile.TensorLocation.L0C)
+            asctile.copy(src, location=asctile.TensorLocation.UB, split=split)
+
+        with pytest.raises(RuntimeError, match="multiple of"):
+            kernel[1]()
+
 
 class TestTo:
 

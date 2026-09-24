@@ -40,6 +40,7 @@ namespace {
 void bindAttrs(py::module& m)
 {
     auto modAttr = m.def_submodule("attr");
+    modAttr.attr("cv_ratio") = py::str(ascendc::attr::cvRatio);
     modAttr.attr("gm_barrier") = py::str(asctile::attr::gmBarrier);
     modAttr.attr("static_alloc") = py::str(ascendc::attr::staticAlloc);
     modAttr.attr("unroll_factor") = py::str(asctile::attr::unrollFactor);
@@ -107,6 +108,13 @@ void bindEnums(py::module& m)
         .value("Trunc", asctile::RoundMode::Trunc)
         .value("Odd", asctile::RoundMode::Odd)
         .def_static("symbolize", [](int32_t mode) { return static_cast<asctile::RoundMode>(mode); });
+
+    py::enum_<asctile::SplitMode>(m, "asctile_SplitMode", py::module_local())
+        .value("FullVec0", asctile::SplitMode::FullVec0)
+        .value("FullVec1", asctile::SplitMode::FullVec1)
+        .value("SplitByM", asctile::SplitMode::SplitByM)
+        .value("SplitByN", asctile::SplitMode::SplitByN)
+        .def_static("symbolize", [](int32_t mode) { return static_cast<asctile::SplitMode>(mode); });
 }
 
 void bindAscTileType(py::module& m)

@@ -121,14 +121,11 @@ struct InsertCrossCoreSyncGMPass : public ascendc::impl::InsertCrossCoreSyncGMBa
                 if (load.flag.flagId >= 0) {
                     Block& body = groupOp->getRegion(0).front();
                     builder.setInsertionPointToStart(&body);
-                    createWaitFlag(builder, groupOp->getLoc(), load.flag.flagId, ascendc::Pipe::PIPE_S);
-                    if (load.flag.isUBToGM)
-                        createWaitFlag(
-                            builder, groupOp->getLoc(), load.flag.flagId + maxTensorId, ascendc::Pipe::PIPE_S);
+                    createWaitFlag(builder, groupOp->getLoc(), load.flag.flagId, Pipe::PIPE_S, load.flag.isUBToGM);
                 }
             }
             Block& body = groupOp->getRegion(0).front();
-            auto emitProducerFlags = [&](llvm::function_ref<bool(Operation*)> pred, bool emitPair, bool isUBToGM) {
+            auto emitProducerFlags = [&](llvm::function_ref<bool(Operation*)> pred, bool dualSync, bool isUBToGM) {
                 SmallVector<Operation*> ops = collectOps(groupOp, pred);
                 if (ops.empty())
                     return;
@@ -140,9 +137,7 @@ struct InsertCrossCoreSyncGMPass : public ascendc::impl::InsertCrossCoreSyncGMBa
                     ascendc::Pipe producerPipe = ascendc::getOpPipeExt(op);
                     int32_t flagId = crossCoreFlagId;
                     crossCoreFlagId = (crossCoreFlagId + 1) % maxTensorId;
-                    createSetFlag(builder, op->getLoc(), flagId, producerPipe);
-                    if (emitPair)
-                        createSetFlag(builder, op->getLoc(), flagId + maxTensorId, producerPipe);
+                    createSetFlag(builder, op->getLoc(), flagId, producerPipe, dualSync);
                     gmRootsWithFlags[root] = {flagId, isUBToGM};
                 }
             };

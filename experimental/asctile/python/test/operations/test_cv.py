@@ -148,3 +148,55 @@ def test_cube_to_gm_sync(M, K, N):
     c_ref = a.to(torch.float32) @ b.to(torch.float32)
     c_ref = c_ref + c_ref
     torch.testing.assert_close(c, c_ref, atol=1e-3, rtol=1e-3)
+
+
+@pytest.mark.parametrize("vecid, split", ((0, asctile.SplitMode.FullVec0), (1, asctile.SplitMode.FullVec1)))
+def test_split_by_aiv(vecid, split):
+    m, k, n = 32, 64, 64
+    a = (torch.rand((m, k), dtype=torch.float16) - .5) * 10
+    b = (torch.rand((k, n), dtype=torch.float16) - .5) * 10
+    c = torch.zeros((m, n), dtype=torch.float32)
+
+    @asctile.jit(always_compile=True, cv_ratio=2)
+    def kernel(a_ptr, b_ptr, c_ptr, a_shape: asctile.ConstExpr, b_shape: asctile.ConstExpr, c_shape: asctile.ConstExpr):
+        a_gm = asctile.global_tensor(a_ptr, a_shape)
+        b_gm = asctile.global_tensor(b_ptr, b_shape)
+        c_gm = asctile.global_tensor(c_ptr, c_shape)
+        a = asctile.copy_in(a_gm, [0, 0], a_shape)
+        b = asctile.copy_in(b_gm, [0, 0], b_shape)
+        c = asctile.copy(a @ b, location="UB", split=split)
+        if asctile.sub_block_idx() == vecid:
+            res = c + c
+            asctile.copy_out(res, c_gm, [0, 0])
+
+    kernel[1](a, b, c, a.shape, b.shape, c.shape)
+    c_ref = a.to(torch.float32) @ b.to(torch.float32)
+    res_ref = c_ref + c_ref
+    torch.testing.assert_close(c, res_ref, atol=1e-3, rtol=1e-3)
+
+
+@pytest.mark.parametrize("axis, split", ((0, asctile.SplitMode.SplitByM), (1, asctile.SplitMode.SplitByN)))
+def test_split_by_axis(axis, split):
+    m, k, n = 32, 64, 64
+    a = (torch.rand((m, k), dtype=torch.float16) - .5) * 10
+    b = (torch.rand((k, n), dtype=torch.float16) - .5) * 10
+    c = torch.zeros((m, n), dtype=torch.float32)
+
+    @asctile.jit(always_compile=True, cv_ratio=2)
+    def kernel(a_ptr, b_ptr, c_ptr, a_shape: asctile.ConstExpr, b_shape: asctile.ConstExpr, c_shape: asctile.ConstExpr):
+        a_gm = asctile.global_tensor(a_ptr, a_shape)
+        b_gm = asctile.global_tensor(b_ptr, b_shape)
+        c_gm = asctile.global_tensor(c_ptr, c_shape)
+        a = asctile.copy_in(a_gm, [0, 0], a_shape)
+        b = asctile.copy_in(b_gm, [0, 0], b_shape)
+        c = asctile.copy(a @ b, location="UB", split=split)
+        res = c + c
+        if axis == 0:
+            asctile.copy_out(res, c_gm, [c_shape[0] // 2 * asctile.sub_block_idx(), 0])
+        if axis == 1:
+            asctile.copy_out(res, c_gm, [0, c_shape[1] // 2 * asctile.sub_block_idx()])
+
+    kernel[1](a, b, c, a.shape, b.shape, c.shape)
+    c_ref = a.to(torch.float32) @ b.to(torch.float32)
+    res_ref = c_ref + c_ref
+    torch.testing.assert_close(c, res_ref, atol=1e-3, rtol=1e-3)
