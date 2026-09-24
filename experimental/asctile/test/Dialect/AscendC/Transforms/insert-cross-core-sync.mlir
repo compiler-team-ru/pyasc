@@ -6,7 +6,7 @@
 // INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 // See LICENSE in the root of the software repository for the full text of the License.
 
-// RUN: asctile-opt -ascendc-insert-cross-core-sync %s | FileCheck %s
+// RUN: asctile-opt -split-input-file -ascendc-insert-cross-core-sync %s | FileCheck %s
 
 // CHECK-LABEL: func.func @aiv_trigger_no_consumer(%arg0: !ascendc.local_tensor<16x16xf32>, %arg1: !ascendc.local_tensor<16x16xf32>, %arg2: !ascendc.mmad_params) -> !ascendc.local_tensor<16x16xf32> attributes {ascendc.cross_core_flag_id = 0 : i32} {
 // CHECK-NOT: cross_core
@@ -429,4 +429,45 @@ func.func @scf_for_inside_scf_if(%arg0: !ascendc.local_tensor<16x16xf16>, %arg1:
     ascendc.yield %co1 : !ascendc.local_tensor<16x16xf32>
   }
   return %0 : !ascendc.local_tensor<16x16xf32>
+}
+
+// -----
+
+// CHECK-LABEL: func.func @cv_ratio_2_dual_sync(%arg0: !ascendc.fixpipe_params_v220, %arg1: !ascendc.fixpipe_config) -> !ascendc.local_tensor<8xf32> attributes {ascendc.cross_core_flag_id = 1 : i32} {
+// CHECK:       %0 = ascendc.local_tensor_v3 co1, 0, 64 : !ascendc.local_tensor<8xf32>
+// CHECK-NEXT:  %1 = ascendc.local_tensor_v3 veccalc, 0, 64 : !ascendc.local_tensor<8xf32>
+// CHECK-NEXT:  %2 = ascendc.local_tensor_v3 veccalc, 0, 64 : !ascendc.local_tensor<8xf32>
+// CHECK-NEXT:  %3 = ascendc.if_aic -> !ascendc.local_tensor<8xf32> {
+// CHECK-NEXT:    ascendc.fixpipe %1, %0, %arg0, %arg1 {direction = #ascendc.copy_direction<co1, veccalc>} : !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
+// CHECK-NEXT:    %c0_i32 = arith.constant 0 : i32
+// CHECK-NEXT:    ascendc.cross_core_set_flag %c0_i32, 4, pipe_fix : i32
+// CHECK-NEXT:    %c16_i32 = arith.constant 16 : i32
+// CHECK-NEXT:    ascendc.cross_core_set_flag %c16_i32, 4, pipe_fix : i32
+// CHECK-NEXT:    ascendc.yield %1 : !ascendc.local_tensor<8xf32>
+// CHECK-NEXT:  }
+// CHECK-NEXT:  %4 = ascendc.if_aiv -> !ascendc.local_tensor<8xf32> {
+// CHECK-NEXT:    %c0_i32 = arith.constant 0 : i32
+// CHECK-NEXT:    ascendc.cross_core_wait_flag %c0_i32, 4, pipe_v : i32
+// CHECK-NEXT:    ascendc.add_l3 %2, %1, %1 : !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>
+// CHECK-NEXT:    %c0_i32_0 = arith.constant 0 : i32
+// CHECK-NEXT:    ascendc.cross_core_set_flag %c0_i32_0, 4, pipe_v : i32
+// CHECK-NEXT:    ascendc.yield %2 : !ascendc.local_tensor<8xf32>
+// CHECK-NEXT:  }
+// CHECK-NEXT:  return %4 : !ascendc.local_tensor<8xf32>
+// CHECK-NEXT:}
+module attributes {ascendc.cv_ratio = 2 : i64} {
+  func.func @cv_ratio_2_dual_sync(%arg0: !ascendc.fixpipe_params_v220, %arg1: !ascendc.fixpipe_config) -> !ascendc.local_tensor<8xf32> {
+    %co1 = ascendc.local_tensor_v3 co1, 0, 64 : !ascendc.local_tensor<8xf32>
+    %ub = ascendc.local_tensor_v3 veccalc, 0, 64 : !ascendc.local_tensor<8xf32>
+    %result = ascendc.local_tensor_v3 veccalc, 0, 64 : !ascendc.local_tensor<8xf32>
+    %0 = ascendc.if_aic -> !ascendc.local_tensor<8xf32> {
+      ascendc.fixpipe %ub, %co1, %arg0, %arg1 {direction = #ascendc.copy_direction<co1, veccalc>} : !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, !ascendc.fixpipe_params_v220, !ascendc.fixpipe_config
+      ascendc.yield %ub : !ascendc.local_tensor<8xf32>
+    }
+    %1 = ascendc.if_aiv -> !ascendc.local_tensor<8xf32> {
+      ascendc.add_l3 %result, %ub, %ub : !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>
+      ascendc.yield %result : !ascendc.local_tensor<8xf32>
+    }
+    return %1 : !ascendc.local_tensor<8xf32>
+  }
 }

@@ -36,16 +36,20 @@ inline bool isDataCopyOp(Operation* op, llvm::function_ref<bool(TPosition, TPosi
     return pred(src, dst);
 }
 
-inline void createSetFlag(OpBuilder& builder, Location loc, int32_t flagId, Pipe pipe)
+inline void createSetFlag(OpBuilder& builder, Location loc, int32_t flagId, Pipe pipe, bool dualSync = false)
 {
     ascir::ConstantOpBuilder consts(builder);
     builder.create<ascendc::CrossCoreSetFlagOp>(loc, consts.i32(flagId), crossCoreMode, pipe);
+    if (dualSync)
+        builder.create<ascendc::CrossCoreSetFlagOp>(loc, consts.i32(maxTensorId + flagId), crossCoreMode, pipe);
 }
 
-inline void createWaitFlag(OpBuilder& builder, Location loc, int32_t flagId, Pipe pipe)
+inline void createWaitFlag(OpBuilder& builder, Location loc, int32_t flagId, Pipe pipe, bool dualSync = false)
 {
     ascir::ConstantOpBuilder consts(builder);
     builder.create<ascendc::CrossCoreWaitFlagOp>(loc, consts.i32(flagId), crossCoreMode, pipe);
+    if (dualSync)
+        builder.create<ascendc::CrossCoreWaitFlagOp>(loc, consts.i32(maxTensorId + flagId), crossCoreMode, pipe);
 }
 
 inline SmallVector<Operation*> collectGroupOps(func::FuncOp funcOp)

@@ -52,7 +52,7 @@ def DimOp : AscTile_Op<"dim", [Pure]> {
 
 def CopyOp : AscTile_Op<"copy", [AllElementTypesMatch<["base", "result"]>]> {
   let summary = "Copy from a tensor into a new sub-tensor";
-  let arguments = (ins NumericLocalTensor:$base, Variadic<I32>:$offsets);
+  let arguments = (ins NumericLocalTensor:$base, Variadic<I32>:$offsets, OptionalAttr<AscTile_SplitModeAttr>:$split);
   let results = (outs NumericLocalTensor:$result);
   let assemblyFormat = "$base `[` $offsets `]` attr-dict `:` qualified(type($base)) `,` qualified(type($result))";
   let hasCanonicalizeMethod = 1;
@@ -283,7 +283,8 @@ def StoreFixpipeOp : AscTile_Op<"store_fixpipe", [AttrSizedOperandSegments, Memo
 
 def CopyFixpipeOp : AscTile_Op<"copy_fixpipe"> {
   let summary = "Store a tensor into a sub-tensor via FixPipe";
-  let arguments = (ins NumericLocalTensor:$base, Variadic<I32>:$offsets, UnitAttr:$relu, UnitAttr:$quantize);
+  let arguments = (ins NumericLocalTensor:$base, Variadic<I32>:$offsets, UnitAttr:$relu, UnitAttr:$quantize,
+                   OptionalAttr<AscTile_SplitModeAttr>:$split);
   let results = (outs NumericLocalTensor:$result);
   let assemblyFormat = "$base `[` $offsets `]` attr-dict `:` qualified(type($base)) `,` qualified(type($result))";
   let hasVerifier = 1;

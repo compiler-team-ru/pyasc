@@ -114,3 +114,36 @@ func.func @invalid_auto_result(%arg0: tensor<128xf32, #asctile.global>) -> tenso
   %0 = asctile.load %arg0[%c0] : tensor<128xf32, #asctile.global>, tensor<32xf32, #asctile.local<auto>>
   return %0 : tensor<32xf32, #asctile.local<auto>>
 }
+
+// -----
+
+func.func @valid_copy_with_split(%arg0: tensor<32x64xf32, #asctile.local<L0C>>) -> tensor<16x64xf32, #asctile.local<UB>> {
+  %c0 = arith.constant 0 : i32
+  %0 = asctile.copy %arg0[%c0, %c0] {split = #asctile.split_mode<split_by_m>} : tensor<32x64xf32, #asctile.local<L0C>>, tensor<16x64xf32, #asctile.local<UB>>
+  return %0 : tensor<16x64xf32, #asctile.local<UB>>
+}
+
+// -----
+
+func.func @invalid_copy_with_split(%arg0: tensor<32x64xf32, #asctile.local<UB>>) -> tensor<16x64xf32, #asctile.local<UB>> {
+  %c0 = arith.constant 0 : i32
+  // expected-error@+2 {{src tensor location must be L0C, got UB}}
+  // expected-error@+1 {{'split' argument is only supported when copying from L0C to UB}}
+  %0 = asctile.copy %arg0[%c0, %c0] {split = #asctile.split_mode<split_by_m>} : tensor<32x64xf32, #asctile.local<UB>>, tensor<16x64xf32, #asctile.local<UB>>
+  return %0 : tensor<16x64xf32, #asctile.local<UB>>
+}
+
+// -----
+
+func.func @valid_dump_l1_tensor(%arg0: tensor<32xf32, #asctile.local<L1>>) {
+  asctile.dump_tensor %arg0 : tensor<32xf32, #asctile.local<L1>>
+  return
+}
+
+// -----
+
+func.func @invalid_dump_l0a_tensor(%arg0: tensor<32xf32, #asctile.local<L0A>>) {
+  // expected-error@+1 {{tensor tensor location must be L1, UB, got L0A}}
+  asctile.dump_tensor %arg0 : tensor<32xf32, #asctile.local<L0A>>
+  return
+}

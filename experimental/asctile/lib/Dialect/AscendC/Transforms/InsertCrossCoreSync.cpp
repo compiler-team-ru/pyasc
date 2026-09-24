@@ -13,8 +13,10 @@
 #include "asctile/Dialect/AscendC/Utils/Utils.h"
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
+#include "ascir/Dialect/Asc/Utils/Utils.h"
 
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/IR/BuiltinAttributes.h"
 
 #include "CrossCoreSyncUtils.h"
 
@@ -84,7 +86,7 @@ void processUsers(OpBuilder& builder, ArrayRef<Operation*> users, int32_t flagId
 }
 
 template <typename FlagOp>
-void insertFlagGroup(OpBuilder& builder, Operation* op, bool isAIV, int32_t flagId, Pipe pipe)
+void insertFlagGroup(OpBuilder& builder, Operation* op, bool isAIV, int32_t flagId, Pipe pipe, bool dualSync)
 {
     Location loc = op->getLoc();
     ascir::ConstantOpBuilder consts(builder);
@@ -92,6 +94,8 @@ void insertFlagGroup(OpBuilder& builder, Operation* op, bool isAIV, int32_t flag
                                builder.create<ascendc::IfAICOp>(loc, TypeRange{}, ValueRange{}).getOperation();
     builder.createBlock(&group->getRegion(0));
     builder.create<FlagOp>(loc, consts.i32(flagId), crossCoreMode, pipe);
+    if (!isAIV && dualSync)
+        builder.create<FlagOp>(loc, consts.i32(maxTensorId + flagId), crossCoreMode, pipe);
     builder.create<ascendc::YieldOp>(loc);
 }
 
@@ -99,6 +103,9 @@ struct InsertCrossCoreSyncPass : public ascendc::impl::InsertCrossCoreSyncBase<I
     void runOnOperation() override
     {
         func::FuncOp funcOp = getOperation();
+        bool dualSync = false;
+        if (auto attr = getModule(funcOp)->getAttrOfType<IntegerAttr>(attr::cvRatio))
+            dualSync = attr.getValue().getSExtValue() == 2;
         SmallVector<Operation*> groupOps = collectGroupOps(funcOp);
         if (groupOps.size() < 2)
             return;
@@ -133,21 +140,22 @@ struct InsertCrossCoreSyncPass : public ascendc::impl::InsertCrossCoreSyncBase<I
                 bool loopChanged = isSecondTrigger && (loopOp != it->second.loopOp);
                 if (isSecondTrigger || loopOp) {
                     builder.setInsertionPoint(op);
-                    createWaitFlag(builder, op->getLoc(), flagId, producerPipe);
+                    createWaitFlag(builder, op->getLoc(), flagId, producerPipe, dualSync && !isAIV);
                 }
                 if (!users.empty()) {
                     builder.setInsertionPointAfter(op);
-                    createSetFlag(builder, op->getLoc(), flagId, producerPipe);
+                    createSetFlag(builder, op->getLoc(), flagId, producerPipe, dualSync && !isAIV);
                     processUsers(builder, users, flagId);
                 }
                 bool needSeed = (!isSecondTrigger && loopOp) || loopChanged;
                 if (needSeed) {
                     builder.setInsertionPoint(loopOp ? loopOp : groupOp);
                     insertFlagGroup<ascendc::CrossCoreSetFlagOp>(
-                        builder, groupOp, !isAIV, flagId, ascendc::Pipe::PIPE_S);
+                        builder, groupOp, !isAIV, flagId, ascendc::Pipe::PIPE_S, dualSync);
                     if (loopOp) {
                         builder.setInsertionPointAfter(loopOp);
-                        insertFlagGroup<ascendc::CrossCoreWaitFlagOp>(builder, groupOp, isAIV, flagId, producerPipe);
+                        insertFlagGroup<ascendc::CrossCoreWaitFlagOp>(
+                            builder, groupOp, isAIV, flagId, producerPipe, dualSync);
                     }
                     if (isSecondTrigger)
                         it->second.loopOp = loopOp;

@@ -95,6 +95,19 @@ def AscTile_RoundMode : I32EnumAttr<"RoundMode", "cast rounding mode", [
 
 def AscTile_RoundModeAttr : AscTile_EnumAttr<AscTile_RoundMode, "round_mode">;
 
+def AscTile_SplitMode : I32EnumAttr<"SplitMode", "split mode", [
+  I32EnumAttrCase<"FullVec0", 0, "full_vec0">,
+  I32EnumAttrCase<"FullVec1", 1, "full_vec1">,
+  I32EnumAttrCase<"SplitByM", 2, "split_by_m">,
+  I32EnumAttrCase<"SplitByN", 3, "split_by_n">,
+]> {
+  let cppNamespace = "::mlir::asctile";
+  let description = "Split strategy when copying from L0C to UB";
+  let genSpecializedAttr = 0;
+}
+
+def AscTile_SplitModeAttr : AscTile_EnumAttr<AscTile_SplitMode, "split_mode">;
+
 def AscTile_GlobalTensorAttr : AscTile_Attr<"GlobalTensor", "global",
   [DeclareAttrInterfaceMethods<VerifiableTensorEncoding>]> {
   let summary = "An encoding for a global tensor";
