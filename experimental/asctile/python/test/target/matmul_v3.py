@@ -145,6 +145,8 @@ def run_matmul_v3_test(profiler, runs, is_static, core_num, tiling_data, dtype, 
     elif dtype == torch.bfloat16:
         quant_type = asctile.bfloat16
     m, n, k, m_L1, n_L1, k_L1, base_m, base_n, base_k = tiling_data
+    if k_L1 > k:
+        k_L1 = asctile.ceildiv(k, base_k) * base_k
     a_shape = (m, k) if not is_a_transpose_l0 else (k, m)
     b_shape = (k, n) if not is_b_transpose_l0 else (n, k)
     full_load_tile_m = asctile.ceildiv(m, base_m) * base_m
