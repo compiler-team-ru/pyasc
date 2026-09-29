@@ -16,7 +16,6 @@
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
-#include "mlir/Analysis/SliceAnalysis.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
@@ -74,6 +73,37 @@ SmallVector<Value, 2> splitOffsets(OpBuilder& builder, ValueRange offsets, Split
     return newOffsets;
 }
 
+Value splitTensor(Value opnd, SplitMode split, ArrayRef<int64_t> sizes, ConversionPatternRewriter& rewriter)
+{
+    auto tensor = dyn_cast<LocalTensorType>(opnd.getType());
+    if (!tensor || tensor.getShape() == sizes)
+        return opnd;
+    assert(tensor.getLoc() == TensorLocation::UB && "tensor.extract_slice must use UB tensor");
+    auto newType = tensor.clone(sizes);
+    OpFoldResult splat = getSplatValue(opnd);
+    if (auto attr = dyn_cast_if_present<Attribute>(splat))
+        return rewriter.create<arith::ConstantOp>(opnd.getLoc(), SplatElementsAttr::get(newType, attr));
+    if (auto value = dyn_cast_if_present<Value>(splat))
+        return rewriter.create<tensor::SplatOp>(opnd.getLoc(), newType, value);
+    ascir::ConstantOpBuilder consts(rewriter);
+    SmallVector<Value, 2> zeros(2U, consts.index(0));
+    auto offsets = splitOffsets(rewriter, zeros, split, sizes);
+    auto staticOffsets = rewriter.getDenseI64ArrayAttr(SmallVector(2U, ShapedType::kDynamic));
+    SmallVector<int64_t> strides = computeStrides(sizes);
+    return rewriter.create<tensor::ExtractSliceOp>(
+        opnd.getLoc(), newType, opnd, offsets, /*sizes*/ ValueRange{}, /*strides*/ ValueRange{}, staticOffsets,
+        rewriter.getDenseI64ArrayAttr(sizes), rewriter.getDenseI64ArrayAttr(strides));
+}
+
+SmallVector<int64_t, 2> getOperandSplitShape(Value operand, SplitMode split)
+{
+    auto tensorShape = cast<LocalTensorType>(operand.getType()).getShape();
+    SmallVector<int64_t, 2> shape(tensorShape.begin(), tensorShape.end());
+    auto axis = split == SplitMode::SplitByM ? 0 : 1;
+    shape[axis] /= 2;
+    return shape;
+}
+
 struct SplitCopy : OpConversionPattern<CopyOp> {
     using OpConversionPattern::OpConversionPattern;
 
@@ -116,28 +146,6 @@ struct SplitStore : OpConversionPattern<StoreOp> {
 struct SplitElementwise : OpTraitConversionPattern<OpTrait::Elementwise> {
     using OpTraitConversionPattern::OpTraitConversionPattern;
 
-    static Value splitTensor(Value opnd, SplitMode split, ArrayRef<int64_t> sizes, ConversionPatternRewriter& rewriter)
-    {
-        auto tensor = dyn_cast<LocalTensorType>(opnd.getType());
-        if (!tensor || tensor.getShape() == sizes)
-            return opnd;
-        assert(tensor.getLoc() == TensorLocation::UB && "tensor.extract_slice must use UB tensor");
-        auto newType = tensor.clone(sizes);
-        OpFoldResult splat = getSplatValue(opnd);
-        if (auto attr = dyn_cast_if_present<Attribute>(splat))
-            return rewriter.create<arith::ConstantOp>(opnd.getLoc(), SplatElementsAttr::get(newType, attr));
-        if (auto value = dyn_cast_if_present<Value>(splat))
-            return rewriter.create<tensor::SplatOp>(opnd.getLoc(), newType, value);
-        ascir::ConstantOpBuilder consts(rewriter);
-        SmallVector<Value, 2> zeros(2U, consts.index(0));
-        auto offsets = splitOffsets(rewriter, zeros, split, sizes);
-        auto staticOffsets = rewriter.getDenseI64ArrayAttr(SmallVector(2U, ShapedType::kDynamic));
-        SmallVector<int64_t> strides = computeStrides(sizes);
-        return rewriter.create<tensor::ExtractSliceOp>(
-            opnd.getLoc(), newType, opnd, offsets, /*sizes*/ ValueRange{}, /*strides*/ ValueRange{}, staticOffsets,
-            rewriter.getDenseI64ArrayAttr(sizes), rewriter.getDenseI64ArrayAttr(strides));
-    }
-
     LogicalResult matchAndRewrite(Operation* op, ArrayRef<Value>, ConversionPatternRewriter& rewriter) const override
     {
         if (op->getNumRegions() != 0 || op->getNumSuccessors() != 0)
@@ -163,6 +171,51 @@ struct SplitElementwise : OpTraitConversionPattern<OpTrait::Elementwise> {
     }
 };
 
+struct SplitReduce : OpConversionPattern<ReduceOp> {
+    using OpConversionPattern<ReduceOp>::OpConversionPattern;
+
+    LogicalResult matchAndRewrite(ReduceOp op, ReduceOp::Adaptor, ConversionPatternRewriter& rewriter) const override
+    {
+        auto [split, resultShape] = getSplitInfo(op);
+        auto operandShape = getOperandSplitShape(op.getOperand(), split.getValue());
+        auto operand =
+            splitTensor(rewriter.getRemappedValue(op.getOperand()), split.getValue(), operandShape, rewriter);
+        auto resultType = op.getResult().getType().clone(resultShape);
+        rewriter.replaceOpWithNewOp<ReduceOp>(op, resultType, operand, op.getDims(), op.getKindAttr());
+        return success();
+    }
+};
+
+struct SplitReshape : OpConversionPattern<ReshapeOp> {
+    using OpConversionPattern<ReshapeOp>::OpConversionPattern;
+
+    LogicalResult matchAndRewrite(ReshapeOp op, ReshapeOp::Adaptor, ConversionPatternRewriter& rewriter) const override
+    {
+        auto [split, resultShape] = getSplitInfo(op);
+        auto operandShape = getOperandSplitShape(op.getIn(), split.getValue());
+        auto operand = splitTensor(rewriter.getRemappedValue(op.getIn()), split.getValue(), operandShape, rewriter);
+        auto resultType = op.getOut().getType().clone(resultShape);
+        rewriter.replaceOpWithNewOp<ReshapeOp>(op, resultType, operand);
+        return success();
+    }
+};
+
+struct SplitBroadcast : OpConversionPattern<BroadcastOp> {
+    using OpConversionPattern<BroadcastOp>::OpConversionPattern;
+
+    LogicalResult matchAndRewrite(
+        BroadcastOp op, BroadcastOp::Adaptor, ConversionPatternRewriter& rewriter) const override
+    {
+        auto [split, resultShape] = getSplitInfo(op);
+        auto operandShape = getOperandSplitShape(op.getOperand(), split.getValue());
+        auto operand =
+            splitTensor(rewriter.getRemappedValue(op.getOperand()), split.getValue(), operandShape, rewriter);
+        auto resultType = op.getResult().getType().clone(resultShape);
+        rewriter.replaceOpWithNewOp<BroadcastOp>(op, resultType, operand);
+        return success();
+    }
+};
+
 struct ApplyCVStrategyPass : public asctile::impl::ApplyCVStrategyBase<ApplyCVStrategyPass> {
     void runOnOperation() override
     {
@@ -171,7 +224,7 @@ struct ApplyCVStrategyPass : public asctile::impl::ApplyCVStrategyBase<ApplyCVSt
         ConversionTarget target(*context);
         target.markUnknownOpDynamicallyLegal([](Operation* op) { return !op->hasAttr(attr::needSplit); });
         RewritePatternSet patterns(context);
-        patterns.add<SplitCopy, SplitStore, SplitElementwise>(context);
+        patterns.add<SplitCopy, SplitStore, SplitElementwise, SplitReduce, SplitReshape, SplitBroadcast>(context);
         DenseSet<Operation*> unlegalizedOps;
         ConversionConfig config;
         config.unlegalizedOps = &unlegalizedOps;
