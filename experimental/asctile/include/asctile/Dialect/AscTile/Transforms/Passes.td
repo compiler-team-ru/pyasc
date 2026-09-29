@@ -16,9 +16,8 @@ include "mlir/Pass/PassBase.td"
 def ApplyCVStrategy : Pass<"asctile-apply-cv-strategy", "func::FuncOp"> {
   let summary = "Apply annotated vector unit work splitting to copies, stores, elementwise operations, etc.";
   let description = [{
-    Materialize the annotations created by PrepareCVStrategy: split L0C-to-UB copies to the derived half-shape, offset
-    UB-to-L1 copies and stores by the current sub-block, split elementwise operands and results, and inline the
-    surrounding asctile.cv_strategy body.
+    Materialize the annotations created by PrepareCVStrategy for copies, stores, elementwise operations, reductions,
+    reshapes, and broadcasts, then inline the surrounding asctile.cv_strategy body.
   }];
   let constructor = "mlir::asctile::createApplyCVStrategyPass()";
   let dependentDialects = [
@@ -290,11 +289,16 @@ def PrepareCVStrategy : Pass<"asctile-prepare-cv-strategy", "func::FuncOp"> {
     full tensor shape, and satisfies the split's divisibility requirements: an even M dimension for split_by_m and an N
     dimension divisible by 32 for split_by_n.
 
-    Derive the half-shape selected by the split mode and attach asctile.need_split and asctile.split_shape to both the
-    eligible copy and every downstream operation in its forwarding slice within the same CV strategy region.
-    ApplyCVStrategy later uses these attributes to materialize the split. Copies between other memory locations are left
-    unannotated. Fail if a copy has an incompatible explicit split, an unsupported rank or non-full shape, a dimension
-    that cannot be split evenly, or if another copy has already requested splitting for the same operations.
+    Derive the half-shape selected by the split mode and propagate it through the forwarding def-use chain within the
+    same CV strategy region. Attach asctile.need_split and asctile.split_shape to each participating operation, where
+    split_shape records the expected post-split result shape, or the stored-value shape for asctile.store. Propagation
+    supports shape-preserving copies, stores, and elementwise operations, as well as reductions, reshapes, and broadcasts
+    whose 2D split axis remains unchanged; other dimensions may change without mixing the split axis.
+
+    ApplyCVStrategy later uses these attributes to materialize each split. Copies between other memory locations are
+    left unannotated. Fail if a copy has an incompatible explicit split, an unsupported rank or non-full shape, a
+    dimension that cannot be split evenly, if propagation reaches an unsupported or conflicting consumer, or if the split
+    axis would be reduced, reshaped, or broadcast.
   }];
 }
 

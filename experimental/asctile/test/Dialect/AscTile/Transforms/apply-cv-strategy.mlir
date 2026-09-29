@@ -102,3 +102,62 @@ func.func @n_elementwise(%arg0: tensor<32x64xf32, #asctile.local<UB>>, %arg1: te
   asctile.store %0, %arg2[%arg3, %arg4] {asctile.need_split = #asctile.split_mode<split_by_n>, asctile.split_shape = array<i64: 32, 32>} : tensor<32x64xf32, #asctile.local<UB>>, tensor<32x64xf32, #asctile.global>
   return
 }
+
+// CHECK-LABEL: func.func @m_reduce_broadcast(
+// CHECK-NEXT:  %c16_i32 = arith.constant 16 : i32
+// CHECK-NEXT:  %c16 = arith.constant 16 : index
+// CHECK-NEXT:  %0 = ascendc.get_sub_block_idx : index
+// CHECK-NEXT:  %1 = arith.muli %0, %c16 : index
+// CHECK-NEXT:  %extracted_slice = tensor.extract_slice %arg0[%1, 0] [16, 64] [64, 1] : tensor<32x64xf32, #asctile.local<UB>> to tensor<16x64xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %2 = asctile.reduce <sum> %extracted_slice {dims = [1 : i32]} : tensor<16x64xf32, #asctile.local<UB>>, tensor<16x1xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %3 = asctile.broadcast %2 : tensor<16x1xf32, #asctile.local<UB>> to tensor<16x128xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %4 = ascendc.get_sub_block_idx : i32
+// CHECK-NEXT:  %5 = arith.muli %4, %c16_i32 : i32
+// CHECK-NEXT:  %6 = arith.addi %arg2, %5 : i32
+// CHECK-NEXT:  asctile.store %3, %arg1[%6, %arg3] : tensor<16x128xf32, #asctile.local<UB>>, tensor<32x128xf32, #asctile.global>
+// CHECK-NEXT:  return
+// CHECK-NEXT:}
+func.func @m_reduce_broadcast(%arg0: tensor<32x64xf32, #asctile.local<UB>>, %arg1: tensor<32x128xf32, #asctile.global>, %arg2: i32, %arg3: i32) {
+  %0 = asctile.reduce <sum> %arg0 {asctile.need_split = #asctile.split_mode<split_by_m>, asctile.split_shape = array<i64: 16, 1>, dims = [1 : i32]} : tensor<32x64xf32, #asctile.local<UB>>, tensor<32x1xf32, #asctile.local<UB>>
+  %1 = asctile.broadcast %0 {asctile.need_split = #asctile.split_mode<split_by_m>, asctile.split_shape = array<i64: 16, 128>} : tensor<32x1xf32, #asctile.local<UB>> to tensor<32x128xf32, #asctile.local<UB>>
+  asctile.store %1, %arg1[%arg2, %arg3] {asctile.need_split = #asctile.split_mode<split_by_m>, asctile.split_shape = array<i64: 16, 128>} : tensor<32x128xf32, #asctile.local<UB>>, tensor<32x128xf32, #asctile.global>
+  return
+}
+
+// CHECK-LABEL: func.func @n_reduce(
+// CHECK-NEXT:  %c32_i32 = arith.constant 32 : i32
+// CHECK-NEXT:  %c32 = arith.constant 32 : index
+// CHECK-NEXT:  %0 = ascendc.get_sub_block_idx : index
+// CHECK-NEXT:  %1 = arith.muli %0, %c32 : index
+// CHECK-NEXT:  %extracted_slice = tensor.extract_slice %arg0[0, %1] [32, 32] [32, 1] : tensor<32x64xf32, #asctile.local<UB>> to tensor<32x32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %2 = asctile.reduce <sum> %extracted_slice {dims = [0 : i32]} : tensor<32x32xf32, #asctile.local<UB>>, tensor<1x32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %3 = ascendc.get_sub_block_idx : i32
+// CHECK-NEXT:  %4 = arith.muli %3, %c32_i32 : i32
+// CHECK-NEXT:  %5 = arith.addi %arg3, %4 : i32
+// CHECK-NEXT:  asctile.store %2, %arg1[%arg2, %5] : tensor<1x32xf32, #asctile.local<UB>>, tensor<1x64xf32, #asctile.global>
+// CHECK-NEXT:  return
+// CHECK-NEXT:}
+func.func @n_reduce(%arg0: tensor<32x64xf32, #asctile.local<UB>>, %arg1: tensor<1x64xf32, #asctile.global>, %arg2: i32, %arg3: i32) {
+  %0 = asctile.reduce <sum> %arg0 {asctile.need_split = #asctile.split_mode<split_by_n>, asctile.split_shape = array<i64: 1, 32>, dims = [0 : i32]} : tensor<32x64xf32, #asctile.local<UB>>, tensor<1x64xf32, #asctile.local<UB>>
+  asctile.store %0, %arg1[%arg2, %arg3] {asctile.need_split = #asctile.split_mode<split_by_n>, asctile.split_shape = array<i64: 1, 32>} : tensor<1x64xf32, #asctile.local<UB>>, tensor<1x64xf32, #asctile.global>
+  return
+}
+
+// CHECK-LABEL: func.func @n_broadcast(
+// CHECK-NEXT:  %c32_i32 = arith.constant 32 : i32
+// CHECK-NEXT:  %c32 = arith.constant 32 : index
+// CHECK-NEXT:  %0 = ascendc.get_sub_block_idx : index
+// CHECK-NEXT:  %1 = arith.muli %0, %c32 : index
+// CHECK-NEXT:  %extracted_slice = tensor.extract_slice %arg0[0, %1] [1, 32] [32, 1] : tensor<1x64xf32, #asctile.local<UB>> to tensor<1x32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %2 = asctile.broadcast %extracted_slice : tensor<1x32xf32, #asctile.local<UB>> to tensor<32x32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %3 = ascendc.get_sub_block_idx : i32
+// CHECK-NEXT:  %4 = arith.muli %3, %c32_i32 : i32
+// CHECK-NEXT:  %5 = arith.addi %arg3, %4 : i32
+// CHECK-NEXT:  asctile.store %2, %arg1[%arg2, %5] : tensor<32x32xf32, #asctile.local<UB>>, tensor<32x64xf32, #asctile.global>
+// CHECK-NEXT:  return
+// CHECK-NEXT:}
+func.func @n_broadcast(%arg0: tensor<1x64xf32, #asctile.local<UB>>, %arg1: tensor<32x64xf32, #asctile.global>, %arg2: i32, %arg3: i32) {
+  %0 = asctile.broadcast %arg0 {asctile.need_split = #asctile.split_mode<split_by_n>, asctile.split_shape = array<i64: 32, 32>} : tensor<1x64xf32, #asctile.local<UB>> to tensor<32x64xf32, #asctile.local<UB>>
+  asctile.store %0, %arg1[%arg2, %arg3] {asctile.need_split = #asctile.split_mode<split_by_n>, asctile.split_shape = array<i64: 32, 32>} : tensor<32x64xf32, #asctile.local<UB>>, tensor<32x64xf32, #asctile.global>
+  return
+}

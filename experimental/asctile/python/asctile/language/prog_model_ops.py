@@ -116,7 +116,8 @@ def cv_strategy(split: SplitMode) -> Generator[None, Any, None]:
 
     This context manager is intended for kernels launched with ``cv_ratio=2``. It marks a 2D copy from ``L0C`` to
     ``UB`` and its dependent operations for splitting: ``SplitByM`` halves the first (M) axis, while ``SplitByN``
-    halves the second (N) axis. Each vector sub-block receives and processes one half of the tensor.
+    halves the second (N) axis. Internally, each vector sub-block would receive and process one half of the tensor.
+    Elementwise, reduction, and broadcast scenarios are supported. Other operations are not eligible for splitting.
 
     Args:
         split: The axis along which to split tensor work. Must be ``SplitMode.SplitByM`` or ``SplitMode.SplitByN``.
@@ -125,14 +126,19 @@ def cv_strategy(split: SplitMode) -> Generator[None, Any, None]:
         TypeError: If ``split`` is not a ``SplitMode``
         ValueError: If ``split`` does not request splitting by an axis
 
+    Note:
+        For every :py:func:`copy` operation with L0C-to-UB context inside, the copied tensor must have rank 2.
+        For ``SplitByM``, its M axis must be a multiple of 2. For ``SplitByN``, its N axis must be a multiple of 32.
+        The resulting tensors of all dependent operations must satisfy these requirements as well.
+
     Examples:
-        Split a matmul result across vector sub-blocks and store each half independently: ::
+        Split a matmul result by N, reduce each sub-block's partial result, and broadcast it back to the full shape: ::
 
             add = asctile.copy_in(add_tensor, offsets=[0, 0], shape=[32, 64])
             with asctile.cv_strategy(asctile.SplitMode.SplitByN):
                 c = asctile.copy(a @ b, location="UB")  # full shape [32, 64]
-                res = (c + add) * 3
-                asctile.copy_out(res, c_tensor, [0, 0])  # each sub-block stores its [32, 32] half
+                res = asctile.reduce_sum((c + add) * 3, 0, keep_dims=True).broadcast_to(c.shape)
+                asctile.copy_out(res, c_gm, [0, 0])
     """
     check_type("split", split, SplitMode)
     if split not in (SplitMode.SplitByM, SplitMode.SplitByN):

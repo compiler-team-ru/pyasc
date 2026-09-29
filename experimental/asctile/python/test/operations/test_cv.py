@@ -202,8 +202,8 @@ def test_split_by_axis(axis, split):
     torch.testing.assert_close(c, res_ref, atol=1e-3, rtol=1e-3)
 
 
-@pytest.mark.parametrize("split", (asctile.SplitMode.SplitByM, asctile.SplitMode.SplitByN))
-def test_cv_strategy_elementwise(split):
+@pytest.mark.parametrize("split, reduce_axis", ((asctile.SplitMode.SplitByM, 1), (asctile.SplitMode.SplitByN, 0)))
+def test_cv_strategy(split, reduce_axis):
     m, k, n = 32, 64, 64
     a = (torch.rand((m, k), dtype=torch.float16) - .5) * 10
     b = (torch.rand((k, n), dtype=torch.float16) - .5) * 10
@@ -222,10 +222,10 @@ def test_cv_strategy_elementwise(split):
         add = asctile.copy_in(add_gm, [0, 0], c_shape)
         with asctile.cv_strategy(split):
             c = asctile.copy(a @ b, location="UB")
-            res = (c + add) * 3
+            res = asctile.reduce_sum((c + add) * 3, reduce_axis, keep_dims=True).broadcast_to(c_shape)
             asctile.copy_out(res, c_gm, [0, 0])
 
     kernel[1](a, b, c, add, a.shape, b.shape, c.shape)
     c_ref = a.to(torch.float32) @ b.to(torch.float32)
-    res_ref = (c_ref + add) * 3
+    res_ref = torch.sum((c_ref + add) * 3, reduce_axis, keepdim=True).broadcast_to(c.shape)
     torch.testing.assert_close(c, res_ref, atol=1e-3, rtol=1e-3)
