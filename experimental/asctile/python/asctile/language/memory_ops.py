@@ -141,7 +141,7 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
         shape[0] //= 2
     elif split == SplitMode.SplitByN:
         if shape[1] % 32 != 0:
-            raise RuntimeError(f"Splitting by N axis requires that it be a multiple of 32, got {shape[0]}")
+            raise RuntimeError(f"Splitting by N axis requires that it be a multiple of 32, got {shape[1]}")
         shape[1] //= 2
     ir_type = asctile.ir.get_asctile_LocalTensorType(shape, src.dtype.to_ir(), location)
     handle = global_builder.get_ir_builder().create_asctile_CopyOp(ir_type, src.to_ir(), to_ir_list(offsets), split)

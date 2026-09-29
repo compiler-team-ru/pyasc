@@ -165,14 +165,15 @@ def CmpSOp : AscTile_Op<"cmps", [Pure, ShapedMatchElemType<"base", "value">, Typ
   let assemblyFormat = "$cmpMode $base `,` $value attr-dict `:` qualified(type($base))";
 }
 
-def ReluOp : AscTile_Op<"relu", [Pure, AllTypesMatch<["operand", "result"]>]> {
+def ReluOp : AscTile_Op<"relu", [Elementwise, Pure, AllTypesMatch<["operand", "result"]>]> {
   let summary = "Compute element-wise ReLU value of tensor";
   let arguments = (ins NumericLocalTensor:$operand);
   let results = (outs NumericLocalTensor:$result);
   let assemblyFormat = "$operand attr-dict `:` qualified(type($result))";
 }
 
-def CastOp : AscTile_Op<"cast", [Pure, SameOperandsAndResultShape, DeclareOpInterfaceMethods<CastOpInterface>]> {
+def CastOp : AscTile_Op<"cast", [Elementwise, Pure, SameOperandsAndResultShape,
+  DeclareOpInterfaceMethods<CastOpInterface>]> {
   let summary = "Cast tensor elements to other data type";
   let arguments = (ins NumericLocalTensor:$in, AscTile_RoundModeAttr:$roundMode);
   let results = (outs NumericLocalTensor:$out);
@@ -306,7 +307,7 @@ def InlineVFOp : AscTile_Op<"inline_vf", [Pure]> {
   let assemblyFormat = "`(` $inputs `)` $code attr-dict `:` functional-type($inputs, results)";
 }
 
-def BitwiseNotOp : AscTile_Op<"bitwise_not", [Pure, AllTypesMatch<["operand", "result"]>]> {
+def BitwiseNotOp : AscTile_Op<"bitwise_not", [Elementwise, Pure, AllTypesMatch<["operand", "result"]>]> {
   let summary = "Compute the bitwise NOT of a tensor";
   let arguments = (ins IntLocalTensor:$operand);
   let results = (outs IntLocalTensor:$result);
@@ -338,7 +339,7 @@ def ScatterOp : AscTile_Op<"scatter", [AllElementTypesMatch<["dst", "src"]>, Att
   }];
 }
 
-def PowerOp : AscTile_Op<"power", [Pure, AllTypesMatch<["lhs", "rhs", "result"]>]> {
+def PowerOp : AscTile_Op<"power", [Elementwise, Pure, AllTypesMatch<["lhs", "rhs", "result"]>]> {
   let summary = "Compute one tensor to the power of other tensor";
   let arguments = (ins NumericLocalTensor:$lhs, NumericLocalTensor:$rhs);
   let results = (outs NumericLocalTensor:$result);
@@ -357,6 +358,15 @@ def DumpTensorOp : AscTile_Op<"dump_tensor"> {
   let summary = "Print all the information of the tensor";
   let arguments = (ins AscTile_AnyTensor:$tensor);
   let assemblyFormat = "$tensor attr-dict `:` type($tensor)";
+}
+
+def CVStrategyOp : AscTile_Op<"cv_strategy", [SingleBlockImplicitTerminator<"YieldOp">]> {
+  let summary = "Declare CV ratio-based strategy for wrapped operations";
+  let arguments = (ins AscTile_SplitModeAttr:$split);
+  let regions = (region SizedRegion<1>:$region);
+  let assemblyFormat = "$split $region attr-dict";
+  let hasCanonicalizeMethod = 1;
+  let hasVerifier = 1;
 }
 
 #endif // ASCTILE_OPS_TD

@@ -32,6 +32,7 @@ Programming model
     block_num
     sub_block_idx
     sub_block_num
+    cv_strategy
 
 
 Iterators
