@@ -200,3 +200,32 @@ def test_split_by_axis(axis, split):
     c_ref = a.to(torch.float32) @ b.to(torch.float32)
     res_ref = c_ref + c_ref
     torch.testing.assert_close(c, res_ref, atol=1e-3, rtol=1e-3)
+
+
+@pytest.mark.parametrize("split", (asctile.SplitMode.SplitByM, asctile.SplitMode.SplitByN))
+def test_cv_strategy_elementwise(split):
+    m, k, n = 32, 64, 64
+    a = (torch.rand((m, k), dtype=torch.float16) - .5) * 10
+    b = (torch.rand((k, n), dtype=torch.float16) - .5) * 10
+    c = torch.zeros((m, n), dtype=torch.float32)
+    add = (torch.rand((m, n), dtype=torch.float32) - .5) * 10
+
+    @asctile.jit(always_compile=True, cv_ratio=2)
+    def kernel(a_ptr, b_ptr, c_ptr, add_ptr, a_shape: asctile.ConstExpr, b_shape: asctile.ConstExpr,
+               c_shape: asctile.ConstExpr):
+        a_gm = asctile.global_tensor(a_ptr, a_shape)
+        b_gm = asctile.global_tensor(b_ptr, b_shape)
+        c_gm = asctile.global_tensor(c_ptr, c_shape)
+        add_gm = asctile.global_tensor(add_ptr, c_shape)
+        a = asctile.copy_in(a_gm, [0, 0], a_shape)
+        b = asctile.copy_in(b_gm, [0, 0], b_shape)
+        add = asctile.copy_in(add_gm, [0, 0], c_shape)
+        with asctile.cv_strategy(split):
+            c = asctile.copy(a @ b, location="UB")
+            res = (c + add) * 3
+            asctile.copy_out(res, c_gm, [0, 0])
+
+    kernel[1](a, b, c, add, a.shape, b.shape, c.shape)
+    c_ref = a.to(torch.float32) @ b.to(torch.float32)
+    res_ref = (c_ref + add) * 3
+    torch.testing.assert_close(c, res_ref, atol=1e-3, rtol=1e-3)

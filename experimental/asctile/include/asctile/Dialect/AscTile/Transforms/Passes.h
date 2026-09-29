@@ -19,6 +19,7 @@ namespace asctile {
 #define GEN_PASS_DECL
 #include "asctile/Dialect/AscTile/Transforms/Passes.h.inc"
 
+std::unique_ptr<Pass> createApplyCVStrategyPass();
 std::unique_ptr<Pass> createApplyHomomorphismPass();
 std::unique_ptr<Pass> createCubeTransposeToLoadPass();
 std::unique_ptr<Pass> createDetectBiasLoadPass();
@@ -29,6 +30,7 @@ std::unique_ptr<Pass> createLocationCastToCopyPass();
 std::unique_ptr<Pass> createMarkMatmulAccWithBiasPass();
 std::unique_ptr<Pass> createMarkReuseSourcePass();
 std::unique_ptr<Pass> createMergeCVGroupsPass();
+std::unique_ptr<Pass> createPrepareCVStrategyPass();
 std::unique_ptr<Pass> createPromotePureOpsPass();
 std::unique_ptr<Pass> createResolveAutoLocationPass();
 std::unique_ptr<Pass> createSplitCubeLoadPass();

@@ -13,6 +13,19 @@
 
 include "mlir/Pass/PassBase.td"
 
+def ApplyCVStrategy : Pass<"asctile-apply-cv-strategy", "func::FuncOp"> {
+  let summary = "Apply annotated vector unit work splitting to copies, stores, elementwise operations, etc.";
+  let description = [{
+    Materialize the annotations created by PrepareCVStrategy: split L0C-to-UB copies to the derived half-shape, offset
+    UB-to-L1 copies and stores by the current sub-block, split elementwise operands and results, and inline the
+    surrounding asctile.cv_strategy body.
+  }];
+  let constructor = "mlir::asctile::createApplyCVStrategyPass()";
+  let dependentDialects = [
+    "arith::ArithDialect", "ascendc::AscendCDialect", "asctile::AscTileDialect", "tensor::TensorDialect"
+  ];
+}
+
 def ApplyHomomorphism : Pass<"asctile-apply-homomorphism", "func::FuncOp"> {
   let summary = "Apply homomorphism-based transformations: scalarize elementwise operations with splat operands, etc.";
   let constructor = "mlir::asctile::createApplyHomomorphismPass()";
@@ -265,6 +278,23 @@ def MergeCVGroups : Pass<"asctile-merge-cv-groups", "func::FuncOp"> {
       yield %cp, %ld2
     }
     ```
+  }];
+}
+
+def PrepareCVStrategy : Pass<"asctile-prepare-cv-strategy", "func::FuncOp"> {
+  let summary = "Prepare CV strategy regions by annotating copy-driven forwarding slices for splitting";
+  let constructor = "mlir::asctile::createPrepareCVStrategyPass()";
+  let description = [{
+    Examine each asctile.cv_strategy region and its asctile.copy operations. For a copy whose source is in L0C and
+    destination is in UB, validate that the copy uses the region's split mode, operates on 2D tensors, preserves the
+    full tensor shape, and satisfies the split's divisibility requirements: an even M dimension for split_by_m and an N
+    dimension divisible by 32 for split_by_n.
+
+    Derive the half-shape selected by the split mode and attach asctile.need_split and asctile.split_shape to both the
+    eligible copy and every downstream operation in its forwarding slice within the same CV strategy region.
+    ApplyCVStrategy later uses these attributes to materialize the split. Copies between other memory locations are left
+    unannotated. Fail if a copy has an incompatible explicit split, an unsupported rank or non-full shape, a dimension
+    that cannot be split evenly, or if another copy has already requested splitting for the same operations.
   }];
 }
 

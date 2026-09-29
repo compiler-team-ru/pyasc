@@ -9,12 +9,20 @@
  */
 
 #include "asctile/Conversion/LowerToAsc/Passes.h"
+#include "asctile/Dialect/AscTile/IR/AscTile.h"
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
+#include "ascir/Dialect/Asc/Utils/Constants.h"
+#include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/Utils/ConstantOpBuilder.h"
 
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Arith/Utils/Utils.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/Dialect/Utils/IndexingUtils.h"
+#include "mlir/IR/OpDefinition.h"
+#include "llvm/ADT/SmallVectorExtras.h"
 
 #include "Common.h"
 
@@ -29,6 +37,51 @@ using namespace mlir;
 using namespace mlir::asclower;
 
 namespace {
+
+struct ConvertExtractSlice : public ConvertOp<tensor::ExtractSliceOp> {
+    using ConvertOp::ConvertOp;
+
+    LogicalResult matchAndRewrite(tensor::ExtractSliceOp op, ConvertRewriter& rewriter) const override
+    {
+        auto srcType = dyn_cast<asctile::LocalTensorType>(op.getSourceType());
+        auto dstType = dyn_cast<asctile::LocalTensorType>(op.getResultType());
+        if (!srcType || !dstType || srcType.getLoc() != asctile::TensorLocation::UB ||
+            dstType.getLoc() != asctile::TensorLocation::UB)
+            return op.emitOpError("operand and result must be local tensors located in UB");
+        if (srcType.getRank() != 2 || dstType.getRank() != 2)
+            return op.emitOpError("only supports 2D tensors as operand and result");
+        if (!op.getSizes().empty() || !op.getStrides().empty())
+            return op.emitOpError("must have fully static sizes and strides");
+        if (ArrayRef(computeStrides(op.getStaticSizes())) != op.getStaticStrides())
+            return op.emitOpError("must have row-major strides");
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto loc = op.getLoc();
+        auto dstTypeConv = typeConverter->convertType<ascendc::LocalTensorType>(dstType);
+        auto dstShape = dstTypeConv.getShape();
+        Value blockCount = consts.i16(dstShape[0]);
+        int64_t elementsPerBlock = ascendc::ubBlockSize / ascendc::getElementTypeSize(dstTypeConv);
+        Value blockLen = consts.i16(dstShape[1] / elementsPerBlock);
+        auto srcTypeConv = typeConverter->convertType<ascendc::LocalTensorType>(srcType);
+        auto srcShape = srcTypeConv.getShape();
+        Value srcGap = consts.i16((srcShape[1] - dstShape[1]) / elementsPerBlock);
+        Value dstGap = consts.i16(0);
+        Value dst = createTensorOp(rewriter, loc, dstType);
+        Value params = rewriter.create<ascendc::ConstructOp>(
+            loc, rewriter.getType<ascendc::DataCopyParamsType>(), ValueRange{blockCount, blockLen, srcGap, dstGap});
+        auto offsets = llvm::map_to_vector<2>(op.getMixedOffsets(), [&rewriter, loc](OpFoldResult ofr) {
+            return getValueOrCreateConstantIndexOp(rewriter, loc, ofr);
+        });
+        Value offset = rewriter.create<arith::MulIOp>(loc, offsets[0], consts.index(srcShape[1]));
+        offset = rewriter.create<arith::AddIOp>(loc, offset, offsets[1]);
+        offset = rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(), offset);
+        Value src = rewriter.create<ascendc::LocalTensorSubIndexOp>(
+            loc, srcTypeConv, rewriter.getRemappedValue(op.getSource()), offset);
+        auto copyOp = rewriter.create<ascendc::DataCopyL2Op>(loc, dst, src, params);
+        copyOp.setDirection(ascendc::TPosition::VECCALC, ascendc::TPosition::VECCALC);
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
 
 struct ConvertSplat : public ConvertOp<tensor::SplatOp> {
     using ConvertOp::ConvertOp;
@@ -55,7 +108,7 @@ struct LowerTensorPass : public asclower::impl::LowerTensorBase<LowerTensorPass>
         target.addLegalDialect<ascendc::AscendCDialect, arith::ArithDialect>();
         target.addLegalOp<UnrealizedConversionCastOp>();
         RewritePatternSet patterns(context);
-        patterns.insert<ConvertSplat>(converter, context);
+        patterns.insert<ConvertExtractSlice, ConvertSplat>(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())
             signalPassFailure();
     }

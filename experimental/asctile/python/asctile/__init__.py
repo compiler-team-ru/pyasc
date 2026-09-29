@@ -111,6 +111,7 @@ from .language.memory_ops import (
 from .language.prog_model_ops import (
     block_idx,
     block_num,
+    cv_strategy,
     sub_block_idx,
     sub_block_num,
 )
@@ -225,6 +226,7 @@ __all__ += [
     # .language.prog_model_ops
     "block_idx",
     "block_num",
+    "cv_strategy",
     "sub_block_idx",
     "sub_block_num",
     # .language.shape_ops

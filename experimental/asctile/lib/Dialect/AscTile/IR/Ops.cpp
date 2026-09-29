@@ -411,6 +411,29 @@ OpFoldResult PowerOp::fold(FoldAdaptor)
 }
 
 //===----------------------------------------------------------------------===//
+// CVStrategyOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult CVStrategyOp::canonicalize(CVStrategyOp op, PatternRewriter& rewriter)
+{
+    if (op.getBody()->without_terminator().empty()) {
+        rewriter.eraseOp(op);
+        return success();
+    }
+    return failure();
+}
+
+LogicalResult CVStrategyOp::verify()
+{
+    auto split = getSplit();
+    if (split != SplitMode::SplitByM && split != SplitMode::SplitByN)
+        return emitOpError() << "has unsupported split mode " << stringifySplitMode(split);
+    if (getOperation()->getParentOfType<CVStrategyOp>())
+        return emitOpError("cannot be nested in other asctile.cv_strategy op");
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
 // AscTileDialect
 //===----------------------------------------------------------------------===//
 

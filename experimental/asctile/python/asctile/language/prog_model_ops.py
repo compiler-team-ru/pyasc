@@ -6,10 +6,16 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
+from contextlib import contextmanager
+from typing import Any, Generator
+
 from asc.language.basic.sys_var import get_block_idx, get_block_num
 from asc.language.core.dtype import KnownTypes
 from asc.language.core.ir_value import PlainValue
 from asc.language.core.utils import global_builder, require_jit
+
+from .memory_ops import SplitMode
+from .validation import check_type
 
 
 @require_jit
@@ -100,3 +106,44 @@ def sub_block_num() -> PlainValue:
                 ...
     """
     return PlainValue(global_builder.get_ir_builder().create_asc_GetSubBlockNumOp(KnownTypes.int_.to_ir()))
+
+
+@require_jit
+@contextmanager
+def cv_strategy(split: SplitMode) -> Generator[None, Any, None]:
+    """
+    [Experimental] Declare a split strategy for vector sub-blocks.
+
+    This context manager is intended for kernels launched with ``cv_ratio=2``. It marks a 2D copy from ``L0C`` to
+    ``UB`` and its dependent operations for splitting: ``SplitByM`` halves the first (M) axis, while ``SplitByN``
+    halves the second (N) axis. Each vector sub-block receives and processes one half of the tensor.
+
+    Args:
+        split: The axis along which to split tensor work. Must be ``SplitMode.SplitByM`` or ``SplitMode.SplitByN``.
+
+    Raises:
+        TypeError: If ``split`` is not a ``SplitMode``
+        ValueError: If ``split`` does not request splitting by an axis
+
+    Examples:
+        Split a matmul result across vector sub-blocks and store each half independently: ::
+
+            add = asctile.copy_in(add_tensor, offsets=[0, 0], shape=[32, 64])
+            with asctile.cv_strategy(asctile.SplitMode.SplitByN):
+                c = asctile.copy(a @ b, location="UB")  # full shape [32, 64]
+                res = (c + add) * 3
+                asctile.copy_out(res, c_tensor, [0, 0])  # each sub-block stores its [32, 32] half
+    """
+    check_type("split", split, SplitMode)
+    if split not in (SplitMode.SplitByM, SplitMode.SplitByN):
+        raise ValueError(f"Splitting by axis must be requested, got {split.value}")
+    builder = global_builder.get_ir_builder()
+    block_op = builder.create_asctile_CVStrategyOp(split)
+    old_insertion_point = global_builder.get_ir_builder().save_insertion_point()
+    new_block = builder.create_block(block_op.get_region(0))
+    builder.set_insertion_point_to_start(new_block)
+    try:
+        yield
+    finally:
+        builder.create_asctile_YieldOp([])
+        builder.restore_insertion_point(old_insertion_point)
