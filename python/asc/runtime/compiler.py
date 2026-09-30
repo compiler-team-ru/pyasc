@@ -26,18 +26,41 @@ from . import utils
 
 @dataclass
 class CompileOptions:
-    """Binary compilation and IR transformation options"""
+    """Binary compilation and IR transformation options.
+
+    These fields can be passed as keyword arguments to :func:`asc.jit`, for
+    example ``@asc.jit(opt_level=2, always_compile=True)``.
+    """
 
     debug: bool = False
+    """Enable BiSheng debug symbols (``-g``) and related compiler flags."""
+
     strip_loc: bool = False
+    """Strip source location / debug info from the IR after compilation passes."""
+
     verify_sync: bool = False
+    """Run the pipeline-sync verification pass after lowering."""
+
     print_ir_before_all: bool = False
+    """Print IR before every compiler pass (for pass debugging)."""
+
     run_passes: bool = True
+    """Run lowering, optimizing, and postprocessing passes before translation."""
+
     kernel_type: Optional[KernelType] = None
+    """Kernel mix type. If omitted, the framework infers it from the IR."""
+
     auto_sync: Optional[bool] = True
+    """Enable BiSheng ``--cce-auto-sync`` automatic pipeline synchronization."""
+
     auto_sync_log: Optional[str] = ""
+    """Optional file path for BiSheng auto-sync insertion logs."""
+
     matmul_cube_only: bool = False
+    """Compile Matmul in cube-only mode (no vector core participation)."""
+
     insert_sync: Optional[bool] = None
+    """Insert queue synchronization passes. ``None`` lets the IR decide."""
 
     always_compile: bool = False
     """

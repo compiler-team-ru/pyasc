@@ -11,4 +11,4 @@
 # Programming models
 
 * [asc.lib.host](host.md)
-* [asc.runtime.config](config.md)
+* [asc.lib.profiling](profiling.md)

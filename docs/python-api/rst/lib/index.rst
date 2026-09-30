@@ -16,3 +16,4 @@ asc.lib
    :caption: Programming models
 
    host
+   profiling

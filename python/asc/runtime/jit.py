@@ -249,6 +249,23 @@ def jit(**options) -> Callable[[Callable[P, T]], JITFunction[P, T]]:
 
 
 def jit(fn: Optional[Callable[P, T]] = None, **options):
+    """Decorate a Python function as an Ascend kernel entry (``@asc.jit``).
+
+    This is the PyAsc counterpart of declaring a kernel with
+    ``extern "C" __global__ __aicore__`` in Ascend C. The decorated function is
+    lowered to Ascend C, compiled by the BiSheng compiler, and launched on the
+    device.
+
+    Keyword arguments are fields of :class:`~asc.CodegenOptions`,
+    :class:`~asc.CompileOptions`, and :class:`~asc.LaunchOptions`.
+    For example, ``@asc.jit(debug=True)`` forwards ``debug`` to
+    :class:`~asc.CompileOptions`. Launch configuration is passed in
+    brackets: ``kernel[core_num](...)`` or ``kernel[core_num, stream](...)``.
+
+    Args:
+        fn: Function to decorate. If omitted, a decorator with ``options`` is returned.
+        **options: Codegen, compile, and launch options.
+    """
     options.setdefault("custom_builtins", CustomBuiltins({"assert": static_assert, "range": asc_range}))
 
     def decorator(fn: Callable[P, T]) -> JITFunction[P, T]:

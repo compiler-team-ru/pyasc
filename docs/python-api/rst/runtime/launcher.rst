@@ -1,4 +1,4 @@
-.. Copyright (c) 2025 Huawei Technologies Co., Ltd.
+.. Copyright (c) 2026 Huawei Technologies Co., Ltd.
 .. This program is free software, you can redistribute it and/or modify it under the terms and conditions of
 .. CANN Open Software License Agreement Version 2.0 (the "License").
 .. Please refer to the License for details. You may not use this file except in compliance with the License.
@@ -6,20 +6,11 @@
 .. INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 .. See LICENSE in the root of the software repository for the full text of the License.
 
-Python API
-======================
+asc.runtime.launcher
+==================================
 
-.. toctree::
-   :maxdepth: 1
+.. currentmodule:: asc.runtime.launcher
 
-   python-api/rst/language/adv
-   python-api/rst/language/basic
-   python-api/rst/language/core
-   python-api/rst/language/fwk
-   python-api/rst/runtime/index
-   python-api/rst/runtime/jit
-   python-api/rst/runtime/compiler
-   python-api/rst/runtime/launcher
-   python-api/rst/runtime/config
-   python-api/rst/lib/host
-   python-api/rst/lib/profiling
+.. autoclass:: LaunchOptions
+   :members:
+   :undoc-members:

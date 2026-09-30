@@ -15,6 +15,8 @@ ProfilerConfig: TypeAlias = ctypes.c_void_p
 
 
 class AicoreMetrics(Enum):
+    """AI Core metric groups accepted by ``aclprofCreateConfig``."""
+
     ARITHMETIC_UTILIZATION = 0
     PIPE_UTILIZATION = 1
     MEMORY_BANDWIDTH = 2
@@ -28,6 +30,8 @@ class AicoreMetrics(Enum):
 
 
 class ProfileType(Enum):
+    """Profiling data categories accepted by ``aclprofCreateConfig``."""
+
     ACL_API = 0x0001
     TASK_TIME = 0x0002
     AICORE_METRICS = 0x0004
@@ -43,6 +47,7 @@ class ProfileType(Enum):
 
 
 class MsprofInterface:
+    """ctypes wrapper around CANN ``libmsprofiler.so`` (``aclprof*`` APIs)."""
 
     def __init__(self):
         self.lib = ctypes.CDLL("libmsprofiler.so")

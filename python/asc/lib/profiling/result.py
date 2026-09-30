@@ -17,6 +17,8 @@ task_types = {"AI_CORE", "AIV_SQE", "AI_VECTOR_CORE", "MIX_AIC", "MIX_AIV", "KER
 
 @dataclass(frozen=True)
 class ProfilingTask:
+    """A single kernel / AI Core task parsed from msprof CSV output."""
+
     id: int
     name: str
     type: str
@@ -25,12 +27,22 @@ class ProfilingTask:
 
 @dataclass(frozen=True)
 class ProfilingResult:
+    """Parsed tasks from one profiler export run."""
+
     tasks: Tuple[ProfilingTask]
     run_id: str
     stored_at: datetime
 
 
 def task_time_median(tasks: Iterable[ProfilingTask], name: Optional[str] = None, skip: int = 0) -> float:
+    """Return the median duration (us) of AI Core tasks.
+
+    Args:
+        tasks: Tasks from :class:`ProfilingResult`.
+        name: If set, only tasks with this kernel name are included. If omitted,
+            the first AI Core task name is used as the filter.
+        skip: Number of leading matching samples to drop (warmup).
+    """
     values = []
     for task in tasks:
         if task.type not in task_types:

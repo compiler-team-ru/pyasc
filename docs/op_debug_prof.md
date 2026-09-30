@@ -1,3 +1,11 @@
+<!-- Copyright (c) 2026 Huawei Technologies Co., Ltd. -->
+<!-- This program is free software, you can redistribute it and/or modify it under the terms and conditions of -->
+<!-- CANN Open Software License Agreement Version 2.0 (the "License"). -->
+<!-- Please refer to the License for details. You may not use this file except in compliance with the License. -->
+<!-- THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, -->
+<!-- INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE. -->
+<!-- See LICENSE in the root of the software repository for the full text of the License. -->
+
 # Ascend C Python算子调试调优指南
 本文档介绍了Ascend C Python工程支持的算子调试调优方法使用指导。
 
@@ -92,7 +100,7 @@ DumpTensor: desc=1, addr=0, data_type=float32, position=UB, dump_size=32
 
 ## 算子性能调优
 
-为了帮助开发者快速完成高性能算子开发，pyasc支持通过算子性能调优工具msprof op采集profiling数据，生成性能数据、内存热力图、仿真流水图等。本文档介绍了msprof op在算子开发过程中的应用。
+为了帮助开发者快速完成高性能算子开发，pyasc支持通过算子性能调优工具msprof op采集profiling数据，生成性能数据、内存热力图、仿真流水图等。本文档介绍了msprof op在算子开发过程中的应用。纯 PyAsc 算子还可使用项目内置的 [`asc.lib.profiling.Profiler`](python-api/lib/profiling.md)，无需安装 PyTorch / `torch_npu`，详见[使用 pyasc 原生 Profiler 采集性能数据](#使用-pyasc-原生-profiler-采集性能数据)。
 
 msprof op工具用于采集和分析运行在昇腾AI处理器上算子的关键性能指标，开发者根据输出的profiling数据快速定位算子的软硬件性能瓶颈，提升算子性能分析效率。该工具的详细介绍请参考：[《算子开发工具-算子调优》](https://hiascend.com/document/redirect/CannCommunityToolMsProf)。
 
@@ -174,6 +182,84 @@ OPPROF_{timestamp}_XXX
 - 将trace.json文件导入Chrome浏览器或MindStudio Insight后，将会展示指令流水图和内存通路吞吐率波形图。
 
 上述展示的图示内容的说明参考[算子调优](https://hiascend.com/document/redirect/CannCommunityToolMsProf)的相关章节。
+
+## 使用 pyasc 原生 Profiler 采集性能数据
+
+除命令行 `msprof op` 外，PyAsc 在 `asc.lib.profiling` 中提供了基于 CANN `libmsprofiler.so`（`<acl/acl_prof.h>`）的原生 Profiler。它封装了 `aclprofInit`、`aclprofCreateConfig`、`aclprofStart`、`aclprofStop`、`aclprofDestroyConfig`、`aclprofFinalize`，可在不安装 PyTorch、`torch_npu` 的情况下采集纯 PyAsc 算子性能，并解析 CSV 结果。接口说明见 [asc.lib.profiling](python-api/lib/profiling.md)。
+
+### 环境准备
+
+- pyasc 环境准备请参考 [quick_start.md](quick_start.md#envready)。
+- 依赖 CANN 运行时中的 `libmsprofiler.so`，以及 `tools/profiler/profiler_tool/analysis/msprof/msprof.py`（用于导出 summary / timeline）。
+- 使用前先通过 `asc.runtime.config.set_platform` 选择后端。原生 Profiler 面向 NPU 上板采集。
+
+### 使用上下文管理器采集
+
+下面以 add 算子为例。`vadd_kernel` / `vadd_launch` 的完整实现见 [02_add_framework.py](../examples/02_add_framework/add_framework.py)，也可将其中的 Tensor 换成 NumPy 数组，无需依赖 `torch_npu`。
+
+```python
+import numpy as np
+import asc
+import asc.runtime.config as config
+from asc.lib.profiling import AicoreMetrics, Profiler, task_time_median
+
+# vadd_kernel / vadd_launch 实现参见 examples/02_add_framework/add_framework.py
+
+config.set_platform(config.Backend.NPU)
+x = np.random.rand(8 * 2048).astype(np.float32)
+y = np.random.rand(8 * 2048).astype(np.float32)
+
+profiler = Profiler()
+with profiler.profile(metrics=AicoreMetrics.PIPE_UTILIZATION):
+    z = vadd_launch(x, y)
+
+result = profiler.last_result
+print("median task time (us):", task_time_median(result.tasks, name="vadd_kernel"))
+for task in result.tasks:
+    print(task.id, task.name, task.type, task.duration)
+```
+
+`profile()` 会依次执行 `start` → 运行核函数 → `stop` → `export` → 解析最新一次结果。未指定 `result_path` 时使用临时目录，并在上下文结束时清理。
+
+### 配置 AicoreMetrics 与采集类型
+
+`Profiler.start()` / `profile()` 通过 `metrics` 选择一组 AI Core 指标，通过 `profile_types` 选择采集数据类型。默认指标为 `AicoreMetrics.PIPE_UTILIZATION`，默认类型为任务耗时、AI Core 指标和 L2 Cache。
+
+```python
+from asc.lib.profiling import AicoreMetrics, ProfileType, Profiler
+
+profiler = Profiler(result_path="./pyasc_prof")
+profiler.start(
+    metrics=AicoreMetrics.MEMORY_BANDWIDTH,
+    profile_types=[ProfileType.TASK_TIME, ProfileType.AICORE_METRICS, ProfileType.L2CACHE],
+)
+z = vadd_launch(x, y)
+profiler.stop()
+profiler.export()
+profiler.store_last_result()
+print(profiler.last_result.tasks)
+```
+
+常用 `AicoreMetrics` 取值：
+
+| 枚举值 | 说明 |
+|--------|------|
+| AicoreMetrics.ARITHMETIC_UTILIZATION | 算术单元利用率 |
+| AicoreMetrics.PIPE_UTILIZATION | 流水线利用率（默认） |
+| AicoreMetrics.MEMORY_BANDWIDTH | 内存带宽 |
+| AicoreMetrics.L0B_AND_WIDTH | L0B 及相关位宽指标 |
+| AicoreMetrics.RESOURCE_CONFLICT_RATIO | 资源冲突比例 |
+| AicoreMetrics.MEMORY_UB | UB 内存指标 |
+| AicoreMetrics.L2_CACHE | L2 Cache 指标 |
+| AicoreMetrics.PIPE_EXECUTE_UTILIZATION | 流水执行利用率 |
+| AicoreMetrics.MEMORY_ACCESS | 访存指标 |
+| AicoreMetrics.NONE | 不采集 AI Core 指标 |
+
+需要完全自定义 `aclprofCreateConfig` 时，可直接使用 `asc.lib.profiling.MsprofInterface`。
+
+### 解析结果
+
+导出后的 CSV（`op_summary_*.csv` 或 `task_time_*.csv`）会被解析为 `ProfilingResult`，其中每条 `ProfilingTask` 包含任务 ID、kernel 名、任务类型和耗时（微秒）。`task_time_median` 只统计 AI Core 类任务，可用 `name` 过滤 kernel，用 `skip` 丢弃 warmup 样本。
 
 ## 使用Ascend PyTorch Profiler采集性能数据
 

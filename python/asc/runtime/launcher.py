@@ -73,6 +73,10 @@ class LaunchOptions:
     """
 
     stream: Optional[rt.Stream] = None
+    """
+    Device stream used to launch the kernel. When omitted, the current runtime
+    stream from :func:`asc.lib.runtime.current_stream` is used.
+    """
 
 
 @dataclass(frozen=True)
