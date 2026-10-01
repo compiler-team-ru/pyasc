@@ -264,7 +264,7 @@ class TestCopy:
         def kernel():
             src = zero_tile([32, 64], asctile.float32, asctile.TensorLocation.L0C)
             result = asctile.copy(src, location=asctile.TensorLocation.UB, split=split)
-            assert result.shape == expected_shape
+            asctile.static_assert(result.shape == expected_shape)
 
         kernel[1]()
         assert mock_launch.call_count == 1
