@@ -678,21 +678,18 @@ class FunctionVisitor(ast.NodeVisitor):
             builder.set_insertion_point_to_start(else_block)
             else_value = materialize_ir_value(self.visit(node.orelse))
             builder.restore_insertion_point(insert_point)
-            if then_value.dtype != else_value.dtype:
+            ret_type = then_value.to_ir().get_type()
+            if ret_type != else_value.to_ir().get_type():
                 self.raise_unsupported(
-                    node,
-                    f"Conditional operator has inconsistent result types: {then_value.dtype} / {else_value.dtype}")
-            ret_type = then_value.dtype
-            if not ret_type.is_numeric():
-                self.raise_unsupported(node, f"Conditional operator must have numeric result type, got {ret_type}")
-            op = builder.create_scf_IfOp(cond.to_ir(), [ret_type.to_ir()], with_else=True)
+                    node, f"Conditional operator has inconsistent result types: {then_value!r} / {else_value!r}")
+            op = builder.create_scf_IfOp(cond.to_ir(), [ret_type], with_else=True)
             then_block.merge_block_before(op.get_then_block())
             builder.set_insertion_point_to_end(op.get_then_block())
             builder.create_scf_YieldOp([then_value.to_ir()])
             else_block.merge_block_before(op.get_else_block())
             builder.set_insertion_point_to_end(op.get_else_block())
             builder.create_scf_YieldOp([else_value.to_ir()])
-            return PlainValue(op.get_result(0))
+            return then_value.from_ir(op.get_result(0))
 
     def visit_JoinedStr(self, node: ast.JoinedStr) -> str:
         values = (self.visit(value) for value in node.values)
