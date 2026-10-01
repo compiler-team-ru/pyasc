@@ -71,9 +71,9 @@ struct ConvertExtractSlice : public ConvertOp<tensor::ExtractSliceOp> {
         auto offsets = llvm::map_to_vector<2>(op.getMixedOffsets(), [&rewriter, loc](OpFoldResult ofr) {
             return getValueOrCreateConstantIndexOp(rewriter, loc, ofr);
         });
-        Value offset = rewriter.create<arith::MulIOp>(loc, offsets[0], consts.index(srcShape[1]));
-        offset = rewriter.create<arith::AddIOp>(loc, offset, offsets[1]);
-        offset = rewriter.create<arith::IndexCastOp>(loc, rewriter.getI32Type(), offset);
+        Value offset = rewriter.createOrFold<arith::MulIOp>(loc, offsets[0], consts.index(srcShape[1]));
+        offset = rewriter.createOrFold<arith::AddIOp>(loc, offset, offsets[1]);
+        offset = rewriter.createOrFold<arith::IndexCastOp>(loc, rewriter.getI32Type(), offset);
         Value src = rewriter.create<ascendc::LocalTensorSubIndexOp>(
             loc, srcTypeConv, rewriter.getRemappedValue(op.getSource()), offset);
         auto copyOp = rewriter.create<ascendc::DataCopyL2Op>(loc, dst, src, params);

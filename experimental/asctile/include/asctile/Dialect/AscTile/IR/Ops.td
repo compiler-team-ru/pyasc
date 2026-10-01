@@ -363,9 +363,10 @@ def DumpTensorOp : AscTile_Op<"dump_tensor"> {
 def CVStrategyOp : AscTile_Op<"cv_strategy", [SingleBlockImplicitTerminator<"YieldOp">]> {
   let summary = "Declare CV ratio-based strategy for wrapped operations";
   let arguments = (ins AscTile_SplitModeAttr:$split);
+  let results = (outs Variadic<AnyType>:$results);
   let regions = (region SizedRegion<1>:$region);
-  let assemblyFormat = "$split $region attr-dict";
-  let hasCanonicalizeMethod = 1;
+  let assemblyFormat = "$split (`->` type($results)^)? $region attr-dict";
+  let hasCanonicalizer = 1;
   let hasVerifier = 1;
 }
 

@@ -172,7 +172,7 @@ struct SplitElementwise : OpTraitConversionPattern<OpTrait::Elementwise> {
 };
 
 struct SplitReduce : OpConversionPattern<ReduceOp> {
-    using OpConversionPattern<ReduceOp>::OpConversionPattern;
+    using OpConversionPattern::OpConversionPattern;
 
     LogicalResult matchAndRewrite(ReduceOp op, ReduceOp::Adaptor, ConversionPatternRewriter& rewriter) const override
     {
@@ -180,28 +180,27 @@ struct SplitReduce : OpConversionPattern<ReduceOp> {
         auto operandShape = getOperandSplitShape(op.getOperand(), split.getValue());
         auto operand =
             splitTensor(rewriter.getRemappedValue(op.getOperand()), split.getValue(), operandShape, rewriter);
-        auto resultType = op.getResult().getType().clone(resultShape);
+        auto resultType = op.getType().clone(resultShape);
         rewriter.replaceOpWithNewOp<ReduceOp>(op, resultType, operand, op.getDims(), op.getKindAttr());
         return success();
     }
 };
 
 struct SplitReshape : OpConversionPattern<ReshapeOp> {
-    using OpConversionPattern<ReshapeOp>::OpConversionPattern;
+    using OpConversionPattern::OpConversionPattern;
 
     LogicalResult matchAndRewrite(ReshapeOp op, ReshapeOp::Adaptor, ConversionPatternRewriter& rewriter) const override
     {
         auto [split, resultShape] = getSplitInfo(op);
         auto operandShape = getOperandSplitShape(op.getIn(), split.getValue());
         auto operand = splitTensor(rewriter.getRemappedValue(op.getIn()), split.getValue(), operandShape, rewriter);
-        auto resultType = op.getOut().getType().clone(resultShape);
-        rewriter.replaceOpWithNewOp<ReshapeOp>(op, resultType, operand);
+        rewriter.replaceOpWithNewOp<ReshapeOp>(op, op.getType().clone(resultShape), operand);
         return success();
     }
 };
 
 struct SplitBroadcast : OpConversionPattern<BroadcastOp> {
-    using OpConversionPattern<BroadcastOp>::OpConversionPattern;
+    using OpConversionPattern::OpConversionPattern;
 
     LogicalResult matchAndRewrite(
         BroadcastOp op, BroadcastOp::Adaptor, ConversionPatternRewriter& rewriter) const override
@@ -210,8 +209,31 @@ struct SplitBroadcast : OpConversionPattern<BroadcastOp> {
         auto operandShape = getOperandSplitShape(op.getOperand(), split.getValue());
         auto operand =
             splitTensor(rewriter.getRemappedValue(op.getOperand()), split.getValue(), operandShape, rewriter);
-        auto resultType = op.getResult().getType().clone(resultShape);
-        rewriter.replaceOpWithNewOp<BroadcastOp>(op, resultType, operand);
+        rewriter.replaceOpWithNewOp<BroadcastOp>(op, op.getType().clone(resultShape), operand);
+        return success();
+    }
+};
+
+struct SplitDumpTensor : OpConversionPattern<DumpTensorOp> {
+    using OpConversionPattern::OpConversionPattern;
+
+    LogicalResult matchAndRewrite(
+        DumpTensorOp op, DumpTensorOp::Adaptor, ConversionPatternRewriter& rewriter) const override
+    {
+        rewriter.replaceOpWithNewOp<DumpTensorOp>(op, rewriter.getRemappedValue(op.getOperand()));
+        return success();
+    }
+};
+
+struct SplitYield : OpConversionPattern<YieldOp> {
+    using OpConversionPattern::OpConversionPattern;
+
+    LogicalResult matchAndRewrite(YieldOp op, YieldOp::Adaptor, ConversionPatternRewriter& rewriter) const override
+    {
+        SmallVector<Value, 8> operands;
+        if (rewriter.getRemappedValues(op.getOperands(), operands).failed())
+            return failure();
+        rewriter.replaceOpWithNewOp<YieldOp>(op, operands);
         return success();
     }
 };
@@ -224,7 +246,9 @@ struct ApplyCVStrategyPass : public asctile::impl::ApplyCVStrategyBase<ApplyCVSt
         ConversionTarget target(*context);
         target.markUnknownOpDynamicallyLegal([](Operation* op) { return !op->hasAttr(attr::needSplit); });
         RewritePatternSet patterns(context);
-        patterns.add<SplitCopy, SplitStore, SplitElementwise, SplitReduce, SplitReshape, SplitBroadcast>(context);
+        patterns.add<
+            SplitCopy, SplitStore, SplitElementwise, SplitReduce, SplitReshape, SplitBroadcast, SplitDumpTensor,
+            SplitYield>(context);
         DenseSet<Operation*> unlegalizedOps;
         ConversionConfig config;
         config.unlegalizedOps = &unlegalizedOps;
@@ -240,6 +264,7 @@ struct ApplyCVStrategyPass : public asctile::impl::ApplyCVStrategyBase<ApplyCVSt
             Block* body = op.getBody();
             auto* yieldOp = body->getTerminator();
             op->getBlock()->getOperations().splice(op->getIterator(), body->getOperations());
+            op.replaceAllUsesWith(yieldOp->getOperands());
             yieldOp->erase();
             op->erase();
         });

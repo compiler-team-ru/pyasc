@@ -414,13 +414,10 @@ OpFoldResult PowerOp::fold(FoldAdaptor)
 // CVStrategyOp
 //===----------------------------------------------------------------------===//
 
-LogicalResult CVStrategyOp::canonicalize(CVStrategyOp op, PatternRewriter& rewriter)
+void CVStrategyOp::getCanonicalizationPatterns(RewritePatternSet& result, MLIRContext* context)
 {
-    if (op.getBody()->without_terminator().empty()) {
-        rewriter.eraseOp(op);
-        return success();
-    }
-    return failure();
+    result.add<ascir::EraseEmptyGroup<CVStrategyOp, YieldOp>, ascir::EraseUnusedResults<CVStrategyOp, YieldOp>>(
+        context);
 }
 
 LogicalResult CVStrategyOp::verify()
@@ -430,6 +427,21 @@ LogicalResult CVStrategyOp::verify()
         return emitOpError() << "has unsupported split mode " << stringifySplitMode(split);
     if (getOperation()->getParentOfType<CVStrategyOp>())
         return emitOpError("cannot be nested in other asctile.cv_strategy op");
+    auto yieldOp = cast<asctile::YieldOp>(getBody()->getTerminator());
+    if (yieldOp.getNumOperands() != getNumResults())
+        return emitOpError() << "number of yield operands (" << yieldOp.getNumOperands()
+                             << ") must match number of results (" << getNumResults() << ")";
+    for (auto [result, operand] : llvm::zip_equal(getResults(), yieldOp.getOperands())) {
+        if (result.getType() == operand.getType())
+            continue;
+        auto resultType = dyn_cast<LocalTensorType>(result.getType());
+        auto operandType = dyn_cast<LocalTensorType>(operand.getType());
+        if (resultType && operandType && resultType.getLoc() == TensorLocation::UB &&
+            operandType.getLoc() == TensorLocation::UB && resultType.getElementType() == operandType.getElementType())
+            continue;
+        return emitOpError() << "yield operand #" << result.getResultNumber() << " type " << operand.getType()
+                             << " does not match result type " << result.getType();
+    }
     return success();
 }
 

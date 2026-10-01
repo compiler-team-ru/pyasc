@@ -294,6 +294,8 @@ def PrepareCVStrategy : Pass<"asctile-prepare-cv-strategy", "func::FuncOp"> {
     split_shape records the expected post-split result shape, or the stored-value shape for asctile.store. Propagation
     supports shape-preserving copies, stores, and elementwise operations, as well as reductions, reshapes, and broadcasts
     whose 2D split axis remains unchanged; other dimensions may change without mixing the split axis.
+    Propagation also follows yielded operands to the corresponding CV strategy results and annotates their immediate
+    external users, which must be asctile.store or a UB-to-L1 asctile.copy.
 
     ApplyCVStrategy later uses these attributes to materialize each split. Copies between other memory locations are
     left unannotated. Fail if a copy has an incompatible explicit split, an unsupported rank or non-full shape, a

@@ -142,3 +142,23 @@ func.func @vector_group_yield_count_mismatch(%arg0: tensor<32xf32, #asctile.loca
   } : tensor<32xf32, #asctile.local<UB>>
   return %0 : tensor<32xf32, #asctile.local<UB>>
 }
+
+// -----
+
+func.func @cv_strategy_yield_count_mismatch(%arg0: tensor<32x64xf32, #asctile.local<UB>>) -> tensor<32x64xf32, #asctile.local<UB>> {
+  // expected-error@below {{number of yield operands (2) must match number of results (1)}}
+  %0 = asctile.cv_strategy <split_by_m> -> tensor<32x64xf32, #asctile.local<UB>> {
+    asctile.yield %arg0, %arg0 : tensor<32x64xf32, #asctile.local<UB>>, tensor<32x64xf32, #asctile.local<UB>>
+  }
+  return %0 : tensor<32x64xf32, #asctile.local<UB>>
+}
+
+// -----
+
+func.func @cv_strategy_yield_type_mismatch(%arg0: tensor<32x64xf32, #asctile.local<UB>>) -> tensor<32x64xf32, #asctile.local<L1>> {
+  // expected-error@below {{yield operand #0 type 'tensor<32x64xf32, #asctile.local<UB>>' does not match result type 'tensor<32x64xf32, #asctile.local<L1>>'}}
+  %0 = asctile.cv_strategy <split_by_m> -> tensor<32x64xf32, #asctile.local<L1>> {
+    asctile.yield %arg0 : tensor<32x64xf32, #asctile.local<UB>>
+  }
+  return %0 : tensor<32x64xf32, #asctile.local<L1>>
+}

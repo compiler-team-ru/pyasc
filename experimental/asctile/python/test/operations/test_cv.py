@@ -208,14 +208,16 @@ def test_cv_strategy(split, reduce_axis):
     a = (torch.rand((m, k), dtype=torch.float16) - .5) * 10
     b = (torch.rand((k, n), dtype=torch.float16) - .5) * 10
     c = torch.zeros((m, n), dtype=torch.float32)
-    add = (torch.rand((m, n), dtype=torch.float32) - .5) * 10
+    add = (torch.rand_like(c) - .5) * 10
+    out = torch.zeros_like(c)
 
     @asctile.jit(always_compile=True, cv_ratio=2)
-    def kernel(a_ptr, b_ptr, c_ptr, add_ptr, a_shape: asctile.ConstExpr, b_shape: asctile.ConstExpr,
+    def kernel(a_ptr, b_ptr, c_ptr, add_ptr, out_ptr, a_shape: asctile.ConstExpr, b_shape: asctile.ConstExpr,
                c_shape: asctile.ConstExpr):
         a_gm = asctile.global_tensor(a_ptr, a_shape)
         b_gm = asctile.global_tensor(b_ptr, b_shape)
         c_gm = asctile.global_tensor(c_ptr, c_shape)
+        out_gm = asctile.global_tensor(out_ptr, c_shape)
         add_gm = asctile.global_tensor(add_ptr, c_shape)
         a = asctile.copy_in(a_gm, [0, 0], a_shape)
         b = asctile.copy_in(b_gm, [0, 0], b_shape)
@@ -223,9 +225,11 @@ def test_cv_strategy(split, reduce_axis):
         with asctile.cv_strategy(split):
             c = asctile.copy(a @ b, location="UB")
             res = asctile.reduce_sum((c + add) * 3, reduce_axis, keep_dims=True).broadcast_to(c_shape)
-            asctile.copy_out(res, c_gm, [0, 0])
+            asctile.copy_out(res, out_gm, [0, 0])
+        asctile.copy_out(c, c_gm, [0, 0])
 
-    kernel[1](a, b, c, add, a.shape, b.shape, c.shape)
+    kernel[1](a, b, c, add, out, a.shape, b.shape, c.shape)
     c_ref = a.to(torch.float32) @ b.to(torch.float32)
-    res_ref = torch.sum((c_ref + add) * 3, reduce_axis, keepdim=True).broadcast_to(c.shape)
-    torch.testing.assert_close(c, res_ref, atol=1e-3, rtol=1e-3)
+    torch.testing.assert_close(c, c_ref, atol=1e-3, rtol=1e-3)
+    out_ref = torch.sum((c_ref + add) * 3, reduce_axis, keepdim=True).broadcast_to(c.shape)
+    torch.testing.assert_close(out, out_ref, atol=1e-3, rtol=1e-3)
