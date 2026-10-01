@@ -53,3 +53,17 @@ func.func @conflicting_split_shape(%arg0: tensor<32x64xf32, #asctile.local<L0C>>
   }
   return
 }
+
+// -----
+
+func.func @unsupported_cv_strategy_result_user(%arg0: tensor<32x64xf32, #asctile.local<L0C>>, %arg1: tensor<32x64xf32, #asctile.local<UB>>, %arg2: tensor<32x64xf32, #asctile.global>) {
+  %c0_i32 = arith.constant 0 : i32
+  %0 = asctile.cv_strategy <split_by_m> -> tensor<32x64xf32, #asctile.local<UB>> {
+    %1 = asctile.copy %arg0[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x64xf32, #asctile.local<UB>>
+    asctile.yield %1 : tensor<32x64xf32, #asctile.local<UB>>
+  }
+  // expected-error@+1 {{only asctile.store and asctile.copy (UB->L1) can use asctile.cv_strategy results}}
+  %2 = arith.addf %0, %arg1 : tensor<32x64xf32, #asctile.local<UB>>
+  asctile.store %2, %arg2[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<UB>>, tensor<32x64xf32, #asctile.global>
+  return
+}

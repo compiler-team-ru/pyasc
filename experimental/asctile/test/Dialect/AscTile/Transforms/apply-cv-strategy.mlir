@@ -161,3 +161,21 @@ func.func @n_broadcast(%arg0: tensor<1x64xf32, #asctile.local<UB>>, %arg1: tenso
   asctile.store %0, %arg1[%arg2, %arg3] {asctile.need_split = #asctile.split_mode<split_by_n>, asctile.split_shape = array<i64: 32, 32>} : tensor<32x64xf32, #asctile.local<UB>>, tensor<32x64xf32, #asctile.global>
   return
 }
+
+// CHECK-LABEL: func.func @m_yield_store(
+// CHECK-NEXT:  %c16_i32 = arith.constant 16 : i32
+// CHECK-NEXT:  %0 = asctile.copy %arg0[%arg2, %arg3] {split = #asctile.split_mode<split_by_m>} : tensor<32x64xf32, #asctile.local<L0C>>, tensor<16x64xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %1 = ascendc.get_sub_block_idx : i32
+// CHECK-NEXT:  %2 = arith.muli %1, %c16_i32 : i32
+// CHECK-NEXT:  %3 = arith.addi %arg2, %2 : i32
+// CHECK-NEXT:  asctile.store %0, %arg1[%3, %arg3] : tensor<16x64xf32, #asctile.local<UB>>, tensor<32x64xf32, #asctile.global>
+// CHECK-NEXT:  return
+// CHECK-NEXT:}
+func.func @m_yield_store(%arg0: tensor<32x64xf32, #asctile.local<L0C>>, %arg1: tensor<32x64xf32, #asctile.global>, %arg2: i32, %arg3: i32) {
+  %0 = asctile.cv_strategy <split_by_m> -> tensor<32x64xf32, #asctile.local<UB>> {
+    %1 = asctile.copy %arg0[%arg2, %arg3] {asctile.need_split = #asctile.split_mode<split_by_m>, asctile.split_shape = array<i64: 16, 64>} : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x64xf32, #asctile.local<UB>>
+    asctile.yield %1 : tensor<32x64xf32, #asctile.local<UB>> {asctile.need_split = #asctile.split_mode<split_by_m>, asctile.split_shape = array<i64>}
+  }
+  asctile.store %0, %arg1[%arg2, %arg3] {asctile.need_split = #asctile.split_mode<split_by_m>, asctile.split_shape = array<i64: 16, 64>} : tensor<32x64xf32, #asctile.local<UB>>, tensor<32x64xf32, #asctile.global>
+  return
+}
