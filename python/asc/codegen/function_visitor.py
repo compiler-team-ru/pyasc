@@ -356,9 +356,10 @@ class FunctionVisitor(ast.NodeVisitor):
             self.raise_unsupported(node, "Nested functions are not supported")
         if not self.state.inside_function and not isinstance(node, ast.FunctionDef):
             raise RuntimeError(f"JIT compilation is applicable to functions only, got {node.__class__.__name__} node")
+        builder = global_builder.get_ir_builder()
+        old_loc = builder.get_loc()
         if hasattr(node, "lineno") and hasattr(node, "col_offset"):
-            global_builder.get_ir_builder().set_loc(self.location.filename, self.location.line_offset + node.lineno,
-                                                    node.col_offset)
+            builder.set_loc(self.location.filename, self.location.line_offset + node.lineno, node.col_offset + 1)
         try:
             return super().visit(node)
         except CodegenError:
@@ -367,6 +368,8 @@ class FunctionVisitor(ast.NodeVisitor):
             if self.options.capture_exceptions:
                 raise CodegenError(node, self.src, f"{e.__class__.__name__}: {e}") from e
             raise
+        finally:
+            builder.set_loc(old_loc)
 
     def visit_arguments(self, node: ast.arguments) -> Tuple[List[str], str]:
         if node.posonlyargs:
