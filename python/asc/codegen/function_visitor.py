@@ -362,8 +362,6 @@ class FunctionVisitor(ast.NodeVisitor):
             raise
 
     def visit_arguments(self, node: ast.arguments) -> Tuple[List[str], str]:
-        if node.defaults or node.kw_defaults:
-            self.raise_unsupported(node, "Default values for function arguments are not supported")
         if node.posonlyargs:
             self.raise_unsupported(node, "Positional-only arguments are not supported")
         if node.kwonlyargs:
