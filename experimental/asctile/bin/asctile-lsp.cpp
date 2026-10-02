@@ -10,9 +10,8 @@
 
 #include "asctile/Dialect/Utils/Registration.h"
 
-#include "ascir/Dialect/Asc/Utils/Utils.h"
-
-#include "mlir/Tools/mlir-opt/MlirOptMain.h"
+#include "mlir/IR/DialectRegistry.h"
+#include "mlir/Tools/mlir-lsp-server/MlirLspServerMain.h"
 
 using namespace mlir;
 
@@ -20,8 +19,6 @@ int main(int argc, char** argv)
 {
     DialectRegistry registry;
     asctile::registerDialects(registry);
-    ascendc::registerInlinerInterfaces(registry);
     asctile::registerExtensions(registry);
-    asctile::registerPasses();
-    return asMainReturnCode(MlirOptMain(argc, argv, "AscTile modular optimizer driver\n", registry));
+    return MlirLspServerMain(argc, argv, registry).failed();
 }
