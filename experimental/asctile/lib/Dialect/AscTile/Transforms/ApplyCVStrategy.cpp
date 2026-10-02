@@ -29,6 +29,7 @@
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "llvm/ADT/STLExtras.h"
 
 namespace mlir {
 namespace asctile {
@@ -51,24 +52,21 @@ std::pair<SplitModeAttr, ArrayRef<int64_t>> getSplitInfo(Operation* op)
 
 SmallVector<Value, 2> splitOffsets(OpBuilder& builder, ValueRange offsets, SplitMode split, ArrayRef<int64_t> shape)
 {
-    assert(offsets.size() == 2 && "must be exactly two offsets for splitting");
+    auto rank = shape.size();
+    assert(offsets.size() == rank && "offset count must match tensor rank");
     SmallVector<Value, 2> newOffsets;
     auto iType = offsets.front().getType();
     auto loc = builder.getUnknownLoc();
     Value subBlockIdx = builder.create<ascendc::GetSubBlockIdxOp>(loc, iType);
-    if (split == SplitMode::SplitByM) {
-        Value halfM = builder.create<arith::ConstantOp>(loc, builder.getIntegerAttr(iType, shape.front()));
-        Value addOffset = builder.create<arith::MulIOp>(loc, halfM, subBlockIdx);
-        newOffsets.push_back(builder.create<arith::AddIOp>(loc, offsets.front(), addOffset));
-    } else {
-        newOffsets.push_back(offsets.front());
-    }
-    if (split == SplitMode::SplitByN) {
-        Value halfN = builder.create<arith::ConstantOp>(loc, builder.getIntegerAttr(iType, shape.back()));
-        Value addOffset = builder.create<arith::MulIOp>(loc, halfN, subBlockIdx);
-        newOffsets.push_back(builder.create<arith::AddIOp>(loc, offsets.back(), addOffset));
-    } else {
-        newOffsets.push_back(offsets.back());
+    unsigned axis = getSplitAxis(split, rank);
+    for (auto [index, offset] : llvm::enumerate(offsets)) {
+        if (index != axis) {
+            newOffsets.push_back(offset);
+            continue;
+        }
+        Value halfSize = builder.create<arith::ConstantOp>(loc, builder.getIntegerAttr(iType, shape[axis]));
+        Value addOffset = builder.create<arith::MulIOp>(loc, halfSize, subBlockIdx);
+        newOffsets.push_back(builder.create<arith::AddIOp>(loc, offset, addOffset));
     }
     return newOffsets;
 }
@@ -86,9 +84,9 @@ Value splitTensor(Value opnd, SplitMode split, ArrayRef<int64_t> sizes, Conversi
     if (auto value = dyn_cast_if_present<Value>(splat))
         return rewriter.create<tensor::SplatOp>(opnd.getLoc(), newType, value);
     ascir::ConstantOpBuilder consts(rewriter);
-    SmallVector<Value, 2> zeros(2U, consts.index(0));
+    SmallVector<Value, 2> zeros(sizes.size(), consts.index(0));
     auto offsets = splitOffsets(rewriter, zeros, split, sizes);
-    auto staticOffsets = rewriter.getDenseI64ArrayAttr(SmallVector(2U, ShapedType::kDynamic));
+    auto staticOffsets = rewriter.getDenseI64ArrayAttr(SmallVector(sizes.size(), ShapedType::kDynamic));
     SmallVector<int64_t> strides = computeStrides(sizes);
     return rewriter.create<tensor::ExtractSliceOp>(
         opnd.getLoc(), newType, opnd, offsets, /*sizes*/ ValueRange{}, /*strides*/ ValueRange{}, staticOffsets,
@@ -99,7 +97,7 @@ SmallVector<int64_t, 2> getOperandSplitShape(Value operand, SplitMode split)
 {
     auto tensorShape = cast<LocalTensorType>(operand.getType()).getShape();
     SmallVector<int64_t, 2> shape(tensorShape.begin(), tensorShape.end());
-    auto axis = split == SplitMode::SplitByM ? 0 : 1;
+    auto axis = getSplitAxis(split, shape.size());
     shape[axis] /= 2;
     return shape;
 }

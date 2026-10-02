@@ -162,3 +162,13 @@ func.func @cv_strategy_yield_type_mismatch(%arg0: tensor<32x64xf32, #asctile.loc
   }
   return %0 : tensor<32x64xf32, #asctile.local<L1>>
 }
+
+// -----
+
+func.func @cv_strategy_yield_rank_mismatch(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<1x32xf32, #asctile.local<UB>> {
+  // expected-error@below {{yield operand #0 type 'tensor<32xf32, #asctile.local<UB>>' does not match result type 'tensor<1x32xf32, #asctile.local<UB>>'}}
+  %0 = asctile.cv_strategy <split_by_m> -> tensor<1x32xf32, #asctile.local<UB>> {
+    asctile.yield %arg0 : tensor<32xf32, #asctile.local<UB>>
+  }
+  return %0 : tensor<1x32xf32, #asctile.local<UB>>
+}

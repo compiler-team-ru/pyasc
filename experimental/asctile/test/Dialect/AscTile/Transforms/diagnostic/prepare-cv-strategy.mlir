@@ -67,3 +67,27 @@ func.func @unsupported_cv_strategy_result_user(%arg0: tensor<32x64xf32, #asctile
   asctile.store %2, %arg2[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<UB>>, tensor<32x64xf32, #asctile.global>
   return
 }
+
+// -----
+
+func.func @split_by_m_1d_broadcast(%arg0: tensor<32xf32, #asctile.local<L0C>>) {
+  %c0_i32 = arith.constant 0 : i32
+  asctile.cv_strategy <split_by_m> {
+    %0 = asctile.copy %arg0[%c0_i32] : tensor<32xf32, #asctile.local<L0C>>, tensor<32xf32, #asctile.local<UB>>
+    // expected-error@+1 {{cannot map active split axis 0 to result axis 1}}
+    %1 = asctile.broadcast %0 : tensor<32xf32, #asctile.local<UB>> to tensor<32x32xf32, #asctile.local<UB>>
+  }
+  return
+}
+
+// -----
+
+func.func @reshape_moves_active_axis(%arg0: tensor<64xf32, #asctile.local<L0C>>) {
+  %c0_i32 = arith.constant 0 : i32
+  asctile.cv_strategy <split_by_n> {
+    %0 = asctile.copy %arg0[%c0_i32] : tensor<64xf32, #asctile.local<L0C>>, tensor<64xf32, #asctile.local<UB>>
+    // expected-error@+1 {{must only expand the non-active split axis}}
+    %1 = asctile.reshape %0 : tensor<64xf32, #asctile.local<UB>> to tensor<64x1xf32, #asctile.local<UB>>
+  }
+  return
+}

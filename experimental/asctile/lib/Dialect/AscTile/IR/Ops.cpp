@@ -437,7 +437,8 @@ LogicalResult CVStrategyOp::verify()
         auto resultType = dyn_cast<LocalTensorType>(result.getType());
         auto operandType = dyn_cast<LocalTensorType>(operand.getType());
         if (resultType && operandType && resultType.getLoc() == TensorLocation::UB &&
-            operandType.getLoc() == TensorLocation::UB && resultType.getElementType() == operandType.getElementType())
+            operandType.getLoc() == TensorLocation::UB && resultType.getRank() == operandType.getRank() &&
+            resultType.getElementType() == operandType.getElementType())
             continue;
         return emitOpError() << "yield operand #" << result.getResultNumber() << " type " << operand.getType()
                              << " does not match result type " << result.getType();
