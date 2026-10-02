@@ -224,7 +224,7 @@ def test_cv_strategy(split, reduce_axis):
         add = asctile.copy_in(add_gm, [0, 0], c_shape)
         with asctile.cv_strategy(split):
             c = asctile.copy(a @ b, location="UB")
-            res = asctile.reduce_sum((c + add) * 3, reduce_axis, keep_dims=True).broadcast_to(c_shape)
+            res = asctile.reduce_sum((c + add) * 3, reduce_axis).expand_dims(reduce_axis).broadcast_to(c_shape)
             asctile.copy_out(res, out_gm, [0, 0])
         asctile.copy_out(c, c_gm, [0, 0])
 

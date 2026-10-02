@@ -151,8 +151,14 @@ def cv_strategy(split: SplitMode) -> CVStrategyContext:
     ``UB`` and its dependent operations for splitting: ``SplitByM`` halves the first (M) axis, while ``SplitByN``
     halves the second (N) axis. Internally, each vector sub-block would receive and process one half of the tensor.
 
-    Supported **vector** scenarios: elementwise, reduction, and broadcast operations.
-    Supported **data transfer** operations: :py:func:`copy_out` (from UB to GM), :py:func:`copy` (from UB to L1).
+    Supported **vector** scenarios:
+
+    * elementwise operations (:py:func:`add`, :py:func:`exp`, and other),
+    * reduction operations (e.g. :py:func:`reduce_sum`, :py:func:`reduce_max`, and other),
+    * reshape operations (:py:func:`reshape`, :py:func:`expand_dims`, :py:func:`ravel`, :py:func:`squeeze`),
+    * broadcast operations (:py:func:`broadcast_to`, :py:func:`broadcast_tensors`).
+
+    Supported **data transfer** operations: :py:func:`copy_out` (UB-to-GM), :py:func:`copy` (L0C-to-UB, UB-to-L1).
     Other operations are not eligible for splitting.
 
     Args:
@@ -166,6 +172,7 @@ def cv_strategy(split: SplitMode) -> CVStrategyContext:
         For every :py:func:`copy` operation with L0C-to-UB context inside, the copied tensor must have rank 2.
         For ``SplitByM``, its M axis must be a multiple of 2. For ``SplitByN``, its N axis must be a multiple of 32.
         The resulting tensors of all dependent operations must satisfy these requirements as well.
+        In addition, these operations are not allowed to change the dimension along which the tensor is split.
 
     Examples:
         Split a matmul result by M, reduce each sub-block's partial result, and broadcast it to the bigger shape: ::
@@ -174,9 +181,10 @@ def cv_strategy(split: SplitMode) -> CVStrategyContext:
             with asctile.cv_strategy(asctile.SplitMode.SplitByM):  # actual shape | internally split shape
                 matmul = asctile.copy(a @ b, location="UB")        # [32, 64]     | [16, 64]
                 elwise = (matmul + addend) * 3                     # [32, 64]     | [16, 64]
-                reduce = elementwise.sum(1, keep_dims=True)        # [32, 1]      | [16, 1]
-                bcast = reduce.broadcast_to(32, 128)               # [32, 128]    | [16, 128]
-                asctile.copy_out(bcast, output_tensor, [0, 0])     # each sub-block copies [16, 128] half of [32, 128]
+                reduce = elwise.sum(1)                             # [32]         | [16]
+                rshape = reduce.expand_dims(1)                     # [32, 1]      | [16, 1]
+                brcast = rshape.broadcast_to(32, 128)              # [32, 128]    | [16, 128]
+                asctile.copy_out(brcast, output_tensor, [0, 0])    # each sub-block copies [16, 128] half of [32, 128]
 
         Split a matmul result by N and use it both inside and outside of the ``cv_strategy`` context: ::
 

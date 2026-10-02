@@ -11,6 +11,7 @@
 #include "asctile/Dialect/AscTile/IR/AscTile.h"
 #include "asctile/Dialect/AscTile/Transforms/Passes.h"
 #include "asctile/Dialect/AscTile/Utils/Attributes.h"
+#include "asctile/Dialect/AscTile/Utils/Utils.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Builders.h"
@@ -41,17 +42,20 @@ class CVStrategyModel {
     struct SplitState {
         Value value;
         SplitShape shape;
+        unsigned axis;
         UserKind kind = UserKind::Split;
+    };
+
+    struct SplitOutput {
+        SplitShape shape;
+        unsigned axis = 0;
     };
 
     CVStrategyOp root;
     SplitMode split;
-    unsigned axis;
     SmallVector<SplitState, 4> worklist;
     DenseMap<Operation*, SplitShape> annotations;
     DenseMap<Operation*, SmallVector<SplitShape, 4>> operandStates;
-
-    static unsigned getSplitAxis(SplitMode split) { return split == SplitMode::SplitByM ? 0 : 1; }
 
     CopyVerdict getResultShape(CopyOp op, SmallVectorImpl<int64_t>& shape)
     {
@@ -64,8 +68,8 @@ class CVStrategyModel {
         if (srcType.getLoc() != TensorLocation::L0C || dstType.getLoc() != TensorLocation::UB)
             return CopyVerdict::Skip;
         assert(srcType.getRank() == dstType.getRank());
-        if (srcType.getRank() != 2) {
-            op.emitOpError() << "requires 2D tensors, got " << srcType.getRank() << "D";
+        if (srcType.getRank() != 1 && srcType.getRank() != 2) {
+            op.emitOpError() << "requires 1D or 2D tensors, got " << srcType.getRank() << "D";
             return CopyVerdict::Fail;
         }
         auto srcShape = srcType.getShape();
@@ -74,32 +78,23 @@ class CVStrategyModel {
             op.emitOpError() << "requires the full source shape " << srcShape << ", got " << dstShape;
             return CopyVerdict::Fail;
         }
-        if (split == SplitMode::SplitByM) {
-            if (dstShape.front() % 2 != 0) {
-                op.emitOpError() << "requires an M dimension divisible by 2, got " << dstShape.front();
-                return CopyVerdict::Fail;
-            }
-            shape.push_back(dstShape.front() / 2);
-        } else {
-            shape.push_back(dstShape.front());
+        shape.append(dstShape.begin(), dstShape.end());
+        auto axis = getSplitAxis(split, shape.size());
+        auto divisor = split == SplitMode::SplitByM ? 2 : 32;
+        if (shape[axis] % divisor != 0) {
+            op.emitOpError() << "requires the active split dimension divisible by " << divisor << ", got "
+                             << shape[axis];
+            return CopyVerdict::Fail;
         }
-        if (split == SplitMode::SplitByN) {
-            if (dstShape.back() % 32 != 0) {
-                op.emitOpError() << "requires an N dimension divisible by 32, got " << dstShape.back();
-                return CopyVerdict::Fail;
-            }
-            shape.push_back(dstShape.back() / 2);
-        } else {
-            shape.push_back(dstShape.back());
-        }
+        shape[axis] /= 2;
         return CopyVerdict::Accept;
     }
 
     LogicalResult getTensorShape(Operation* op, Value value, SmallVectorImpl<int64_t>& shape)
     {
         auto type = dyn_cast<LocalTensorType>(value.getType());
-        if (!type || type.getRank() != 2)
-            return op->emitOpError() << "requires 2D local tensors, got " << value.getType();
+        if (!type || (type.getRank() != 1 && type.getRank() != 2))
+            return op->emitOpError() << "requires 1D or 2D local tensors, got " << value.getType();
         shape.append(type.getShape().begin(), type.getShape().end());
         return success();
     }
@@ -135,8 +130,7 @@ class CVStrategyModel {
 
     LogicalResult getCopyOutputShape(const SplitState& state, CopyOp op, SmallVectorImpl<int64_t>& shape)
     {
-        SplitShape inputShape;
-        SplitShape resultShape;
+        SplitShape inputShape, resultShape;
         if (getTensorShape(op, state.value, inputShape).failed() ||
             getTensorShape(op, op.getResult(), resultShape).failed())
             return failure();
@@ -167,109 +161,168 @@ class CVStrategyModel {
         return success();
     }
 
-    LogicalResult getReduceOutputShape(const SplitState& state, ReduceOp op, SmallVectorImpl<int64_t>& shape)
+    LogicalResult getReduceOutput(const SplitState& state, ReduceOp op, SplitOutput& output)
     {
-        SplitShape inputShape;
-        SplitShape resultShape;
+        SplitShape inputShape, resultShape;
         if (getTensorShape(op, op.getOperand(), inputShape).failed() ||
             getTensorShape(op, op.getResult(), resultShape).failed())
             return failure();
+        SmallVector<bool, 2> reducedDims(inputShape.size(), false);
+        unsigned reducedCount = 0;
         for (Attribute attr : op.getDims()) {
             auto dimension = cast<IntegerAttr>(attr).getInt();
             if (dimension < 0)
-                dimension += 2;
-            if (dimension == axis)
-                return op.emitOpError() << "cannot reduce the active split axis " << axis;
+                dimension += static_cast<int64_t>(inputShape.size());
+            if (dimension < 0 || dimension >= static_cast<int64_t>(inputShape.size()))
+                return op.emitOpError() << "has reduction dimension " << dimension << " out of range";
+            if (reducedDims[dimension])
+                return op.emitOpError() << "has duplicate reduction dimension " << dimension;
+            reducedDims[dimension] = true;
+            ++reducedCount;
+            if (dimension == static_cast<int64_t>(state.axis))
+                return op.emitOpError() << "cannot reduce the active split axis " << state.axis;
         }
-        if (resultShape[axis] != inputShape[axis])
-            return op.emitOpError("must preserve the active split axis");
-        shape.append(resultShape.begin(), resultShape.end());
-        shape[axis] = state.shape[axis];
+        SplitShape expectedShape;
+        unsigned outputAxis = state.axis;
+        if (resultShape.size() == inputShape.size()) {
+            for (auto [index, size] : llvm::enumerate(inputShape))
+                expectedShape.push_back(reducedDims[index] ? 1 : size);
+        } else if (resultShape.size() + reducedCount == inputShape.size()) {
+            for (auto [index, size] : llvm::enumerate(inputShape)) {
+                if (reducedDims[index]) {
+                    if (index < state.axis)
+                        --outputAxis;
+                    continue;
+                }
+                expectedShape.push_back(size);
+            }
+        } else {
+            return op.emitOpError("must use a canonical keep-dims or squeezed result shape");
+        }
+        if (resultShape != expectedShape)
+            return op.emitOpError() << "must use the canonical reduction result shape " << expectedShape;
+        output.shape.swap(resultShape);
+        output.axis = outputAxis;
+        output.shape[output.axis] = state.shape[state.axis];
         return success();
     }
 
-    LogicalResult getReshapeOutputShape(const SplitState& state, ReshapeOp op, SmallVectorImpl<int64_t>& shape)
+    LogicalResult getReshapeOutput(const SplitState& state, ReshapeOp op, SplitOutput& output)
     {
-        SplitShape inputShape;
-        SplitShape resultShape;
+        SplitShape inputShape, resultShape;
         if (getTensorShape(op, op.getIn(), inputShape).failed() ||
             getTensorShape(op, op.getOut(), resultShape).failed())
             return failure();
-        if (inputShape[axis] != resultShape[axis])
-            return op.emitOpError("must preserve the active split axis");
-        shape.append(resultShape.begin(), resultShape.end());
-        shape[axis] = state.shape[axis];
+        unsigned outputAxis = state.axis;
+        if (resultShape.size() == inputShape.size()) {
+            if (resultShape[state.axis] != inputShape[state.axis])
+                return op.emitOpError("must preserve the active split axis");
+        } else if (inputShape.size() == 1 && resultShape.size() == 2) {
+            outputAxis = getSplitAxis(split, resultShape.size());
+            auto otherAxis = 1 - outputAxis;
+            if (resultShape[otherAxis] != 1 || resultShape[outputAxis] != inputShape.front())
+                return op.emitOpError("must only expand the non-active split axis");
+        } else if (inputShape.size() == 2 && resultShape.size() == 1) {
+            outputAxis = getSplitAxis(split, resultShape.size());
+            auto otherAxis = 1 - state.axis;
+            if (inputShape[otherAxis] != 1 || resultShape.front() != inputShape[state.axis])
+                return op.emitOpError("must only squeeze the non-active split axis");
+        } else {
+            return op.emitOpError("must preserve the tensor rank or only expand/squeeze the non-active split axis");
+        }
+        output.shape.swap(resultShape);
+        output.axis = outputAxis;
+        output.shape[output.axis] = state.shape[state.axis];
         return success();
     }
 
-    LogicalResult getBroadcastOutputShape(const SplitState& state, BroadcastOp op, SmallVectorImpl<int64_t>& shape)
+    LogicalResult getBroadcastOutput(const SplitState& state, BroadcastOp op, SplitOutput& output)
     {
-        SplitShape inputShape;
-        SplitShape resultShape;
+        SplitShape inputShape, resultShape;
         if (getTensorShape(op, op.getOperand(), inputShape).failed() ||
             getTensorShape(op, op.getResult(), resultShape).failed())
             return failure();
-        shape.append(resultShape.begin(), resultShape.end());
-        if (inputShape[axis] == resultShape[axis])
-            shape[axis] = state.shape[axis];
-        else
-            return op.emitOpError("cannot broadcast the active split axis");
+        unsigned outputAxis = state.axis;
+        if (inputShape.size() == resultShape.size()) {
+            if (inputShape[outputAxis] != resultShape[outputAxis])
+                return op.emitOpError("cannot broadcast the active split axis");
+        } else if (inputShape.size() == 1 && resultShape.size() == 2) {
+            outputAxis = 1;
+            auto expectedAxis = getSplitAxis(split, resultShape.size());
+            if (outputAxis != expectedAxis)
+                return op.emitOpError() << "cannot map active split axis " << state.axis << " to result axis "
+                                        << outputAxis;
+            if (inputShape.front() != resultShape[outputAxis])
+                return op.emitOpError("cannot broadcast the active split axis");
+        } else {
+            return op.emitOpError("must preserve the tensor rank or only prepend a non-active broadcast dimension");
+        }
+        output.shape.swap(resultShape);
+        output.axis = outputAxis;
+        output.shape[output.axis] = state.shape[state.axis];
+        if (output.axis != getSplitAxis(split, output.shape.size())) {
+            return op.emitOpError() << "would move the active split axis to unsupported result axis " << output.axis;
+        }
         return success();
     }
 
-    LogicalResult getOutputShape(const SplitState& state, Operation* op, SmallVectorImpl<int64_t>& shape)
+    LogicalResult getOutput(const SplitState& state, Operation* op, SplitOutput& output)
     {
         if (isa<StoreOp>(op)) {
-            shape.append(state.shape.begin(), state.shape.end());
+            output.shape = state.shape;
+            output.axis = state.axis;
             return success();
         }
         if (auto copyOp = dyn_cast<CopyOp>(op)) {
             if (state.kind == UserKind::Unsplit && (copyOp.getBase().getType().getLoc() != TensorLocation::UB ||
                                                     copyOp.getType().getLoc() != TensorLocation::L1))
                 return op->emitOpError("is not UB->L1 transfer, hence cannot use split tensor");
-            return getCopyOutputShape(state, copyOp, shape);
+            output.axis = state.axis;
+            return getCopyOutputShape(state, copyOp, output.shape);
         }
         if (state.kind == UserKind::Unsplit)
             return op->emitOpError("only asctile.store and asctile.copy (UB->L1) can use asctile.cv_strategy results");
         if (isa<DumpTensorOp>(op))
             return success();
-        if (op->hasTrait<OpTrait::Elementwise>())
-            return getElementwiseOutputShape(state, op, shape);
+        if (op->hasTrait<OpTrait::Elementwise>()) {
+            output.axis = state.axis;
+            return getElementwiseOutputShape(state, op, output.shape);
+        }
         if (auto reduceOp = dyn_cast<ReduceOp>(op))
-            return getReduceOutputShape(state, reduceOp, shape);
+            return getReduceOutput(state, reduceOp, output);
         if (auto reshapeOp = dyn_cast<ReshapeOp>(op))
-            return getReshapeOutputShape(state, reshapeOp, shape);
+            return getReshapeOutput(state, reshapeOp, output);
         if (auto broadcastOp = dyn_cast<BroadcastOp>(op))
-            return getBroadcastOutputShape(state, broadcastOp, shape);
+            return getBroadcastOutput(state, broadcastOp, output);
         return op->emitOpError("cannot be used inside the CV strategy body");
     }
 
     LogicalResult propagateUser(const SplitState& state, Operation* user)
     {
-        SplitShape outputShape;
+        SplitOutput output;
         if (recordOperandState(state, user).failed())
             return failure();
         if (user->getNumRegions() != 0 || user->getNumSuccessors() != 0)
             return user->emitOpError("has regions or successors and is not supported by CV strategy propagation");
-        if (getOutputShape(state, user, outputShape).failed())
+        if (getOutput(state, user, output).failed())
             return failure();
         if (annotations.contains(user)) {
-            if (annotations[user] != outputShape) {
+            if (annotations[user] != output.shape) {
                 return user->emitOpError() << "has conflicting CV split requests, the surrounding CV strategy is "
-                                           << stringifySplitMode(split) << " splitting with shape " << outputShape;
+                                           << stringifySplitMode(split) << " splitting with shape " << output.shape;
             }
-        } else if (planAnnotation(outputShape, user).failed()) {
+        } else if (planAnnotation(output.shape, user).failed()) {
             return failure();
         }
         if (state.kind == UserKind::Split) {
             for (Value result : user->getResults())
-                worklist.push_back({result, outputShape});
+                worklist.push_back({result, output.shape, output.axis});
         }
         return success();
     }
 
 public:
-    explicit CVStrategyModel(CVStrategyOp root) : root(root), split(root.getSplit()), axis(getSplitAxis(split)) {};
+    explicit CVStrategyModel(CVStrategyOp root) : root(root), split(root.getSplit()) {};
     ~CVStrategyModel() = default;
 
     LogicalResult ensure()
@@ -285,7 +338,7 @@ public:
             assert(verdict == CopyVerdict::Accept);
             if (planAnnotation(shape, op).failed())
                 return failure();
-            worklist.push_back({op.getResult(), shape});
+            worklist.push_back({op.getResult(), shape, getSplitAxis(split, shape.size())});
         }
         while (!worklist.empty()) {
             auto state = worklist.pop_back_val();
@@ -298,7 +351,7 @@ public:
                             return failure();
                         for (auto [result, operand] : llvm::zip_equal(root.getResults(), yieldOp.getOperands())) {
                             if (operand == state.value)
-                                worklist.push_back({result, state.shape, UserKind::Unsplit});
+                                worklist.push_back({result, state.shape, state.axis, UserKind::Unsplit});
                         }
                         continue;
                     }

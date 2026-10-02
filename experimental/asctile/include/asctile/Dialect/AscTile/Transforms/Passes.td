@@ -285,22 +285,25 @@ def PrepareCVStrategy : Pass<"asctile-prepare-cv-strategy", "func::FuncOp"> {
   let constructor = "mlir::asctile::createPrepareCVStrategyPass()";
   let description = [{
     Examine each asctile.cv_strategy region and its asctile.copy operations. For a copy whose source is in L0C and
-    destination is in UB, validate that the copy uses the region's split mode, operates on 2D tensors, preserves the
-    full tensor shape, and satisfies the split's divisibility requirements: an even M dimension for split_by_m and an N
-    dimension divisible by 32 for split_by_n.
+    destination is in UB, validate that the copy uses the region's split mode, operates on 1D or 2D tensors, preserves
+    the full tensor shape, and satisfies the split's divisibility requirements: an even M dimension for split_by_m and
+    an N dimension divisible by 32 for split_by_n.
 
     Derive the half-shape selected by the split mode and propagate it through the forwarding def-use chain within the
     same CV strategy region. Attach asctile.need_split and asctile.split_shape to each participating operation, where
-    split_shape records the expected post-split result shape, or the stored-value shape for asctile.store. Propagation
-    supports shape-preserving copies, stores, and elementwise operations, as well as reductions, reshapes, and broadcasts
-    whose 2D split axis remains unchanged; other dimensions may change without mixing the split axis.
+    split_shape records the expected post-split result shape, or the stored-value shape for asctile.store.
+
+    Propagation supports shape-preserving copies, stores, and elementwise operations, as well as reductions, reshapes,
+    and broadcasts that preserve the active split axis. The active axis is tracked per value: split_by_m uses axis 0,
+    while split_by_n uses axis 0 for 1D values and axis 1 for 2D values. Non-active dimensions may be reduced, expanded,
+    squeezed, or broadcast when the active-axis mapping remains unambiguous.
     Propagation also follows yielded operands to the corresponding CV strategy results and annotates their immediate
     external users, which must be asctile.store or a UB-to-L1 asctile.copy.
 
     ApplyCVStrategy later uses these attributes to materialize each split. Copies between other memory locations are
     left unannotated. Fail if a copy has an incompatible explicit split, an unsupported rank or non-full shape, a
-    dimension that cannot be split evenly, if propagation reaches an unsupported or conflicting consumer, or if the split
-    axis would be reduced, reshaped, or broadcast.
+    dimension that cannot be split evenly, if propagation reaches an unsupported or conflicting consumer, or if the
+    split axis would be reduced, broadcast, or moved ambiguously.
   }];
 }
 
