@@ -282,7 +282,7 @@ class CVStrategyModel {
         }
         if (state.kind == UserKind::Unsplit)
             return op->emitOpError("only asctile.store and asctile.copy (UB->L1) can use asctile.cv_strategy results");
-        if (isa<DumpTensorOp>(op))
+        if (isa<DumpTensorOp, InlineOp>(op))
             return success();
         if (op->hasTrait<OpTrait::Elementwise>()) {
             output.axis = state.axis;
