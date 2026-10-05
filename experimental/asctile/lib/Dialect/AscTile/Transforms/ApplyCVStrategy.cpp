@@ -212,26 +212,18 @@ struct SplitBroadcast : OpConversionPattern<BroadcastOp> {
     }
 };
 
-struct SplitDumpTensor : OpConversionPattern<DumpTensorOp> {
-    using OpConversionPattern::OpConversionPattern;
+template <typename OpT>
+struct ConvertOperands : OpConversionPattern<OpT> {
+    using OpConversionPattern<OpT>::OpConversionPattern;
 
-    LogicalResult matchAndRewrite(
-        DumpTensorOp op, DumpTensorOp::Adaptor, ConversionPatternRewriter& rewriter) const override
-    {
-        rewriter.replaceOpWithNewOp<DumpTensorOp>(op, rewriter.getRemappedValue(op.getOperand()));
-        return success();
-    }
-};
-
-struct SplitYield : OpConversionPattern<YieldOp> {
-    using OpConversionPattern::OpConversionPattern;
-
-    LogicalResult matchAndRewrite(YieldOp op, YieldOp::Adaptor, ConversionPatternRewriter& rewriter) const override
+    LogicalResult matchAndRewrite(OpT op, typename OpT::Adaptor, ConversionPatternRewriter& rewriter) const override
     {
         SmallVector<Value, 8> operands;
-        if (rewriter.getRemappedValues(op.getOperands(), operands).failed())
+        if (rewriter.getRemappedValues(op->getOperands(), operands).failed())
             return failure();
-        rewriter.replaceOpWithNewOp<YieldOp>(op, operands);
+        auto newOp = rewriter.replaceOpWithNewOp<OpT>(op, op->getResultTypes(), operands, op->getAttrs());
+        newOp->removeAttr(attr::needSplit);
+        newOp->removeAttr(attr::splitShape);
         return success();
     }
 };
@@ -245,8 +237,8 @@ struct ApplyCVStrategyPass : public asctile::impl::ApplyCVStrategyBase<ApplyCVSt
         target.markUnknownOpDynamicallyLegal([](Operation* op) { return !op->hasAttr(attr::needSplit); });
         RewritePatternSet patterns(context);
         patterns.add<
-            SplitCopy, SplitStore, SplitElementwise, SplitReduce, SplitReshape, SplitBroadcast, SplitDumpTensor,
-            SplitYield>(context);
+            SplitCopy, SplitStore, SplitElementwise, SplitReduce, SplitReshape, SplitBroadcast,
+            ConvertOperands<DumpTensorOp>, ConvertOperands<InlineOp>, ConvertOperands<YieldOp>>(context);
         DenseSet<Operation*> unlegalizedOps;
         ConversionConfig config;
         config.unlegalizedOps = &unlegalizedOps;
