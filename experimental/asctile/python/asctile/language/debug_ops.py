@@ -11,7 +11,6 @@ from typing import Any, Iterable, List, Optional, Tuple, overload
 from asc._C.libpyasc import asctile
 from asc.language.core.dtype import DataType, KnownTypes as KT
 from asc.language.core.ir_value import IRValue, PlainValue, materialize_ir_value as _mat
-from asc.language.core.ops import inline as asc_inline
 from asc.language.core.utils import allow_jit, global_builder, require_jit
 
 from .global_tensor import GlobalTensor
@@ -222,7 +221,17 @@ def inline(code: str, args: Optional[tuple] = None, before_function: bool = Fals
                     x_gm.SetGlobalBuffer(input_ptr);
                 ''', [x_ptr, y_ptr, size])
     """
-    return asc_inline(code, args, before_function)
+    args = None if args is None else [_mat(arg).to_ir() for arg in args]
+    insert_point = None
+    builder = global_builder.get_ir_builder()
+    if before_function:
+        current_function = builder.get_current_function()
+        if current_function is not None:
+            insert_point = builder.save_insertion_point()
+            builder.set_insertion_point(current_function)
+    builder.create_asctile_InlineOp(code, args)
+    if insert_point is not None:
+        builder.restore_insertion_point(insert_point)
 
 
 @require_jit

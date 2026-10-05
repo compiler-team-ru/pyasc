@@ -300,6 +300,11 @@ def TransposeOp : AscTile_Op<"transpose", [Pure, SameOperandsAndResultElementTyp
   let hasVerifier = 1;
 }
 
+def InlineOp : AscTile_Op<"inline"> {
+  let arguments = (ins StrAttr:$value, Variadic<AnyType>:$args);
+  let assemblyFormat = "$value ($args^ `:` type($args))? attr-dict";
+}
+
 def InlineVFOp : AscTile_Op<"inline_vf", [Pure]> {
   let summary = "Declare vector function provided as C++ code";
   let arguments = (ins Variadic<NumericLocalTensor>:$inputs, StrAttr:$code);
