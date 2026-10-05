@@ -37,9 +37,6 @@ using mlir::ascir::PyOpBuilder;
 
 namespace {
 
-std::vector<Type> noTypes;
-std::vector<Value> noValues;
-
 void bindCreateAscTileOperations(py::class_<PyOpBuilder>& clss)
 {
     using ret = py::return_value_policy;
@@ -70,6 +67,13 @@ void bindCreateAscTileOperations(py::class_<PyOpBuilder>& clss)
             [](PyOpBuilder& self, const Value& cond, const std::string& msg) {
                 self.create<asctile::AssertOp>(cond, self->getStringAttr(msg));
             })
+        .def(
+            "create_asctile_InlineOp",
+            [](PyOpBuilder& self, const std::string& value, const std::optional<std::vector<Value>>& args) {
+                static std::vector<Value> noValues;
+                self.create<asctile::InlineOp>(self->getStringAttr(value), args.value_or(noValues));
+            },
+            "value"_a, "args"_a = py::none())
 #include "asctile/Dialect/AscTile/IR/AscTileOpBindings.h.inc"
         ;
 }

@@ -336,6 +336,19 @@ struct AcceptCVStrategyLoc : OpRewritePattern<CVStrategyOp> {
     }
 };
 
+struct AcceptInlineLoc : OpRewritePattern<InlineOp> {
+    using OpRewritePattern::OpRewritePattern;
+
+    LogicalResult matchAndRewrite(InlineOp op, PatternRewriter& rewriter) const override
+    {
+        auto matchResult = failure();
+        for (auto& opnd : op.getArgsMutable())
+            if (acceptOperandLoc(rewriter, &opnd).succeeded())
+                matchResult = success();
+        return matchResult;
+    }
+};
+
 struct ReconcileTensorCast : OpRewritePattern<tensor::CastOp> {
     using OpRewritePattern::OpRewritePattern;
 
@@ -354,24 +367,28 @@ struct ReconcileTensorCast : OpRewritePattern<tensor::CastOp> {
     }
 };
 
-void populateFirstStage(RewritePatternSet& patterns)
+void populateCommon(RewritePatternSet& patterns, PatternBenefit benefit = 1)
 {
     auto* context = patterns.getContext();
     patterns.add<
-        AcceptLoadLoc, AcceptCopyLoc, AcceptStoreLoc, AcceptSetValueLoc, AcceptDumpTensorLoc, AcceptCastLoc,
-        AcceptReluLoc, AcceptReshapeLoc, AcceptTransposeLoc, AcceptForLoc, AcceptIfLoc, AcceptCVStrategyLoc,
-        ReconcileTensorCast>(context);
+        AcceptCopyLoc, AcceptSetValueLoc, AcceptDumpTensorLoc, AcceptForLoc, AcceptIfLoc, AcceptCVStrategyLoc,
+        AcceptInlineLoc, ReconcileTensorCast>(context, benefit);
+}
+
+void populateFirstStage(RewritePatternSet& patterns)
+{
+    auto* context = patterns.getContext();
+    populateCommon(patterns);
+    patterns.add<AcceptLoadLoc, AcceptStoreLoc, AcceptCastLoc, AcceptReluLoc, AcceptReshapeLoc, AcceptTransposeLoc>(
+        context);
 }
 
 void populateSecondStage(RewritePatternSet& patterns)
 {
     enum : unsigned { LowBenefit = 1, HighBenefit = 10 };
     auto* context = patterns.getContext();
-    patterns
-        .add<
-            AcceptCopyLoc, AcceptSetValueLoc, AcceptDumpTensorLoc, AcceptForLoc, AcceptIfLoc, AcceptCVStrategyLoc,
-            ReconcileTensorCast>(context, LowBenefit)
-        .add<RequireSameLoc<LoadOp, StoreOp>>(context, std::nullopt, TL::UB, LowBenefit)
+    populateCommon(patterns, LowBenefit);
+    patterns.add<RequireSameLoc<LoadOp, StoreOp>>(context, std::nullopt, TL::UB, LowBenefit)
         .add<RequireSameLoc<CastOp, ReluOp>>(context, LocRange{TL::UB, TL::L0C}, TL::UB, HighBenefit)
         .add<RequireSameLoc<ReshapeOp>>(context, std::nullopt, TL::UB, HighBenefit)
         .add<RequireSameLoc<TransposeOp>>(context, LocRange{TL::UB, TL::L1, TL::L0A, TL::L0B}, TL::UB, HighBenefit);

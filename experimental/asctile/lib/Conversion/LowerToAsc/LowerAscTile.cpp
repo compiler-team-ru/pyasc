@@ -724,6 +724,19 @@ struct ConvertDumpTensor : ConvertOp<asctile::DumpTensorOp> {
     }
 };
 
+struct ConvertInline : ConvertOp<asctile::InlineOp> {
+    using ConvertOp::ConvertOp;
+
+    LogicalResult matchAndRewrite(asctile::InlineOp op, ConvertRewriter& rewriter) const override
+    {
+        SmallVector<Value> args;
+        if (rewriter.getRemappedValues(op.getArgs(), args).failed())
+            return op.emitOpError("has unsupported args");
+        rewriter.replaceOpWithNewOp<emitasc::VerbatimOp>(op, op.getValue(), args);
+        return success();
+    }
+};
+
 struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePass> {
     void runOnOperation() override
     {
@@ -735,7 +748,7 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
             //
             asctile::TensorOp, asctile::AccumulatorOp, asctile::SoftmaxOp, asctile::ReshapeOp, asctile::BroadcastOp,
             asctile::ReduceOp, asctile::InlineVFOp, asctile::CubeGroupOp, asctile::VectorGroupOp, asctile::PowerOp,
-            asctile::AssertOp, asctile::DumpTensorOp
+            asctile::AssertOp, asctile::DumpTensorOp, asctile::InlineOp
             //
             >();
         target.addLegalDialect<
@@ -747,7 +760,8 @@ struct LowerAscTilePass : public asclower::impl::LowerAscTileBase<LowerAscTilePa
             //
             ConvertTensor, ConvertAccumulator, ConvertReshape, ConvertBroadcast, ConvertSoftmax, ConvertRmsNorm,
             ConvertLayerNorm, ConvertReduce, ConvertInlineVF, ConvertCVGroup<asctile::CubeGroupOp, ascendc::IfAICOp>,
-            ConvertCVGroup<asctile::VectorGroupOp, ascendc::IfAIVOp>, ConvertPower, ConvertAssert, ConvertDumpTensor
+            ConvertCVGroup<asctile::VectorGroupOp, ascendc::IfAIVOp>, ConvertPower, ConvertAssert, ConvertDumpTensor,
+            ConvertInline
             //
             >(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())

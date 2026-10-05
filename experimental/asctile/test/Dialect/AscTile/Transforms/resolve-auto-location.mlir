@@ -204,3 +204,23 @@ func.func @second_stage_store(%arg0: tensor<128xf32, #asctile.global>, %arg1: te
   asctile.store %arg1, %arg0[%arg2] : tensor<32xf32, #asctile.local<auto>>, tensor<128xf32, #asctile.global>
   return
 }
+
+// CHECK-LABEL: func.func @resolve_dump_tensor(%arg0: tensor<32xf32, #asctile.local<UB>>) {
+// CHECK-NEXT:  asctile.dump_tensor %arg0 : tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  return
+// CHECK-NEXT:}
+func.func @resolve_dump_tensor(%arg0: tensor<32xf32, #asctile.local<UB>>) {
+  %0 = tensor.cast %arg0 : tensor<32xf32, #asctile.local<UB>> to tensor<32xf32, #asctile.local<auto>>
+  asctile.dump_tensor %0 : tensor<32xf32, #asctile.local<auto>>
+  return
+}
+
+// CHECK-LABEL: func.func @resolve_inline(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: i32, %arg2: tensor<32xf32, #asctile.local<UB>>) {
+// CHECK-NEXT:  asctile.inline "123 $0;" %arg0, %arg1, %arg2 : tensor<32xf32, #asctile.local<UB>>, i32, tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  return
+// CHECK-NEXT:}
+func.func @resolve_inline(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: i32, %arg2: tensor<32xf32, #asctile.local<UB>>) {
+  %0 = tensor.cast %arg0 : tensor<32xf32, #asctile.local<UB>> to tensor<32xf32, #asctile.local<auto>>
+  asctile.inline "123 $0;" %0, %arg1, %arg2 : tensor<32xf32, #asctile.local<auto>>, i32, tensor<32xf32, #asctile.local<UB>>
+  return
+}
