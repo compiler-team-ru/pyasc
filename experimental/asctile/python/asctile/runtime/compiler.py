@@ -111,6 +111,7 @@ class Compiler(CompilerBase):
         asctile.passes.asctile.add_apply_cv_strategy(pm)
         passes.common.add_canonicalizer(pm)
         passes.common.add_cse(pm)
+        asctile.passes.asctile.add_combine_extract_slice(pm)
         asctile.passes.asctile.add_cube_transpose_to_load(pm)
         asctile.passes.asctile.add_legalize_matmul(pm)
         passes.common.add_canonicalizer(pm)
