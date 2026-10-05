@@ -9,6 +9,7 @@
 add_mlir_dialect_library(AscTileTransforms
   ApplyCVStrategy.cpp
   ApplyHomomorphism.cpp
+  CombineExtractSlice.cpp
   CubeTransposeToLoad.cpp
   DetectBiasLoad.cpp
   FoldCast.cpp

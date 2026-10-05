@@ -74,6 +74,7 @@ void defineAscTilePasses(py::module& mod)
     auto m = mod.def_submodule("asctile");
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_apply_cv_strategy", createApplyCVStrategyPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_apply_homomorphism", createApplyHomomorphismPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_combine_extract_slice", createCombineExtractSlicePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_cube_transpose_to_load", createCubeTransposeToLoadPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_detect_bias_load", createDetectBiasLoadPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_fold_cast", createFoldCastPass);

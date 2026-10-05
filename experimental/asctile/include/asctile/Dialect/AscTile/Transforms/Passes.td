@@ -67,6 +67,17 @@ def ApplyHomomorphism : Pass<"asctile-apply-homomorphism", "func::FuncOp"> {
   }];
 }
 
+def CombineExtractSlice : Pass<"asctile-combine-extract-slice", "func::FuncOp"> {
+  let summary = "Fold tensor.extract_slice operations into compatible load and splat producers";
+  let description = [{
+    Combine eligible `tensor.extract_slice` operations with their producers:
+    - For contiguous slices of an `asctile.load`, adjust offsets and load the requested tensor directly.
+    - For `tensor.splat` sources, replace the slice with a splat of the original scalar.
+  }];
+  let constructor = "mlir::asctile::createCombineExtractSlicePass()";
+  let dependentDialects = ["arith::ArithDialect", "asctile::AscTileDialect", "tensor::TensorDialect"];
+}
+
 def CubeTransposeToLoad : Pass<"asctile-cube-transpose-to-load", "func::FuncOp"> {
   let summary = "Remove transpose operations on cube operands and add transpose attributes to load/copy operations";
   let constructor = "mlir::asctile::createCubeTransposeToLoadPass()";

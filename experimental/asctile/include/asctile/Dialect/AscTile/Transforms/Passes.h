@@ -21,6 +21,7 @@ namespace asctile {
 
 std::unique_ptr<Pass> createApplyCVStrategyPass();
 std::unique_ptr<Pass> createApplyHomomorphismPass();
+std::unique_ptr<Pass> createCombineExtractSlicePass();
 std::unique_ptr<Pass> createCubeTransposeToLoadPass();
 std::unique_ptr<Pass> createDetectBiasLoadPass();
 std::unique_ptr<Pass> createFoldCastPass();
