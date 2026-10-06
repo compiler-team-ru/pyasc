@@ -68,7 +68,7 @@ SmallVector<Operation*> collectUsers(Operation* dstDefiningOp, bool triggerIsAIV
     return users;
 }
 
-void processUsers(OpBuilder& builder, ArrayRef<Operation*> users, int32_t flagId)
+void processUsers(OpBuilder& builder, ArrayRef<Operation*> users, int32_t flagId, bool dualSync)
 {
     Operation* first = users.front();
     Operation* group = findGroupAncestor(first);
@@ -78,11 +78,12 @@ void processUsers(OpBuilder& builder, ArrayRef<Operation*> users, int32_t flagId
             break;
         last = user;
     }
+    bool dualFlags = dualSync && isa_and_present<ascendc::IfAICOp>(group);
     Block& body = group->getRegion(0).front();
     builder.setInsertionPointToStart(&body);
-    createWaitFlag(builder, first->getLoc(), flagId, ascendc::getOpPipeExt(first));
+    createWaitFlag(builder, first->getLoc(), flagId, ascendc::getOpPipeExt(first), dualFlags);
     builder.setInsertionPoint(body.getTerminator());
-    createSetFlag(builder, last->getLoc(), flagId, ascendc::getOpPipeExt(last));
+    createSetFlag(builder, last->getLoc(), flagId, ascendc::getOpPipeExt(last), dualFlags);
 }
 
 template <typename FlagOp>
@@ -97,6 +98,14 @@ void insertFlagGroup(OpBuilder& builder, Operation* op, bool isAIV, int32_t flag
     if (!isAIV && dualSync)
         builder.create<FlagOp>(loc, consts.i32(maxTensorId + flagId), crossCoreMode, pipe);
     builder.create<ascendc::YieldOp>(loc);
+}
+
+Operation* getCopyDstRoot(Operation* op)
+{
+    Value dst = cast<ascendc::DataCopyOp>(op).getDst();
+    while (auto subOp = dst.getDefiningOp<ascendc::LocalTensorSubIndexOp>())
+        dst = subOp.getTensor();
+    return dst.getDefiningOp();
 }
 
 struct InsertCrossCoreSyncPass : public ascendc::impl::InsertCrossCoreSyncBase<InsertCrossCoreSyncPass> {
@@ -123,7 +132,7 @@ struct InsertCrossCoreSyncPass : public ascendc::impl::InsertCrossCoreSyncBase<I
                 continue;
             scf::ForOp loopOp = groupOp->getParentOfType<scf::ForOp>();
             for (auto* op : syncOps) {
-                Operation* dstDefiningOp = cast<ascendc::DataCopyOp>(op).getDst().getDefiningOp();
+                Operation* dstDefiningOp = getCopyDstRoot(op);
                 if (!dstDefiningOp)
                     continue;
                 ascendc::Pipe producerPipe = ascendc::getOpPipeExt(op);
@@ -138,14 +147,15 @@ struct InsertCrossCoreSyncPass : public ascendc::impl::InsertCrossCoreSyncBase<I
                     dstFlagMap[dstDefiningOp] = {flagId, loopOp};
                 }
                 bool loopChanged = isSecondTrigger && (loopOp != it->second.loopOp);
+                Block& groupBody = groupOp->getRegion(0).front();
                 if (isSecondTrigger || loopOp) {
-                    builder.setInsertionPoint(op);
+                    builder.setInsertionPointToStart(&groupBody);
                     createWaitFlag(builder, op->getLoc(), flagId, producerPipe, dualSync && !isAIV);
                 }
                 if (!users.empty()) {
-                    builder.setInsertionPointAfter(op);
+                    builder.setInsertionPoint(groupBody.getTerminator());
                     createSetFlag(builder, op->getLoc(), flagId, producerPipe, dualSync && !isAIV);
-                    processUsers(builder, users, flagId);
+                    processUsers(builder, users, flagId, dualSync);
                 }
                 bool needSeed = (!isSecondTrigger && loopOp) || loopChanged;
                 if (needSeed) {
