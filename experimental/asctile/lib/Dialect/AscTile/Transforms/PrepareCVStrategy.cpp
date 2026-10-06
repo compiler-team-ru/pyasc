@@ -14,6 +14,7 @@
 #include "asctile/Dialect/AscTile/Utils/Utils.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Operation.h"
@@ -51,11 +52,20 @@ class CVStrategyModel {
         unsigned axis = 0;
     };
 
+    struct LoopCarriedEdge {
+        scf::ForOp loop;
+        BlockArgument iterArg;
+        unsigned index;
+        SplitShape shape;
+        unsigned axis;
+    };
+
     CVStrategyOp root;
     DistribMode split;
     SmallVector<SplitState, 4> worklist;
     DenseMap<Operation*, SplitShape> annotations;
     DenseMap<Operation*, SmallVector<SplitShape, 4>> operandStates;
+    SmallVector<LoopCarriedEdge, 2> loopCarriedEdges;
 
     CopyVerdict getResultShape(CopyOp op, SmallVectorImpl<int64_t>& shape)
     {
@@ -321,6 +331,53 @@ class CVStrategyModel {
         return success();
     }
 
+    LogicalResult propagateLoopYield(const SplitState& state, scf::YieldOp yieldOp)
+    {
+        auto loop = dyn_cast<scf::ForOp>(yieldOp->getParentOp());
+        if (!loop)
+            return yieldOp.emitOpError("must be terminated by scf.yield to propagate a CV strategy result");
+        auto yieldedValues = loop.getYieldedValuesMutable();
+        auto loopResults = loop.getLoopResults();
+        if (!yieldedValues || !loopResults || yieldedValues->size() != loopResults->size())
+            return yieldOp.emitOpError("has mismatched yielded values and loop results");
+        for (auto [index, operand] : llvm::enumerate(*yieldedValues)) {
+            if (operand.get() != state.value)
+                continue;
+            auto result = (*loopResults)[index];
+            auto iterArg = loop.getTiedLoopRegionIterArg(result);
+            if (!iterArg)
+                return yieldOp.emitOpError() << "has no region argument for yielded value " << index;
+            loopCarriedEdges.push_back({loop, iterArg, static_cast<unsigned>(index), state.shape, state.axis});
+            worklist.push_back({result, state.shape, state.axis, UserKind::Unsplit});
+        }
+        return success();
+    }
+
+    LogicalResult validateLoopCarriedEdge(const LoopCarriedEdge& edge)
+    {
+        auto iterArgType = dyn_cast<LocalTensorType>(edge.iterArg.getType());
+        if (!iterArgType || iterArgType.getLoc() != TensorLocation::UB)
+            return edge.loop->emitOpError() << "requires a UB region argument for CV strategy result " << edge.index;
+
+        SplitShape iterArgShape(iterArgType.getShape().begin(), iterArgType.getShape().end());
+        if (iterArgShape.size() != edge.shape.size())
+            return edge.loop->emitOpError("has a rank-changing CV strategy loop-carried value");
+        for (auto [index, size] : llvm::enumerate(iterArgShape)) {
+            auto expectedSize = index == edge.axis ? edge.shape[index] * 2 : edge.shape[index];
+            if (size != expectedSize)
+                return edge.loop->emitOpError()
+                       << "has an incompatible shape for CV strategy loop-carried value " << edge.index;
+        }
+
+        for (auto* user : edge.iterArg.getUsers()) {
+            if (user->getParentOfType<CVStrategyOp>() != root)
+                return user->emitOpError("must use the loop-carried value only inside the corresponding CV strategy");
+            if (!annotations.contains(user))
+                return user->emitOpError("must participate in the corresponding CV strategy split");
+        }
+        return success();
+    }
+
 public:
     explicit CVStrategyModel(CVStrategyOp root) : root(root), split(root.getSplit()) {};
     ~CVStrategyModel() = default;
@@ -355,10 +412,19 @@ public:
                         }
                         continue;
                     }
+                } else if (auto scfYieldOp = dyn_cast<scf::YieldOp>(user);
+                           scfYieldOp && isa_and_present<CVStrategyOp>(state.value.getDefiningOp())) {
+                    if (propagateLoopYield(state, scfYieldOp).failed())
+                        return failure();
+                    continue;
                 }
                 if (propagateUser(state, user).failed())
                     return failure();
             }
+        }
+        for (const auto& edge : loopCarriedEdges) {
+            if (validateLoopCarriedEdge(edge).failed())
+                return failure();
         }
         OpBuilder builder(root);
         auto needSplitAttr = builder.getAttr<DistribModeAttr>(split);

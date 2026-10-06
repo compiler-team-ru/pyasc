@@ -89,3 +89,32 @@ func.func @prepare_split_by_n_flow(%arg0: tensor<32x64xf32, #asctile.local<L0C>>
   asctile.dump_tensor %6 : tensor<32x64xf32, #asctile.local<L1>>
   return
 }
+
+// CHECK-LABEL: func.func @prepare_split_by_m_loop(
+// CHECK:       %0 = scf.for %arg3 = %c0 to %c4 step %c1 iter_args(%arg4 = %arg1) -> (tensor<32x64xf32, #asctile.local<UB>>) {
+// CHECK-NEXT:    %1 = asctile.cv_strategy <split_by_m> -> tensor<32x64xf32, #asctile.local<UB>> {
+// CHECK-NEXT:      %2 = asctile.copy %arg0[%c0_i32, %c0_i32] {asctile.need_split = #asctile.distrib_mode<split_by_m>, asctile.split_shape = array<i64: 16, 64>}
+// CHECK-NEXT:      %3 = arith.mulf %2, %arg4 {asctile.need_split = #asctile.distrib_mode<split_by_m>, asctile.split_shape = array<i64: 16, 64>}
+// CHECK-NEXT:      asctile.yield %3 : tensor<32x64xf32, #asctile.local<UB>> {asctile.need_split = #asctile.distrib_mode<split_by_m>, asctile.split_shape = array<i64>}
+// CHECK-NEXT:    }
+// CHECK-NEXT:    scf.yield %1 : tensor<32x64xf32, #asctile.local<UB>>
+// CHECK-NEXT:  }
+// CHECK-NEXT:  asctile.store %0, %arg2[%c0_i32, %c0_i32] {asctile.need_split = #asctile.distrib_mode<split_by_m>, asctile.split_shape = array<i64: 16, 64>}
+// CHECK-NEXT:  return
+// CHECK-NEXT:}
+func.func @prepare_split_by_m_loop(%arg0: tensor<32x64xf32, #asctile.local<L0C>>, %arg1: tensor<32x64xf32, #asctile.local<UB>>, %arg3: tensor<32x64xf32, #asctile.global>) {
+  %c0_i32 = arith.constant 0 : i32
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  %c4 = arith.constant 4 : index
+  %0 = scf.for %iv = %c0 to %c4 step %c1 iter_args(%arg5 = %arg1) -> tensor<32x64xf32, #asctile.local<UB>> {
+    %1 = asctile.cv_strategy <split_by_m> -> tensor<32x64xf32, #asctile.local<UB>> {
+      %2 = asctile.copy %arg0[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x64xf32, #asctile.local<UB>>
+      %3 = arith.mulf %2, %arg5 : tensor<32x64xf32, #asctile.local<UB>>
+      asctile.yield %3 : tensor<32x64xf32, #asctile.local<UB>>
+    }
+    scf.yield %1 : tensor<32x64xf32, #asctile.local<UB>>
+  }
+  asctile.store %0, %arg3[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<UB>>, tensor<32x64xf32, #asctile.global>
+  return
+}
