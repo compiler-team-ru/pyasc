@@ -91,3 +91,44 @@ func.func @reshape_moves_active_axis(%arg0: tensor<64xf32, #asctile.local<L0C>>)
   }
   return
 }
+
+// -----
+
+func.func @loop_iter_arg_used_outside_cv(%arg0: tensor<32x64xf32, #asctile.local<L0C>>, %arg1: tensor<32x64xf32, #asctile.local<UB>>, %arg2: tensor<32x64xf32, #asctile.global>) {
+  %c0_i32 = arith.constant 0 : i32
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  %c4 = arith.constant 4 : index
+  %0 = scf.for %iv = %c0 to %c4 step %c1 iter_args(%arg3 = %arg1) -> tensor<32x64xf32, #asctile.local<UB>> {
+    %1 = asctile.cv_strategy <split_by_m> -> tensor<32x64xf32, #asctile.local<UB>> {
+      %2 = asctile.copy %arg0[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x64xf32, #asctile.local<UB>>
+      %3 = arith.mulf %2, %arg3 : tensor<32x64xf32, #asctile.local<UB>>
+      asctile.yield %3 : tensor<32x64xf32, #asctile.local<UB>>
+    }
+    // expected-error@+1 {{must use the loop-carried value only inside the corresponding CV strategy}}
+    asctile.dump_tensor %arg3 : tensor<32x64xf32, #asctile.local<UB>>
+    scf.yield %1 : tensor<32x64xf32, #asctile.local<UB>>
+  }
+  asctile.store %0, %arg2[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<UB>>, tensor<32x64xf32, #asctile.global>
+  return
+}
+
+// -----
+
+func.func @unsupported_loop_result_user(%arg0: tensor<32x64xf32, #asctile.local<L0C>>, %arg1: tensor<32x64xf32, #asctile.local<UB>>) {
+  %c0_i32 = arith.constant 0 : i32
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  %c4 = arith.constant 4 : index
+  %0 = scf.for %iv = %c0 to %c4 step %c1 iter_args(%arg3 = %arg1) -> tensor<32x64xf32, #asctile.local<UB>> {
+    %1 = asctile.cv_strategy <split_by_m> -> tensor<32x64xf32, #asctile.local<UB>> {
+      %2 = asctile.copy %arg0[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x64xf32, #asctile.local<UB>>
+      %3 = arith.mulf %2, %arg3 : tensor<32x64xf32, #asctile.local<UB>>
+      asctile.yield %3 : tensor<32x64xf32, #asctile.local<UB>>
+    }
+    scf.yield %1 : tensor<32x64xf32, #asctile.local<UB>>
+  }
+  // expected-error@+1 {{only asctile.store and asctile.copy (UB->L1) can use asctile.cv_strategy results}}
+  asctile.dump_tensor %0 : tensor<32x64xf32, #asctile.local<UB>>
+  return
+}

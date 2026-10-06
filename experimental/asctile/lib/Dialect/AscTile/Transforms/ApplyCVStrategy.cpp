@@ -18,6 +18,7 @@
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Dialect/Utils/IndexingUtils.h"
 #include "mlir/IR/Attributes.h"
@@ -45,9 +46,9 @@ namespace {
 
 std::pair<DistribModeAttr, ArrayRef<int64_t>> getSplitInfo(Operation* op)
 {
-    return {
-        op->getAttrOfType<DistribModeAttr>(attr::needSplit),
-        op->getAttrOfType<DenseI64ArrayAttr>(attr::splitShape).asArrayRef()};
+    if (auto needSplit = op->getAttrOfType<DistribModeAttr>(attr::needSplit))
+        return {needSplit, op->getAttrOfType<DenseI64ArrayAttr>(attr::splitShape).asArrayRef()};
+    return {DistribModeAttr{}, std::nullopt};
 }
 
 SmallVector<Value, 2> splitOffsets(OpBuilder& builder, ValueRange offsets, DistribMode split, ArrayRef<int64_t> shape)
@@ -96,10 +97,53 @@ Value splitTensor(Value opnd, DistribMode split, ArrayRef<int64_t> sizes, Conver
 SmallVector<int64_t, 2> getOperandSplitShape(Value operand, DistribMode split)
 {
     auto tensorShape = cast<LocalTensorType>(operand.getType()).getShape();
-    SmallVector<int64_t, 2> shape(tensorShape.begin(), tensorShape.end());
-    auto axis = getSplitAxis(split, shape.size());
-    shape[axis] /= 2;
+    auto shape = llvm::to_vector<2>(cast<LocalTensorType>(operand.getType()).getShape());
+    shape[getSplitAxis(split, shape.size())] /= 2;
     return shape;
+}
+
+struct LoopCarriedSplit {
+    unsigned index;
+    DistribMode split;
+    SmallVector<int64_t, 2> shape;
+};
+
+bool collectLoopCarriedSplits(scf::ForOp loop, SmallVectorImpl<LoopCarriedSplit>& splits)
+{
+    ValueRange yieldedValues = loop.getYieldedValues();
+    auto loopResults = loop.getLoopResults();
+    if (yieldedValues.empty() || !loopResults || yieldedValues.size() != loopResults->size())
+        return false;
+    for (auto [index, yieldedValue] : llvm::enumerate(yieldedValues)) {
+        auto cvStrategy = yieldedValue.getDefiningOp<CVStrategyOp>();
+        if (!cvStrategy)
+            continue;
+        auto cvYield = cast<YieldOp>(cvStrategy.getBody()->getTerminator());
+        auto* producer = cvYield->getOperand(cast<OpResult>(yieldedValue).getResultNumber()).getDefiningOp();
+        if (!producer)
+            continue;
+        auto [split, shape] = getSplitInfo(producer);
+        if (!split)
+            continue;
+        auto resultType = dyn_cast<LocalTensorType>(yieldedValue.getType());
+        if (!resultType || shape.size() != resultType.getRank())
+            continue;
+        splits.push_back({static_cast<unsigned>(index), split.getValue(), llvm::to_vector<2>(shape)});
+    }
+    return !splits.empty();
+}
+
+bool hasSplitLoopCarriedCV(scf::ForOp op)
+{
+    SmallVector<LoopCarriedSplit, 2> splits;
+    if (!collectLoopCarriedSplits(op, splits))
+        return false;
+    for (const auto& split : splits) {
+        auto resultType = cast<LocalTensorType>(op.getResult(split.index).getType());
+        if (resultType.getShape() != ArrayRef(split.shape))
+            return true;
+    }
+    return false;
 }
 
 struct SplitCopy : OpConversionPattern<CopyOp> {
@@ -212,6 +256,29 @@ struct SplitBroadcast : OpConversionPattern<BroadcastOp> {
     }
 };
 
+struct SplitFor : OpConversionPattern<scf::ForOp> {
+    using OpConversionPattern<scf::ForOp>::OpConversionPattern;
+
+    LogicalResult matchAndRewrite(
+        scf::ForOp op, scf::ForOp::Adaptor, ConversionPatternRewriter& rewriter) const override
+    {
+        SmallVector<LoopCarriedSplit, 4> splits;
+        if (!collectLoopCarriedSplits(op, splits))
+            return failure();
+        for (const auto& split : splits) {
+            Value init = op.getInitArgs()[split.index];
+            Value splitInit = splitTensor(rewriter.getRemappedValue(init), split.split, split.shape, rewriter);
+            auto splitType = cast<LocalTensorType>(op.getResult(split.index).getType()).clone(split.shape);
+            rewriter.startOpModification(op);
+            op->setOperand(op.getNumControlOperands() + split.index, splitInit);
+            op.getResult(split.index).setType(splitType);
+            op.getRegionIterArg(split.index).setType(splitType);
+            rewriter.finalizeOpModification(op);
+        }
+        return success();
+    }
+};
+
 template <typename OpT>
 struct ConvertOperands : OpConversionPattern<OpT> {
     using OpConversionPattern<OpT>::OpConversionPattern;
@@ -234,10 +301,11 @@ struct ApplyCVStrategyPass : public asctile::impl::ApplyCVStrategyBase<ApplyCVSt
         auto funcOp = getOperation();
         MLIRContext* context = &getContext();
         ConversionTarget target(*context);
+        target.addDynamicallyLegalOp<scf::ForOp>([](scf::ForOp op) { return !hasSplitLoopCarriedCV(op); });
         target.markUnknownOpDynamicallyLegal([](Operation* op) { return !op->hasAttr(attr::needSplit); });
         RewritePatternSet patterns(context);
         patterns.add<
-            SplitCopy, SplitStore, SplitElementwise, SplitReduce, SplitReshape, SplitBroadcast,
+            SplitCopy, SplitStore, SplitElementwise, SplitReduce, SplitReshape, SplitBroadcast, SplitFor,
             ConvertOperands<DumpTensorOp>, ConvertOperands<InlineOp>, ConvertOperands<YieldOp>>(context);
         DenseSet<Operation*> unlegalizedOps;
         ConversionConfig config;
