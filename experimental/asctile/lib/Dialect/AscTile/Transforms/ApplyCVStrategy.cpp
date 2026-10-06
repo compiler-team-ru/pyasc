@@ -43,14 +43,14 @@ using namespace mlir::asctile;
 
 namespace {
 
-std::pair<SplitModeAttr, ArrayRef<int64_t>> getSplitInfo(Operation* op)
+std::pair<DistribModeAttr, ArrayRef<int64_t>> getSplitInfo(Operation* op)
 {
     return {
-        op->getAttrOfType<SplitModeAttr>(attr::needSplit),
+        op->getAttrOfType<DistribModeAttr>(attr::needSplit),
         op->getAttrOfType<DenseI64ArrayAttr>(attr::splitShape).asArrayRef()};
 }
 
-SmallVector<Value, 2> splitOffsets(OpBuilder& builder, ValueRange offsets, SplitMode split, ArrayRef<int64_t> shape)
+SmallVector<Value, 2> splitOffsets(OpBuilder& builder, ValueRange offsets, DistribMode split, ArrayRef<int64_t> shape)
 {
     auto rank = shape.size();
     assert(offsets.size() == rank && "offset count must match tensor rank");
@@ -71,7 +71,7 @@ SmallVector<Value, 2> splitOffsets(OpBuilder& builder, ValueRange offsets, Split
     return newOffsets;
 }
 
-Value splitTensor(Value opnd, SplitMode split, ArrayRef<int64_t> sizes, ConversionPatternRewriter& rewriter)
+Value splitTensor(Value opnd, DistribMode split, ArrayRef<int64_t> sizes, ConversionPatternRewriter& rewriter)
 {
     auto tensor = dyn_cast<LocalTensorType>(opnd.getType());
     if (!tensor || tensor.getShape() == sizes)
@@ -93,7 +93,7 @@ Value splitTensor(Value opnd, SplitMode split, ArrayRef<int64_t> sizes, Conversi
         rewriter.getDenseI64ArrayAttr(sizes), rewriter.getDenseI64ArrayAttr(strides));
 }
 
-SmallVector<int64_t, 2> getOperandSplitShape(Value operand, SplitMode split)
+SmallVector<int64_t, 2> getOperandSplitShape(Value operand, DistribMode split)
 {
     auto tensorShape = cast<LocalTensorType>(operand.getType()).getShape();
     SmallVector<int64_t, 2> shape(tensorShape.begin(), tensorShape.end());
@@ -117,7 +117,7 @@ struct SplitCopy : OpConversionPattern<CopyOp> {
         }
         if (srcLoc == TensorLocation::UB && dstLoc == TensorLocation::L1) {
             auto offsets = splitOffsets(rewriter, op.getOffsets(), split.getValue(), shape);
-            rewriter.replaceOpWithNewOp<CopyOp>(op, op.getType(), src, offsets, SplitModeAttr{});
+            rewriter.replaceOpWithNewOp<CopyOp>(op, op.getType(), src, offsets, DistribModeAttr{});
             return success();
         }
         return op->emitOpError("is not eligible for the CV strategy with splitting");

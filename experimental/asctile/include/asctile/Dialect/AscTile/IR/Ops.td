@@ -52,10 +52,12 @@ def DimOp : AscTile_Op<"dim", [Pure]> {
 
 def CopyOp : AscTile_Op<"copy", [AllElementTypesMatch<["base", "result"]>]> {
   let summary = "Copy from a tensor into a new sub-tensor";
-  let arguments = (ins NumericLocalTensor:$base, Variadic<I32>:$offsets, OptionalAttr<AscTile_SplitModeAttr>:$split);
+  let arguments = (ins NumericLocalTensor:$base, Variadic<I32>:$offsets,
+                   OptionalAttr<AscTile_DistribModeAttr>:$distrib);
   let results = (outs NumericLocalTensor:$result);
   let assemblyFormat = "$base `[` $offsets `]` attr-dict `:` qualified(type($base)) `,` qualified(type($result))";
   let hasCanonicalizeMethod = 1;
+  let hasVerifier = 1;
 }
 
 def LoadOp : AscTile_Op<"load", [AttrSizedOperandSegments, AllElementTypesMatch<["base", "result"]>,
@@ -285,7 +287,7 @@ def StoreFixpipeOp : AscTile_Op<"store_fixpipe", [AttrSizedOperandSegments, Memo
 def CopyFixpipeOp : AscTile_Op<"copy_fixpipe"> {
   let summary = "Store a tensor into a sub-tensor via FixPipe";
   let arguments = (ins NumericLocalTensor:$base, Variadic<I32>:$offsets, UnitAttr:$relu, UnitAttr:$quantize,
-                   OptionalAttr<AscTile_SplitModeAttr>:$split);
+                   OptionalAttr<AscTile_DistribModeAttr>:$distrib);
   let results = (outs NumericLocalTensor:$result);
   let assemblyFormat = "$base `[` $offsets `]` attr-dict `:` qualified(type($base)) `,` qualified(type($result))";
   let hasVerifier = 1;
@@ -367,7 +369,7 @@ def DumpTensorOp : AscTile_Op<"dump_tensor"> {
 
 def CVStrategyOp : AscTile_Op<"cv_strategy", [SingleBlockImplicitTerminator<"YieldOp">]> {
   let summary = "Declare CV ratio-based strategy for wrapped operations";
-  let arguments = (ins AscTile_SplitModeAttr:$split);
+  let arguments = (ins AscTile_DistribModeAttr:$split);
   let results = (outs Variadic<AnyType>:$results);
   let regions = (region SizedRegion<1>:$region);
   let assemblyFormat = "$split (`->` type($results)^)? $region attr-dict";

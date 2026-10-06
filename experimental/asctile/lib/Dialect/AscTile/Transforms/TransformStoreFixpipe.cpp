@@ -35,7 +35,7 @@ struct TransformCopyOp : OpRewritePattern<asctile::CopyOp> {
         if (base.getType().getLoc() != TensorLocation::L0C)
             return failure();
         rewriter.replaceOpWithNewOp<asctile::CopyFixpipeOp>(
-            op, op.getType(), base, op.getOffsets(), /*relu*/ false, /*quantize */ false, op.getSplitAttr());
+            op, op.getType(), base, op.getOffsets(), /*relu*/ false, /*quantize */ false, op.getDistribAttr());
         return success();
     }
 };

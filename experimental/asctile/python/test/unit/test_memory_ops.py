@@ -252,53 +252,53 @@ class TestCopy:
         kernel[1]()
         assert mock_launch.call_count == 1
 
-    @pytest.mark.parametrize("split, expected_shape", (
-        (asctile.SplitMode.FullVec0, (32, 64)),
-        (asctile.SplitMode.FullVec1, (32, 64)),
-        (asctile.SplitMode.SplitByM, (16, 64)),
-        (asctile.SplitMode.SplitByN, (32, 32)),
+    @pytest.mark.parametrize("distrib, expected_shape", (
+        (asctile.DistribMode.FullVec0, (32, 64)),
+        (asctile.DistribMode.FullVec1, (32, 64)),
+        (asctile.DistribMode.SplitByM, (16, 64)),
+        (asctile.DistribMode.SplitByN, (32, 32)),
     ))
-    def test_with_split(self, jit_test, mock_launch, zero_tile, split, expected_shape):
+    def test_with_distrib(self, jit_test, mock_launch, zero_tile, distrib, expected_shape):
 
         @jit_test
         def kernel():
             src = zero_tile([32, 64], asctile.float32, asctile.TensorLocation.L0C)
-            result = asctile.copy(src, location=asctile.TensorLocation.UB, split=split)
+            result = asctile.copy(src, location=asctile.TensorLocation.UB, distrib=distrib)
             asctile.static_assert(result.shape == expected_shape)
 
         kernel[1]()
         assert mock_launch.call_count == 1
 
-    def test_split_wrong_rank(self, jit_test, zero_tile):
+    def test_distrib_wrong_rank(self, jit_test, zero_tile):
 
         @jit_test
         def kernel():
             src = zero_tile([32], asctile.float32, asctile.TensorLocation.L0C)
-            asctile.copy(src, location=asctile.TensorLocation.UB, split=asctile.SplitMode.SplitByM)
+            asctile.copy(src, location=asctile.TensorLocation.UB, distrib=asctile.DistribMode.SplitByM)
 
         with pytest.raises(RuntimeError, match="2D"):
             kernel[1]()
 
-    def test_split_wrong_shape(self, jit_test, zero_tile):
+    def test_distrib_wrong_shape(self, jit_test, zero_tile):
 
         @jit_test
         def kernel():
             src = zero_tile([32, 64], asctile.float32, asctile.TensorLocation.L0C)
-            asctile.copy(src, [0, 0], [16, 64], asctile.TensorLocation.UB, asctile.SplitMode.SplitByM)
+            asctile.copy(src, [0, 0], [16, 64], asctile.TensorLocation.UB, asctile.DistribMode.SplitByM)
 
         with pytest.raises(RuntimeError, match="full shape"):
             kernel[1]()
 
-    @pytest.mark.parametrize("shape, split", (
-        ([31, 64], asctile.SplitMode.SplitByM),
-        ([32, 31], asctile.SplitMode.SplitByN),
+    @pytest.mark.parametrize("shape, distrib", (
+        ([31, 64], asctile.DistribMode.SplitByM),
+        ([32, 31], asctile.DistribMode.SplitByN),
     ))
-    def test_split_unaligned_shape(self, jit_test, zero_tile, shape, split):
+    def test_distrib_unaligned_shape(self, jit_test, zero_tile, shape, distrib):
 
         @jit_test
         def kernel():
             src = zero_tile(shape, asctile.float32, asctile.TensorLocation.L0C)
-            asctile.copy(src, location=asctile.TensorLocation.UB, split=split)
+            asctile.copy(src, location=asctile.TensorLocation.UB, distrib=distrib)
 
         with pytest.raises(RuntimeError, match="multiple of"):
             kernel[1]()

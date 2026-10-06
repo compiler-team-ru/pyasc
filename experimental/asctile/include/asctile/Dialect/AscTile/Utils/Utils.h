@@ -23,7 +23,7 @@ TypedAttr getSplatAttr(arith::ConstantOp cstOp);
 
 OpFoldResult getSplatValue(Value cstTile);
 
-unsigned getSplitAxis(SplitMode split, size_t rank = 2U);
+unsigned getSplitAxis(DistribMode mode, size_t rank = 2U);
 
 SmallVector<Value> getTensorShape(OpBuilder& builder, asctile::TensorOp tensorOp);
 

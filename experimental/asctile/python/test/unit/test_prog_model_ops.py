@@ -54,7 +54,7 @@ def test_sub_block_num(jit_test, mock_launch):
     assert mock_launch.call_count == 1
 
 
-@pytest.mark.parametrize("split", (asctile.SplitMode.SplitByM, asctile.SplitMode.SplitByN))
+@pytest.mark.parametrize("split", (asctile.DistribMode.SplitByM, asctile.DistribMode.SplitByN))
 def test_cv_strategy_split_by_axis(split, jit_test, mock_launch):
 
     @jit_test
@@ -66,7 +66,7 @@ def test_cv_strategy_split_by_axis(split, jit_test, mock_launch):
     assert mock_launch.call_count == 1
 
 
-@pytest.mark.parametrize("split", (asctile.SplitMode.FullVec0, asctile.SplitMode.FullVec1))
+@pytest.mark.parametrize("split", (asctile.DistribMode.FullVec0, asctile.DistribMode.FullVec1))
 def test_cv_strategy_split_by_aiv(split, jit_test):
 
     @jit_test

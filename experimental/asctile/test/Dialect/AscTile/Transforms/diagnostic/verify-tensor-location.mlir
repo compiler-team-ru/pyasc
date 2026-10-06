@@ -117,20 +117,18 @@ func.func @invalid_auto_result(%arg0: tensor<128xf32, #asctile.global>) -> tenso
 
 // -----
 
-func.func @valid_copy_with_split(%arg0: tensor<32x64xf32, #asctile.local<L0C>>) -> tensor<16x64xf32, #asctile.local<UB>> {
+func.func @valid_copy_with_distrib(%arg0: tensor<32x64xf32, #asctile.local<L0C>>) -> tensor<16x64xf32, #asctile.local<UB>> {
   %c0 = arith.constant 0 : i32
-  %0 = asctile.copy %arg0[%c0, %c0] {split = #asctile.split_mode<split_by_m>} : tensor<32x64xf32, #asctile.local<L0C>>, tensor<16x64xf32, #asctile.local<UB>>
+  %0 = asctile.copy %arg0[%c0, %c0] {distrib = #asctile.distrib_mode<split_by_m>} : tensor<32x64xf32, #asctile.local<L0C>>, tensor<16x64xf32, #asctile.local<UB>>
   return %0 : tensor<16x64xf32, #asctile.local<UB>>
 }
 
 // -----
 
-func.func @invalid_copy_with_split(%arg0: tensor<32x64xf32, #asctile.local<UB>>) -> tensor<16x64xf32, #asctile.local<UB>> {
+func.func @valid_copy_ub_l1_with_distrib(%arg0: tensor<16x64xf32, #asctile.local<UB>>) -> tensor<16x128xf32, #asctile.local<L1>> {
   %c0 = arith.constant 0 : i32
-  // expected-error@+2 {{src tensor location must be L0C, got UB}}
-  // expected-error@+1 {{'split' argument is only supported when copying from L0C to UB}}
-  %0 = asctile.copy %arg0[%c0, %c0] {split = #asctile.split_mode<split_by_m>} : tensor<32x64xf32, #asctile.local<UB>>, tensor<16x64xf32, #asctile.local<UB>>
-  return %0 : tensor<16x64xf32, #asctile.local<UB>>
+  %0 = asctile.copy %arg0[%c0, %c0] {distrib = #asctile.distrib_mode<join_by_n>} : tensor<16x64xf32, #asctile.local<UB>>, tensor<16x128xf32, #asctile.local<L1>>
+  return %0 : tensor<16x128xf32, #asctile.local<L1>>
 }
 
 // -----

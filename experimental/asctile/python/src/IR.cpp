@@ -109,12 +109,14 @@ void bindEnums(py::module& m)
         .value("Odd", asctile::RoundMode::Odd)
         .def_static("symbolize", [](int32_t mode) { return static_cast<asctile::RoundMode>(mode); });
 
-    py::enum_<asctile::SplitMode>(m, "asctile_SplitMode", py::module_local())
-        .value("FullVec0", asctile::SplitMode::FullVec0)
-        .value("FullVec1", asctile::SplitMode::FullVec1)
-        .value("SplitByM", asctile::SplitMode::SplitByM)
-        .value("SplitByN", asctile::SplitMode::SplitByN)
-        .def_static("symbolize", [](int32_t mode) { return static_cast<asctile::SplitMode>(mode); });
+    py::enum_<asctile::DistribMode>(m, "asctile_DistribMode", py::module_local())
+        .value("FullVec0", asctile::DistribMode::FullVec0)
+        .value("FullVec1", asctile::DistribMode::FullVec1)
+        .value("SplitByM", asctile::DistribMode::SplitByM)
+        .value("SplitByN", asctile::DistribMode::SplitByN)
+        .value("JoinByM", asctile::DistribMode::JoinByM)
+        .value("JoinByN", asctile::DistribMode::JoinByN)
+        .def_static("symbolize", [](int32_t mode) { return static_cast<asctile::DistribMode>(mode); });
 }
 
 void bindAscTileType(py::module& m)

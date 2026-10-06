@@ -268,7 +268,7 @@ def test_matmul_v3(profiler, runs, is_static, core_num, tiling_data, dtype, is_a
                                        asctile.ConstExpr(k) if is_static else k, m_L1, n_L1, k_L1, base_m, base_n,
                                        base_k, is_a_transpose, is_b_transpose, full_load_mode, quant_type,
                                        enable_hf32_mode, has_bias, double_buffering, False, full_load_tile_m,
-                                       full_load_tile_k, full_load_tile_n, split_mode=None)
+                                       full_load_tile_k, full_load_tile_n, distrib_mode=None)
     if is_a_transpose:
         a = a.T
     if is_b_transpose:

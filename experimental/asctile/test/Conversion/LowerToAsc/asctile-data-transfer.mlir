@@ -948,28 +948,28 @@ func.func @lower_copy_fixpipe_relu_quantize(%arg0: tensor<16x32xf32, #asctile.lo
 // CHECK-LABEL: func.func @lower_copy_fixpipe_split_by_m
 // CHECK: emitasc.init_struct !ascendc.fixpipe_params_c310<1 : i32>("nSize" = %c64_i32 : i32, "mSize" = %c32_i32 : i32, "srcStride" = %c32_i32 : i32, "dstStride" = %c64_i32 : i32, "dualDstCtl" = %c1_i8 : i8)
 func.func @lower_copy_fixpipe_split_by_m(%arg0: tensor<32x64xf32, #asctile.local<L0C>>, %arg1: i32, %arg2: i32) -> tensor<16x64xf32, #asctile.local<UB>> {
-  %0 = asctile.copy_fixpipe %arg0 [%arg1, %arg2] {split = #asctile.split_mode<split_by_m>} : tensor<32x64xf32, #asctile.local<L0C>>, tensor<16x64xf32, #asctile.local<UB>>
+  %0 = asctile.copy_fixpipe %arg0 [%arg1, %arg2] {distrib = #asctile.distrib_mode<split_by_m>} : tensor<32x64xf32, #asctile.local<L0C>>, tensor<16x64xf32, #asctile.local<UB>>
   return %0 : tensor<16x64xf32, #asctile.local<UB>>
 }
 
 // CHECK-LABEL: func.func @lower_copy_fixpipe_split_by_n
 // CHECK: emitasc.init_struct !ascendc.fixpipe_params_c310<1 : i32>("nSize" = %c64_i32 : i32, "mSize" = %c32_i32 : i32, "srcStride" = %c32_i32 : i32, "dstStride" = %c32_i32 : i32, "dualDstCtl" = %c2_i8 : i8)
 func.func @lower_copy_fixpipe_split_by_n(%arg0: tensor<32x64xf32, #asctile.local<L0C>>, %arg1: i32, %arg2: i32) -> tensor<32x32xf32, #asctile.local<UB>> {
-  %0 = asctile.copy_fixpipe %arg0 [%arg1, %arg2] {split = #asctile.split_mode<split_by_n>} : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x32xf32, #asctile.local<UB>>
+  %0 = asctile.copy_fixpipe %arg0 [%arg1, %arg2] {distrib = #asctile.distrib_mode<split_by_n>} : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x32xf32, #asctile.local<UB>>
   return %0 : tensor<32x32xf32, #asctile.local<UB>>
 }
 
 // CHECK-LABEL: func.func @lower_copy_fixpipe_full_vec0
 // CHECK: emitasc.init_struct !ascendc.fixpipe_params_c310<1 : i32>("nSize" = %c64_i32 : i32, "mSize" = %c32_i32 : i32, "srcStride" = %c32_i32 : i32, "dstStride" = %c64_i32 : i32, "dualDstCtl" = %c0_i8 : i8, "subBlockId" = %false : i1)
 func.func @lower_copy_fixpipe_full_vec0(%arg0: tensor<32x64xf32, #asctile.local<L0C>>, %arg1: i32, %arg2: i32) -> tensor<32x64xf32, #asctile.local<UB>> {
-  %0 = asctile.copy_fixpipe %arg0 [%arg1, %arg2] {split = #asctile.split_mode<full_vec0>} : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x64xf32, #asctile.local<UB>>
+  %0 = asctile.copy_fixpipe %arg0 [%arg1, %arg2] {distrib = #asctile.distrib_mode<full_vec0>} : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x64xf32, #asctile.local<UB>>
   return %0 : tensor<32x64xf32, #asctile.local<UB>>
 }
 
 // CHECK-LABEL: func.func @lower_copy_fixpipe_full_vec1
 // CHECK: emitasc.init_struct !ascendc.fixpipe_params_c310<1 : i32>("nSize" = %c64_i32 : i32, "mSize" = %c32_i32 : i32, "srcStride" = %c32_i32 : i32, "dstStride" = %c64_i32 : i32, "dualDstCtl" = %c0_i8 : i8, "subBlockId" = %true : i1)
 func.func @lower_copy_fixpipe_full_vec1(%arg0: tensor<32x64xf32, #asctile.local<L0C>>, %arg1: i32, %arg2: i32) -> tensor<32x64xf32, #asctile.local<UB>> {
-  %0 = asctile.copy_fixpipe %arg0 [%arg1, %arg2] {split = #asctile.split_mode<full_vec1>} : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x64xf32, #asctile.local<UB>>
+  %0 = asctile.copy_fixpipe %arg0 [%arg1, %arg2] {distrib = #asctile.distrib_mode<full_vec1>} : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x64xf32, #asctile.local<UB>>
   return %0 : tensor<32x64xf32, #asctile.local<UB>>
 }
 
