@@ -94,11 +94,10 @@ Value splitTensor(Value opnd, DistribMode split, ArrayRef<int64_t> sizes, Conver
         rewriter.getDenseI64ArrayAttr(sizes), rewriter.getDenseI64ArrayAttr(strides));
 }
 
-SmallVector<int64_t, 2> getOperandSplitShape(Value operand, DistribMode split)
+SmallVector<int64_t, 2> getOperandSplitShape(Value operand, DistribMode split, ArrayRef<int64_t> resultShape)
 {
-    auto tensorShape = cast<LocalTensorType>(operand.getType()).getShape();
     auto shape = llvm::to_vector<2>(cast<LocalTensorType>(operand.getType()).getShape());
-    shape[getSplitAxis(split, shape.size())] /= 2;
+    shape[getSplitAxis(split, shape.size())] = resultShape[getSplitAxis(split, resultShape.size())];
     return shape;
 }
 
@@ -131,19 +130,6 @@ bool collectLoopCarriedSplits(scf::ForOp loop, SmallVectorImpl<LoopCarriedSplit>
         splits.push_back({static_cast<unsigned>(index), split.getValue(), llvm::to_vector<2>(shape)});
     }
     return !splits.empty();
-}
-
-bool hasSplitLoopCarriedCV(scf::ForOp op)
-{
-    SmallVector<LoopCarriedSplit, 2> splits;
-    if (!collectLoopCarriedSplits(op, splits))
-        return false;
-    for (const auto& split : splits) {
-        auto resultType = cast<LocalTensorType>(op.getResult(split.index).getType());
-        if (resultType.getShape() != ArrayRef(split.shape))
-            return true;
-    }
-    return false;
 }
 
 struct SplitCopy : OpConversionPattern<CopyOp> {
@@ -219,7 +205,7 @@ struct SplitReduce : OpConversionPattern<ReduceOp> {
     LogicalResult matchAndRewrite(ReduceOp op, ReduceOp::Adaptor, ConversionPatternRewriter& rewriter) const override
     {
         auto [split, resultShape] = getSplitInfo(op);
-        auto operandShape = getOperandSplitShape(op.getOperand(), split.getValue());
+        auto operandShape = getOperandSplitShape(op.getOperand(), split.getValue(), resultShape);
         auto operand =
             splitTensor(rewriter.getRemappedValue(op.getOperand()), split.getValue(), operandShape, rewriter);
         auto resultType = op.getType().clone(resultShape);
@@ -234,7 +220,7 @@ struct SplitReshape : OpConversionPattern<ReshapeOp> {
     LogicalResult matchAndRewrite(ReshapeOp op, ReshapeOp::Adaptor, ConversionPatternRewriter& rewriter) const override
     {
         auto [split, resultShape] = getSplitInfo(op);
-        auto operandShape = getOperandSplitShape(op.getIn(), split.getValue());
+        auto operandShape = getOperandSplitShape(op.getIn(), split.getValue(), resultShape);
         auto operand = splitTensor(rewriter.getRemappedValue(op.getIn()), split.getValue(), operandShape, rewriter);
         rewriter.replaceOpWithNewOp<ReshapeOp>(op, op.getType().clone(resultShape), operand);
         return success();
@@ -248,7 +234,7 @@ struct SplitBroadcast : OpConversionPattern<BroadcastOp> {
         BroadcastOp op, BroadcastOp::Adaptor, ConversionPatternRewriter& rewriter) const override
     {
         auto [split, resultShape] = getSplitInfo(op);
-        auto operandShape = getOperandSplitShape(op.getOperand(), split.getValue());
+        auto operandShape = getOperandSplitShape(op.getOperand(), split.getValue(), resultShape);
         auto operand =
             splitTensor(rewriter.getRemappedValue(op.getOperand()), split.getValue(), operandShape, rewriter);
         rewriter.replaceOpWithNewOp<BroadcastOp>(op, op.getType().clone(resultShape), operand);
@@ -301,7 +287,17 @@ struct ApplyCVStrategyPass : public asctile::impl::ApplyCVStrategyBase<ApplyCVSt
         auto funcOp = getOperation();
         MLIRContext* context = &getContext();
         ConversionTarget target(*context);
-        target.addDynamicallyLegalOp<scf::ForOp>([](scf::ForOp op) { return !hasSplitLoopCarriedCV(op); });
+        target.addDynamicallyLegalOp<scf::ForOp>([](scf::ForOp op) {
+            SmallVector<LoopCarriedSplit, 4> splits;
+            if (!collectLoopCarriedSplits(op, splits))
+                return true;
+            for (const auto& split : splits) {
+                auto resultType = cast<LocalTensorType>(op.getResult(split.index).getType());
+                if (resultType.getShape() != ArrayRef(split.shape))
+                    return false;
+            }
+            return true;
+        });
         target.markUnknownOpDynamicallyLegal([](Operation* op) { return !op->hasAttr(attr::needSplit); });
         RewritePatternSet patterns(context);
         patterns.add<

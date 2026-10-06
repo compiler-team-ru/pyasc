@@ -50,6 +50,7 @@ class CVStrategyModel {
     struct SplitOutput {
         SplitShape shape;
         unsigned axis = 0;
+        bool propagate = true;
     };
 
     struct LoopCarriedEdge {
@@ -69,8 +70,8 @@ class CVStrategyModel {
 
     CopyVerdict getResultShape(CopyOp op, SmallVectorImpl<int64_t>& shape)
     {
-        if (auto copyDistrib = op.getDistrib(); copyDistrib.value_or(split) != split) {
-            op.emitOpError() << "has incompatible 'distrib' argument: " << stringifyDistribMode(*copyDistrib);
+        if (op.getDistrib()) {
+            op.emitOpError() << "'distrib' argument must be omitted inside the CV strategy";
             return CopyVerdict::Fail;
         }
         auto srcType = op.getBase().getType();
@@ -138,7 +139,7 @@ class CVStrategyModel {
         return success();
     }
 
-    LogicalResult getCopyOutputShape(const SplitState& state, CopyOp op, SmallVectorImpl<int64_t>& shape)
+    LogicalResult getCopySplitShape(const SplitState& state, CopyOp op, SmallVectorImpl<int64_t>& shape)
     {
         SplitShape inputShape, resultShape;
         if (getTensorShape(op, state.value, inputShape).failed() ||
@@ -146,6 +147,23 @@ class CVStrategyModel {
             return failure();
         if (inputShape != resultShape)
             return op.emitOpError("must preserve the tensor shape");
+        shape.append(state.shape.begin(), state.shape.end());
+        return success();
+    }
+
+    LogicalResult getCopyJoinShape(const SplitState& state, CopyOp op, SmallVectorImpl<int64_t>& shape)
+    {
+        SplitShape inputShape, resultShape;
+        if (getTensorShape(op, state.value, inputShape).failed() ||
+            getTensorShape(op, op.getResult(), resultShape).failed())
+            return failure();
+        if (resultShape.size() != state.shape.size())
+            return op.emitOpError("must preserve the tensor rank");
+        for (auto [index, size] : llvm::enumerate(resultShape)) {
+            auto expectedSize = index == state.axis ? state.shape[index] * 2 : state.shape[index];
+            if (size != expectedSize)
+                return op.emitOpError("must reconstruct the full tensor shape");
+        }
         shape.append(state.shape.begin(), state.shape.end());
         return success();
     }
@@ -281,19 +299,28 @@ class CVStrategyModel {
         if (isa<StoreOp>(op)) {
             output.shape = state.shape;
             output.axis = state.axis;
+            output.propagate = false;
             return success();
         }
         if (auto copyOp = dyn_cast<CopyOp>(op)) {
-            if (state.kind == UserKind::Unsplit && (copyOp.getBase().getType().getLoc() != TensorLocation::UB ||
-                                                    copyOp.getType().getLoc() != TensorLocation::L1))
-                return op->emitOpError("is not UB->L1 transfer, hence cannot use split tensor");
-            output.axis = state.axis;
-            return getCopyOutputShape(state, copyOp, output.shape);
+            auto srcLoc = copyOp.getBase().getType().getLoc();
+            auto dstLoc = copyOp.getType().getLoc();
+            if (srcLoc == TensorLocation::L0C && dstLoc == TensorLocation::UB) {
+                output.propagate = true;
+                output.axis = state.axis;
+                return getCopySplitShape(state, copyOp, output.shape);
+            }
+            if (srcLoc == TensorLocation::UB && dstLoc == TensorLocation::L1) {
+                output.propagate = false;
+                output.axis = state.axis;
+                return getCopyJoinShape(state, copyOp, output.shape);
+            }
+            return op->emitOpError("only L0C->UB and UB->L1 copies are supported by CV strategy propagation");
         }
-        if (state.kind == UserKind::Unsplit)
-            return op->emitOpError("only asctile.store and asctile.copy (UB->L1) can use asctile.cv_strategy results");
-        if (isa<DumpTensorOp, InlineOp>(op))
+        if (isa<DumpTensorOp, InlineOp>(op)) {
+            output.propagate = false;
             return success();
+        }
         if (op->hasTrait<OpTrait::Elementwise>()) {
             output.axis = state.axis;
             return getElementwiseOutputShape(state, op, output.shape);
@@ -304,7 +331,7 @@ class CVStrategyModel {
             return getReshapeOutput(state, reshapeOp, output);
         if (auto broadcastOp = dyn_cast<BroadcastOp>(op))
             return getBroadcastOutput(state, broadcastOp, output);
-        return op->emitOpError("cannot be used inside the CV strategy body");
+        return op->emitOpError("is not supported by CV strategy propagation");
     }
 
     LogicalResult propagateUser(const SplitState& state, Operation* user)
@@ -324,9 +351,9 @@ class CVStrategyModel {
         } else if (planAnnotation(output.shape, user).failed()) {
             return failure();
         }
-        if (state.kind == UserKind::Split) {
+        if (output.propagate) {
             for (Value result : user->getResults())
-                worklist.push_back({result, output.shape, output.axis});
+                worklist.push_back({result, output.shape, output.axis, state.kind});
         }
         return success();
     }
@@ -336,12 +363,12 @@ class CVStrategyModel {
         auto loop = dyn_cast<scf::ForOp>(yieldOp->getParentOp());
         if (!loop)
             return yieldOp.emitOpError("must be terminated by scf.yield to propagate a CV strategy result");
-        auto yieldedValues = loop.getYieldedValuesMutable();
+        ValueRange yieldedValues = loop.getYieldedValues();
         auto loopResults = loop.getLoopResults();
-        if (!yieldedValues || !loopResults || yieldedValues->size() != loopResults->size())
+        if (!loopResults || yieldedValues.size() != loopResults->size())
             return yieldOp.emitOpError("has mismatched yielded values and loop results");
-        for (auto [index, operand] : llvm::enumerate(*yieldedValues)) {
-            if (operand.get() != state.value)
+        for (auto [index, operand] : llvm::enumerate(yieldedValues)) {
+            if (operand != state.value)
                 continue;
             auto result = (*loopResults)[index];
             auto iterArg = loop.getTiedLoopRegionIterArg(result);
@@ -358,17 +385,14 @@ class CVStrategyModel {
         auto iterArgType = dyn_cast<LocalTensorType>(edge.iterArg.getType());
         if (!iterArgType || iterArgType.getLoc() != TensorLocation::UB)
             return edge.loop->emitOpError() << "requires a UB region argument for CV strategy result " << edge.index;
-
-        SplitShape iterArgShape(iterArgType.getShape().begin(), iterArgType.getShape().end());
-        if (iterArgShape.size() != edge.shape.size())
+        if (iterArgType.getRank() != edge.shape.size())
             return edge.loop->emitOpError("has a rank-changing CV strategy loop-carried value");
-        for (auto [index, size] : llvm::enumerate(iterArgShape)) {
+        for (auto [index, size] : llvm::enumerate(iterArgType.getShape())) {
             auto expectedSize = index == edge.axis ? edge.shape[index] * 2 : edge.shape[index];
             if (size != expectedSize)
                 return edge.loop->emitOpError()
                        << "has an incompatible shape for CV strategy loop-carried value " << edge.index;
         }
-
         for (auto* user : edge.iterArg.getUsers()) {
             if (user->getParentOfType<CVStrategyOp>() != root)
                 return user->emitOpError("must use the loop-carried value only inside the corresponding CV strategy");
@@ -412,9 +436,11 @@ public:
                         }
                         continue;
                     }
-                } else if (auto scfYieldOp = dyn_cast<scf::YieldOp>(user);
-                           scfYieldOp && isa_and_present<CVStrategyOp>(state.value.getDefiningOp())) {
-                    if (propagateLoopYield(state, scfYieldOp).failed())
+                }
+                if (state.kind == UserKind::Unsplit && user->getParentOfType<CVStrategyOp>())
+                    return user->emitOpError("cannot use a CV strategy result inside another CV strategy");
+                if (auto yieldOp = dyn_cast<scf::YieldOp>(user); yieldOp && state.value.getDefiningOp<CVStrategyOp>()) {
+                    if (propagateLoopYield(state, yieldOp).failed())
                         return failure();
                     continue;
                 }

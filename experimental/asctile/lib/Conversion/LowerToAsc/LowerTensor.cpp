@@ -22,6 +22,7 @@
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Dialect/Utils/IndexingUtils.h"
 #include "mlir/IR/OpDefinition.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/SmallVectorExtras.h"
 
 #include "Common.h"
@@ -41,6 +42,18 @@ namespace {
 struct ConvertExtractSlice : public ConvertOp<tensor::ExtractSliceOp> {
     using ConvertOp::ConvertOp;
 
+    std::pair<ascendc::LocalTensorType, SmallVector<int64_t, 2>> convertTypeShape(asctile::LocalTensorType type) const
+    {
+        auto convertedType = typeConverter->convertType<ascendc::LocalTensorType>(type);
+        auto origShape = convertedType.getShape();
+        if (origShape.size() == 1) {
+            SmallVector<int64_t, 2> shape(2U, 1L);
+            shape.back() = origShape.front();
+            return {convertedType, shape};
+        }
+        return {convertedType, llvm::to_vector<2>(origShape)};
+    }
+
     LogicalResult matchAndRewrite(tensor::ExtractSliceOp op, ConvertRewriter& rewriter) const override
     {
         auto srcType = dyn_cast<asctile::LocalTensorType>(op.getSourceType());
@@ -48,21 +61,20 @@ struct ConvertExtractSlice : public ConvertOp<tensor::ExtractSliceOp> {
         if (!srcType || !dstType || srcType.getLoc() != asctile::TensorLocation::UB ||
             dstType.getLoc() != asctile::TensorLocation::UB)
             return op.emitOpError("operand and result must be local tensors located in UB");
-        if (srcType.getRank() != 2 || dstType.getRank() != 2)
-            return op.emitOpError("only supports 2D tensors as operand and result");
+        int64_t rank = srcType.getRank();
+        if (rank > 2 || rank != dstType.getRank())
+            return op.emitOpError("only supports 1D or 2D tensors as operand and result");
         if (!op.getSizes().empty() || !op.getStrides().empty())
             return op.emitOpError("must have fully static sizes and strides");
         if (ArrayRef(computeStrides(op.getStaticSizes())) != op.getStaticStrides())
             return op.emitOpError("must have row-major strides");
         ascir::ConstantOpBuilder consts(rewriter);
         auto loc = op.getLoc();
-        auto dstTypeConv = typeConverter->convertType<ascendc::LocalTensorType>(dstType);
-        auto dstShape = dstTypeConv.getShape();
+        auto [dstTypeConv, dstShape] = convertTypeShape(dstType);
         Value blockCount = consts.i16(dstShape[0]);
         int64_t elementsPerBlock = ascendc::ubBlockSize / ascendc::getElementTypeSize(dstTypeConv);
         Value blockLen = consts.i16(dstShape[1] / elementsPerBlock);
-        auto srcTypeConv = typeConverter->convertType<ascendc::LocalTensorType>(srcType);
-        auto srcShape = srcTypeConv.getShape();
+        auto [srcTypeConv, srcShape] = convertTypeShape(srcType);
         Value srcGap = consts.i16((srcShape[1] - dstShape[1]) / elementsPerBlock);
         Value dstGap = consts.i16(0);
         Value dst = createTensorOp(rewriter, loc, dstType);
@@ -71,8 +83,11 @@ struct ConvertExtractSlice : public ConvertOp<tensor::ExtractSliceOp> {
         auto offsets = llvm::map_to_vector<2>(op.getMixedOffsets(), [&rewriter, loc](OpFoldResult ofr) {
             return getValueOrCreateConstantIndexOp(rewriter, loc, ofr);
         });
-        Value offset = rewriter.createOrFold<arith::MulIOp>(loc, offsets[0], consts.index(srcShape[1]));
-        offset = rewriter.createOrFold<arith::AddIOp>(loc, offset, offsets[1]);
+        Value offset = offsets[0];
+        if (rank == 2) {
+            offset = rewriter.createOrFold<arith::MulIOp>(loc, offsets[0], consts.index(srcShape[1]));
+            offset = rewriter.createOrFold<arith::AddIOp>(loc, offset, offsets[1]);
+        }
         offset = rewriter.createOrFold<arith::IndexCastOp>(loc, rewriter.getI32Type(), offset);
         Value src = rewriter.create<ascendc::LocalTensorSubIndexOp>(
             loc, srcTypeConv, rewriter.getRemappedValue(op.getSource()), offset);

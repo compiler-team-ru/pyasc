@@ -16,8 +16,15 @@ include "mlir/Pass/PassBase.td"
 def ApplyCVStrategy : Pass<"asctile-apply-cv-strategy", "func::FuncOp"> {
   let summary = "Apply annotated vector unit work splitting to copies, stores, elementwise operations, etc.";
   let description = [{
-    Materialize the annotations created by PrepareCVStrategy for copies, stores, elementwise operations, reductions,
-    reshapes, and broadcasts, then inline the surrounding asctile.cv_strategy body.
+    Materialize the analysis results recorded by PrepareCVStrategy without revalidating the complete forwarding
+    chain. Split every operation carrying asctile.need_split and asctile.split_shape: L0C-to-UB copies produce the
+    annotated half-shape, UB-to-L1 copies and stores consume a split tensor while addressing the full tensor with the
+    sub-block offset, and elementwise operations, reductions, reshapes, and broadcasts split their operands and
+    produce their annotated result shapes.
+
+    Rewrite eligible scf.for loop-carried values so their init operands, region arguments, and results use the split
+    shape. Convert dump and inline operands as needed, remove the split annotations, and inline the surrounding
+    asctile.cv_strategy body.
   }];
   let constructor = "mlir::asctile::createApplyCVStrategyPass()";
   let dependentDialects = [
@@ -300,21 +307,20 @@ def PrepareCVStrategy : Pass<"asctile-prepare-cv-strategy", "func::FuncOp"> {
     the full tensor shape, and satisfies the split's divisibility requirements: an even M dimension for split_by_m and
     an N dimension divisible by 32 for split_by_n.
 
-    Derive the half-shape selected by the split mode and propagate it through the forwarding def-use chain within the
-    same CV strategy region. Attach asctile.need_split and asctile.split_shape to each participating operation, where
+    Derive the half-shape selected by the split mode and propagate it transactionally through the supported forwarding
+    def-use chain. Attach asctile.need_split and asctile.split_shape only after the complete strategy validates;
     split_shape records the expected post-split result shape, or the stored-value shape for asctile.store.
 
-    Propagation supports shape-preserving copies, stores, and elementwise operations, as well as reductions, reshapes,
-    and broadcasts that preserve the active split axis. The active axis is tracked per value: split_by_m uses axis 0,
-    while split_by_n uses axis 0 for 1D values and axis 1 for 2D values. Non-active dimensions may be reduced, expanded,
-    squeezed, or broadcast when the active-axis mapping remains unambiguous.
-    Propagation also follows yielded operands to the corresponding CV strategy results and annotates their immediate
-    external users, which must be asctile.store or a UB-to-L1 asctile.copy.
+    Propagation supports shape-preserving copies and elementwise operations, stores, terminal dumps and inlines,
+    canonical reductions, safe expand/squeeze reshapes, and broadcasts that keep the active-axis mapping unambiguous.
+    The active axis is tracked per value: split_by_m uses axis 0, while split_by_n uses axis 0 for 1D values and axis
+    1 for 2D values; reductions and rank-changing operations may move it only when that mapping remains canonical.
+    L0C-to-UB copies propagate their split result, while terminal UB-to-L1 copies reconstruct the full L1 result.
 
-    ApplyCVStrategy later uses these attributes to materialize each split. Copies between other memory locations are
-    left unannotated. Fail if a copy has an incompatible explicit split, an unsupported rank or non-full shape, a
-    dimension that cannot be split evenly, if propagation reaches an unsupported or conflicting consumer, or if the
-    split axis would be reduced, broadcast, or moved ambiguously.
+    Propagation follows asctile.yield operands to CV strategy results and continues through their supported external
+    users. It also follows a direct CV strategy result yielded by scf.yield through the corresponding scf.for result
+    and validates that the tied loop-carried region argument is used only by the same CV strategy. Annotations are not
+    committed if any reachable operation is unsupported or receives conflicting split requests.
   }];
 }
 

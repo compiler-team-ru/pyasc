@@ -36,7 +36,7 @@ func.func @unsupported_consumer(%arg0: tensor<32x64xf32, #asctile.local<L0C>>) {
   %c0_i32 = arith.constant 0 : i32
   asctile.cv_strategy <split_by_m> {
     %0 = asctile.copy %arg0[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x64xf32, #asctile.local<UB>>
-    // expected-error@+1 {{cannot be used inside the CV strategy body}}
+    // expected-error@+1 {{is not supported by CV strategy propagation}}
     %1 = asctile.reduce_as_1d <sum> %0 : tensor<32x64xf32, #asctile.local<UB>>, f32
   }
   return
@@ -62,9 +62,45 @@ func.func @unsupported_cv_strategy_result_user(%arg0: tensor<32x64xf32, #asctile
     %1 = asctile.copy %arg0[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x64xf32, #asctile.local<UB>>
     asctile.yield %1 : tensor<32x64xf32, #asctile.local<UB>>
   }
-  // expected-error@+1 {{only asctile.store and asctile.copy (UB->L1) can use asctile.cv_strategy results}}
+  // expected-error@+1 {{is not supported by CV strategy propagation}}
+  %2 = asctile.reduce_as_1d <sum> %0 : tensor<32x64xf32, #asctile.local<UB>>, f32
+  return
+}
+
+// -----
+
+func.func @external_result_used_inside_cv(%arg0: tensor<32x64xf32, #asctile.local<L0C>>, %arg1: tensor<32x64xf32, #asctile.local<UB>>) {
+  %c0_i32 = arith.constant 0 : i32
+  %0 = asctile.cv_strategy <split_by_m> -> tensor<32x64xf32, #asctile.local<UB>> {
+    %1 = asctile.copy %arg0[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x64xf32, #asctile.local<UB>>
+    asctile.yield %1 : tensor<32x64xf32, #asctile.local<UB>>
+  }
+  %2 = asctile.cv_strategy <split_by_m> -> tensor<32x64xf32, #asctile.local<UB>> {
+    %3 = asctile.copy %arg0[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x64xf32, #asctile.local<UB>>
+    // expected-error@+1 {{cannot use a CV strategy result inside another CV strategy}}
+    %4 = arith.addf %3, %0 : tensor<32x64xf32, #asctile.local<UB>>
+    asctile.yield %4 : tensor<32x64xf32, #asctile.local<UB>>
+  }
+  return
+}
+
+// -----
+
+func.func @external_chain_to_scf_yield(%arg0: tensor<32x64xf32, #asctile.local<L0C>>, %arg1: tensor<32x64xf32, #asctile.local<UB>>, %arg2: tensor<32x64xf32, #asctile.global>) {
+  %c0_i32 = arith.constant 0 : i32
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  %c4 = arith.constant 4 : index
+  %0 = asctile.cv_strategy <split_by_m> -> tensor<32x64xf32, #asctile.local<UB>> {
+    %1 = asctile.copy %arg0[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x64xf32, #asctile.local<UB>>
+    asctile.yield %1 : tensor<32x64xf32, #asctile.local<UB>>
+  }
   %2 = arith.addf %0, %arg1 : tensor<32x64xf32, #asctile.local<UB>>
-  asctile.store %2, %arg2[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<UB>>, tensor<32x64xf32, #asctile.global>
+  %3 = scf.for %iv = %c0 to %c4 step %c1 iter_args(%arg3 = %arg1) -> tensor<32x64xf32, #asctile.local<UB>> {
+    // expected-error@+1 {{is not supported by CV strategy propagation}}
+    scf.yield %2 : tensor<32x64xf32, #asctile.local<UB>>
+  }
+  asctile.store %3, %arg2[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<UB>>, tensor<32x64xf32, #asctile.global>
   return
 }
 
@@ -128,7 +164,7 @@ func.func @unsupported_loop_result_user(%arg0: tensor<32x64xf32, #asctile.local<
     }
     scf.yield %1 : tensor<32x64xf32, #asctile.local<UB>>
   }
-  // expected-error@+1 {{only asctile.store and asctile.copy (UB->L1) can use asctile.cv_strategy results}}
-  asctile.dump_tensor %0 : tensor<32x64xf32, #asctile.local<UB>>
+  // expected-error@+1 {{is not supported by CV strategy propagation}}
+  %1 = asctile.reduce_as_1d <sum> %0 : tensor<32x64xf32, #asctile.local<UB>>, f32
   return
 }
