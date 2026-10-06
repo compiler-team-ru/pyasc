@@ -52,15 +52,15 @@ class CVStrategyModel {
     };
 
     CVStrategyOp root;
-    SplitMode split;
+    DistribMode split;
     SmallVector<SplitState, 4> worklist;
     DenseMap<Operation*, SplitShape> annotations;
     DenseMap<Operation*, SmallVector<SplitShape, 4>> operandStates;
 
     CopyVerdict getResultShape(CopyOp op, SmallVectorImpl<int64_t>& shape)
     {
-        if (auto copySplit = op.getSplit(); copySplit.value_or(split) != split) {
-            op.emitOpError() << "has incompatible 'split' argument: " << stringifySplitMode(*copySplit);
+        if (auto copyDistrib = op.getDistrib(); copyDistrib.value_or(split) != split) {
+            op.emitOpError() << "has incompatible 'distrib' argument: " << stringifyDistribMode(*copyDistrib);
             return CopyVerdict::Fail;
         }
         auto srcType = op.getBase().getType();
@@ -80,7 +80,7 @@ class CVStrategyModel {
         }
         shape.append(dstShape.begin(), dstShape.end());
         auto axis = getSplitAxis(split, shape.size());
-        auto divisor = split == SplitMode::SplitByM ? 2 : 32;
+        auto divisor = split == DistribMode::SplitByM ? 2 : 32;
         if (shape[axis] % divisor != 0) {
             op.emitOpError() << "requires the active split dimension divisible by " << divisor << ", got "
                              << shape[axis];
@@ -101,7 +101,7 @@ class CVStrategyModel {
 
     LogicalResult planAnnotation(ArrayRef<int64_t> shape, Operation* op)
     {
-        if (auto existingSplit = op->getAttrOfType<SplitModeAttr>(attr::needSplit);
+        if (auto existingSplit = op->getAttrOfType<DistribModeAttr>(attr::needSplit);
             existingSplit && existingSplit.getValue() != split)
             return op->emitOpError("has conflicting CV split mode requests");
         if (auto existingShape = op->getAttrOfType<DenseI64ArrayAttr>(attr::splitShape);
@@ -309,7 +309,7 @@ class CVStrategyModel {
         if (annotations.contains(user)) {
             if (annotations[user] != output.shape) {
                 return user->emitOpError() << "has conflicting CV split requests, the surrounding CV strategy is "
-                                           << stringifySplitMode(split) << " splitting with shape " << output.shape;
+                                           << stringifyDistribMode(split) << " splitting with shape " << output.shape;
             }
         } else if (planAnnotation(output.shape, user).failed()) {
             return failure();
@@ -361,7 +361,7 @@ public:
             }
         }
         OpBuilder builder(root);
-        auto needSplitAttr = builder.getAttr<SplitModeAttr>(split);
+        auto needSplitAttr = builder.getAttr<DistribModeAttr>(split);
         for (auto& [op, shape] : annotations) {
             op->setAttr(attr::needSplit, needSplitAttr);
             op->setAttr(attr::splitShape, builder.getDenseI64ArrayAttr(shape));

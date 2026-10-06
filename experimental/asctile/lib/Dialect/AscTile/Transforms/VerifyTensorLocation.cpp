@@ -73,14 +73,6 @@ void VerifyTensorLocationPass::runOnOperation()
     // Further checks are meaningless if tensor locations are not fully resolved
     if (getPassState().irAndPassFailed.getInt())
         return;
-    funcOp.walk([this](CopyOp op) {
-        if (!op.getSplitAttr())
-            return;
-        if (badLoc(op, op.getType(), "result", TL::UB) || badLoc(op, op.getBase().getType(), "src", TL::L0C)) {
-            op.emitError("'split' argument is only supported when copying from L0C to UB");
-            signalPassFailure();
-        }
-    });
     funcOp.walk([this](LoadOp op) {
         if (badLoc(op, op.getType(), "result", {TL::UB, TL::L1, TL::L0A, TL::L0B, TL::BT}))
             signalPassFailure();

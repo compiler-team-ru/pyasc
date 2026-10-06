@@ -21,7 +21,7 @@ from .tensor_location import TensorLocation, TensorLocLike
 from .utils import cast_tensor_location as cast_loc
 from .validation import check_dtype, check_runtime_int, check_type, verify_location, verify_runtime_ints, verify_shape
 
-SplitMode: TypeAlias = asctile.ir.asctile_SplitMode
+DistribMode: TypeAlias = asctile.ir.asctile_DistribMode
 
 
 def to_ir_list(values: Iterable[RuntimeInt]) -> List[IRHandle]:
@@ -43,7 +43,7 @@ def verify_real_shape(real_shape: Iterable[RuntimeInt], shape: Tuple[int, ...]) 
 
 @require_jit
 def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape: Optional[Iterable[int]] = None,
-         location: Optional[TensorLocLike] = None, split: Optional[SplitMode] = None) -> LocalTensor:
+         location: Optional[TensorLocLike] = None, distrib: Optional[DistribMode] = None) -> LocalTensor:
     """
     Copy a local tensor to a new local tensor, optionally reshaping and relocating.
 
@@ -62,21 +62,30 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
         location: The memory location for the destination tensor. Default is ``src.location``.
             Supported location transfers: ``L1`` to ``L0A``, ``L1`` to ``L0B``, ``L1`` to ``BT``, ``L0C`` to ``L1``,
             ``L0C`` to ``UB``, ``UB`` to ``L1``.
-        split: The split strategy when copying from ``L0C`` to ``UB``. If None, no split is applied.
-            Only supported when ``src.location`` is ``L0C`` and ``location`` is ``UB`` (can be resolved automatically).
-            ``FullVec0`` and ``FullVec1`` copy the full source tensor to vector sub-block 0 or 1, respectively.
-            ``SplitByM`` and ``SplitByN`` split a 2D source tensor in half along the M (first) or N (second) axis;
-            each vector sub-block receives one half. The source tensor must have rank 2 and the given ``shape`` must be
-            omitted or equal ``src.shape``. For ``SplitByM``, the M dimension must be a multiple of 2. For ``SplitByN``,
-            the N dimension must be a multiple of 32. The resulting tensor shape would be already reduced by half along
-            the selected axis.
+        distrib: The strategy for distributing the source tensor data across the vector sub-blocks. If None,
+            no distrib is applied. Each mode is only valid for specific memory transfers:
+
+            ============ ================= =============== =======================================
+            Value        Transfer          Result shape    Outcome
+            ============ ================= =============== =======================================
+            ``FullVec0`` L0C → UB, UB → L1 same as source  full tensor in vector sub-block 0
+            ``FullVec1`` L0C → UB, UB → L1 same as source  full tensor in vector sub-block 1
+            ``SplitByM`` L0C → UB          M halved        each sub-block gets half of the rows
+            ``SplitByN`` L0C → UB          N halved        each sub-block gets half of the columns
+            ``JoinByM``  UB → L1           M doubled       joins the rows of both sub-blocks
+            ``JoinByN``  UB → L1           N doubled       joins the columns of both sub-blocks
+            ============ ================= =============== =======================================
+
+            For ``SplitByM``, ``SplitByN``, ``JoinByM`` and ``JoinByN``: the source tensor must be 2D and ``shape``
+            must be omitted or equal to ``src.shape``. Additionally, ``SplitByM`` requires the M dimension to be
+            a multiple of 2, and ``SplitByN`` requires the N dimension to be a multiple of 32.
 
     Returns:
         LocalTensor: A new tensor that is a copy of the source tensor
 
     Raises:
-        TypeError: If src is not a LocalTensor, split is not a SplitMode, or location is not a TensorLocation-like
-        RuntimeError: If shape is invalid, data alignment check fails, offsets rank mismatch, or split constraints are
+        TypeError: If src is not a LocalTensor, distrib is not a DistribMode, or location is not a TensorLocation-like
+        RuntimeError: If shape is invalid, data alignment check fails, offsets rank mismatch, or distrib constraints are
             violated
 
     Examples:
@@ -111,7 +120,15 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
         ``[64, 32]`` and can copy its half to global memory using e.g. ``[0, 32 * asctile.sub_block_idx()]`` offsets: ::
 
             result = asctile.matmul(a_l0a, b_l0b)  # shape [64, 64], located in L0C
-            result_ub = asctile.copy(result, location="UB", split=asctile.SplitMode.SplitByN)
+            result_ub = asctile.copy(result, location="UB", distrib=asctile.DistribMode.SplitByN)
+
+        Join the rows processed by both vector sub-blocks into a single L1 tensor when ``cv_ratio=2``. Each sub-block
+        holds its ``[32, 64]`` half in UB and the result is the joined ``[64, 64]`` tensor, e.g., to prepare the
+        operand of a subsequent matmul: ::
+
+            partial = asctile.copy_in(x_gm, [32 * asctile.sub_block_idx(), 0], [32, 64], asctile.TensorLocation.UB)
+            full_l1 = asctile.copy(partial, location="L1", distrib=asctile.DistribMode.JoinByM)
+            # full_l1 has shape [64, 64] in L1, twice the source [32, 64] along the M axis
 
         Alternatively, the ``to`` method can be used to transform the tensor location: ::
 
@@ -119,7 +136,7 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
             l1_tensor = ub_tensor.to(asctile.TensorLocation.L1)
     """
     check_type("src", src, LocalTensor)
-    check_type("split", split, Optional[SplitMode])
+    check_type("distrib", distrib, Optional[DistribMode])
     location = src.location if location is None else verify_location(location)
     if shape is None:
         shape = src.shape
@@ -129,22 +146,26 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
         offsets = (0, ) * len(src.shape)
     else:
         offsets = verify_offsets(offsets, src.rank)
-    if split in (SplitMode.SplitByM, SplitMode.SplitByN):
+    if distrib in (DistribMode.SplitByM, DistribMode.SplitByN, DistribMode.JoinByM, DistribMode.JoinByN):
         if src.rank != 2:
             raise RuntimeError(f"Splitting by axis is only supported for 2D tensors, got {src.shape} shape")
         if shape != src.shape:
             raise RuntimeError(f"Splitting by axis is only supported for full shape {src.shape}, got {shape}")
     shape = list(shape)
-    if split == SplitMode.SplitByM:
+    if distrib == DistribMode.SplitByM:
         if shape[0] % 2 != 0:
             raise RuntimeError(f"Splitting by M axis requires that it be a multiple of 2, got {shape[0]}")
         shape[0] //= 2
-    elif split == SplitMode.SplitByN:
+    elif distrib == DistribMode.SplitByN:
         if shape[1] % 32 != 0:
             raise RuntimeError(f"Splitting by N axis requires that it be a multiple of 32, got {shape[1]}")
         shape[1] //= 2
+    elif distrib == DistribMode.JoinByM:
+        shape[0] *= 2
+    elif distrib == DistribMode.JoinByN:
+        shape[1] *= 2
     ir_type = asctile.ir.get_asctile_LocalTensorType(shape, src.dtype.to_ir(), location)
-    handle = global_builder.get_ir_builder().create_asctile_CopyOp(ir_type, src.to_ir(), to_ir_list(offsets), split)
+    handle = global_builder.get_ir_builder().create_asctile_CopyOp(ir_type, src.to_ir(), to_ir_list(offsets), distrib)
     return cast_loc(LocalTensor(handle))
 
 

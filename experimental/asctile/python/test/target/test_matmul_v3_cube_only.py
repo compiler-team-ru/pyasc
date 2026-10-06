@@ -206,4 +206,4 @@ def test_matmul_v3(profiler, runs, is_static, core_num, tiling_data, dtype, is_a
                    full_load_mode, enable_hf32_mode, has_bias, double_buffering, input_range, accuracy):
     run_matmul_v3_test(profiler, runs, is_static, core_num, tiling_data, dtype, is_a_transpose_l0, is_b_transpose_l0,
                        full_load_mode, enable_hf32_mode, has_bias, double_buffering, input_range, accuracy,
-                       split_mode=None, l0c2ub=False)
+                       distrib_mode=None, l0c2ub=False)

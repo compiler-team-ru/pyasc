@@ -864,22 +864,22 @@ struct ConvertCopyFixpipe : ConvertOp<asctile::CopyFixpipeOp> {
                 rewriter.getTypeArrayAttr(rewriter.getType<ascendc::QuantModesType>()), true, true);
             paramsBuilder.addField("quantPre", quantMode);
         }
-        if (auto maybeSplit = op.getSplit()) {
-            asctile::SplitMode split = *maybeSplit;
+        if (auto maybeSplit = op.getDistrib()) {
+            asctile::DistribMode split = *maybeSplit;
             char dualDstCtl = 0;
-            if (split == asctile::SplitMode::SplitByM) {
+            if (split == asctile::DistribMode::JoinByM || split == asctile::DistribMode::JoinByN)
+                return op.emitError() << "Unsupported distribute mode JoinByM or JoinByN";
+            if (split == asctile::DistribMode::SplitByM)
                 dualDstCtl = 1;
-            } else if (split == asctile::SplitMode::SplitByN) {
+            else if (split == asctile::DistribMode::SplitByN)
                 dualDstCtl = 2;
-            }
             if (dualDstCtl != 0 && (op.getRelu() || op.getQuantize()))
                 return op.emitOpError("cannot have relu/quantize and dual destination enabled at the same time");
             paramsBuilder.addField("dualDstCtl", consts.i8(dualDstCtl));
-            if (split == asctile::SplitMode::FullVec0) {
+            if (split == asctile::DistribMode::FullVec0)
                 paramsBuilder.addField("subBlockId", consts.i1(false));
-            } else if (split == asctile::SplitMode::FullVec1) {
+            else if (split == asctile::DistribMode::FullVec1)
                 paramsBuilder.addField("subBlockId", consts.i1(true));
-            }
         }
         Value params = paramsBuilder.create(rewriter, loc);
         Value layout = rewriter.create<ascendc::ConstructOp>(

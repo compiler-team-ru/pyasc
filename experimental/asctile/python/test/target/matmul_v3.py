@@ -27,7 +27,7 @@ def matmul_v3_kernel(a_ptr: asctile.GlobalAddress, b_ptr: asctile.GlobalAddress,
                      quant_type: asctile.ConstExpr, enable_hf32_mode: asctile.ConstExpr, has_bias: asctile.ConstExpr,
                      double_buffering: asctile.ConstExpr, l0c2ub: asctile.ConstExpr,
                      full_load_tile_m: asctile.ConstExpr, full_load_tile_k: asctile.ConstExpr,
-                     full_load_tile_n: asctile.ConstExpr, split_mode: asctile.ConstExpr):
+                     full_load_tile_n: asctile.ConstExpr, distrib_mode: asctile.ConstExpr):
     if not is_a_transpose_l0:
         a_gm = asctile.global_tensor(a_ptr, [m, k])
     else:
@@ -131,18 +131,18 @@ def matmul_v3_kernel(a_ptr: asctile.GlobalAddress, b_ptr: asctile.GlobalAddress,
                                                 asctile.TensorLocation.L0B).T
                         asctile.matmul_acc(acc, a_l0, b_l0, hf32=enable_hf32_mode)
                 if l0c2ub:
-                    if split_mode is None:
+                    if distrib_mode is None:
                         # cast on Cube core
                         acc = acc.to(quant_type)
-                    acc_ub = asctile.copy(acc, location=asctile.TensorLocation.UB, split=split_mode)
+                    acc_ub = asctile.copy(acc, location=asctile.TensorLocation.UB, distrib=distrib_mode)
                     split_off_m = 0
                     split_off_n = 0
-                    if split_mode is not None:
+                    if distrib_mode is not None:
                         # cast on Vector core
                         acc_ub = acc_ub.to(quant_type)
-                        if split_mode == asctile.SplitMode.SplitByM:
+                        if distrib_mode == asctile.DistribMode.SplitByM:
                             split_off_m = acc_ub.shape[0] * asctile.sub_block_idx()
-                        if split_mode == asctile.SplitMode.SplitByN:
+                        if distrib_mode == asctile.DistribMode.SplitByN:
                             split_off_n = acc_ub.shape[1] * asctile.sub_block_idx()
                     asctile.copy_out(acc_ub, c_gm, offsets=[m_gm_off + split_off_m, n_gm_off + split_off_n])
                 else:
@@ -150,8 +150,8 @@ def matmul_v3_kernel(a_ptr: asctile.GlobalAddress, b_ptr: asctile.GlobalAddress,
 
 
 def run_matmul_v3_test(profiler, runs, is_static, core_num, tiling_data, dtype, is_a_transpose_l0, is_b_transpose_l0,
-                       full_load_mode, enable_hf32_mode, has_bias, double_buffering, input_range, accuracy, split_mode,
-                       l0c2ub):
+                       full_load_mode, enable_hf32_mode, has_bias, double_buffering, input_range, accuracy,
+                       distrib_mode, l0c2ub):
     quant_type = asctile.float32
     if dtype == torch.float16:
         quant_type = asctile.float16
@@ -172,12 +172,11 @@ def run_matmul_v3_test(profiler, runs, is_static, core_num, tiling_data, dtype, 
     bias = (high - low) * torch.rand([n], dtype=dtype) + low
     with profiler.profile():
         for _ in range(runs):
-            matmul_v3_kernel[core_num](a, b, c, bias, asctile.ConstExpr(m) if is_static else m,
-                                       asctile.ConstExpr(n) if is_static else n,
-                                       asctile.ConstExpr(k) if is_static else k, m_L1, n_L1, k_L1, base_m, base_n,
-                                       base_k, is_a_transpose_l0, is_b_transpose_l0, full_load_mode, quant_type,
-                                       enable_hf32_mode, has_bias, double_buffering, l0c2ub, full_load_tile_m,
-                                       full_load_tile_k, full_load_tile_n, split_mode, cv_ratio=2 if split_mode else 1)
+            matmul_v3_kernel[core_num](
+                a, b, c, bias, asctile.ConstExpr(m) if is_static else m, asctile.ConstExpr(n) if is_static else n,
+                asctile.ConstExpr(k) if is_static else k, m_L1, n_L1, k_L1, base_m, base_n, base_k, is_a_transpose_l0,
+                is_b_transpose_l0, full_load_mode, quant_type, enable_hf32_mode, has_bias, double_buffering, l0c2ub,
+                full_load_tile_m, full_load_tile_k, full_load_tile_n, distrib_mode, cv_ratio=2 if distrib_mode else 1)
     if is_a_transpose_l0:
         a = a.T
     if is_b_transpose_l0:

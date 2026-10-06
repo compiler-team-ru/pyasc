@@ -157,6 +157,26 @@ LogicalResult DimOp::verify()
 
 LogicalResult CopyOp::canonicalize(CopyOp op, PatternRewriter& rewriter) { return ascir::eraseUnusedOp(op, rewriter); }
 
+LogicalResult CopyOp::verify()
+{
+    auto distrib = getDistrib();
+    if (!distrib)
+        return success();
+    TensorLocation srcLoc = getBase().getType().getLoc();
+    TensorLocation dstLoc = getType().getLoc();
+    bool isL0cToUb = srcLoc == TensorLocation::L0C && dstLoc == TensorLocation::UB;
+    bool isUbToL1 = srcLoc == TensorLocation::UB && dstLoc == TensorLocation::L1;
+    if ((*distrib == DistribMode::JoinByM || *distrib == DistribMode::JoinByN) && isL0cToUb) {
+        return emitOpError() << "'distrib' mode " << stringifyDistribMode(*distrib)
+                             << " is only supported when copying from UB to L1";
+    }
+    if ((*distrib == DistribMode::SplitByM || *distrib == DistribMode::SplitByN) && isUbToL1) {
+        return emitOpError() << "'distrib' mode " << stringifyDistribMode(*distrib)
+                             << " is only supported when copying from L0C to UB";
+    }
+    return success();
+}
+
 //===----------------------------------------------------------------------===//
 // LoadOp
 //===----------------------------------------------------------------------===//
@@ -423,8 +443,8 @@ void CVStrategyOp::getCanonicalizationPatterns(RewritePatternSet& result, MLIRCo
 LogicalResult CVStrategyOp::verify()
 {
     auto split = getSplit();
-    if (split != SplitMode::SplitByM && split != SplitMode::SplitByN)
-        return emitOpError() << "has unsupported split mode " << stringifySplitMode(split);
+    if (split != DistribMode::SplitByM && split != DistribMode::SplitByN)
+        return emitOpError() << "has unsupported split mode " << stringifyDistribMode(split);
     if (getOperation()->getParentOfType<CVStrategyOp>())
         return emitOpError("cannot be nested in other asctile.cv_strategy op");
     auto yieldOp = cast<asctile::YieldOp>(getBody()->getTerminator());

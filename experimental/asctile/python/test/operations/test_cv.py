@@ -150,8 +150,8 @@ def test_cube_to_gm_sync(M, K, N):
     torch.testing.assert_close(c, c_ref, atol=1e-3, rtol=1e-3)
 
 
-@pytest.mark.parametrize("vecid, split", ((0, asctile.SplitMode.FullVec0), (1, asctile.SplitMode.FullVec1)))
-def test_split_by_aiv(vecid, split):
+@pytest.mark.parametrize("vecid, distrib", ((0, asctile.DistribMode.FullVec0), (1, asctile.DistribMode.FullVec1)))
+def test_distribute_by_aiv(vecid, distrib):
     m, k, n = 32, 64, 64
     a = (torch.rand((m, k), dtype=torch.float16) - .5) * 10
     b = (torch.rand((k, n), dtype=torch.float16) - .5) * 10
@@ -164,7 +164,7 @@ def test_split_by_aiv(vecid, split):
         c_gm = asctile.global_tensor(c_ptr, c_shape)
         a = asctile.copy_in(a_gm, [0, 0], a_shape)
         b = asctile.copy_in(b_gm, [0, 0], b_shape)
-        c = asctile.copy(a @ b, location="UB", split=split)
+        c = asctile.copy(a @ b, location="UB", distrib=distrib)
         if asctile.sub_block_idx() == vecid:
             res = c + c
             asctile.copy_out(res, c_gm, [0, 0])
@@ -175,8 +175,8 @@ def test_split_by_aiv(vecid, split):
     torch.testing.assert_close(c, res_ref, atol=1e-3, rtol=1e-3)
 
 
-@pytest.mark.parametrize("axis, split", ((0, asctile.SplitMode.SplitByM), (1, asctile.SplitMode.SplitByN)))
-def test_split_by_axis(axis, split):
+@pytest.mark.parametrize("axis, distrib", ((0, asctile.DistribMode.SplitByM), (1, asctile.DistribMode.SplitByN)))
+def test_split_by_axis(axis, distrib):
     m, k, n = 32, 64, 64
     a = (torch.rand((m, k), dtype=torch.float16) - .5) * 10
     b = (torch.rand((k, n), dtype=torch.float16) - .5) * 10
@@ -189,7 +189,7 @@ def test_split_by_axis(axis, split):
         c_gm = asctile.global_tensor(c_ptr, c_shape)
         a = asctile.copy_in(a_gm, [0, 0], a_shape)
         b = asctile.copy_in(b_gm, [0, 0], b_shape)
-        c = asctile.copy(a @ b, location="UB", split=split)
+        c = asctile.copy(a @ b, location="UB", distrib=distrib)
         res = c + c
         if axis == 0:
             asctile.copy_out(res, c_gm, [c_shape[0] // 2 * asctile.sub_block_idx(), 0])
@@ -202,7 +202,7 @@ def test_split_by_axis(axis, split):
     torch.testing.assert_close(c, res_ref, atol=1e-3, rtol=1e-3)
 
 
-@pytest.mark.parametrize("split, reduce_axis", ((asctile.SplitMode.SplitByM, 1), (asctile.SplitMode.SplitByN, 0)))
+@pytest.mark.parametrize("split, reduce_axis", ((asctile.DistribMode.SplitByM, 1), (asctile.DistribMode.SplitByN, 0)))
 def test_cv_strategy(split, reduce_axis):
     m, k, n = 32, 64, 64
     a = (torch.rand((m, k), dtype=torch.float16) - .5) * 10

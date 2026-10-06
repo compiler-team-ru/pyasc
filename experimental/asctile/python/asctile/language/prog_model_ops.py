@@ -16,7 +16,7 @@ from asc.language.core.ir_value import IRHandle, PlainValue
 from asc.language.core.utils import global_builder, require_jit
 
 from .context_manager import ContextManager
-from .memory_ops import SplitMode
+from .memory_ops import DistribMode
 from .validation import check_type
 
 
@@ -112,10 +112,10 @@ def sub_block_num() -> PlainValue:
 
 class CVStrategyContext(ContextManager):
 
-    def __init__(self, split: SplitMode) -> None:
+    def __init__(self, split: DistribMode) -> None:
         super().__init__()
-        check_type("split", split, SplitMode)
-        if split not in (SplitMode.SplitByM, SplitMode.SplitByN):
+        check_type("split", split, DistribMode)
+        if split not in (DistribMode.SplitByM, DistribMode.SplitByN):
             raise ValueError(f"Splitting by axis must be requested, got {split.value}")
         self.split = split
 
@@ -143,7 +143,7 @@ class CVStrategyContext(ContextManager):
 
 
 @require_jit
-def cv_strategy(split: SplitMode) -> CVStrategyContext:
+def cv_strategy(split: DistribMode) -> CVStrategyContext:
     """
     [Experimental] Declare a split strategy for vector sub-blocks.
 
@@ -162,10 +162,10 @@ def cv_strategy(split: SplitMode) -> CVStrategyContext:
     Other operations are not eligible for splitting.
 
     Args:
-        split: The axis along which to split tensor work. Must be ``SplitMode.SplitByM`` or ``SplitMode.SplitByN``.
+        split: The axis along which to split tensor work. Must be ``DistribMode.SplitByM`` or ``DistribMode.SplitByN``.
 
     Raises:
-        TypeError: If ``split`` is not a ``SplitMode``
+        TypeError: If ``split`` is not a ``DistribMode``
         ValueError: If ``split`` does not request splitting by an axis
 
     Note:
@@ -178,17 +178,17 @@ def cv_strategy(split: SplitMode) -> CVStrategyContext:
         Split a matmul result by M, reduce each sub-block's partial result, and broadcast it to the bigger shape: ::
 
             addend = asctile.copy_in(input_tensor, offsets=[0, 0], shape=[32, 64])
-            with asctile.cv_strategy(asctile.SplitMode.SplitByM):  # actual shape | internally split shape
-                matmul = asctile.copy(a @ b, location="UB")        # [32, 64]     | [16, 64]
-                elwise = (matmul + addend) * 3                     # [32, 64]     | [16, 64]
-                reduce = elwise.sum(1)                             # [32]         | [16]
-                rshape = reduce.expand_dims(1)                     # [32, 1]      | [16, 1]
-                brcast = rshape.broadcast_to(32, 128)              # [32, 128]    | [16, 128]
-                asctile.copy_out(brcast, output_tensor, [0, 0])    # each sub-block copies [16, 128] half of [32, 128]
+            with asctile.cv_strategy(asctile.DistribMode.SplitByM):  # actual shape | internally split shape
+                matmul = asctile.copy(a @ b, location="UB")          # [32, 64]     | [16, 64]
+                elwise = (matmul + addend) * 3                       # [32, 64]     | [16, 64]
+                reduce = elwise.sum(1)                               # [32]         | [16]
+                rshape = reduce.expand_dims(1)                       # [32, 1]      | [16, 1]
+                brcast = rshape.broadcast_to(32, 128)                # [32, 128]    | [16, 128]
+                asctile.copy_out(brcast, output_tensor, [0, 0])      # each sub-block copies [16, 128] half of [32, 128]
 
         Split a matmul result by N and use it both inside and outside of the ``cv_strategy`` context: ::
 
-            with asctile.cv_strategy(asctile.SplitMode.SplitByN):
+            with asctile.cv_strategy(asctile.DistribMode.SplitByN):
                 c_l0 = asctile.matmul(a, b)
                 c_ub = c_l0.to("UB") * 3.0
                 asctile.copy_out(c_ub, output_tensor, [0, 0])

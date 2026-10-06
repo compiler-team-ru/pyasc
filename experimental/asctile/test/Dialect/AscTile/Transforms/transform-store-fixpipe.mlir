@@ -18,13 +18,13 @@ func.func @copy_from_l0c(%arg0: tensor<16x16xf32, #asctile.local<L0C>>) -> tenso
   return %0 : tensor<16x16xf32, #asctile.local<UB>>
 }
 
-// CHECK-LABEL: func.func @copy_from_l0c_with_split(%arg0: tensor<32x64xf32, #asctile.local<L0C>>) -> tensor<16x64xf32, #asctile.local<UB>> {
-// CHECK:      %0 = asctile.copy_fixpipe %arg0[%c0_i32, %c0_i32] {split = #asctile.split_mode<split_by_m>} : tensor<32x64xf32, #asctile.local<L0C>>, tensor<16x64xf32, #asctile.local<UB>>
+// CHECK-LABEL: func.func @copy_from_l0c_with_distrib(%arg0: tensor<32x64xf32, #asctile.local<L0C>>) -> tensor<16x64xf32, #asctile.local<UB>> {
+// CHECK:      %0 = asctile.copy_fixpipe %arg0[%c0_i32, %c0_i32] {distrib = #asctile.distrib_mode<split_by_m>} : tensor<32x64xf32, #asctile.local<L0C>>, tensor<16x64xf32, #asctile.local<UB>>
 // CHECK-NEXT: return %0 : tensor<16x64xf32, #asctile.local<UB>>
 // CHECK-NEXT:}
-func.func @copy_from_l0c_with_split(%arg0: tensor<32x64xf32, #asctile.local<L0C>>) -> tensor<16x64xf32, #asctile.local<UB>> {
+func.func @copy_from_l0c_with_distrib(%arg0: tensor<32x64xf32, #asctile.local<L0C>>) -> tensor<16x64xf32, #asctile.local<UB>> {
   %c0 = arith.constant 0 : i32
-  %0 = asctile.copy %arg0[%c0, %c0] {split = #asctile.split_mode<split_by_m>} : tensor<32x64xf32, #asctile.local<L0C>>, tensor<16x64xf32, #asctile.local<UB>>
+  %0 = asctile.copy %arg0[%c0, %c0] {distrib = #asctile.distrib_mode<split_by_m>} : tensor<32x64xf32, #asctile.local<L0C>>, tensor<16x64xf32, #asctile.local<UB>>
   return %0 : tensor<16x64xf32, #asctile.local<UB>>
 }
 

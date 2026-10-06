@@ -44,7 +44,7 @@ struct CastToCopy : OpRewritePattern<tensor::CastOp> {
         auto dstLoc = cast<LocalTensorType>(type).getLoc();
         Value zero = rewriter.create<arith::ConstantIntOp>(op.getLoc(), 0L, 32U);
         SmallVector<Value, 2> offsets{static_cast<size_t>(type.getRank()), zero};
-        rewriter.replaceOpWithNewOp<asctile::CopyOp>(op, type, base, offsets, SplitModeAttr{});
+        rewriter.replaceOpWithNewOp<asctile::CopyOp>(op, type, base, offsets, DistribModeAttr{});
         return success();
     }
 };

@@ -49,7 +49,7 @@ func.func @conflicting_split_shape(%arg0: tensor<32x64xf32, #asctile.local<L0C>>
   asctile.cv_strategy <split_by_m> {
     %0 = asctile.copy %arg0[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x64xf32, #asctile.local<UB>>
     // expected-error@+1 {{has conflicting CV split shape requests}}
-    %1 = arith.addf %0, %arg1 {asctile.need_split = #asctile.split_mode<split_by_m>, asctile.split_shape = array<i64: 8, 64>} : tensor<32x64xf32, #asctile.local<UB>>
+    %1 = arith.addf %0, %arg1 {asctile.need_split = #asctile.distrib_mode<split_by_m>, asctile.split_shape = array<i64: 8, 64>} : tensor<32x64xf32, #asctile.local<UB>>
   }
   return
 }
