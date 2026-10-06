@@ -471,3 +471,100 @@ module attributes {ascendc.cv_ratio = 2 : i64} {
     return %1 : !ascendc.local_tensor<8xf32>
   }
 }
+
+// -----
+ 
+// CHECK-LABEL: func.func @cv_ratio_2_aiv_trigger_aic_consumer(%arg0: !ascendc.local_tensor<16x16xf32>, %arg1: !ascendc.local_tensor<16x16xf32>, %arg2: !ascendc.mmad_params, %arg3: !ascendc.load_data_2d_params_v2) -> !ascendc.local_tensor<16x16xf32> attributes {ascendc.cross_core_flag_id = 1 : i32} {
+// CHECK:       ascendc.if_aiv {
+// CHECK-NEXT:    ascendc.data_copy_l2 %0, %arg0, %c256_i32 {direction = #ascendc.copy_direction<veccalc, a1>} : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf32>, i32
+// CHECK-NEXT:    %c0_i32 = arith.constant 0 : i32
+// CHECK-NEXT:    ascendc.cross_core_set_flag %c0_i32, 4, pipe_mte3 : i32
+// CHECK-NEXT:  }
+// CHECK-NEXT:  %4 = ascendc.if_aic -> !ascendc.local_tensor<16x16xf32> {
+// CHECK-NEXT:    %c0_i32 = arith.constant 0 : i32
+// CHECK-NEXT:    ascendc.cross_core_wait_flag %c0_i32, 4, pipe_mte1 : i32
+// CHECK-NEXT:    %c16_i32 = arith.constant 16 : i32
+// CHECK-NEXT:    ascendc.cross_core_wait_flag %c16_i32, 4, pipe_mte1 : i32
+// CHECK-NEXT:    ascendc.load_data_l0_v2 %1, %0, %arg3 : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.load_data_2d_params_v2
+// CHECK-NEXT:    ascendc.load_data_l0_v2 %2, %0, %arg3 : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.load_data_2d_params_v2
+// CHECK-NEXT:    ascendc.mmad %3, %1, %2, %arg2 : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.mmad_params
+// CHECK-NEXT:    %c0_i32_0 = arith.constant 0 : i32
+// CHECK-NEXT:    ascendc.cross_core_set_flag %c0_i32_0, 4, pipe_mte1 : i32
+// CHECK-NEXT:    %c16_i32_1 = arith.constant 16 : i32
+// CHECK-NEXT:    ascendc.cross_core_set_flag %c16_i32_1, 4, pipe_mte1 : i32
+// CHECK-NEXT:    ascendc.yield %3 : !ascendc.local_tensor<16x16xf32>
+// CHECK-NEXT:  }
+// CHECK-NEXT:  return %4 : !ascendc.local_tensor<16x16xf32>
+// CHECK-NEXT:}
+module attributes {ascendc.cv_ratio = 2 : i64} {
+  func.func @cv_ratio_2_aiv_trigger_aic_consumer(%arg0: !ascendc.local_tensor<16x16xf32>, %arg1: !ascendc.local_tensor<16x16xf32>, %arg2: !ascendc.mmad_params, %arg3: !ascendc.load_data_2d_params_v2) -> !ascendc.local_tensor<16x16xf32> {
+    %dst = ascendc.local_tensor_v3 a1, 0, 256 : !ascendc.local_tensor<16x16xf32>
+    %l0a = ascendc.local_tensor_v3 a2, 0, 256 : !ascendc.local_tensor<16x16xf32>
+    %l0b = ascendc.local_tensor_v3 b2, 0, 256 : !ascendc.local_tensor<16x16xf32>
+    %co1 = ascendc.local_tensor_v3 co1, 0, 1024 : !ascendc.local_tensor<16x16xf32>
+    %c256 = arith.constant 256 : i32
+    ascendc.if_aiv {
+      ascendc.data_copy_l2 %dst, %arg0, %c256 {direction = #ascendc.copy_direction<veccalc, a1>} : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf32>, i32
+      ascendc.yield
+    }
+    %0 = ascendc.if_aic -> !ascendc.local_tensor<16x16xf32> {
+      ascendc.load_data_l0_v2 %l0a, %dst, %arg3 : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.load_data_2d_params_v2
+      ascendc.load_data_l0_v2 %l0b, %dst, %arg3 : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.load_data_2d_params_v2
+      ascendc.mmad %co1, %l0a, %l0b, %arg2 : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf32>, !ascendc.mmad_params
+      ascendc.yield %co1 : !ascendc.local_tensor<16x16xf32>
+    }
+    return %0 : !ascendc.local_tensor<16x16xf32>
+  }
+}
+ 
+// -----
+ 
+// CHECK-LABEL: func.func @cv_ratio_2_inner_loop_trigger(%arg0: !ascendc.local_tensor<16x16xf16>, %arg1: !ascendc.local_tensor<16x16xf16>, %arg2: !ascendc.mmad_params, %arg3: !ascendc.load_data_2d_params_v2, %arg4: i32) -> !ascendc.local_tensor<16x16xf32> attributes {ascendc.cross_core_flag_id = 1 : i32} {
+// CHECK:       ascendc.if_aiv {
+// CHECK-NEXT:    scf.for %arg5 = %arg4 to %arg4 step %arg4  : i32 {
+// CHECK-NEXT:      %5 = arith.muli %arg5, %arg4 : i32
+// CHECK-NEXT:      %6 = ascendc.local_tensor.subindex %0[%5] : !ascendc.local_tensor<16x16xf16>, i32, !ascendc.local_tensor<16x16xf16>
+// CHECK-NEXT:      ascendc.data_copy_l2 %6, %arg0, %arg4 {direction = #ascendc.copy_direction<veccalc, a1>} : !ascendc.local_tensor<16x16xf16>, !ascendc.local_tensor<16x16xf16>, i32
+// CHECK-NEXT:    }
+// CHECK-NEXT:    %c0_i32 = arith.constant 0 : i32
+// CHECK-NEXT:    ascendc.cross_core_set_flag %c0_i32, 4, pipe_mte3 : i32
+// CHECK-NEXT:  }
+// CHECK-NEXT:  %4 = ascendc.if_aic -> !ascendc.local_tensor<16x16xf32> {
+// CHECK-NEXT:    %c0_i32 = arith.constant 0 : i32
+// CHECK-NEXT:    ascendc.cross_core_wait_flag %c0_i32, 4, pipe_mte1 : i32
+// CHECK-NEXT:    %c16_i32 = arith.constant 16 : i32
+// CHECK-NEXT:    ascendc.cross_core_wait_flag %c16_i32, 4, pipe_mte1 : i32
+// CHECK-NEXT:    ascendc.load_data_l0_v2 %1, %0, %arg3 : !ascendc.local_tensor<16x16xf16>, !ascendc.local_tensor<16x16xf16>, !ascendc.load_data_2d_params_v2
+// CHECK-NEXT:    ascendc.load_data_l0_v2 %2, %0, %arg3 : !ascendc.local_tensor<16x16xf16>, !ascendc.local_tensor<16x16xf16>, !ascendc.load_data_2d_params_v2
+// CHECK-NEXT:    ascendc.mmad %3, %1, %2, %arg2 : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf16>, !ascendc.local_tensor<16x16xf16>, !ascendc.mmad_params
+// CHECK-NEXT:    %c0_i32_0 = arith.constant 0 : i32
+// CHECK-NEXT:    ascendc.cross_core_set_flag %c0_i32_0, 4, pipe_mte1 : i32
+// CHECK-NEXT:    %c16_i32_1 = arith.constant 16 : i32
+// CHECK-NEXT:    ascendc.cross_core_set_flag %c16_i32_1, 4, pipe_mte1 : i32
+// CHECK-NEXT:    ascendc.yield %3 : !ascendc.local_tensor<16x16xf32>
+// CHECK-NEXT:  }
+// CHECK-NEXT:  return %4 : !ascendc.local_tensor<16x16xf32>
+// CHECK-NEXT:}
+module attributes {ascendc.cv_ratio = 2 : i64} {
+  func.func @cv_ratio_2_inner_loop_trigger(%arg0: !ascendc.local_tensor<16x16xf16>, %arg1: !ascendc.local_tensor<16x16xf16>, %arg2: !ascendc.mmad_params, %arg3: !ascendc.load_data_2d_params_v2, %arg4: i32) -> !ascendc.local_tensor<16x16xf32> {
+    %l1 = ascendc.local_tensor_v3 a1, 0, 1024 : !ascendc.local_tensor<16x16xf16>
+    %l0a = ascendc.local_tensor_v3 a2, 0, 256 : !ascendc.local_tensor<16x16xf16>
+    %l0b = ascendc.local_tensor_v3 b2, 0, 256 : !ascendc.local_tensor<16x16xf16>
+    %co1 = ascendc.local_tensor_v3 co1, 0, 1024 : !ascendc.local_tensor<16x16xf32>
+    ascendc.if_aiv {
+      scf.for %i = %arg4 to %arg4 step %arg4 : i32 {
+        %offset = arith.muli %i, %arg4 : i32
+        %dst = ascendc.local_tensor.subindex %l1[%offset] : !ascendc.local_tensor<16x16xf16>, i32, !ascendc.local_tensor<16x16xf16>
+        ascendc.data_copy_l2 %dst, %arg0, %arg4 {direction = #ascendc.copy_direction<veccalc, a1>} : !ascendc.local_tensor<16x16xf16>, !ascendc.local_tensor<16x16xf16>, i32
+      }
+      ascendc.yield
+    }
+    %0 = ascendc.if_aic -> !ascendc.local_tensor<16x16xf32> {
+      ascendc.load_data_l0_v2 %l0a, %l1, %arg3 : !ascendc.local_tensor<16x16xf16>, !ascendc.local_tensor<16x16xf16>, !ascendc.load_data_2d_params_v2
+      ascendc.load_data_l0_v2 %l0b, %l1, %arg3 : !ascendc.local_tensor<16x16xf16>, !ascendc.local_tensor<16x16xf16>, !ascendc.load_data_2d_params_v2
+      ascendc.mmad %co1, %l0a, %l0b, %arg2 : !ascendc.local_tensor<16x16xf32>, !ascendc.local_tensor<16x16xf16>, !ascendc.local_tensor<16x16xf16>, !ascendc.mmad_params
+      ascendc.yield %co1 : !ascendc.local_tensor<16x16xf32>
+    }
+    return %0 : !ascendc.local_tensor<16x16xf32>
+  }
+}
