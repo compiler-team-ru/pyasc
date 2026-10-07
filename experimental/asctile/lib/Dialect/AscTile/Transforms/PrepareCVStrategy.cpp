@@ -367,6 +367,8 @@ class CVStrategyModel {
         auto loopResults = loop.getLoopResults();
         if (!loopResults || yieldedValues.size() != loopResults->size())
             return yieldOp.emitOpError("has mismatched yielded values and loop results");
+        if (planAnnotation({}, yieldOp).failed())
+            return failure();
         for (auto [index, operand] : llvm::enumerate(yieldedValues)) {
             if (operand != state.value)
                 continue;
@@ -439,7 +441,7 @@ public:
                 }
                 if (state.kind == UserKind::Unsplit && user->getParentOfType<CVStrategyOp>())
                     return user->emitOpError("cannot use a CV strategy result inside another CV strategy");
-                if (auto yieldOp = dyn_cast<scf::YieldOp>(user); yieldOp && state.value.getDefiningOp<CVStrategyOp>()) {
+                if (auto yieldOp = dyn_cast<scf::YieldOp>(user); yieldOp && state.kind == UserKind::Unsplit) {
                     if (propagateLoopYield(state, yieldOp).failed())
                         return failure();
                     continue;
