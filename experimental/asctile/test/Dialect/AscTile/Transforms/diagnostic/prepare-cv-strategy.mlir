@@ -86,26 +86,6 @@ func.func @external_result_used_inside_cv(%arg0: tensor<32x64xf32, #asctile.loca
 
 // -----
 
-func.func @external_chain_to_scf_yield(%arg0: tensor<32x64xf32, #asctile.local<L0C>>, %arg1: tensor<32x64xf32, #asctile.local<UB>>, %arg2: tensor<32x64xf32, #asctile.global>) {
-  %c0_i32 = arith.constant 0 : i32
-  %c0 = arith.constant 0 : index
-  %c1 = arith.constant 1 : index
-  %c4 = arith.constant 4 : index
-  %0 = asctile.cv_strategy <split_by_m> -> tensor<32x64xf32, #asctile.local<UB>> {
-    %1 = asctile.copy %arg0[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x64xf32, #asctile.local<UB>>
-    asctile.yield %1 : tensor<32x64xf32, #asctile.local<UB>>
-  }
-  %2 = arith.addf %0, %arg1 : tensor<32x64xf32, #asctile.local<UB>>
-  %3 = scf.for %iv = %c0 to %c4 step %c1 iter_args(%arg3 = %arg1) -> tensor<32x64xf32, #asctile.local<UB>> {
-    // expected-error@+1 {{is not supported by CV strategy propagation}}
-    scf.yield %2 : tensor<32x64xf32, #asctile.local<UB>>
-  }
-  asctile.store %3, %arg2[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<UB>>, tensor<32x64xf32, #asctile.global>
-  return
-}
-
-// -----
-
 func.func @split_by_m_1d_broadcast(%arg0: tensor<32xf32, #asctile.local<L0C>>) {
   %c0_i32 = arith.constant 0 : i32
   asctile.cv_strategy <split_by_m> {

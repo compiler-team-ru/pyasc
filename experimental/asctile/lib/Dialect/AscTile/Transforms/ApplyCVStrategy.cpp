@@ -114,13 +114,17 @@ bool collectLoopCarriedSplits(scf::ForOp loop, SmallVectorImpl<LoopCarriedSplit>
     if (yieldedValues.empty() || !loopResults || yieldedValues.size() != loopResults->size())
         return false;
     for (auto [index, yieldedValue] : llvm::enumerate(yieldedValues)) {
-        auto cvStrategy = yieldedValue.getDefiningOp<CVStrategyOp>();
-        if (!cvStrategy)
-            continue;
-        auto cvYield = cast<YieldOp>(cvStrategy.getBody()->getTerminator());
-        auto* producer = cvYield->getOperand(cast<OpResult>(yieldedValue).getResultNumber()).getDefiningOp();
+        auto* producer = yieldedValue.getDefiningOp();
         if (!producer)
             continue;
+        if (auto cvStrategy = dyn_cast<CVStrategyOp>(producer)) {
+            if (cvStrategy->getRegion(0).empty())
+                continue;
+            auto cvYield = cast<YieldOp>(cvStrategy.getBody()->getTerminator());
+            producer = cvYield->getOperand(cast<OpResult>(yieldedValue).getResultNumber()).getDefiningOp();
+            if (!producer)
+                continue;
+        }
         auto [split, shape] = getSplitInfo(producer);
         if (!split)
             continue;
@@ -146,8 +150,9 @@ struct SplitCopy : OpConversionPattern<CopyOp> {
             return success();
         }
         if (srcLoc == TensorLocation::UB && dstLoc == TensorLocation::L1) {
-            auto offsets = splitOffsets(rewriter, op.getOffsets(), split.getValue(), shape);
-            rewriter.replaceOpWithNewOp<CopyOp>(op, op.getType(), src, offsets, DistribModeAttr{});
+            auto distrib = split.getValue() == DistribMode::SplitByM ? DistribMode::JoinByM : DistribMode::JoinByN;
+            rewriter.replaceOpWithNewOp<CopyOp>(
+                op, op.getType(), src, op.getOffsets(), rewriter.getAttr<DistribModeAttr>(distrib));
             return success();
         }
         return op->emitOpError("is not eligible for the CV strategy with splitting");
@@ -281,12 +286,29 @@ struct ConvertOperands : OpConversionPattern<OpT> {
     }
 };
 
+struct InlineCVStrategy : OpConversionPattern<CVStrategyOp> {
+    using OpConversionPattern<CVStrategyOp>::OpConversionPattern;
+
+    LogicalResult matchAndRewrite(
+        CVStrategyOp op, CVStrategyOp::Adaptor, ConversionPatternRewriter& rewriter) const override
+    {
+        Block* body = op.getBody();
+        Operation* yieldOp = body->getTerminator();
+        ValueRange results = yieldOp->getOperands();
+        rewriter.inlineBlockBefore(body, op);
+        rewriter.replaceOp(op, results);
+        rewriter.eraseOp(yieldOp);
+        return success();
+    }
+};
+
 struct ApplyCVStrategyPass : public asctile::impl::ApplyCVStrategyBase<ApplyCVStrategyPass> {
     void runOnOperation() override
     {
         auto funcOp = getOperation();
         MLIRContext* context = &getContext();
         ConversionTarget target(*context);
+        target.addIllegalOp<CVStrategyOp>();
         target.addDynamicallyLegalOp<scf::ForOp>([](scf::ForOp op) {
             SmallVector<LoopCarriedSplit, 4> splits;
             if (!collectLoopCarriedSplits(op, splits))
@@ -302,7 +324,8 @@ struct ApplyCVStrategyPass : public asctile::impl::ApplyCVStrategyBase<ApplyCVSt
         RewritePatternSet patterns(context);
         patterns.add<
             SplitCopy, SplitStore, SplitElementwise, SplitReduce, SplitReshape, SplitBroadcast, SplitFor,
-            ConvertOperands<DumpTensorOp>, ConvertOperands<InlineOp>, ConvertOperands<YieldOp>>(context);
+            InlineCVStrategy, ConvertOperands<DumpTensorOp>, ConvertOperands<InlineOp>, ConvertOperands<YieldOp>,
+            ConvertOperands<scf::YieldOp>>(context);
         DenseSet<Operation*> unlegalizedOps;
         ConversionConfig config;
         config.unlegalizedOps = &unlegalizedOps;
@@ -314,14 +337,6 @@ struct ApplyCVStrategyPass : public asctile::impl::ApplyCVStrategyBase<ApplyCVSt
             signalPassFailure();
             return;
         }
-        funcOp.walk([](CVStrategyOp op) {
-            Block* body = op.getBody();
-            auto* yieldOp = body->getTerminator();
-            op->getBlock()->getOperations().splice(op->getIterator(), body->getOperations());
-            op.replaceAllUsesWith(yieldOp->getOperands());
-            yieldOp->erase();
-            op->erase();
-        });
     }
 };
 

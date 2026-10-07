@@ -318,9 +318,9 @@ def PrepareCVStrategy : Pass<"asctile-prepare-cv-strategy", "func::FuncOp"> {
     L0C-to-UB copies propagate their split result, while terminal UB-to-L1 copies reconstruct the full L1 result.
 
     Propagation follows asctile.yield operands to CV strategy results and continues through their supported external
-    users. It also follows a direct CV strategy result yielded by scf.yield through the corresponding scf.for result
-    and validates that the tied loop-carried region argument is used only by the same CV strategy. Annotations are not
-    committed if any reachable operation is unsupported or receives conflicting split requests.
+    users. It also follows a CV strategy result or propagated external-chain value yielded by scf.yield through the
+    corresponding scf.for result and validates the tied loop-carried region argument. Annotations are not committed if
+    any reachable operation is unsupported or receives conflicting split requests.
   }];
 }
 
