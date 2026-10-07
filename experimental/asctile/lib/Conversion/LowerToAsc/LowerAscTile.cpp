@@ -74,6 +74,10 @@ struct ConvertTensor : public ConvertOp<asctile::TensorOp> {
         auto loc = op.getLoc();
         Value tensor = rewriter.create<ascendc::GlobalTensorOp>(loc, typeConverter->convertType(op.getType()));
         rewriter.create<ascendc::GlobalTensorSetGlobalBufferOp>(loc, tensor, op.getBase(), /*size*/ Value{});
+        if (op.getDisableL2Cache())
+            rewriter.create<ascendc::GlobalTensorSetL2CacheHintOp>(
+                loc, tensor, rewriter.getAttr<ascendc::CacheModeAttr>(ascendc::CacheMode::CACHE_MODE_DISABLE),
+                rewriter.getAttr<ascendc::CacheRwModeAttr>(ascendc::CacheRwMode::RW));
         rewriter.replaceOp(op, tensor);
         return success();
     }

@@ -35,7 +35,7 @@ def AccumulatorOp : AscTile_Op<"accumulator"> {
 
 def TensorOp : AscTile_Op<"tensor", [Pure]> {
   let summary = "Create tensor";
-  let arguments = (ins AnyRankedOrUnrankedMemRef:$base, Variadic<I32>:$sizes);
+  let arguments = (ins AnyRankedOrUnrankedMemRef:$base, Variadic<I32>:$sizes, UnitAttr:$disableL2Cache);
   let results = (outs GlobalTensor:$result);
   let assemblyFormat = "$base `(` $sizes `)` attr-dict `:` qualified(type($base)) `,` qualified(type($result))";
   let hasVerifier = 1;
