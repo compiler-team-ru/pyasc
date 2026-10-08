@@ -44,8 +44,8 @@ class CompileOptions(CompileOptionsBase):
     Value Effect
     ===== ======
     ``0`` Disable the feature (default)
-    ``1`` Enable the feature, use a legacy implementation (recommended)
-    ``2`` Enable the feature, use an experimental implementation
+    ``1`` Enable the feature, use a legacy implementation
+    ``2`` Enable the feature, use a modern implementation (recommended)
     ===== ======
     """
 
@@ -76,7 +76,7 @@ class Compiler(CompilerBase):
         super().preprocess_module(mod)
         builder = ir.Builder(mod.op)
         if self.options.static_alloc is not None:
-            mod.set_attr(ir.attr.static_alloc, builder.get_bool_attr(self.options.static_alloc))
+            mod.set_attr(asctile.ir.attr.static_alloc, builder.get_bool_attr(self.options.static_alloc))
 
     def postprocess_module(self, mod: ir.ModuleOp) -> None:
         super().postprocess_module(mod)

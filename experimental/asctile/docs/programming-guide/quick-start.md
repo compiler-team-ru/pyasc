@@ -16,8 +16,8 @@ See LICENSE in the root of the software repository for the full text of the Lice
 
 ## Install required packages
 
-1. Build PyAsc from sources with an environment variable `PYASC_SETUP_EXPERIMENTAL=1` set.
-2. Install CANN packages if not installed.
+1. [Build AscTile from sources](../installation/build-from-source.rst).
+2. [Install CANN packages](../installation/setup-runtime-env.rst) if not installed.
 
 ## Verify the installation
 

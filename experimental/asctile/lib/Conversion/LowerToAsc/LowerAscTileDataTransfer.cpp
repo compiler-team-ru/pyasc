@@ -11,6 +11,7 @@
 #include "asctile/Conversion/LowerToAsc/Passes.h"
 #include "asctile/Dialect/AscTile/IR/AscTile.h"
 #include "asctile/Dialect/AscTile/Utils/Attributes.h"
+#include "asctile/Dialect/AscTile/Utils/Utils.h"
 #include "asctile/Dialect/AscendC/Utils/Attributes.h"
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
@@ -41,22 +42,6 @@ using namespace mlir::asclower;
 namespace {
 
 constexpr int64_t fractalNum = 2;
-
-SmallVector<Value> getTensorShape(OpBuilder& builder, asctile::TensorOp tensorOp)
-{
-    ascir::ConstantOpBuilder consts(builder);
-    auto type = tensorOp.getType();
-    auto dynamicSizes = tensorOp.getSizes();
-    size_t dynamicSizeIndex = 0;
-    SmallVector<Value> tensorShape;
-    for (auto dim : type.getShape()) {
-        if (ShapedType::isDynamic(dim))
-            tensorShape.push_back(dynamicSizes[dynamicSizeIndex++]);
-        else
-            tensorShape.push_back(consts.i32(dim));
-    }
-    return tensorShape;
-}
 
 Value linearizeOffset(OpBuilder& builder, Location loc, ArrayRef<Value> tensorShape, ValueRange offsets)
 {
@@ -140,7 +125,7 @@ TensorInfo prepareTensorInfo(ConvertRewriter& rewriter, Location loc, Value base
 {
     auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
     assert(tensorOp && "tensor must be created by asctile.tensor op");
-    SmallVector<Value> shape = getTensorShape(rewriter, tensorOp);
+    SmallVector<Value> shape = asctile::getTensorShape(rewriter, tensorOp);
     Value tensor = rewriter.getRemappedValue(base);
     auto type = cast<ascendc::BaseTensorType>(tensor.getType());
     if (!offsets.empty()) {
@@ -969,7 +954,8 @@ struct ConvertCopy : ConvertOp<asctile::CopyOp> {
             auto cubeKBlockSize = static_cast<int64_t>(ascendc::cubeKBlockBytes) / elementSize;
             auto colBlocks = width / cubeKBlockSize;
             auto srcColBlocks = srcWidth / cubeKBlockSize;
-            auto heightAligned = static_cast<int64_t>(llvm::alignTo(height, ascendc::cubeBlockSize));
+            auto heightAligned =
+                srcShape[0] > 1 ? static_cast<int64_t>(llvm::alignTo(height, ascendc::cubeBlockSize)) : height;
             auto totalElements = heightAligned * width;
             auto const0 = consts.i32(0);
             auto const1 = consts.i32(1);
@@ -1062,7 +1048,7 @@ struct ConvertGetValue : ConvertOp<asctile::GetValueOp> {
         auto loc = op.getLoc();
         auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
         assert(tensorOp && "tensor must be created by asctile.tensor op");
-        SmallVector<Value> srcShape = getTensorShape(rewriter, tensorOp);
+        SmallVector<Value> srcShape = asctile::getTensorShape(rewriter, tensorOp);
         Value linearOffset = linearizeOffset(rewriter, loc, srcShape, op.getOffsets());
         Value src = rewriter.getRemappedValue(base);
         rewriter.replaceOpWithNewOp<ascendc::GlobalTensorGetValueOp>(op, op.getType(), src, linearOffset);
@@ -1085,7 +1071,7 @@ struct ConvertSetValue : ConvertOp<asctile::SetValueOp> {
         }
         auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
         assert(tensorOp && "tensor must be created by asctile.tensor op");
-        SmallVector<Value> dstShape = getTensorShape(rewriter, tensorOp);
+        SmallVector<Value> dstShape = asctile::getTensorShape(rewriter, tensorOp);
         Value linearOffset = linearizeOffset(rewriter, loc, dstShape, op.getOffsets());
         Value dst = rewriter.getRemappedValue(base);
         Value offset = rewriter.create<emitc::CastOp>(loc, rewriter.getIntegerType(64, false), linearOffset);

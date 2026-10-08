@@ -11,6 +11,7 @@
 #include "asctile/Conversion/LowerToAsc/Passes.h"
 #include "asctile/Dialect/AscTile/IR/AscTile.h"
 #include "asctile/Dialect/AscTile/Utils/Attributes.h"
+#include "asctile/Dialect/AscTile/Utils/Utils.h"
 #include "asctile/Dialect/AscVF/IR/AscVF.h"
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
@@ -698,17 +699,26 @@ struct ConvertDumpTensor : ConvertOp<asctile::DumpTensorOp> {
                 rewriter.create<ascendc::LocalTensorGetShapeInfoOp>(
                     loc, rewriter.getType<ascendc::ShapeInfoType>(), convertTensor));
         } else {
+            auto tensorOp = tensor.getDefiningOp<asctile::TensorOp>();
+            if (!tensorOp)
+                return op.emitError() << "cannot get shape of global tensor without defining 'asctile.tensor' op";
             std::string buffer;
             llvm::raw_string_ostream os(buffer);
-            os << "Dump tensor: addr=%p, dtype=";
-            auto elemType = cast<ascendc::GlobalTensorType>(convertTensor.getType()).getElementType();
+            auto elemType = getElementTypeOrSelf(convertTensor);
+            os << "GlobalTensor(addr=%p, dtype=";
             elemType.print(os);
-            os << ", position=GM\n";
+            auto shapeValues = asctile::getTensorShape(rewriter, tensorOp);
+            os << ", shape=[";
+            llvm::interleaveComma(shapeValues, os, [&](const Value&) { os << "%d"; });
+            os << "])\n";
             auto ui64Type = rewriter.getIntegerType(64, false);
             auto offset = rewriter.create<emitc::ConstantOp>(loc, ui64Type, rewriter.getIntegerAttr(ui64Type, 0));
             auto phyAddrType = UnrankedMemRefType::get(elemType, static_cast<int64_t>(ascendc::AddressSpace::gm));
             auto phyAddr = rewriter.create<ascendc::GlobalTensorGetPhyAddrOp>(loc, phyAddrType, convertTensor, offset);
-            rewriter.replaceOpWithNewOp<ascendc::PrintfOp>(op, os.str(), ValueRange{phyAddr.getResult()});
+            SmallVector<Value> args;
+            args.push_back(phyAddr.getResult());
+            args.append(shapeValues);
+            rewriter.replaceOpWithNewOp<ascendc::PrintfOp>(op, os.str(), ValueRange(args));
         }
         return success();
     }
