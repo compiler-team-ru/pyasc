@@ -31,6 +31,7 @@ namespace {
 struct GMFlagInfo {
     int32_t flagId = -1;
     bool isUBToGM = false;
+    Operation* storeGroup = nullptr;
 };
 
 struct GMLoadInfo {
@@ -87,6 +88,7 @@ GMLoadInfo findGMLoad(Operation* groupOp, const llvm::DenseMap<Value, GMFlagInfo
 bool hasSubsequentConsumer(Operation* currentGroup, Value root, ArrayRef<Operation*> groupOps)
 {
     llvm::DenseMap<Value, GMFlagInfo> single{{root, {}}};
+    bool storeIsAIV = isa<ascendc::IfAIVOp>(currentGroup);
     bool seen = false;
     for (auto* g : groupOps) {
         if (g == currentGroup) {
@@ -95,7 +97,7 @@ bool hasSubsequentConsumer(Operation* currentGroup, Value root, ArrayRef<Operati
         }
         if (!seen)
             continue;
-        if (findGMLoad(g, single).root)
+        if (findGMLoad(g, single).root && isa<ascendc::IfAIVOp>(g) != storeIsAIV)
             return true;
     }
     return false;
@@ -118,7 +120,8 @@ struct InsertCrossCoreSyncGMPass : public ascendc::impl::InsertCrossCoreSyncGMBa
         for (auto* groupOp : groupOps) {
             if (!gmRootsWithFlags.empty()) {
                 GMLoadInfo load = findGMLoad(groupOp, gmRootsWithFlags);
-                if (load.flag.flagId >= 0) {
+                if (load.flag.flagId >= 0 && load.flag.storeGroup != nullptr &&
+                    isa<ascendc::IfAIVOp>(load.flag.storeGroup) != isa<ascendc::IfAIVOp>(groupOp)) {
                     Block& body = groupOp->getRegion(0).front();
                     builder.setInsertionPointToStart(&body);
                     createWaitFlag(builder, groupOp->getLoc(), load.flag.flagId, Pipe::PIPE_S, load.flag.isUBToGM);
@@ -138,7 +141,7 @@ struct InsertCrossCoreSyncGMPass : public ascendc::impl::InsertCrossCoreSyncGMBa
                     int32_t flagId = crossCoreFlagId;
                     crossCoreFlagId = (crossCoreFlagId + 1) % maxTensorId;
                     createSetFlag(builder, op->getLoc(), flagId, producerPipe, dualSync);
-                    gmRootsWithFlags[root] = {flagId, isUBToGM};
+                    gmRootsWithFlags[root] = {flagId, isUBToGM, groupOp};
                 }
             };
             emitProducerFlags(isL0CToGMCopy, true, false);
