@@ -39,6 +39,17 @@ using namespace mlir::asclower;
 
 namespace {
 
+struct ConvertEmpty : public ConvertOp<tensor::EmptyOp> {
+    using ConvertOp::ConvertOp;
+
+    LogicalResult matchAndRewrite(tensor::EmptyOp op, ConvertRewriter& rewriter) const override
+    {
+        Value tensor = createTensorOp(rewriter, op.getLoc(), op.getType());
+        rewriter.replaceOp(op, tensor);
+        return success();
+    }
+};
+
 struct ConvertExtractSlice : public ConvertOp<tensor::ExtractSliceOp> {
     using ConvertOp::ConvertOp;
 
@@ -119,11 +130,11 @@ struct LowerTensorPass : public asclower::impl::LowerTensorBase<LowerTensorPass>
         TensorTypeConverter converter;
         MLIRContext* context = &getContext();
         ConversionTarget target(*context);
-        target.addIllegalOp<tensor::SplatOp>();
+        target.addIllegalOp<tensor::EmptyOp, tensor::SplatOp>();
         target.addLegalDialect<ascendc::AscendCDialect, arith::ArithDialect>();
         target.addLegalOp<UnrealizedConversionCastOp>();
         RewritePatternSet patterns(context);
-        patterns.insert<ConvertExtractSlice, ConvertSplat>(converter, context);
+        patterns.insert<ConvertEmpty, ConvertExtractSlice, ConvertSplat>(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())
             signalPassFailure();
     }
