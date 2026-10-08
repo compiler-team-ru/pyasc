@@ -76,9 +76,12 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
             ``JoinByN``  UB → L1           N doubled       joins the columns of both sub-blocks
             ============ ================= =============== =======================================
 
-            For ``SplitByM``, ``SplitByN``, ``JoinByM`` and ``JoinByN``: the source tensor must be 2D and ``shape``
-            must be omitted or equal to ``src.shape``. Additionally, ``SplitByM`` requires the M dimension to be
-            a multiple of 2, and ``SplitByN`` requires the N dimension to be a multiple of 32.
+            For ``SplitByM``, ``SplitByN``, ``JoinByM`` and ``JoinByN``: the source tensor must be 2D. For
+            ``SplitByM`` and ``SplitByN``, ``shape`` must be omitted or equal to the split result shape, i.e. the
+            source shape with the M or N dimension halved, respectively; additionally, ``SplitByM`` requires the M
+            dimension to be a multiple of 2, and ``SplitByN`` requires the N dimension to be a multiple of 32. For
+            ``JoinByM`` and ``JoinByN``, ``shape`` must be omitted or equal to the joined result shape, i.e. the
+            source shape with the M or N dimension doubled, respectively.
 
     Returns:
         LocalTensor: A new tensor that is a copy of the source tensor
@@ -138,9 +141,7 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
     check_type("src", src, LocalTensor)
     check_type("distrib", distrib, Optional[DistribMode])
     location = src.location if location is None else verify_location(location)
-    if shape is None:
-        shape = src.shape
-    else:
+    if shape is not None:
         shape = verify_shape(shape, src.rank)
     if offsets is None:
         offsets = (0, ) * len(src.shape)
@@ -148,22 +149,29 @@ def copy(src: LocalTensor, offsets: Optional[Iterable[RuntimeInt]] = None, shape
         offsets = verify_offsets(offsets, src.rank)
     if distrib in (DistribMode.SplitByM, DistribMode.SplitByN, DistribMode.JoinByM, DistribMode.JoinByN):
         if src.rank != 2:
-            raise RuntimeError(f"Splitting by axis is only supported for 2D tensors, got {src.shape} shape")
-        if shape != src.shape:
-            raise RuntimeError(f"Splitting by axis is only supported for full shape {src.shape}, got {shape}")
-    shape = list(shape)
-    if distrib == DistribMode.SplitByM:
-        if shape[0] % 2 != 0:
-            raise RuntimeError(f"Splitting by M axis requires that it be a multiple of 2, got {shape[0]}")
-        shape[0] //= 2
-    elif distrib == DistribMode.SplitByN:
-        if shape[1] % 32 != 0:
-            raise RuntimeError(f"Splitting by N axis requires that it be a multiple of 32, got {shape[1]}")
-        shape[1] //= 2
-    elif distrib == DistribMode.JoinByM:
-        shape[0] *= 2
-    elif distrib == DistribMode.JoinByN:
-        shape[1] *= 2
+            raise RuntimeError(f"Distributing by axis is only supported for 2D tensors, got {src.shape} shape")
+        result_shape = list(src.shape)
+        if distrib in (DistribMode.SplitByM, DistribMode.SplitByN):
+            result_shape[0 if distrib == DistribMode.SplitByM else 1] //= 2
+        else:
+            result_shape[0 if distrib == DistribMode.JoinByM else 1] *= 2
+    else:
+        result_shape = list(src.shape)
+    if distrib in (DistribMode.SplitByM, DistribMode.SplitByN):
+        if shape is not None and tuple(result_shape) != shape:
+            raise RuntimeError(f"Splitting by axis is only supported for the split shape {tuple(result_shape)}, "
+                               f"got {shape}")
+        if distrib == DistribMode.SplitByM:
+            if src.shape[0] % 2 != 0:
+                raise RuntimeError(f"Splitting by M axis requires that it be a multiple of 2, got {src.shape[0]}")
+        elif src.shape[1] % 32 != 0:
+            raise RuntimeError(f"Splitting by N axis requires that it be a multiple of 32, got {src.shape[1]}")
+    elif distrib in (DistribMode.JoinByM, DistribMode.JoinByN):
+        if shape is not None and tuple(result_shape) != shape:
+            raise RuntimeError(f"Joining by axis is only supported for the joined shape {tuple(result_shape)}, "
+                               f"got {shape}")
+    if shape is None:
+        shape = result_shape
     ir_type = asctile.ir.get_asctile_LocalTensorType(shape, src.dtype.to_ir(), location)
     handle = global_builder.get_ir_builder().create_asctile_CopyOp(ir_type, src.to_ir(), to_ir_list(offsets), distrib)
     return cast_loc(LocalTensor(handle))

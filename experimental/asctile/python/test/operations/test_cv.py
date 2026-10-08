@@ -202,6 +202,41 @@ def test_split_by_axis(axis, distrib):
     torch.testing.assert_close(c, res_ref, atol=1e-3, rtol=1e-3)
 
 
+@asctile.jit(always_compile=True, cv_ratio=2)
+def copy_split_join_kernel(a_ptr: asctile.GlobalAddress, b_ptr: asctile.GlobalAddress, c_ptr: asctile.GlobalAddress,
+                           M: asctile.ConstExpr, K: asctile.ConstExpr, N: asctile.ConstExpr,
+                           split: asctile.ConstExpr[asctile.DistribMode], join: asctile.ConstExpr[asctile.DistribMode]):
+    a_gm = asctile.global_tensor(a_ptr, [M, K])
+    b_gm = asctile.global_tensor(b_ptr, [K, N])
+    c_gm = asctile.global_tensor(c_ptr, [M, N])
+    l0a = asctile.copy_in(a_gm, [0, 0], [M, K], location=asctile.TensorLocation.L0A)
+    l0b = asctile.copy_in(b_gm, [0, 0], [K, N], location=asctile.TensorLocation.L0B)
+    res = l0a @ l0b
+    s = asctile.copy(res, location=asctile.TensorLocation.UB, distrib=split)
+    p = s * s
+    l1b = asctile.copy(p, [0, 0], [M, N], location=asctile.TensorLocation.L1, distrib=join)
+    l0p = asctile.copy(l1b, [0, 0], [M, N], location=asctile.TensorLocation.L0A)
+    res2 = l0p @ l0b
+    asctile.copy_out(res2, c_gm, [0, 0])
+
+
+@pytest.mark.parametrize("split, join", (
+    (asctile.DistribMode.SplitByM, asctile.DistribMode.JoinByM),
+    (asctile.DistribMode.SplitByN, asctile.DistribMode.JoinByN),
+    (asctile.DistribMode.FullVec0, asctile.DistribMode.FullVec0),
+    (asctile.DistribMode.FullVec1, asctile.DistribMode.FullVec1),
+))
+@pytest.mark.parametrize("M, K, N", [(16, 128, 128), (32, 64, 64)])
+def test_copy_split_join(M, K, N, split, join):
+    a = torch.randn(M, K, dtype=torch.float32)
+    b = torch.randn(K, N, dtype=torch.float32)
+    c = torch.zeros(M, N, dtype=torch.float32)
+    copy_split_join_kernel[1](a, b, c, M, K, N, split, join)
+    s = a.float() @ b.float()
+    c_ref = ((s * s) @ b.float())
+    torch.testing.assert_close(c, c_ref, atol=1e-3, rtol=1e-3)
+
+
 @pytest.mark.parametrize("split, reduce_axis", ((asctile.DistribMode.SplitByM, 1), (asctile.DistribMode.SplitByN, 0)))
 def test_cv_strategy(split, reduce_axis):
     m, k, n = 32, 64, 64
