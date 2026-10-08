@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -188,8 +189,8 @@ class Compiler:
                 cmd.insert(cmd_idx_four, "-mllvm")
                 cmd.insert(cmd_idx_five, "-disable-machine-licm")
                 proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                out, ret = proc.communicate()
-                if ret == 0:
+                out, _ = proc.communicate()
+                if proc.returncode == 0:
                     return
             raise RuntimeError("{} failed!\nError message is {}\nPlease rerun {}".format(
                 cmd_type, out.decode(), (" ".join(cmd))))
@@ -313,8 +314,13 @@ class Compiler:
         dump_code += "  #endif\n"
         source_lines = source.split('\n')
         kernel_code_with_dump = ""
+        # Match the kernel *definition* line precisely: the function name as a word
+        # immediately before "(" on a line carrying __aicore__. A loose substring test
+        # false-matches helper declarations (e.g. a kernel named "k" matches any
+        # "Make*"/"Token" helper) and would inject dump_addr into the wrong function.
+        kernel_def = re.compile(rf"\b{re.escape(func_name)}\s*\(")
         for line in source_lines:
-            if func_name in line and "__aicore__" in line:
+            if "__aicore__" in line and kernel_def.search(line):
                 split_line = line.split(")")
                 new_line = split_line[0] + ", __gm__ uint8_t* dump_addr)" + split_line[1]
                 kernel_code_with_dump += new_line + "\n"

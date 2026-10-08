@@ -123,4 +123,17 @@ def test_kernel_type_cmd_exec_failed(mock_ir_module, mock_popen):
     compiler = Compiler(options)
     with pytest.raises(RuntimeError, match="Please rerun"):
         compiler.run(mock_ir_module, "test_func")
-    assert mock_popen.call_count == 3
+    # 2 calls: initial compile + one "-disable-machine-licm" retry; the retry verdict
+    # checks proc.returncode (not the stderr slot), so a failed retry raises immediately.
+    assert mock_popen.call_count == 2
+
+
+def test_dry_run_requested_treats_zero_as_off():
+    from asc.runtime.launcher import dry_run_requested
+
+    assert dry_run_requested(None) is False
+    assert dry_run_requested("") is False
+    assert dry_run_requested("0") is False
+    assert dry_run_requested("false") is False
+    assert dry_run_requested("1") is True
+    assert dry_run_requested("yes") is True

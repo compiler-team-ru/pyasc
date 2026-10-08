@@ -29,13 +29,19 @@ class EmitAsc_Op<string mnemonic, list<Trait> traits = []>
 def EmitAsc_CallOpaqueOp : EmitAsc_Op<"call_opaque"> {
   let summary = "Call C++ function by its name";
   let description = [{
-    Callee name must be demangled. It may include namespaces and template
-    arguments. Constructor should be represented as its parent class name.
+    Callee name must be demangled. The callee string itself must NOT contain
+    template arguments (`<...>`); template arguments are carried structurally by
+    the optional `template_args` attribute (a list of typed attributes) so that
+    `translateToAscendC` can format them into `callee<arg0, arg1, ...>(...)`.
+    The legacy string-callee form (no `template_args`) is preserved unchanged.
+    Constructor should be represented as its parent class name.
   }];
-  let arguments = (ins StrAttr:$callee, Variadic<AnyType>:$callee_operands);
+  let arguments = (ins StrAttr:$callee,
+                       OptionalAttr<ArrayAttr>:$template_args,
+                       Variadic<AnyType>:$callee_operands);
   let results = (outs Optional<AnyType>:$result);
   let assemblyFormat = [{
-    $callee `(` $callee_operands `)` attr-dict `:`
+    $callee (`template_args` $template_args^)? `(` $callee_operands `)` attr-dict `:`
     functional-type($callee_operands, $result)
   }];
 }

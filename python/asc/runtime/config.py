@@ -132,4 +132,4 @@ def platform_to_arch(platform: Union[Platform, str]) -> CompilationArch:
         return CompilationArch.C220
     if platform_name.startswith("Ascend950PR_95"):
         return CompilationArch.C310
-    raise ValueError(f"There is no compilation arch for '{platform.value}' platform")
+    raise ValueError(f"There is no compilation arch for '{platform_name}' platform")

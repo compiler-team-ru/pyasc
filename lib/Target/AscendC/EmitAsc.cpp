@@ -22,7 +22,23 @@ LogicalResult mlir::emitasc::printOperation(CodeEmitter& emitter, emitasc::CallO
     auto& os = emitter.ostream();
 
     FAIL_OR(emitter.emitAssignPrefix(*op.getOperation()));
-    os << op.getCallee() << '(';
+    os << op.getCallee();
+    // Structured template args become `callee<arg0, arg1, ...>`; the legacy
+    // string-callee form (no template_args) prints exactly as before.
+    std::optional<ArrayAttr> templateArgs = op.getTemplateArgs();
+    if (templateArgs && !templateArgs->empty()) {
+        os << '<';
+        bool first = true;
+        for (Attribute arg : *templateArgs) {
+            if (!first)
+                os << ", ";
+            first = false;
+            if (!isa<IntegerAttr, TypeAttr, emitc::OpaqueAttr>(arg) || failed(emitter.emitAttribute(op.getLoc(), arg)))
+                return op.emitOpError("cannot format template argument: ") << arg;
+        }
+        os << '>';
+    }
+    os << '(';
     llvm::interleaveComma(op.getOperands(), os, [&](Value operand) { os << emitter.getOrCreateName(operand); });
     os << ')';
 

@@ -25,6 +25,18 @@ from .memory_handle import MemoryHandle, resolve_memory_handle
 KernelCallback: TypeAlias = Callable[[rt.Function], None]
 
 
+def dry_run_requested(value: Optional[str] = None) -> bool:
+    """True only when ``PYASC_DRY_RUN`` is an explicit on-value.
+
+    A leftover ``PYASC_DRY_RUN=0`` is truthy as a raw string and would skip
+    device launch, leaving host buffers unchanged (typically zeros).
+    """
+    raw = os.environ.get("PYASC_DRY_RUN") if value is None else value
+    if raw is None:
+        return False
+    return raw.strip().lower() not in ("", "0", "false", "no", "off")
+
+
 class MsprofLauncher(object):
 
     def __init__(self, is_model_: bool):
@@ -221,7 +233,7 @@ class Launcher:
         is_launched = isinstance(kernel, LaunchedKernel)
         if not is_launched and kernel.meta.memory_consumed is not None:
             self.check_memory_overflow(kernel.meta.memory_consumed)
-        if os.environ.get("PYASC_DRY_RUN"):
+        if dry_run_requested():
             return
         if not isinstance(kernel.binary, bytes):
             raise RuntimeError("Compiled binary is required to launch the kernel")

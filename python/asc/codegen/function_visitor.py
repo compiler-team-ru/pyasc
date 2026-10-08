@@ -33,13 +33,20 @@ P = ParamSpec("P")
 
 
 class CustomBuiltins(Dict[str, Any]):
-    """dict-like class with fixed __str__ and __repr__ methods to store callable objects"""
-
-    def __str__(self) -> str:
-        return f"{__class__.__name__}(...)"
+    """dict-like store of callables. ``repr`` is a stable cache key."""
 
     def __repr__(self) -> str:
-        return str(self)
+        """Stable identity for cache keys: names plus callee qualnames, not addresses."""
+        parts = []
+        for name in sorted(self):
+            value = self[name]
+            qual = getattr(value, "__qualname__", None) or getattr(value, "__name__", None) or type(value).__name__
+            mod = getattr(value, "__module__", "") or ""
+            parts.append(f"{name}={mod}.{qual}" if mod else f"{name}={qual}")
+        return f"{type(self).__name__}({','.join(parts)})"
+
+    def __str__(self) -> str:
+        return repr(self)
 
     def dict_repr(self) -> str:
         return super().__repr__()
@@ -62,7 +69,7 @@ class CodegenOptions:
     Usually, it must always be enabled, but may be disabled for the IR debugging purposes.
     """
 
-    custom_builtins: CustomBuiltins = field(default_factory=dict)
+    custom_builtins: CustomBuiltins = field(default_factory=CustomBuiltins)
 
 
 @dataclass
