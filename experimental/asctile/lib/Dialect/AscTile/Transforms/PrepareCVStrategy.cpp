@@ -382,6 +382,17 @@ class CVStrategyModel {
         return success();
     }
 
+    LogicalResult propagateYield(const SplitState& state, YieldOp yieldOp, CVStrategyOp parent)
+    {
+        if (planAnnotation({}, yieldOp).failed())
+            return failure();
+        for (auto [result, operand] : llvm::zip_equal(parent.getResults(), yieldOp.getOperands())) {
+            if (operand == state.value)
+                worklist.push_back({result, state.shape, state.axis, UserKind::Unsplit});
+        }
+        return success();
+    }
+
     LogicalResult validateLoopCarriedEdge(const LoopCarriedEdge& edge)
     {
         auto iterArgType = dyn_cast<LocalTensorType>(edge.iterArg.getType());
@@ -430,17 +441,25 @@ public:
                     if (user->getParentOfType<CVStrategyOp>() != root)
                         continue;
                     if (auto yieldOp = dyn_cast<YieldOp>(user)) {
-                        if (planAnnotation({}, yieldOp).failed())
+                        if (propagateYield(state, yieldOp, root).failed())
                             return failure();
-                        for (auto [result, operand] : llvm::zip_equal(root.getResults(), yieldOp.getOperands())) {
-                            if (operand == state.value)
-                                worklist.push_back({result, state.shape, state.axis, UserKind::Unsplit});
-                        }
                         continue;
                     }
                 }
-                if (state.kind == UserKind::Unsplit && user->getParentOfType<CVStrategyOp>())
-                    return user->emitOpError("cannot use a CV strategy result inside another CV strategy");
+                if (state.kind == UserKind::Unsplit) {
+                    if (auto parent = user->getParentOfType<CVStrategyOp>()) {
+                        if (parent.getSplit() != split)
+                            return user->emitError()
+                                   << "tensor defined inside a CV strategy (" << stringifyDistribMode(split)
+                                   << ") cannot be used inside another CV strategy with different 'split' argument ("
+                                   << stringifyDistribMode(parent.getSplit()) << ")";
+                        if (auto yieldOp = dyn_cast<YieldOp>(user)) {
+                            if (propagateYield(state, yieldOp, parent).failed())
+                                return failure();
+                            continue;
+                        }
+                    }
+                }
                 if (auto yieldOp = dyn_cast<scf::YieldOp>(user); yieldOp && state.kind == UserKind::Unsplit) {
                     if (propagateLoopYield(state, yieldOp).failed())
                         return failure();
