@@ -224,3 +224,13 @@ func.func @resolve_inline(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: i32,
   asctile.inline "123 $0;" %0, %arg1, %arg2 : tensor<32xf32, #asctile.local<auto>>, i32, tensor<32xf32, #asctile.local<UB>>
   return
 }
+
+// CHECK-LABEL: func.func @resolve_unrealized_conversion_cast(%arg0: tensor<32xf32, #asctile.local<UB>>) -> !ascendc.local_tensor<32xf32> {
+// CHECK-NEXT:  %0 = builtin.unrealized_conversion_cast %arg0 : tensor<32xf32, #asctile.local<UB>> to !ascendc.local_tensor<32xf32>
+// CHECK-NEXT:  return %0 : !ascendc.local_tensor<32xf32>
+// CHECK-NEXT:}
+func.func @resolve_unrealized_conversion_cast(%arg0: tensor<32xf32, #asctile.local<UB>>) -> !ascendc.local_tensor<32xf32> {
+  %0 = tensor.cast %arg0 : tensor<32xf32, #asctile.local<UB>> to tensor<32xf32, #asctile.local<auto>>
+  %1 = builtin.unrealized_conversion_cast %0 : tensor<32xf32, #asctile.local<auto>> to !ascendc.local_tensor<32xf32>
+  return %1 : !ascendc.local_tensor<32xf32>
+}

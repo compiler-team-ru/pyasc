@@ -8,6 +8,19 @@
 
 // RUN: asctile-opt -asclower-tensor -canonicalize %s | FileCheck %s
 
+// CHECK-LABEL: func.func @lower_empty() -> (tensor<8x16xi16, #asctile.local<UB>>, tensor<16x32xf32, #asctile.local<L0C>>) {
+// CHECK-NEXT:  %0 = ascendc.local_tensor_auto veccalc() : <8x16xi16>
+// CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %0 : !ascendc.local_tensor<8x16xi16> to tensor<8x16xi16, #asctile.local<UB>>
+// CHECK-NEXT:  %2 = ascendc.local_tensor_auto co1() : <16x32xf32>
+// CHECK-NEXT:  %3 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<16x32xf32> to tensor<16x32xf32, #asctile.local<L0C>>
+// CHECK-NEXT:  return %1, %3 : tensor<8x16xi16, #asctile.local<UB>>, tensor<16x32xf32, #asctile.local<L0C>>
+// CHECK-NEXT:}
+func.func @lower_empty() -> (tensor<8x16xi16, #asctile.local<UB>>, tensor<16x32xf32, #asctile.local<L0C>>) {
+  %0 = tensor.empty() : tensor<8x16xi16, #asctile.local<UB>>
+  %1 = tensor.empty() : tensor<16x32xf32, #asctile.local<L0C>>
+  return %0, %1 : tensor<8x16xi16, #asctile.local<UB>>, tensor<16x32xf32, #asctile.local<L0C>>
+}
+
 // CHECK-LABEL: func.func @lower_extract_slice_1d(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: index) -> tensor<16xf32, #asctile.local<UB>> {
 // CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : tensor<32xf32, #asctile.local<UB>> to !ascendc.local_tensor<32xf32>
 // CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <16xf32>

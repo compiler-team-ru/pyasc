@@ -14,6 +14,7 @@
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/TypeRange.h"
@@ -349,6 +350,17 @@ struct AcceptInlineLoc : OpRewritePattern<InlineOp> {
     }
 };
 
+struct AcceptUnrealizedConversionCastLoc : OpRewritePattern<UnrealizedConversionCastOp> {
+    using OpRewritePattern::OpRewritePattern;
+
+    LogicalResult matchAndRewrite(UnrealizedConversionCastOp op, PatternRewriter& rewriter) const override
+    {
+        if (op->getNumOperands() != 1)
+            return failure();
+        return acceptOperandLoc(rewriter, &op->getOpOperand(0));
+    }
+};
+
 struct ReconcileTensorCast : OpRewritePattern<tensor::CastOp> {
     using OpRewritePattern::OpRewritePattern;
 
@@ -372,7 +384,7 @@ void populateCommon(RewritePatternSet& patterns, PatternBenefit benefit = 1)
     auto* context = patterns.getContext();
     patterns.add<
         AcceptCopyLoc, AcceptSetValueLoc, AcceptDumpTensorLoc, AcceptForLoc, AcceptIfLoc, AcceptCVStrategyLoc,
-        AcceptInlineLoc, ReconcileTensorCast>(context, benefit);
+        AcceptInlineLoc, AcceptUnrealizedConversionCastLoc, ReconcileTensorCast>(context, benefit);
 }
 
 void populateFirstStage(RewritePatternSet& patterns)

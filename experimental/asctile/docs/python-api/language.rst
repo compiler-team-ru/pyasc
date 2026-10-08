@@ -213,6 +213,21 @@ Debug operations
     static_print
 
 
+Low-level tweaking operations
+-----------------------------
+
+.. autosummary::
+    :toctree: generated
+    :nosignatures:
+
+    empty
+    empty_like
+    inline
+    inline_vf
+    from_asc
+    to_asc
+
+
 Utility functions
 -----------------
 
