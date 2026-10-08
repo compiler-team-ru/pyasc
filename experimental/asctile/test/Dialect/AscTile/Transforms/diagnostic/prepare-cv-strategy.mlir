@@ -75,9 +75,9 @@ func.func @external_result_used_inside_cv(%arg0: tensor<32x64xf32, #asctile.loca
     %1 = asctile.copy %arg0[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x64xf32, #asctile.local<UB>>
     asctile.yield %1 : tensor<32x64xf32, #asctile.local<UB>>
   }
-  %2 = asctile.cv_strategy <split_by_m> -> tensor<32x64xf32, #asctile.local<UB>> {
+  %2 = asctile.cv_strategy <split_by_n> -> tensor<32x64xf32, #asctile.local<UB>> {
     %3 = asctile.copy %arg0[%c0_i32, %c0_i32] : tensor<32x64xf32, #asctile.local<L0C>>, tensor<32x64xf32, #asctile.local<UB>>
-    // expected-error@+1 {{cannot use a CV strategy result inside another CV strategy}}
+    // expected-error@+1 {{tensor defined inside a CV strategy (split_by_m) cannot be used inside another CV strategy with different 'split' argument (split_by_n)}}
     %4 = arith.addf %3, %0 : tensor<32x64xf32, #asctile.local<UB>>
     asctile.yield %4 : tensor<32x64xf32, #asctile.local<UB>>
   }
