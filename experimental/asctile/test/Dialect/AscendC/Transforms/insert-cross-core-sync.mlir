@@ -74,7 +74,7 @@ func.func @aiv_trigger_aic_consumer(%arg0: !ascendc.local_tensor<16x16xf32>, %ar
 // CHECK-LABEL: func.func @loop_forward_backward_sync(%arg0: !ascendc.local_tensor<16x16xf32>, %arg1: !ascendc.local_tensor<16x16xf32>, %arg2: !ascendc.mmad_params) -> !ascendc.local_tensor<16x16xf32> attributes {ascendc.cross_core_flag_id = 1 : i32} {
 // CHECK:       ascendc.if_aic {
 // CHECK-NEXT:  %c0_i32_0 = arith.constant 0 : i32
-// CHECK-NEXT:    ascendc.cross_core_set_flag %c0_i32_0, 4, pipe_s : i32
+// CHECK-NEXT:    ascendc.cross_core_set_flag %c0_i32_0, 4, pipe_m : i32
 // CHECK-NEXT:  }
 // CHECK-NEXT:  %2 = scf.for %arg3 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg4 = %arg1) -> (!ascendc.local_tensor<16x16xf32>)  : i32 {
 // CHECK-NEXT:    ascendc.if_aiv {
@@ -261,7 +261,7 @@ func.func @consumer_uses_tensor_in_nested_loop(%arg0: !ascendc.local_tensor<16x1
 // CHECK-LABEL: func.func @second_trigger_in_different_loop(%arg0: !ascendc.local_tensor<16x16xf16>, %arg1: !ascendc.local_tensor<16x16xf16>, %arg2: !ascendc.mmad_params) -> !ascendc.local_tensor<16x16xf32> attributes {ascendc.cross_core_flag_id = 1 : i32} {
 // CHECK:       ascendc.if_aic {
 // CHECK-NEXT:    %c0_i32_0 = arith.constant 0 : i32
-// CHECK-NEXT:    ascendc.cross_core_set_flag %c0_i32_0, 4, pipe_s : i32
+// CHECK-NEXT:    ascendc.cross_core_set_flag %c0_i32_0, 4, pipe_m : i32
 // CHECK-NEXT:  }
 // CHECK-NEXT:  %2 = scf.for %arg3 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg4 = %arg1) -> (!ascendc.local_tensor<16x16xf16>)  : i32 {
 // CHECK-NEXT:    ascendc.if_aiv {
@@ -287,7 +287,7 @@ func.func @consumer_uses_tensor_in_nested_loop(%arg0: !ascendc.local_tensor<16x1
 // CHECK-NEXT:  }
 // CHECK-NEXT:  ascendc.if_aic {
 // CHECK-NEXT:    %c0_i32_0 = arith.constant 0 : i32
-// CHECK-NEXT:    ascendc.cross_core_set_flag %c0_i32_0, 4, pipe_s : i32
+// CHECK-NEXT:    ascendc.cross_core_set_flag %c0_i32_0, 4, pipe_m : i32
 // CHECK-NEXT:  }
 // CHECK-NEXT:  %3 = scf.for %arg3 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg4 = %arg1) -> (!ascendc.local_tensor<16x16xf16>)  : i32 {
 // CHECK-NEXT:    ascendc.if_aiv {

@@ -68,7 +68,7 @@ SmallVector<Operation*> collectUsers(Operation* dstDefiningOp, bool triggerIsAIV
     return users;
 }
 
-void processUsers(OpBuilder& builder, ArrayRef<Operation*> users, int32_t flagId, bool dualSync)
+ascendc::Pipe processUsers(OpBuilder& builder, ArrayRef<Operation*> users, int32_t flagId, bool dualSync)
 {
     Operation* first = users.front();
     Operation* group = findGroupAncestor(first);
@@ -83,7 +83,9 @@ void processUsers(OpBuilder& builder, ArrayRef<Operation*> users, int32_t flagId
     builder.setInsertionPointToStart(&body);
     createWaitFlag(builder, first->getLoc(), flagId, ascendc::getOpPipeExt(first), dualFlags);
     builder.setInsertionPoint(body.getTerminator());
-    createSetFlag(builder, last->getLoc(), flagId, ascendc::getOpPipeExt(last), dualFlags);
+    ascendc::Pipe lastPipe = ascendc::getOpPipeExt(last);
+    createSetFlag(builder, last->getLoc(), flagId, lastPipe, dualFlags);
+    return lastPipe;
 }
 
 template <typename FlagOp>
@@ -124,7 +126,15 @@ struct InsertCrossCoreSyncPass : public ascendc::impl::InsertCrossCoreSyncBase<I
             int32_t flagId;
             Operation* loopOp;
         };
+        struct SyncInfo {
+            int flagId;
+            bool isAIV;
+            ascendc::Pipe pipe;
+            Operation* groupOp;
+        };
         llvm::DenseMap<Operation*, FlagInfo> dstFlagMap;
+        llvm::DenseMap<std::pair<scf::ForOp, int>, SyncInfo> afterLoopSync;
+        llvm::DenseMap<std::pair<scf::ForOp, int>, SyncInfo> beforeLoopSync;
         for (auto* groupOp : groupOps) {
             bool isAIV = isa<ascendc::IfAIVOp>(groupOp);
             SmallVector<Operation*> syncOps = collectOps(groupOp, isSyncTriggerOp);
@@ -151,26 +161,31 @@ struct InsertCrossCoreSyncPass : public ascendc::impl::InsertCrossCoreSyncBase<I
                 if (isSecondTrigger || loopOp) {
                     builder.setInsertionPointToStart(&groupBody);
                     createWaitFlag(builder, op->getLoc(), flagId, producerPipe, dualSync && !isAIV);
+                    if (loopOp)
+                        afterLoopSync.insert(
+                            std::pair(std::pair(loopOp, flagId), SyncInfo{flagId, isAIV, producerPipe, groupOp}));
                 }
                 if (!users.empty()) {
                     builder.setInsertionPoint(groupBody.getTerminator());
                     createSetFlag(builder, op->getLoc(), flagId, producerPipe, dualSync && !isAIV);
-                    processUsers(builder, users, flagId, dualSync);
+                    auto pipe = processUsers(builder, users, flagId, dualSync);
+                    if (loopOp || isSecondTrigger)
+                        beforeLoopSync.insert(
+                            std::pair(std::pair(loopOp, flagId), SyncInfo{flagId, !isAIV, pipe, groupOp}));
                 }
-                bool needSeed = (!isSecondTrigger && loopOp) || loopChanged;
-                if (needSeed) {
-                    builder.setInsertionPoint(loopOp ? loopOp : groupOp);
-                    insertFlagGroup<ascendc::CrossCoreSetFlagOp>(
-                        builder, groupOp, !isAIV, flagId, ascendc::Pipe::PIPE_S, dualSync);
-                    if (loopOp) {
-                        builder.setInsertionPointAfter(loopOp);
-                        insertFlagGroup<ascendc::CrossCoreWaitFlagOp>(
-                            builder, groupOp, isAIV, flagId, producerPipe, dualSync);
-                    }
-                    if (isSecondTrigger)
-                        it->second.loopOp = loopOp;
-                }
+                if (isSecondTrigger)
+                    it->second.loopOp = loopOp;
             }
+        }
+        for (auto& [key, sync] : beforeLoopSync) {
+            builder.setInsertionPoint(key.first ? key.first : sync.groupOp);
+            insertFlagGroup<ascendc::CrossCoreSetFlagOp>(
+                builder, sync.groupOp, sync.isAIV, sync.flagId, sync.pipe, dualSync);
+        }
+        for (auto& [key, sync] : afterLoopSync) {
+            builder.setInsertionPointAfter(key.first ? key.first : sync.groupOp);
+            insertFlagGroup<ascendc::CrossCoreWaitFlagOp>(
+                builder, sync.groupOp, sync.isAIV, sync.flagId, sync.pipe, dualSync);
         }
         funcOp->setAttr(attr::crossCoreFlagId, builder.getI32IntegerAttr(crossCoreFlagId));
     }
