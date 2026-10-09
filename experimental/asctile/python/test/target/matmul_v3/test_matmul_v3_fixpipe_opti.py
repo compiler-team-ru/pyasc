@@ -11,56 +11,57 @@ import pytest
 import torch
 
 from ..helpers import parametrize_is_static
-from . import FullLoadMode, run_matmul_v3_test
+from . import FullLoad, Transpose, run_matmul_v3_test
 
 test_cases = [
-    (36, (1500, 1669, 113, 256, 256, 128, 256, 256, 32), torch.float32, False, True, FullLoadMode.NONE, True, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
-    (36, (45000, 92, 32, 336, 96, 32, 336, 96, 16), torch.float32, False, True, FullLoadMode.B, True, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
-    (36, (10000, 200, 256, 144, 208, 256, 144, 208, 64), torch.float16, False, False, FullLoadMode.B, False, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
-    (36, (46500, 88, 104, 336, 96, 64, 336, 96, 16), torch.float32, False, False, FullLoadMode.B, True, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
-    (36, (39000, 116, 132, 256, 128, 64, 256, 128, 16), torch.float32, False, False, FullLoadMode.B, True, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
-    (36, (45000, 124, 124, 256, 128, 64, 256, 128, 16), torch.float32, False, True, FullLoadMode.B, True, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
-    (36, (49500, 144, 128, 224, 144, 64, 224, 144, 16), torch.float32, False, True, FullLoadMode.B, True, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
-    (36, (192000, 66, 64, 400, 80, 64, 400, 80, 16), torch.float32, False, False, FullLoadMode.B, True, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
-    (36, (250000, 120, 145, 256, 128, 64, 256, 128, 16), torch.float32, False, False, FullLoadMode.B, True, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
-    (36, (96000, 104, 64, 288, 112, 64, 288, 112, 16), torch.float32, False, True, FullLoadMode.B, True, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
-    (36, (75000, 116, 116, 256, 128, 64, 256, 128, 16), torch.float32, False, True, FullLoadMode.B, True, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
-    (36, (150000, 76, 64, 400, 80, 64, 400, 80, 16), torch.float32, False, True, FullLoadMode.B, True, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
-    (36, (40960, 280, 256, 112, 288, 64, 112, 288, 16), torch.float32, False, True, FullLoadMode.B, True, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
-    (36, (102400, 168, 64, 176, 176, 64, 176, 176, 16), torch.float32, False, True, FullLoadMode.B, True, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
-    (36, (180000, 84, 64, 336, 96, 64, 336, 96, 16), torch.float32, False, True, FullLoadMode.B, True, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
-    (36, (250000, 145, 120, 192, 160, 64, 192, 160, 16), torch.float32, False, True, FullLoadMode.B, True, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
-    (36, (307200, 200, 128, 144, 208, 64, 144, 208, 16), torch.float32, False, True, FullLoadMode.B, True, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
-    (36, (375000, 148, 148, 192, 160, 64, 192, 160, 16), torch.float32, False, True, FullLoadMode.B, True, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
-    (36, (4096, 13664, 32, 256, 256, 32, 256, 256, 32), torch.float16, True, False, FullLoadMode.NONE, False, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), None),
-    (36, (4800, 2864, 128, 320, 192, 64, 320, 192, 16), torch.float32, False, False, FullLoadMode.NONE, True, False,
-     (1, 1, 1, 2, 2), (0, 1), (1e-3, 1e-3), asctile.DistribMode.SplitByM),
+    (None, (1500, 1669, 113, 256, 256, 128, 256, 256, 32), torch.float32, Transpose.NONE, Transpose.L0, FullLoad.NONE,
+     False, (1, 1, 1, 2, 2)),
+    (None, (45000, 92, 32, 336, 96, 32, 336, 96, 16), torch.float32, Transpose.NONE, Transpose.L0, FullLoad.B, False,
+     (1, 1, 1, 2, 2)),
+    (None, (10000, 200, 256, 144, 208, 256, 144, 208, 64), torch.float16, Transpose.NONE, Transpose.NONE, FullLoad.B,
+     False, (1, 1, 1, 2, 2)),
+    (None, (46500, 88, 104, 336, 96, 64, 336, 96, 16), torch.float32, Transpose.NONE, Transpose.NONE, FullLoad.B, False,
+     (1, 1, 1, 2, 2)),
+    (None, (39000, 116, 132, 256, 128, 64, 256, 128, 16), torch.float32, Transpose.NONE, Transpose.NONE, FullLoad.B,
+     False, (1, 1, 1, 2, 2)),
+    (None, (45000, 124, 124, 256, 128, 64, 256, 128, 16), torch.float32, Transpose.NONE, Transpose.L0, FullLoad.B,
+     False, (1, 1, 1, 2, 2)),
+    (None, (49500, 144, 128, 224, 144, 64, 224, 144, 16), torch.float32, Transpose.NONE, Transpose.L0, FullLoad.B,
+     False, (1, 1, 1, 2, 2)),
+    (None, (192000, 66, 64, 400, 80, 64, 400, 80, 16), torch.float32, Transpose.NONE, Transpose.NONE, FullLoad.B, False,
+     (1, 1, 1, 2, 2)),
+    (None, (250000, 120, 145, 256, 128, 64, 256, 128, 16), torch.float32, Transpose.NONE, Transpose.NONE, FullLoad.B,
+     False, (1, 1, 1, 2, 2)),
+    (None, (96000, 104, 64, 288, 112, 64, 288, 112, 16), torch.float32, Transpose.NONE, Transpose.L0, FullLoad.B, False,
+     (1, 1, 1, 2, 2)),
+    (None, (75000, 116, 116, 256, 128, 64, 256, 128, 16), torch.float32, Transpose.NONE, Transpose.L0, FullLoad.B,
+     False, (1, 1, 1, 2, 2)),
+    (None, (150000, 76, 64, 400, 80, 64, 400, 80, 16), torch.float32, Transpose.NONE, Transpose.L0, FullLoad.B, False,
+     (1, 1, 1, 2, 2)),
+    (None, (40960, 280, 256, 112, 288, 64, 112, 288, 16), torch.float32, Transpose.NONE, Transpose.L0, FullLoad.B,
+     False, (1, 1, 1, 2, 2)),
+    (None, (102400, 168, 64, 176, 176, 64, 176, 176, 16), torch.float32, Transpose.NONE, Transpose.L0, FullLoad.B,
+     False, (1, 1, 1, 2, 2)),
+    (None, (180000, 84, 64, 336, 96, 64, 336, 96, 16), torch.float32, Transpose.NONE, Transpose.L0, FullLoad.B, False,
+     (1, 1, 1, 2, 2)),
+    (None, (250000, 145, 120, 192, 160, 64, 192, 160, 16), torch.float32, Transpose.NONE, Transpose.L0, FullLoad.B,
+     False, (1, 1, 1, 2, 2)),
+    (None, (307200, 200, 128, 144, 208, 64, 144, 208, 16), torch.float32, Transpose.NONE, Transpose.L0, FullLoad.B,
+     False, (1, 1, 1, 2, 2)),
+    (None, (375000, 148, 148, 192, 160, 64, 192, 160, 16), torch.float32, Transpose.NONE, Transpose.L0, FullLoad.B,
+     False, (1, 1, 1, 2, 2)),
+    (None, (4096, 13664, 32, 256, 256, 32, 256, 256, 32), torch.float16, Transpose.L0, Transpose.NONE, FullLoad.NONE,
+     False, (1, 1, 1, 2, 2)),
+    (None, (4800, 2864, 128, 320, 192, 64, 320, 192, 16), torch.float32, Transpose.NONE, Transpose.NONE, FullLoad.NONE,
+     False, (1, 1, 1, 2, 2)),
 ]
 
 
 def base_id(tc):
     vals = getattr(tc, "values", tc)
     tiling, dtype = vals[1], vals[2]
-    return f"{tiling[0]}_{tiling[1]}_{tiling[2]}_{str(dtype).split('.')[-1]}_{str(vals[11]).split('.')[-1]}"
+    distrib_mode = asctile.DistribMode.SplitByM if dtype == torch.float32 else asctile.DistribMode.FullVec0
+    return f"{tiling[0]}_{tiling[1]}_{tiling[2]}_{str(dtype).split('.')[-1]}_{str(distrib_mode).split('.')[-1]}"
 
 
 def case_ids(cases):
@@ -78,11 +79,10 @@ def case_ids(cases):
 
 
 @parametrize_is_static()
-@pytest.mark.parametrize(
-    "core_num, tiling_data, dtype, is_a_transpose_l0, is_b_transpose_l0, full_load_mode, enable_hf32_mode, has_bias, double_buffering, input_range, accuracy, distrib_mode",
-    test_cases, ids=case_ids(test_cases))
-def test_matmul_v3(profiler, runs, is_static, core_num, tiling_data, dtype, is_a_transpose_l0, is_b_transpose_l0,
-                   full_load_mode, enable_hf32_mode, has_bias, double_buffering, input_range, accuracy, distrib_mode):
-    run_matmul_v3_test(profiler, runs, is_static, core_num, tiling_data, dtype, is_a_transpose_l0, is_b_transpose_l0,
-                       full_load_mode, enable_hf32_mode, has_bias, double_buffering, input_range, accuracy,
-                       distrib_mode, l0c2ub=True)
+@pytest.mark.parametrize("core_num, tiling_data, dtype, a_transp, b_transp, full_load_mode, has_bias, double_buffering",
+                         test_cases, ids=case_ids(test_cases))
+def test_matmul_v3(profiler, runs, is_static, core_num, tiling_data, dtype, a_transp, b_transp, full_load_mode,
+                   has_bias, double_buffering):
+    distrib_mode = asctile.DistribMode.SplitByM if dtype == torch.float32 else None
+    run_matmul_v3_test(profiler, runs, is_static, core_num, tiling_data, dtype, a_transp, b_transp, full_load_mode,
+                       has_bias, double_buffering, distrib_mode, l0c2ub=True)
