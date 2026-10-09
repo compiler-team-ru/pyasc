@@ -11,7 +11,7 @@ import pytest
 import torch
 
 
-@asctile.jit(reuse_alloc=2, vf_fusion=True)
+@asctile.jit(cv_ratio=2, reuse_alloc=2, vf_fusion=True)
 def flash_attention_pyasc(q_ptr: asctile.GlobalAddress, k_ptr: asctile.GlobalAddress, v_ptr: asctile.GlobalAddress,
                           o_ptr: asctile.GlobalAddress, ws_o_ptr: asctile.GlobalAddress, B: asctile.ConstExpr,
                           S1: asctile.ConstExpr, S2: asctile.ConstExpr, N: asctile.ConstExpr, N_kv: asctile.ConstExpr,
@@ -32,10 +32,12 @@ def flash_attention_pyasc(q_ptr: asctile.GlobalAddress, k_ptr: asctile.GlobalAdd
     N_repeats = N // N_kv
     g_chunks = N_repeats // g_group
     s1_batch = g_group * step1
+    s1_half = s1_batch // 2
     total_tasks = B * N_kv * g_chunks
 
     start = asctile.block_idx() / asctile.sub_block_num()
     step = asctile.block_num()
+    sb = asctile.sub_block_idx()
 
     # One task = one (batch, kv-head, g-chunk), g-chunk minor so blocks running
     # concurrently share the same K/V stream (L2 reuse).
@@ -55,8 +57,8 @@ def flash_attention_pyasc(q_ptr: asctile.GlobalAddress, k_ptr: asctile.GlobalAdd
         # accumulator lives in the GM workspace, zero-initialized on the host (the
         # first S2 step rescales it by exp_max = exp(-1e10 - max) = 0, so no
         # in-kernel init is needed and a stale workspace is harmless too).
-        softmax_max = asctile.full([s1_batch], -1e10, dtype=asctile.float32)
-        softmax_d = asctile.zeros([s1_batch], dtype=asctile.float32)
+        softmax_max = asctile.full([s1_half], -1e10, dtype=asctile.float32)
+        softmax_d = asctile.zeros([s1_half], dtype=asctile.float32)
 
         # S2 innermost loop: stream K/V tiles GM->L1. Every step stores the O fragments
         # to the GM workspace and the next step reads them back on the same AIV, so the
@@ -72,38 +74,40 @@ def flash_attention_pyasc(q_ptr: asctile.GlobalAddress, k_ptr: asctile.GlobalAdd
                 l0q = asctile.copy(q_part, [0, k * stepMM1], [s1_batch, stepMM1], location=asctile.TensorLocation.L0A)
                 l0k = asctile.copy(k_part, [k * stepMM1, 0], [stepMM1, step2], location=asctile.TensorLocation.L0B)
                 asctile.matmul_acc(mm_acc, l0q, l0k)
-            attn_weight = asctile.copy(mm_acc, location=asctile.TensorLocation.UB)
+            attn_weight = asctile.copy(mm_acc, location=asctile.TensorLocation.UB, distrib=asctile.DistribMode.SplitByM)
             l1v = asctile.copy_in(v_gm, [s2, 0], [step2, D], location=asctile.TensorLocation.L1)
             attn_weight = attn_weight * scale_factor
             max_tmp = asctile.reduce_max(attn_weight, 1)
-            x_exp = asctile.exp(attn_weight - max_tmp.reshape(s1_batch, 1).broadcast_to(s1_batch, step2))
+            x_exp = asctile.exp(attn_weight - max_tmp.reshape(s1_half, 1).broadcast_to(s1_half, step2))
             sum_tmp = asctile.reduce_sum(x_exp, 1)
             x_max = asctile.maximum(softmax_max, max_tmp)
             beta = asctile.exp(max_tmp - x_max)
             exp_max = asctile.exp(softmax_max - x_max)
             x_sum = exp_max * softmax_d + beta * sum_tmp
-            beta = x_exp * beta.reshape(s1_batch, 1).broadcast_to(s1_batch, step2)
+            beta = x_exp * beta.reshape(s1_half, 1).broadcast_to(s1_half, step2)
             softmax_max = x_max
             softmax_d = x_sum
-            l1 = asctile.copy(beta.to(dtype), location=asctile.TensorLocation.L1)
+            l1 = asctile.copy(beta.to(dtype), location=asctile.TensorLocation.L1, distrib=asctile.DistribMode.JoinByM)
             l0b = asctile.copy(l1, [0, 0], [s1_batch, step2], location=asctile.TensorLocation.L0A)
             # BMM2 fragmented over D: [s1_batch, step2] @ [step2, d_v]; the O fragment is
             # read from the GM workspace, rescaled and accumulated, then written back.
             for f in asctile.range(0, d_frags, unroll_factor=f_unroll):
                 l0v = asctile.copy(l1v, [0, f * d_v], [step2, d_v], location=asctile.TensorLocation.L0B)
                 pv = l0b @ l0v
-                mm_res = asctile.copy(pv, location=asctile.TensorLocation.UB)
-                o_frag = asctile.copy_in(ws_o_gm, [q_row, f * d_v], [s1_batch, d_v], location=asctile.TensorLocation.UB)
-                exp_max_b = exp_max.reshape(s1_batch, 1).broadcast_to(s1_batch, d_v)
+                mm_res = asctile.copy(pv, location=asctile.TensorLocation.UB, distrib=asctile.DistribMode.SplitByM)
+                o_frag = asctile.copy_in(ws_o_gm, [q_row + s1_half * sb, f * d_v], [s1_half, d_v],
+                                         location=asctile.TensorLocation.UB)
+                exp_max_b = exp_max.reshape(s1_half, 1).broadcast_to(s1_half, d_v)
                 o_frag = o_frag * exp_max_b + mm_res
-                asctile.copy_out(o_frag, ws_o_gm, [q_row, f * d_v])
+                asctile.copy_out(o_frag, ws_o_gm, [q_row + s1_half * sb, f * d_v])
 
         # Final normalize: read the O accumulator back from GM, one fragment at a time.
         for f in asctile.range(0, d_frags, unroll_factor=f_unroll_norm):
-            o_frag = asctile.copy_in(ws_o_gm, [q_row, f * d_v], [s1_batch, d_v], location=asctile.TensorLocation.UB)
-            d_b = softmax_d.reshape(s1_batch, 1).broadcast_to(s1_batch, d_v)
+            o_frag = asctile.copy_in(ws_o_gm, [q_row + s1_half * sb, f * d_v], [s1_half, d_v],
+                                     location=asctile.TensorLocation.UB)
+            d_b = softmax_d.reshape(s1_half, 1).broadcast_to(s1_half, d_v)
             update = o_frag / d_b
-            asctile.copy_out(update.to(dtype), o_gm, [q_row, f * d_v])
+            asctile.copy_out(update.to(dtype), o_gm, [q_row + s1_half * sb, f * d_v])
 
 
 def flash_attention_torch_reference(q, k, v, B, S1, S2, N, N_kv, D, Br, base_K, scale):
@@ -135,7 +139,7 @@ test_cases = [
         ([8, 1, 128, 512], [8, 128, 1, 1]), (torch.bfloat16,),
         (128, 0.041666666666666664, 2147483647, 2147483647, "BSND", 1, 0, 0, 0, 0, False, 0, 0, 0),
         ((), (), (), 128, 0.041666666666666664, 2147483647, 2147483647, "BSND", 1, 0, 0, 0, 0, False, 0, 0, 0),
-        132385025, None, 32, 2, 2, 4, id="case-8-1-128-512"),
+        132385025, None, 32, 2, 2, 2, id="case-8-1-128-512"),
     pytest.param(
         "case-64-64-1-512", 36, ([64, 64, 1, 512], [64, 1, 4096, 512], [64, 1, 4096, 512], [], [], [], [], [], [], [], [], [], [], [], [], [],
          [], [], [], [], [], [64, 64, 1, 64], [64, 1, 4096, 64], [], [], [], [], []),
@@ -143,7 +147,7 @@ test_cases = [
         ([64, 64, 1, 512], [64, 64, 1, 1]), (torch.bfloat16,),
         (64, 0.041666666666666664, 2147483647, 2147483647, "BNSD", 1, 0, 0, 0, 0, False, 0, 0, 0),
         ((), (), (), 64, 0.041666666666666664, 2147483647, 2147483647, "BNSD", 1, 0, 0, 0, 0, False, 0, 0, 0),
-        132385024, None, 64, 1, 2, 2, id="case-64-64-1-512"),
+        132385024, None, 64, 2, 2, 2, id="case-64-64-1-512"),
     pytest.param(
         "case-64-32-1-512", 36, ([64, 32, 1, 512], [64, 1, 4096, 512], [64, 1, 4096, 512], [], [], [], [], [], [], [], [], [], [], [], [], [],
          [], [], [], [], [], [64, 32, 1, 64], [64, 1, 4096, 64], [], [], [], [], []),
@@ -151,7 +155,7 @@ test_cases = [
         ([64, 32, 1, 512], [64, 32, 1, 1]), (torch.bfloat16,),
         (32, 0.041666666666666664, 2147483647, 2147483647, "BNSD", 1, 0, 0, 0, 0, False, 0, 0, 0),
         (None, None, None, 32, 0.041666666666666664, 2147483647, 2147483647, "BNSD", 1, 0, 0, 0, 0, False, 0, 0, 0),
-        132385024, None, 32, 2, 2, 4, id="case-64-32-1-512"),
+        132385024, None, 32, 2, 2, 2, id="case-64-32-1-512"),
     pytest.param(
         "case-64-16-1-512", 36, ([64, 16, 1, 512], [64, 1, 4096, 512], [64, 1, 4096, 512], [], [], [], [], [], [], [], [], [], [], [], [], [],
          [], [], [], [], [], [64, 16, 1, 64], [64, 1, 4096, 64], [], [], [], [], []),
@@ -167,7 +171,7 @@ test_cases = [
         ([64, 128, 2, 512], [64, 128, 1, 1]), (torch.bfloat16,),
         (128, 0.041666666666666664, 2147483647, 2147483647, "BNSD", 1, 0, 0, 0, 0, False, 0, 0, 0),
         (None, None, None, 128, 0.041666666666666664, 2147483647, 2147483647, "BNSD", 1, 0, 0, 0, 0, False, 0, 0, 0),
-        132385024, None, 32, 1, 2, 2, id="case-64-128-2-512"),
+        132385024, None, 32, 2, 2, 2, id="case-64-128-2-512"),
     pytest.param(
         "case-64-128-1-512", 36, ([64, 128, 1, 512], [64, 1, 4096, 512], [64, 1, 4096, 512], [], [], [], [], [], [], [], [], [], [], [], [], [],
          [], [], [], [], [], [64, 128, 1, 64], [64, 1, 4096, 64], [], [], [], [], []),
@@ -175,7 +179,7 @@ test_cases = [
         ([64, 128, 1, 512], [64, 128, 1, 1]), (torch.bfloat16,),
         (128, 0.041666666666666664, 2147483647, 2147483647, "BNSD", 1, 0, 0, 0, 0, False, 0, 0, 0),
         (None, None, None, 128, 0.041666666666666664, 2147483647, 2147483647, "BNSD", 1, 0, 0, 0, 0, False, 0, 0, 0),
-        132385024, None, 64, 1, 2, 2, id="case-64-128-1-512"),
+        132385024, None, 64, 2, 2, 2, id="case-64-128-1-512"),
     pytest.param(
         "case-64-1-16-512", 36, ([64, 1, 16, 512], [64, 4096, 1, 512], [64, 4096, 1, 512], [], [], [], [], [], [], [], [], [], [], [], [], [],
          [], [], [], [], [], [64, 1, 16, 64], [64, 4096, 1, 64], [], [], [], [], []),
@@ -191,7 +195,7 @@ test_cases = [
         ([64, 1, 65536], [64, 128, 1, 1]), (torch.bfloat16,),
         (128, 0.041666666666666664, 2147483647, 2147483647, "BSND", 1, 0, 0, 0, 0, False, 0, 0, 0),
         ((), (), (), 128, 0.041666666666666664, 2147483647, 2147483647, "BSND", 1, 0, 0, 0, 0, False, 0, 0, 0),
-        132385025, None, 64, 1, 2, 2, id="case-64-1-128-512"),
+        132385025, None, 64, 2, 2, 2, id="case-64-1-128-512"),
     pytest.param(
         "case-256-64-1-512", 36, ([256, 64, 1, 512], [256, 1, 3584, 512], [256, 1, 3584, 512], [], [], [], [], [], [], [], [], [], [], [], [],
          [], [], [], [], [], [], [256, 64, 1, 64], [256, 1, 3584, 64], [], [], [], [], []),
@@ -199,7 +203,7 @@ test_cases = [
         ([256, 64, 1, 512], [64, 16, 1, 1]), (torch.bfloat16,),
         (64, 0.041666666666666664, 2147483647, 2147483647, "BNSD", 1, 0, 0, 0, 0, False, 0, 0, 0),
         ((), (), (), 64, 0.041666666666666664, 2147483647, 2147483647, "BNSD", 1, 0, 0, 0, 0, False, 0, 0, 0),
-        132385024, None, 64, 1, 2, 2, id="case-256-64-1-512"),
+        132385024, None, 64, 2, 2, 2, id="case-256-64-1-512"),
     pytest.param(
         "case-192-64-1-512", 36, ([192, 64, 1, 512], [192, 1, 3072, 512], [192, 1, 3072, 512], [], [], [], [], [], [], [], [], [], [], [], [],
          [], [], [], [], [], [], [192, 64, 1, 64], [192, 1, 3072, 64], [], [], [], [], []),
@@ -207,7 +211,7 @@ test_cases = [
         ([192, 64, 1, 512], [192, 16, 1, 1]), (torch.bfloat16,),
         (64, 0.041666666666666664, 2147483647, 2147483647, "BNSD", 1, 0, 0, 0, 0, False, 0, 0, 0),
         ((), (), (), 64, 0.041666666666666664, 2147483647, 2147483647, "BNSD", 1, 0, 0, 0, 0, False, 0, 0, 0),
-        132385024, None, 64, 1, 2, 2, id="case-192-64-1-512"),
+        132385024, None, 64, 2, 2, 2, id="case-192-64-1-512"),
     pytest.param(
         "case-192-1-64-512-4096", 36, ([192, 1, 64, 512], [192, 4096, 1, 512], [192, 4096, 1, 512], [], [], [], [], [], [], [], [], [], [], [], [],
          [], [], [], [], [], [], [192, 1, 64, 64], [192, 4096, 1, 64], [], [], [], [], []),
@@ -215,7 +219,7 @@ test_cases = [
         ([192, 1, 32768], [192, 64, 1, 1]), (torch.bfloat16,),
         (64, 0.041666666666666664, 2147483647, 2147483647, "BSND", 1, 0, 0, 0, 0, False, 0, 0, 0),
         ((), (), (), 64, 0.041666666666666664, 2147483647, 2147483647, "BSND", 1, 0, 0, 0, 0, False, 0, 0, 0),
-        132385025, None, 32, 2, 2, 4, id="case-192-1-64-512-4096"),
+        132385025, None, 64, 2, 2, 2, id="case-192-1-64-512-4096"),
     pytest.param(
         "case-192-1-64-512-3584", 36, ([192, 1, 64, 512], [192, 3584, 1, 512], [192, 3584, 1, 512], [], [], [], [], [], [], [], [], [], [], [], [],
          [], [], [], [], [], [], [192, 1, 64, 64], [192, 3584, 1, 64], [], [], [], [], []),
@@ -223,7 +227,7 @@ test_cases = [
         ([192, 1, 32768], [192, 64, 1, 1]), (torch.bfloat16,),
         (64, 0.041666666666666664, 2147483647, 2147483647, "BSND", 1, 0, 0, 0, 0, False, 0, 0, 0),
         ((), (), (), 64, 0.041666666666666664, 2147483647, 2147483647, "BSND", 1, 0, 0, 0, 0, False, 0, 0, 0),
-        132385025, None, 64, 1, 2, 2, id="case-192-1-64-512-3584"),
+        132385025, None, 64, 2, 2, 2, id="case-192-1-64-512-3584"),
     pytest.param(
         "case-192-1-64-512-3072", 36, ([192, 1, 64, 512], [192, 3072, 1, 512], [192, 3072, 1, 512], [], [], [], [], [], [], [], [], [], [], [], [],
          [], [], [], [], [], [], [192, 1, 64, 64], [192, 3072, 1, 64], [], [], [], [], []),
@@ -231,7 +235,7 @@ test_cases = [
         ([192, 1, 32768], [192, 64, 1, 1]), (torch.bfloat16,),
         (64, 0.041666666666666664, 2147483647, 2147483647, "BSND", 1, 0, 0, 0, 0, False, 0, 0, 0),
         ((), (), (), 64, 0.041666666666666664, 2147483647, 2147483647, "BSND", 1, 0, 0, 0, 0, False, 0, 0, 0),
-        132385025, None, 64, 1, 2, 2, id="case-192-1-64-512-3072"),
+        132385025, None, 64, 2, 2, 2, id="case-192-1-64-512-3072"),
     # PYASC_TESTS_END
 ]
 # yapf: enable
