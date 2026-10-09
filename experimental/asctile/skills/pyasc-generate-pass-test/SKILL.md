@@ -1,7 +1,6 @@
 ---
 name: pyasc-generate-pass-test
 description: Generate tests for MLIR pass (write from scratch or append to existing)
-compatibility: opencode
 ---
 
 ## PyAsc: Generate LIT Tests for MLIR Pass

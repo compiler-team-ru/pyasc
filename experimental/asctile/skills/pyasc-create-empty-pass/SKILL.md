@@ -1,7 +1,6 @@
 ---
 name: pyasc-create-empty-pass
 description: Create empty MLIR pass skeleton for further development
-compatibility: opencode
 ---
 
 # PyAsc: Create Empty Pass

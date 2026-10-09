@@ -1,5 +1,7 @@
 .vscode/
 .idea/
+.agents/
+.claude/
 /build*/
 .venv*/
 venv*/

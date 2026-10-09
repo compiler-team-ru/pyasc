@@ -8,10 +8,10 @@ INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A
 See LICENSE in the root of the software repository for the full text of the License.
 -->
 
-# Agent Guidelines for PyAsc
+# Agent Guidelines for PyAsc + AscTile
 
 PyAsc is a Python programming model for writing compute kernels that run on Huawei Ascend NPUs.
-Two APIs: `asc` (1:1 Ascend C mapping, `@asc.jit`) for low-level control, `asctile` (tile-based, NumPy-like, `@asctile.jit`) for high-level kernels.
+Two APIs: `asc` (1:1 Ascend C mapping, `@asc.jit`) for low-level control, `asc.experimental.asctile` (tile-based, NumPy-like, `@asctile.jit`) for high-level kernels.
 Requires CANN toolkit (Bisheng compiler + NPU runtime).
 
 ## External File Loading
@@ -39,27 +39,23 @@ Other options in @docs/installation/build-from-source.rst.
 - Format C++: `clang-format -i <filename>`
 
 ### Testing
-- Run all Python tests: `pytest python/test/`
-- Run asctile kernel tests: `pytest python/test/asctile/kernels/`
-- Run asctile operation tests: `pytest python/test/asctile/operations/`
-- Run asctile target tests: `pytest python/test/asctile/target/`
-- Run asc kernel tests: `pytest python/test/kernels/`
-- Run asc unit tests: `pytest python/test/unit/`
-- Run specific test file: `pytest python/test/asctile/kernels/test_vadd.py`
-- Run specific test function: `pytest python/test/asctile/kernels/test_vadd.py::test_vadd`
+- Run asctile kernel tests: `pytest python/test/kernels/`
+- Run asctile operation tests: `pytest python/test/operations/`
+- Run asctile target tests: `pytest python/test/target/`
+- Run specific test file: `pytest python/test/kernels/test_vadd.py`
+- Run specific test function: `pytest python/test/kernels/test_vadd.py::test_vadd`
 - Run tests in parallel: `pytest -n auto python/test/`
-- Run with coverage: `pytest --cov=asc python/test/`
+- Run with coverage: `pytest -n auto --cov=asc.experimental.asctile.language --cov-report=term-missing --cov-fail-under=90 python/test/unit/`
 - Run backend/MLIR tests: `lit -v test/`
-- Compile-only mode (no NPU required): `pytest --compile-only python/test/asctile/`
+- Compile-only mode (no NPU required): `pytest --compile-only python/test/`
 - Select backend/platform: `pytest --backend Model --platform Ascend910B1`
-- Skip FileCheck tests: `pytest --skip-filecheck python/test/unit/`
 
 ## Development Guidelines
 
-For detailed code style rules (Python/C++/MLIR): @docs/development/codestyle.rst
-For development tools and IDE setup: @docs/development/tools.rst
-For build instructions and dependencies: @docs/installation/build-from-source.rst
-For runtime environment setup: @docs/installation/setup-runtime-env.rst
+- For detailed code style rules (Python/C++/MLIR): @docs/development/codestyle.rst
+- For development tools and IDE setup: @docs/development/tools.rst
+- For build instructions and dependencies: @docs/installation/build-from-source.rst
+- For runtime environment setup: @docs/installation/setup-runtime-env.rst
 
 ## Code Style Guidelines
 
@@ -149,10 +145,6 @@ n = asctile.block_num()    # total number of blocks
 for i in asctile.range(start, stop, step, unroll_factor=4, gm_barrier=False):
     # unroll_factor: how many iterations to unroll
     # gm_barrier=True: prevent parallel load/store optimization
-
-# Masking
-with asctile.mask(count=8, other=0):
-    # operations apply to first 8 elements
 ```
 
 ### JIT Compilation
@@ -177,24 +169,25 @@ kernel[8](x, y, out, size, TILE=256)    # Launch with 8 cores
 Other options in @python/asc/runtime/compiler.py (CompileOptions dataclass).
 
 ### Architecture Notes
-- `python/asc/`: Core Python package (codegen, language APIs, runtime, lib bindings)
-- `python/asctile/`: AscTile frontend API and JIT decorator (thin wrapper over asc)
-- `python/asc/codegen/`: Python AST → ASC-IR (MLIR) translation (FunctionVisitor)
-- `python/asc/language/`: Language APIs (`basic/`, `adv/`, `core/`, `fwk/`, `tile/`)
-- `python/asc/runtime/`: JIT compilation, caching, kernel launching
-- `python/asc/_C/`: pybind11 bindings to C++ backend (`libpyasc`)
-- `include/ascir/`: C++ header files and TableGen definitions for all dialects
-- `lib/Dialect/Asc/`: Asc dialect IR and optimization passes
+- `../../python/asc/`: Core Python package (codegen, language APIs, runtime, lib bindings)
+- `../../python/asc/codegen/`: Python AST → ASC-IR (MLIR) translation (FunctionVisitor)
+- `../../python/asc/language/`: Language APIs (`basic/`, `adv/`, `core/`, `fwk/`, `tile/`)
+- `../../python/asc/runtime/`: JIT compilation, caching, kernel launching
+- `../../python/asc/_C/`: pybind11 bindings to C++ backend (`libpyasc`)
+- `../../include/ascir/`: C++ header files and TableGen definitions for the upstream dialects (AscendC, EmitAsc)
+- `../../lib/Dialect/Asc/`: Asc dialect IR and optimization passes
+- `include/asctile/`: C++ header files and TableGen definitions for the extension dialects (AscTile, AscVF)
+- `python/asctile/`: AscTile frontend API and JIT decorator (wrapper over asc)
 - `lib/Dialect/AscTile/`: AscTile dialect IR and optimization passes
 - `lib/Dialect/AscTile/Transforms/`: AscTile passes (UnrollLoop, PromotePureOps, TransformMathOps, etc.)
 - `lib/Dialect/AscVF/`: AscVF dialect (vector fusion)
 - `lib/Dialect/EmitAsc/`: EmitAsc dialect (code emission)
 - `lib/Conversion/LowerToAsc/`: Lowering passes (AscTile → Asc dialect)
 - `lib/Target/AscendC/`: Code emitter (Asc MLIR → Ascend C source)
-- `bin/`: CLI tools (`ascir-opt`, `ascir-translate`, `ascir-lsp`)
+- `bin/`: CLI tools (`asctile-opt`, etc.)
 
 ### Compilation Pipeline
-1. Python AST → asctile MLIR (FunctionVisitor in `python/asc/codegen/`)
+1. Python AST → asctile MLIR (FunctionVisitor in `../../python/asc/codegen/`)
 2. AscTile passes (unrolling, loop transforms, math specialization)
 3. LowerToAsc conversion passes (asctile → asc dialect)
 4. Asc passes (UB allocation, sync insertion, boilerplate generation)
@@ -214,7 +207,7 @@ Other options in @python/asc/runtime/compiler.py (CompileOptions dataclass).
 - BufID-based sync for C310 platforms (InsertBufIdSync)
 
 ### Debugging
-- Use `print_ir_before_all=True` to print IR in-between passes to stderr
+- Set `PYASC_PRINT_IR=1` to print IR in-between passes to stderr (lots of internal MLIR)
 - Use `always_compile=True` to bypass cache
 - Set `PYASC_DUMP_PATH=<dir>` to inspect intermediate IR and generated Ascend C
 - Set `CAMODEL_LOG_PATH=<dir>` to capture simulator logs when running on Model backend

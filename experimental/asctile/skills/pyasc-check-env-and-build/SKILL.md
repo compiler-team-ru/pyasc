@@ -1,7 +1,6 @@
 ---
 name: pyasc-check-env-and-build
 description: Environment setup and build pipeline for the PyAsc project. Checks LLVM, determines build context (developer vs user), verifies dependencies, and builds the project. Trigger when user asks to build, install, or set up the PyAsc development environment.
-compatibility: opencode
 ---
 
 # PyAsc Build

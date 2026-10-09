@@ -1,7 +1,6 @@
 ---
 name: pyasc-generate-pass-doc
 description: Generate or improve MLIR pass documentation (summary and description fields)
-compatibility: opencode
 ---
 
 # PyAsc: Generate Pass Documentation
