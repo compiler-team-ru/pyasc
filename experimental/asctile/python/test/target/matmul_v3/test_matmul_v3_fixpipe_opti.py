@@ -10,8 +10,8 @@ from asc.experimental import asctile
 import pytest
 import torch
 
-from .helpers import parametrize_is_static
-from .matmul_v3 import FullLoadMode, run_matmul_v3_test
+from ..helpers import parametrize_is_static
+from . import FullLoadMode, run_matmul_v3_test
 
 test_cases = [
     (36, (1500, 1669, 113, 256, 256, 128, 256, 256, 32), torch.float32, False, True, FullLoadMode.NONE, True, False,

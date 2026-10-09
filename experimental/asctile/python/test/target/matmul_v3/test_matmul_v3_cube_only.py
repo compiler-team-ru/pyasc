@@ -9,8 +9,8 @@
 import pytest
 import torch
 
-from .helpers import parametrize_is_static, xfail
-from .matmul_v3 import FullLoadMode, run_matmul_v3_test
+from ..helpers import parametrize_is_static, xfail
+from . import FullLoadMode, run_matmul_v3_test
 
 test_cases = [
     (1, (16, 16, 64, 16, 16, 256, 16, 16, 64), torch.float32, False, True, FullLoadMode.NONE, True, False,

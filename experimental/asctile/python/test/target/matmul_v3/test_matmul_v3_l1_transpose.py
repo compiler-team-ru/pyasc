@@ -10,8 +10,8 @@ from asc.experimental import asctile
 import pytest
 import torch
 
-from .helpers import parametrize_is_static
-from .matmul_v3 import FullLoadMode
+from ..helpers import parametrize_is_static
+from . import FullLoadMode
 
 
 @asctile.jit(reuse_alloc=2)
