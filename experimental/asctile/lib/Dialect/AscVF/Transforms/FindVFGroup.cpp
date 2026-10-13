@@ -247,7 +247,8 @@ ascvf::VFGroupOp wrapInVFGroupOp(OpGroup& group)
     ValueVector inputs = getInputLocalTensors(ops);
     ValueVector outputs = getOutputLocalTensors(ops);
 
-    auto fusedOp = builder.create<ascvf::VFGroupOp>(builder.getUnknownLoc(), outputs, inputs, fuseGroupType(group));
+    auto fusedOp =
+        builder.create<ascvf::VFGroupOp>(builder.getUnknownLoc(), outputs, inputs, ValueRange{}, fuseGroupType(group));
     auto& block = fusedOp.getRegion().emplaceBlock();
 
     builder.setInsertionPointToEnd(&block);

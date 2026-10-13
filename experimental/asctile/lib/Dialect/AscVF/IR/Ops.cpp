@@ -59,6 +59,9 @@ LogicalResult StoreOp::verify()
 
 LogicalResult VFGroupOp::verify()
 {
+    if (getOperation()->getParentOfType<VFGroupOp>()) {
+        return emitOpError("cannot be nested in other ascvf.vf_group op");
+    }
     auto result = walk([&](Operation* op) {
         if (!hasStaticShapes(op)) {
             op->emitOpError("inside ascvf.vf_group must have static shape");
@@ -68,6 +71,16 @@ LogicalResult VFGroupOp::verify()
     });
     return failure(result.wasInterrupted());
 }
+
+SmallVector<Value> VFGroupOp::getDstTensors()
+{
+    SmallVector<Value> dstTensors;
+    dstTensors.append(getOutputTensors().begin(), getOutputTensors().end());
+    dstTensors.append(getTmpTensors().begin(), getTmpTensors().end());
+    return dstTensors;
+}
+
+SmallVector<Value> VFGroupOp::getSrcTensors() { return llvm::to_vector(getInputTensors()); }
 
 //===----------------------------------------------------------------------===//
 // AscVFDialect

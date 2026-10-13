@@ -9,7 +9,7 @@
 // RUN: asctile-opt -split-input-file -ascvf-find-vf-group -ascvf-lower-to-reg -canonicalize -cse -ascvf-dispatch-vf-fusion -canonicalize -cse -ascvf-materialize-load-store %s | FileCheck %s
 
 // CHECK-LABEL: func.func @general_test(%arg0: !ascendc.que_bind<gm, vecin, 1>) {
-// CHECK:   ascvf.vf_group dst(%0 : !ascendc.local_tensor<256xf32>) src(%2, %1 : !ascendc.local_tensor<256xf32>, !ascendc.local_tensor<256xf32>) {
+// CHECK:   ascvf.vf_group outs(%0 : !ascendc.local_tensor<256xf32>) ins(%2, %1 : !ascendc.local_tensor<256xf32>, !ascendc.local_tensor<256xf32>) {
 // CHECK:     %3 = ascendc.local_tensor.get_phy_addr_v2 %1 : !ascendc.local_tensor<256xf32>, memref<256xf32, 26>
 // CHECK:     %4 = ascendc.local_tensor.get_phy_addr_v2 %2 : !ascendc.local_tensor<256xf32>, memref<256xf32, 26>
 // CHECK:     %5 = ascendc.local_tensor.get_phy_addr_v2 %0 : !ascendc.local_tensor<256xf32>, memref<256xf32, 26>
@@ -36,11 +36,11 @@
 // CHECK: }
 func.func @general_test(%que_bind: !ascendc.que_bind<gm, vecin, 1>) {
   %c256_i32 = arith.constant 256 : i32
-  %dst =  ascendc.local_tensor_auto veccalc() : <256xf32>
+  %outs =  ascendc.local_tensor_auto veccalc() : <256xf32>
   %src0 = ascendc.local_tensor_auto veccalc() : <256xf32>
   %src1 = ascendc.local_tensor_auto veccalc() : <256xf32>
-  ascendc.add_l2 %dst, %src0, %src1, %c256_i32 : !ascendc.local_tensor<256xf32>, !ascendc.local_tensor<256xf32>, !ascendc.local_tensor<256xf32>, i32
-  ascendc.mul_l2 %dst, %dst, %src1, %c256_i32 : !ascendc.local_tensor<256xf32>, !ascendc.local_tensor<256xf32>, !ascendc.local_tensor<256xf32>, i32
+  ascendc.add_l2 %outs, %src0, %src1, %c256_i32 : !ascendc.local_tensor<256xf32>, !ascendc.local_tensor<256xf32>, !ascendc.local_tensor<256xf32>, i32
+  ascendc.mul_l2 %outs, %outs, %src1, %c256_i32 : !ascendc.local_tensor<256xf32>, !ascendc.local_tensor<256xf32>, !ascendc.local_tensor<256xf32>, i32
   return
 }
 
