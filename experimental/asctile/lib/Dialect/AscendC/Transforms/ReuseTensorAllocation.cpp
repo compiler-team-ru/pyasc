@@ -357,7 +357,7 @@ bool canReuse(const LifetimeInfo& topTensorLTI, const LifetimeInfo& bottomTensor
             LLVM_DEBUG(llvm::dbgs() << "  reject: same-op element type mismatch\n");
             return false;
         }
-        if (!(isReadFromAllocation(borderOp, top) && isWriteToAllocation(borderOp, bottom))) {
+        if (!isReadFromAllocation(borderOp, top) || !isWriteToAllocation(borderOp, bottom)) {
             LLVM_DEBUG(llvm::dbgs() << "  reject: invalid read-write dependency\n");
             return false;
         }
