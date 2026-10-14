@@ -72,6 +72,9 @@ The following environment variables can be **exported** to configure the install
 ``PYASC_SETUP_CCACHE=1`` (optional)
     enable ccache to speed up the repetitive build flow
 
+``PYASC_SETUP_CLANG_LLD=1`` (optional)
+    use ``clang++`` and ``lld`` unless ``PYASC_SETUP_COMPILER`` or ``PYASC_SETUP_LINKER`` is set
+
 ``PYASC_SETUP_EXPERIMENTAL=1`` (optional)
     enable the compilation and packaging of experimental modules (including ``asctile``)
 
@@ -83,8 +86,14 @@ The following environment variables can be **exported** to configure the install
     <details>
         <summary><strong>Additional environment variables</strong></summary>
 
+``PYASC_SETUP_ASAN=1`` (optional)
+    enable AddressSanitizer for the C++ build
+
 ``PYASC_SETUP_BUILD_DIR=<path>`` (optional)
     provide the directory for the temporary build files (default: ``build``)
+
+``PYASC_SETUP_CMAKE_APPEND=<args>`` (optional)
+    append additional CMake configure arguments; the value is shell-split before use
 
 ``PYASC_SETUP_COMPILER=<bin>`` (optional)
     name or path of the compiler executable (default: system compiler, recommended: ``clang++``)
@@ -94,6 +103,15 @@ The following environment variables can be **exported** to configure the install
 
 ``PYASC_SETUP_LINKER=<bin>`` (optional)
     name or path of the linker executable (default: system linker, recommended: ``lld``)
+
+``PYASC_SETUP_NAME=<name>`` (optional)
+    override the Python distribution name (default: ``pyasc``)
+
+``PYASC_SETUP_VERSION=<version>`` (optional)
+    override the base package version
+
+``PYASC_SETUP_VERSION_SUFFIX=<suffix>`` (optional)
+    append a suffix to the local package version
 
 .. raw:: html
 
@@ -135,6 +153,9 @@ This option provides the most setup features for the project developers.
 It allows to enable :doc:`development tools <../development/tools>`.
 
 These environment variables can be exported additionally to configure the installation process:
+
+``PYASC_SETUP_COVERAGE=1`` (optional)
+    enable code coverage instrumentation for the C++ build
 
 ``PYASC_SETUP_DEVTOOLS=1`` (optional)
     build and install development tools

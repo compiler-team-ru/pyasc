@@ -11,6 +11,14 @@ PyAsc documentation
 
 .. toctree::
    :maxdepth: 1
+   :caption: Getting started
+
+   programming-guide/quick-start.md
+   programming-guide/tutorials/index
+
+
+.. toctree::
+   :maxdepth: 1
    :caption: Installation
 
    installation/build-from-source
@@ -21,10 +29,9 @@ PyAsc documentation
    :maxdepth: 1
    :caption: Programming guide
 
-   programming-guide/quick-start.md
    programming-guide/cube-programming-capabilities
+   programming-guide/debugging
    programming-guide/performance-tips.md
-   programming-guide/tutorials/index
 
 
 .. toctree::
