@@ -123,6 +123,12 @@ bool isTargetArchC310(Operation* op) { return getCompilationArch(op) == "c310"; 
 
 LocalTensorAutoOp getAllocationRoot(Value v)
 {
+    if (auto blockArg = dyn_cast<BlockArgument>(v)) {
+        if (auto forOp = dyn_cast<scf::ForOp>(blockArg.getOwner()->getParentOp())) {
+            Value src = forOp.getInitArgs()[blockArg.getArgNumber() - 1];
+            return getAllocationRoot(src);
+        }
+    }
     auto* defOp = v.getDefiningOp();
     if (!defOp)
         return {};

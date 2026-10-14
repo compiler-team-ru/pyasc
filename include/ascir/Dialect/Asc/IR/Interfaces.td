@@ -98,7 +98,7 @@ def OpWithSrcInterface : AscendC_OpInterface<"OpWithSrc"> {
   let methods = [InterfaceMethod<"Get source tensors", "::llvm::SmallVector<::mlir::Value>", "getSrcTensors">];
 }
 
-def OpWithReusableSrcInterface : AscendC_OpInterface<"OpWithReusableSrc"> {
+def OpWithReusableSrcInterface : AscendC_OpInterface<"OpWithReusableSrc", [OpWithSrcInterface, OpWithDstInterface]> {
   let description = [{
     Marker interface for operations where hardware reads all source operands
     completely before writing the destination. This property allows the source
@@ -106,6 +106,16 @@ def OpWithReusableSrcInterface : AscendC_OpInterface<"OpWithReusableSrc"> {
     ReuseTensorAllocation pass). Operations like BroadcastOp that read sources
     multiple times during execution must NOT have this interface.
   }];
+  let methods = [
+    InterfaceMethod<"Check if tensor operands can share the same buffer", "bool",
+                    "canReuse", /*args*/ (ins "OpOperand&":$lhs, "OpOperand&":$rhs), /*methodBody*/ "",
+                    /*defaultImplementation*/  [{
+        auto dstTensors = $_op.getDstTensors();
+        auto srcTensors = $_op.getSrcTensors();
+        return llvm::is_contained(dstTensors, lhs.get()) && llvm::is_contained(srcTensors, rhs.get()) || 
+               llvm::is_contained(dstTensors, rhs.get()) && llvm::is_contained(srcTensors, lhs.get());
+      }]>,
+  ];
 }
 
 def VectorOpInterface : AscendC_OpInterface<"VectorOp", [APIOpInterface]> {

@@ -364,9 +364,26 @@ bool canReuse(const LifetimeInfo& topTensorLTI, const LifetimeInfo& bottomTensor
         // Only allow same-op reuse for operations marked with OpWithReusableSrc.
         // Operations like BroadcastOp that read sources multiple times are not marked
         // and will be rejected here.
-        if (!isa<ascendc::OpWithReusableSrc>(borderOp)) {
+        auto reuse = dyn_cast<ascendc::OpWithReusableSrc>(borderOp);
+        if (!reuse) {
             LLVM_DEBUG(llvm::dbgs() << "  reject: operation not marked with OpWithReusableSrcInterface\n");
             return false;
+        }
+        SmallVector<OpOperand*> topOpnds, bottomOpnds;
+        for (OpOperand& operand : borderOp->getOpOperands()) {
+            auto root = ascendc::getAllocationRoot(operand.get());
+            if (root == top)
+                topOpnds.push_back(&operand);
+            else if (root == bottom)
+                bottomOpnds.push_back(&operand);
+        }
+        for (auto* topOpnd : topOpnds) {
+            for (auto* bottomOpnd : bottomOpnds) {
+                if (!reuse.canReuse(*topOpnd, *bottomOpnd)) {
+                    LLVM_DEBUG(llvm::dbgs() << "  reject: cannot reuse inside op\n");
+                    return false;
+                }
+            }
         }
     }
     // Strict intersection without intersect borders

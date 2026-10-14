@@ -41,7 +41,7 @@ struct VFGroupSrcModel : public ascendc::OpWithSrc::ExternalModel<VFGroupSrcMode
 };
 
 struct VFGroupDstModel : public ascendc::OpWithDst::ExternalModel<VFGroupDstModel, ascvf::VFGroupOp> {
-    Value getDst(Operation*) const { return Value{}; }
+    Value getDst(Operation*) const { llvm_unreachable("VFGroupOp does not implement getDst method"); }
 
     SmallVector<Value> getDstTensors(Operation* op) const { return cast<ascvf::VFGroupOp>(op).getDstTensors(); }
 };
