@@ -314,7 +314,7 @@ def AscendC_LocalTensorSetValueOp : APIOp<"local_tensor.set_value", "SetValue", 
     type($index) `,` type($value)
   }];
   let extraClassDeclaration = extraClassDeclarationBase # [{
-    Value getDst() { return {getTensor()}; }
+    SmallVector<Value> getDstTensors() { return {getTensor()}; }
   }];
 }
 
