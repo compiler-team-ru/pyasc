@@ -95,3 +95,89 @@ disk and whether a compiled kernel is actually launched.
 ``PYASC_DRY_RUN=1`` (optional)
     when set, the kernel is compiled but not launched on the device — useful to validate compilation
     without hardware
+
+.. raw:: html
+
+    <details>
+        <summary><strong>Additional debug capabilities</strong></summary>
+
+**1. Capture build artifacts.**
+
+The ``PYASC_DUMP_PATH`` environment variable can be set to make the compiler keep generated files in a directory:
+
+.. code-block:: bash
+
+   PYASC_DUMP_PATH=dumps python3 experimental/asctile/python/tutorials/01-vector-add.py
+
+The following directory structure is created in the current directory:
+
+.. code-block:: text
+
+   dumps/
+     ascendc.cpp  # generated Ascend C file
+     ascir.mlir   # final IR which is used to emit Ascend C
+     binary.o     # object file produced by the Bisheng compiler
+     codegen.mlir # input IR captured from the JIT function
+
+.. note::
+
+   Set the ``always_compile=True`` JIT option to avoid caching and trigger compilation each time.
+
+**2. Tune generated Ascend C code.**
+
+Ascend C code generated from AscTile can be injected back into AscTile Python code:
+
+- Pass the content of the generated kernel as the parameter to ``asctile.inline``.
+- Comment out the ``TPipe`` definition in the code, as shown below.
+
+.. code-block:: python
+
+   @asctile.jit
+   def vadd_kernel(x_ptr: asctile.GlobalAddress, y_ptr: asctile.GlobalAddress,
+                   out_ptr: asctile.GlobalAddress, size: int,
+                   tile_size: asctile.ConstExpr[int], tile_per_block: asctile.ConstExpr[int]):
+       asctile.inline('''
+       constexpr int32_t c32_i32 = 32;
+       constexpr int64_t c128_i64 = 128;
+       .       .       .
+       constexpr int32_t c128_i32 = 128;
+       // AscendC::TPipe v5;
+       AscendC::GlobalTensor<float> v6;
+       v6.SetGlobalBuffer(v1_x_ptr);
+       .       .       .
+         get_buf(PIPE_MTE3, 5, 0);
+         AscendC::DataCopyPad(v55, v11, v58);
+         rls_buf(PIPE_MTE3, 5, 0);
+       }
+       return;
+           ''')
+
+**3. Pass arguments to inline code.**
+
+Kernel arguments can be passed to ``asctile.inline`` through the ``args`` parameter. Use ``$<index>`` placeholders, such
+as ``$0``, ``$1``, and ``$2``, to reference arguments by their position in the list:
+
+.. code-block:: python
+
+   @asctile.jit
+   def kernel(x_ptr: asctile.GlobalAddress, y_ptr: asctile.GlobalAddress,
+              out_ptr: asctile.GlobalAddress, size: int):
+       asctile.inline('''
+           auto input_x = $0;
+           auto input_y = $1;
+           auto output = $2;
+           int64_t length = $3;
+           AscendC::GlobalTensor<float> x_gm;
+           x_gm.SetGlobalBuffer(input_x);
+           AscendC::GlobalTensor<float> y_gm;
+           y_gm.SetGlobalBuffer(input_y);
+           AscendC::GlobalTensor<float> out_gm;
+           out_gm.SetGlobalBuffer(output);
+       ''', [x_ptr, y_ptr, out_ptr, size])
+
+Each argument is materialized as an IR value and substituted into the generated code at the corresponding placeholder
+position.
+
+.. raw:: html
+
+    </details><br />

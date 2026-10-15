@@ -6,15 +6,15 @@
 .. INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 .. See LICENSE in the root of the software repository for the full text of the License.
 
-PyAsc documentation
-===================
+PyAsc + AscTile documentation
+=============================
 
 .. toctree::
    :maxdepth: 1
    :caption: Getting started
 
-   programming-guide/quick-start.md
-   programming-guide/tutorials/index
+   getting-started/quick-start
+   getting-started/tutorials/index
 
 
 .. toctree::
@@ -31,6 +31,7 @@ PyAsc documentation
 
    programming-guide/cube-programming-capabilities
    programming-guide/debugging
+   programming-guide/profiling
    programming-guide/performance-tips.md
 
 
