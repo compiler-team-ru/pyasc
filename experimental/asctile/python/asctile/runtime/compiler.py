@@ -166,10 +166,12 @@ class Compiler(CompilerBase):
         if self.options.vf_fusion:
             asctile.passes.ascvf.add_promote_cast_ops(pm)
             asctile.passes.ascvf.add_find_vf_group(pm)
+            asctile.passes.ascvf.add_canonicalize_vf_group(pm)
             asctile.passes.ascvf.add_lower_to_reg(pm)
             passes.common.add_canonicalizer(pm)
             passes.common.add_cse(pm)
             asctile.passes.ascvf.add_dispatch_vf_fusion(pm)
+            asctile.passes.ascvf.add_canonicalize_vf_group(pm)
             passes.common.add_canonicalizer(pm)
             passes.common.add_cse(pm)
             asctile.passes.ascvf.add_materialize_load_store(pm)

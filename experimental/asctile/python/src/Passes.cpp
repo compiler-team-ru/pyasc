@@ -106,6 +106,7 @@ void defineAscVFPasses(py::module& mod)
     using namespace ascvf;
     using namespace pybind11::literals;
     auto m = mod.def_submodule("ascvf");
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_canonicalize_vf_group", createCanonicalizeVFGroupPass);
     DEFINE_ADD_PASS("add_dispatch_vf_fusion", createDispatchVFFusionPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_eliminate_common_mask", createEliminateCommonMaskPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_erase_barrier", createEraseBarrierPass);
