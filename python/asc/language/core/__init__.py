@@ -36,6 +36,9 @@ from .dtype import (
     uint64,
     int_,
     void,
+    float8_e8m0fnuz,
+    float8_e4m3fn,
+    float8_e5m2,
 )
 from .enums import (
     AippInputFormat,
@@ -156,6 +159,9 @@ __all__ = [
     "uint32",
     "uint64",
     "void",
+    "float8_e8m0fnuz",
+    "float8_e4m3fn",
+    "float8_e5m2",
     # .enums
     "AippInputFormat",
     "BatchMode",

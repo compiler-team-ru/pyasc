@@ -150,7 +150,12 @@ void bindGetBasicType(py::class_<PyOpBuilder>& clss)
         .def("get_f16_type", [](PyOpBuilder& self) -> Type { return self->getF16Type(); })
         .def("get_bf16_type", [](PyOpBuilder& self) -> Type { return self->getBF16Type(); })
         .def("get_f32_type", [](PyOpBuilder& self) -> Type { return self->getF32Type(); })
-        .def("get_f64_type", [](PyOpBuilder& self) -> Type { return self->getF64Type(); });
+        .def("get_f64_type", [](PyOpBuilder& self) -> Type { return self->getF64Type(); })
+        .def("get_f8e4m3fn_type", [](PyOpBuilder& self) -> Type { return self->getFloat8E4M3FNType(); })
+        .def("get_f8e5m2_type", [](PyOpBuilder& self) -> Type { return self->getFloat8E5M2Type(); })
+        .def("get_f8e8m0fnuz_type", [](PyOpBuilder& self) -> Type {
+            return self->getType<ascendc::Float8E8M0FNUZType>();
+        });
 }
 
 void bindGetSpecialType(py::class_<PyOpBuilder>& clss)
@@ -347,6 +352,17 @@ void bindGetAttributes(py::class_<PyOpBuilder>& clss)
             [](PyOpBuilder& self, const std::string& value) -> Attribute {
                 return self->getAttr<emitc::OpaqueAttr>(value);
             })
+        .def(
+            "get_f8e5m2_attr",
+            [](PyOpBuilder& self, double v) -> Attribute { return self->getFloatAttr(self->getFloat8E5M2Type(), v); })
+        .def(
+            "get_f8e4m3fn_attr",
+            [](PyOpBuilder& self, double v) -> Attribute { return self->getFloatAttr(self->getFloat8E4M3FNType(), v); })
+        .def(
+            "get_f8e8m0fnuz_attr",
+            [](PyOpBuilder& self, double v) -> Attribute {
+                return self->getFloatAttr(self->getType<ascendc::Float8E8M0FNUZType>(), v);
+            })
         .def("set_emit_as_unsigned", [](PyOpBuilder& self, Operation& op) {
             op.setAttr(ascendc::attr::emitAsUnsigned, self->getUnitAttr());
         });
@@ -488,8 +504,23 @@ void bindCreateFloatConstants(py::class_<PyOpBuilder>& clss)
             [](PyOpBuilder& self, float v) -> Value {
                 return self.create<arith::ConstantOp>(self->getF32FloatAttr(v));
             })
-        .def("get_f64", [](PyOpBuilder& self, double v) -> Value {
-            return self.create<arith::ConstantOp>(self->getF64FloatAttr(v));
+        .def(
+            "get_f64",
+            [](PyOpBuilder& self, double v) -> Value {
+                return self.create<arith::ConstantOp>(self->getF64FloatAttr(v));
+            })
+        .def(
+            "get_f8e5m2",
+            [](PyOpBuilder& self, double v) -> Value {
+                return self.create<arith::ConstantOp>(self->getFloatAttr(self->getFloat8E5M2Type(), v));
+            })
+        .def(
+            "get_f8e4m3fn",
+            [](PyOpBuilder& self, double v) -> Value {
+                return self.create<arith::ConstantOp>(self->getFloatAttr(self->getFloat8E4M3FNType(), v));
+            })
+        .def("get_f8e8m0fnuz", [](PyOpBuilder& self, double v) -> Value {
+            return self.create<arith::ConstantOp>(self->getFloatAttr(self->getType<ascendc::Float8E8M0FNUZType>(), v));
         });
 }
 

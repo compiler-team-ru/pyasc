@@ -266,6 +266,12 @@ void bindType(py::module& m)
                 }
                 if (isa<NoneType>(self))
                     return "void";
+                if (isa<ascendc::Float8E8M0FNUZType>(self))
+                    return "float8_e8m0fnuz";
+                if (isa<Float8E5M2Type>(self))
+                    return "float8_e5m2";
+                if (isa<Float8E4M3FNType>(self))
+                    return "float8_e4m3fn";
                 return std::nullopt;
             })
         .def("__str__", [](Type& self) {
