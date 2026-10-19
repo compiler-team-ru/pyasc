@@ -44,11 +44,20 @@ struct VFGroupDstModel : public ascendc::OpWithDst::ExternalModel<VFGroupDstMode
     SmallVector<Value> getDstTensors(Operation* op) const { return cast<ascvf::VFGroupOp>(op).getDstTensors(); }
 };
 
+struct VFGroupReusableSrcModel
+    : public ascendc::OpWithReusableSrc::ExternalModel<VFGroupReusableSrcModel, ascvf::VFGroupOp> {
+    bool canReuse(Operation* op, OpOperand& src, OpOperand& dst) const
+    {
+        return cast<ascvf::VFGroupOp>(op).canReuse(src, dst);
+    }
+};
+
 void ascvf::registerExternalModels(DialectRegistry& registry)
 {
     registry.addExtension(+[](MLIRContext* ctx, AscVFDialect* dialect) {
         dialect->addInterface<ascir::PermissiveInlinerInterface>();
         ascvf::VFGroupOp::attachInterface<VFGroupSrcModel>(*ctx);
         ascvf::VFGroupOp::attachInterface<VFGroupDstModel>(*ctx);
+        ascvf::VFGroupOp::attachInterface<VFGroupReusableSrcModel>(*ctx);
     });
 }

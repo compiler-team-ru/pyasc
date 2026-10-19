@@ -138,6 +138,18 @@ LocalTensorAutoOp getAllocationRoot(Value v)
         return getAllocationRoot(op.getIn());
     if (auto op = dyn_cast<LocalTensorSubIndexOp>(defOp))
         return getAllocationRoot(op.getTensor());
+    if (auto aiv = dyn_cast<ascendc::IfAIVOp>(defOp)) {
+        if (auto result = dyn_cast<OpResult>(v)) {
+            unsigned idx = result.getResultNumber();
+            return getAllocationRoot(aiv.getBody()->getTerminator()->getOperand(idx));
+        }
+    }
+    if (auto aiv = dyn_cast<ascendc::IfAICOp>(defOp)) {
+        if (auto result = dyn_cast<OpResult>(v)) {
+            unsigned idx = result.getResultNumber();
+            return getAllocationRoot(aiv.getBody()->getTerminator()->getOperand(idx));
+        }
+    }
     return {};
 }
 

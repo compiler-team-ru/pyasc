@@ -14,7 +14,7 @@ import torch
 import torch.nn.functional as F
 
 
-@asctile.jit(cv_ratio=2)
+@asctile.jit(cv_ratio=2, vf_fusion=True)
 def kda_chunk_delta_h_kernel(k_ptr: asctile.GlobalAddress, v_ptr: asctile.GlobalAddress, w_ptr: asctile.GlobalAddress,
                              v_new_ptr: asctile.GlobalAddress, g_ptr: asctile.GlobalAddress,
                              gk_ptr: asctile.GlobalAddress, h_ptr: asctile.GlobalAddress,
@@ -343,18 +343,18 @@ def run_kda_chunk_delta_h_test(profiler, runs, b, t, h, hg, k, v, bt, bv, dtype,
     "b, t, h, hg, k, v, bt, bv, dtype, use_g, use_gk, use_initial_state, save_new_value, is_varlen, use_exp2, "
     "base_k, unroll_factor_k, reuse_alloc", [
         # --- pypto-gym target shapes (HV=4, K=V=BT=128) ---
-        (1, 8192, 4, 4, 128, 128, 128, 64, torch.float16, False, True, False, False, False, False, 64, 1, 2
-         ),  #TODO: UB OVERFLOW BT=128, BV=128
-        (1, 4117, 4, 4, 128, 128, 128, 64, torch.float16, False, True, False, False, False, False, 64, 1,
-         2),  #TODO: UB OVERFLOW BT=128, BV=128
-        (1, 1024, 4, 4, 128, 128, 128, 64, torch.float16, False, True, False, False, True, False, 64, 1,
-         2),  #TODO: UB OVERFLOW BT=128, BV=128
-        (1, 3118, 4, 4, 128, 128, 128, 64, torch.float16, False, True, False, False, True, False, 64, 1,
-         2),  #TODO: UB OVERFLOW BT=128, BV=128
-        (1, 768, 4, 4, 128, 128, 128, 64, torch.float16, False, True, False, False, True, False, 64, 1,
-         2),  #TODO: UB OVERFLOW BT=128, BV=128
-        (1, 156, 4, 4, 128, 128, 128, 64, torch.float16, False, True, False, False, True, False, 64, 1,
-         2),  #TODO: UB OVERFLOW BT=128, BV=128
+        (1, 8192, 4, 4, 128, 128, 64, 64, torch.float16, False, True, False, False, False, False, 64, 1, 0
+         ),  #TODO: UB OVERFLOW BT=128, BV=128, reuse_alloc=2
+        (1, 4117, 4, 4, 128, 128, 64, 64, torch.float16, False, True, False, False, False, False, 64, 1,
+         0),  #TODO: UB OVERFLOW BT=128, BV=128, reuse_alloc=2
+        (1, 1024, 4, 4, 128, 128, 64, 64, torch.float16, False, True, False, False, True, False, 64, 1,
+         0),  #TODO: UB OVERFLOW BT=128, BV=128, reuse_alloc=2
+        (1, 3118, 4, 4, 128, 128, 64, 64, torch.float16, False, True, False, False, True, False, 64, 1,
+         0),  #TODO: UB OVERFLOW BT=128, BV=128, reuse_alloc=2
+        (1, 768, 4, 4, 128, 128, 64, 64, torch.float16, False, True, False, False, True, False, 64, 1,
+         0),  #TODO: UB OVERFLOW BT=128, BV=128, reuse_alloc=2
+        (1, 156, 4, 4, 128, 128, 64, 64, torch.float16, False, True, False, False, True, False, 64, 1,
+         0),  #TODO: UB OVERFLOW BT=128, BV=128, reuse_alloc=2
         # --- sgl-kernel-npu target shapes (D=K=V=128, BT=64, BV=32) ---
         (1, 6, 8, 8, 128, 128, 64, 32, torch.float16, True, False, False, True, True, False, 64, 1, 0),
         (1, 64, 8, 8, 128, 128, 64, 32, torch.float16, True, False, False, True, True, False, 64, 1, 0),

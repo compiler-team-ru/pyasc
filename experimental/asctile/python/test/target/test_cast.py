@@ -15,7 +15,7 @@ import torch
 from .helpers import parametrize_is_static
 
 
-@asctile.jit(reuse_alloc=1)
+@asctile.jit(reuse_alloc=2)
 def cast_direct(input_ptr: asctile.GlobalAddress, output_ptr: asctile.GlobalAddress, input_length, block_loop_num,
                 block_loop_num_tail, block_length, tile_length: asctile.ConstExpr, dst_dtype: asctile.ConstExpr,
                 unroll_factor: asctile.ConstExpr):
@@ -33,7 +33,7 @@ def cast_direct(input_ptr: asctile.GlobalAddress, output_ptr: asctile.GlobalAddr
         asctile.copy_out(zt, out_gm, [current_offset])
 
 
-@asctile.jit(reuse_alloc=1)
+@asctile.jit(reuse_alloc=2)
 def cast_two(input_ptr: asctile.GlobalAddress, output_ptr: asctile.GlobalAddress, input_length, block_loop_num,
              block_loop_num_tail, block_length, tile_length: asctile.ConstExpr, intermediate_dtype: asctile.ConstExpr,
              dst_dtype: asctile.ConstExpr, unroll_factor: asctile.ConstExpr):

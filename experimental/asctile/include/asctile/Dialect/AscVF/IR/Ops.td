@@ -64,6 +64,7 @@ def VFGroupOp : AscVF_Op<"vf_group", [SingleBlockImplicitTerminator<"::mlir::asc
   }];
   let hasVerifier = 1;
   let extraClassDeclaration = [{
+    bool canReuse(OpOperand&, OpOperand&);
     SmallVector<Value> getDstTensors();
     SmallVector<Value> getSrcTensors();
   }];

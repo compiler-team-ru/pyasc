@@ -503,7 +503,7 @@ LogicalResult create1DDuplicateScalar(ascendc::DuplicateL2Op op, RewriterAdaptor
     auto scalarVal = op.getScalar();
     if (isa<ascendc::LocalTensorType>(scalarVal.getType())) {
         Value maskOne = adaptor.createMaskOp(vfInfo.elemType, ascendc::MaskPattern::VL1);
-        adaptor.create<ascvf::LoadOp>(srcReg, op.getScalar(), consts.index(0), maskOne);
+        adaptor.create<ascvf::LoadOp>(srcReg, scalarVal, consts.index(0), maskOne);
         Value maskAll = adaptor.createMaskOp(vfInfo.elemType);
         adaptor.create<ascendc::DuplicateRegOp>(tmpReg, srcReg, maskAll);
     } else {

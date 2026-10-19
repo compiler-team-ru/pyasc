@@ -94,10 +94,10 @@ func.func @lower_broadcast(%arg0: tensor<1xf32, #asctile.local<UB>>, %arg1: tens
 // CHECK-LABEL: func.func @lower_softmax(%arg0: tensor<16xf32, #asctile.local<UB>>) -> tensor<16xf32, #asctile.local<UB>> {
 // CHECK:       %0 = builtin.unrealized_conversion_cast %arg0 : tensor<16xf32, #asctile.local<UB>> to !ascendc.local_tensor<16xf32>
 // CHECK-NEXT:  %1 = ascendc.local_tensor_auto veccalc() : <16xf32>
-// CHECK-NEXT:  %2 = ascendc.local_tensor_auto veccalc() : <128xui8>
+// CHECK-NEXT:  %2 = ascendc.local_tensor_auto veccalc() : <288xui8>
 // CHECK-NEXT:  %3 = ascendc.construct !ascendc.softmax_tiling()
 // CHECK-NEXT:  %4 = emitasc.init_struct !ascendc.softmax_shape_info("srcM" = %c1_i32 : i32, "srcK" = %c16_i32 : i32, "oriSrcM" = %c1_i32 : i32, "oriSrcK" = %c16_i32 : i32)
-// CHECK-NEXT:  ascendc.softmax %1, %0, %2, %3, %4 {operandSegmentSizes = array<i32: 1, 0, 0, 1, 1, 1, 1>} : !ascendc.local_tensor<16xf32>, !ascendc.local_tensor<16xf32>, !ascendc.local_tensor<128xui8>, !ascendc.softmax_tiling, !ascendc.softmax_shape_info
+// CHECK-NEXT:  ascendc.softmax %1, %0, %2, %3, %4 {operandSegmentSizes = array<i32: 1, 0, 0, 1, 1, 1, 1>} : !ascendc.local_tensor<16xf32>, !ascendc.local_tensor<16xf32>, !ascendc.local_tensor<288xui8>, !ascendc.softmax_tiling, !ascendc.softmax_shape_info
 // CHECK-NEXT:  %5 = builtin.unrealized_conversion_cast %1 : !ascendc.local_tensor<16xf32> to tensor<16xf32, #asctile.local<UB>>
 // CHECK-NEXT:  return %5 : tensor<16xf32, #asctile.local<UB>>
 // CHECK-NEXT:}

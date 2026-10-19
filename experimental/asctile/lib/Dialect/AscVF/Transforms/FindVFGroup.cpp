@@ -103,8 +103,7 @@ bool isFusible(Operation* op)
             ascendc::SqrtL2Op,
             // Vector scalar operations (L2)
             ascendc::AddsL2Op, ascendc::MulsL2Op, ascendc::SubsL2Op, ascendc::DivsL2Op, ascendc::MaxsL2Op,
-            ascendc::MinsL2Op, ascendc::LeakyReluL2Op, ascendc::ShiftLeftL2Op, ascendc::ShiftRightL2Op,
-            ascendc::CompareScalarL2Op, ascendc::SelectL2Op>([](auto op) {
+            ascendc::MinsL2Op, ascendc::LeakyReluL2Op, ascendc::ShiftLeftL2Op, ascendc::ShiftRightL2Op>([](auto op) {
             if (auto opt = getConstantIntValue(op.getCalCount())) {
                 auto type = getType(op);
                 return opt.value() == type.getNumElements();
@@ -121,11 +120,15 @@ bool isFusible(Operation* op)
         .Default([](Operation*) { return false; });
 }
 
+bool isHoistable(Operation* op) { return isa<ascendc::LocalTensorAutoOp>(op); }
+
 bool isSameGroup(Operation* firstOp, Operation* secondOp) { return getType(firstOp) == getType(secondOp); }
 
 void findGroupsImpl(Region& region, std::vector<OpGroup>& groups)
 {
     auto append = [&groups](SmallVectorImpl<Operation*>& ops) {
+        while (!ops.empty() && !isFusible(ops.back()))
+            ops.pop_back();
         if (!ops.empty()) {
             groups.emplace_back(ops, getType(ops.front()));
             ops.clear();
@@ -142,6 +145,8 @@ void findGroupsImpl(Region& region, std::vector<OpGroup>& groups)
                 append(ops);
             }
             ops.emplace_back(&op);
+        } else if (!ops.empty() && isHoistable(&op)) {
+            ops.emplace_back(&op);
         } else {
             append(ops);
         }
@@ -152,8 +157,8 @@ void findGroupsImpl(Region& region, std::vector<OpGroup>& groups)
 // Find binary_l2, unary_l2 operations that may be executed together
 std::vector<OpGroup> findOperationGroups(Region& region)
 {
-    // 1. The same calCount
-    // 2. Between ops absent other operations
+    // 1. The same calCount and type
+    // 2. Between fusible are allowed hoistable operations, which are located before the rest
     // 3. Contains more than 1 operation
     std::vector<OpGroup> groups;
     findGroupsImpl(region, groups);
@@ -265,6 +270,16 @@ struct FindVFGroupPass : public ascvf::impl::FindVFGroupBase<FindVFGroupPass> {
     {
         func::FuncOp funcOp = getOperation();
         for (auto& group : findOperationGroups(funcOp.getRegion())) {
+            auto& ops = group.ops;
+            SmallVector<Operation*> fusible;
+            for (auto* op : ops) {
+                if (isFusible(op)) {
+                    fusible.push_back(op);
+                } else {
+                    op->moveBefore(ops.front());
+                }
+                group.ops = fusible;
+            }
             auto vfGroupOp = wrapInVFGroupOp(group);
         }
     }

@@ -158,10 +158,6 @@ class Compiler(CompilerBase):
         passes.common.add_cse(pm)
         passes.ascendc.add_hoist_tensor_allocation(pm, exclude_in_out=not arch_c310)
         asctile.passes.ascendc.add_refine_cube_position(pm)
-        if self.options.reuse_alloc == 1:
-            asctile.passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=False)
-        elif self.options.reuse_alloc == 2:
-            asctile.passes.ascendc.add_reuse_tensor_allocation(pm)
         passes.common.add_canonicalizer(pm)
         if self.options.vf_fusion:
             asctile.passes.ascvf.add_promote_cast_ops(pm)
@@ -174,6 +170,11 @@ class Compiler(CompilerBase):
             asctile.passes.ascvf.add_canonicalize_vf_group(pm)
             passes.common.add_canonicalizer(pm)
             passes.common.add_cse(pm)
+        if self.options.reuse_alloc == 1:
+            asctile.passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=False)
+        elif self.options.reuse_alloc == 2:
+            asctile.passes.ascendc.add_reuse_tensor_allocation(pm)
+        if self.options.vf_fusion:
             asctile.passes.ascvf.add_materialize_load_store(pm)
         asctile.passes.ascendc.add_dispatch_alloc(pm)
         asctile.passes.ascendc.add_unify_bias_tensor(pm)

@@ -34,6 +34,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "asctile/Dialect/AscVF/IR/AscVF.h"
 #include "asctile/Dialect/AscendC/Transforms/Passes.h"
 #include "asctile/Dialect/AscendC/Utils/Attributes.h"
 #include "asctile/Dialect/AscendC/Utils/Utils.h"
@@ -179,6 +180,7 @@ public:
         llvm::stable_sort(uses, [&](OpOperand* lhso, OpOperand* rhso) {
             return ascendc::opPrecedes(lhso->getOwner(), rhso->getOwner(), *di);
         });
+        llvm::erase_if(uses, [](OpOperand* opnd) { return opnd->getOwner()->getParentOfType<ascvf::VFGroupOp>(); });
         beginLifeOp = uses.front()->getOwner();
         firstUse = findFirstUse(uses);
         lastUse = uses.back();
@@ -355,10 +357,6 @@ bool canReuse(const LifetimeInfo& topTensorLTI, const LifetimeInfo& bottomTensor
     if (auto* borderOp = topInfo->getEndBorderOp(*bottomInfo)) {
         if (top.getType().getElementType() != bottom.getType().getElementType()) {
             LLVM_DEBUG(llvm::dbgs() << "  reject: same-op element type mismatch\n");
-            return false;
-        }
-        if (!isReadFromAllocation(borderOp, top) || !isWriteToAllocation(borderOp, bottom)) {
-            LLVM_DEBUG(llvm::dbgs() << "  reject: invalid read-write dependency\n");
             return false;
         }
         // Only allow same-op reuse for operations marked with OpWithReusableSrc.
