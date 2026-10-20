@@ -78,6 +78,11 @@ The following environment variables can be **exported** to configure the install
 ``PYASC_SETUP_EXPERIMENTAL=1`` (optional)
     enable the compilation and packaging of experimental modules (including ``asctile``)
 
+    .. attention::
+
+        Remember to set ``PYASC_SETUP_EXPERIMENTAL=1`` if the **AscTile** module is required.
+        Otherwise, its installation will be skipped and ``from asc.experimental import asctile`` won't work.
+
 ``PYASC_SETUP_JOBS=<num>`` (optional)
     number of build jobs (default: number of available CPU cores)
 
@@ -119,10 +124,6 @@ The following environment variables can be **exported** to configure the install
 
 Also, ``-v`` option can be added to pip arguments to increase the output verbosity.
 This will allow to see e.g. CMake and C++ compiler commands.
-
-.. warning::
-
-    Remember to set ``PYASC_SETUP_EXPERIMENTAL=1`` if the **AscTile** module is required.
 
 
 Install the package (recommended)
