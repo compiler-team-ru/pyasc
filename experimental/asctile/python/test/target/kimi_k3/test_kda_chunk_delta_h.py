@@ -70,37 +70,40 @@ def kda_chunk_delta_h_kernel(k_ptr: asctile.GlobalAddress, v_ptr: asctile.Global
     k1 = min(k, 64)
     k2 = k - k1
     bt_half = bt // 2
-    b_h1 = asctile.zeros([k1, bv], dtype=asctile.float32)
+    k1_half = k1 // 2
+    k2_half = k2 // 2
+    sb_off = sb * k1_half
+    sb_off2 = sb * k2_half
+    b_h1 = asctile.zeros([k1_half, bv], dtype=asctile.float32)
     if k2 > 0:
-        b_h2 = asctile.zeros([k2, bv], dtype=asctile.float32)
+        b_h2 = asctile.zeros([k2_half, bv], dtype=asctile.float32)
     if use_initial_state:
         state_row_offset = (i_n * h * k) + (i_h * k)
-        b_h1 = b_h1 + asctile.copy_in(state_gm, [state_row_offset, i_v * bv], [k1, bv]).to(asctile.float32)
+        b_h1 = b_h1 + asctile.copy_in(state_gm, [state_row_offset + sb_off, i_v * bv], [k1_half, bv]).to(
+            asctile.float32)
         if k2 > 0:
-            b_h2 = b_h2 + asctile.copy_in(state_gm, [state_row_offset + k1, i_v * bv], [k2, bv]).to(asctile.float32)
+            b_h2 = b_h2 + asctile.copy_in(state_gm, [state_row_offset + k1 + sb_off2, i_v * bv], [k2_half, bv]).to(
+                asctile.float32)
     for i_t in asctile.range(nt, gm_barrier=True):
         h_row_offset = ((boh + i_t) * h + i_h) * k
-        if sb == 0:
-            asctile.copy_out(b_h1.to(quant_type), h_gm, [h_row_offset, i_v * bv])
-            if k2 > 0:
-                asctile.copy_out(b_h2.to(quant_type), h_gm, [h_row_offset + k1, i_v * bv])
+        asctile.copy_out(b_h1.to(quant_type), h_gm, [h_row_offset + sb_off, i_v * bv])
+        if k2 > 0:
+            asctile.copy_out(b_h2.to(quant_type), h_gm, [h_row_offset + k1 + sb_off2, i_v * bv])
         v_row_offset = bos_v + (i_t * bt)
         v_chunk = asctile.copy_in(v_gm, [v_row_offset + bt_half * sb, i_v * bv], [bt_half, bv])
         b_h1_compute = b_h1.to(quant_type)
         acc1 = asctile.zeros_acc([bt, bv], dtype=asctile.float32)
         w_row_offset = bos_v + (i_t * bt)
-        for k_step in asctile.range(asctile.ceildiv(k1, base_k), unroll_factor=unroll_factor_k):
-            k_off = k_step * base_k
-            w_l0 = asctile.copy_in(w_gm, [w_row_offset, k_off], [bt, base_k])
-            h_l1 = asctile.copy(b_h1_compute, [k_off, 0], [base_k, bv])
-            asctile.matmul_acc(acc1, w_l0, h_l1)
+        w_l0 = asctile.copy_in(w_gm, [w_row_offset, 0], [bt, k1])
+        h_l1 = asctile.copy(b_h1_compute, [0, 0], [k1, bv], location=asctile.TensorLocation.L1,
+                            distrib=asctile.DistribMode.JoinByM)
+        asctile.matmul_acc(acc1, w_l0, h_l1)
         if k2 > 0:
             b_h2_compute = b_h2.to(quant_type)
-            for k_step in asctile.range(asctile.ceildiv(k2, base_k), unroll_factor=unroll_factor_k):
-                k_off = k1 + k_step * base_k
-                w_l0 = asctile.copy_in(w_gm, [w_row_offset, k_off], [bt, base_k])
-                h_l1 = asctile.copy(b_h2_compute, [k_step * base_k, 0], [base_k, bv])
-                asctile.matmul_acc(acc1, w_l0, h_l1)
+            w_l0 = asctile.copy_in(w_gm, [w_row_offset, k1], [bt, k2])
+            h_l1 = asctile.copy(b_h2_compute, [0, 0], [k2, bv], location=asctile.TensorLocation.L1,
+                                distrib=asctile.DistribMode.JoinByM)
+            asctile.matmul_acc(acc1, w_l0, h_l1)
         acc1_ub = asctile.copy(acc1, location=asctile.TensorLocation.UB, distrib=asctile.DistribMode.SplitByM)
         b_v = v_chunk.to(asctile.float32) - acc1_ub.to(asctile.float32)
         if save_new_value:
@@ -124,7 +127,7 @@ def kda_chunk_delta_h_kernel(k_ptr: asctile.GlobalAddress, v_ptr: asctile.Global
         if use_gk:
             last_idx = min((i_t + 1) * bt, t) - 1
             gk_row_offset = bos_v + last_idx
-            gk_last1 = asctile.copy_in(gk_gm, [gk_row_offset, 0], [k1])
+            gk_last1 = asctile.copy_in(gk_gm, [gk_row_offset, sb_off], [k1_half])
             if use_exp2:
                 gk_exp1 = asctile.exp2(gk_last1)
             else:
@@ -132,7 +135,7 @@ def kda_chunk_delta_h_kernel(k_ptr: asctile.GlobalAddress, v_ptr: asctile.Global
             gk_exp1_col = gk_exp1.expand_dims(1)
             b_h1 = b_h1 * gk_exp1_col
             if k2 > 0:
-                gk_last2 = asctile.copy_in(gk_gm, [gk_row_offset, k1], [k2])
+                gk_last2 = asctile.copy_in(gk_gm, [gk_row_offset, k1 + sb_off2], [k2_half])
                 if use_exp2:
                     gk_exp2 = asctile.exp2(gk_last2)
                 else:
@@ -148,7 +151,7 @@ def kda_chunk_delta_h_kernel(k_ptr: asctile.GlobalAddress, v_ptr: asctile.Global
             k_l0 = asctile.copy_in(k_gm, [k_row_offset + bt_off, 0], [base_k, k1]).T
             v_l0 = asctile.copy(v_l1, [bt_off, 0], [base_k, bv])
             asctile.matmul_acc(acc2, k_l0, v_l0)
-        acc2_ub = asctile.copy(acc2, location=asctile.TensorLocation.UB)
+        acc2_ub = asctile.copy(acc2, location=asctile.TensorLocation.UB, distrib=asctile.DistribMode.SplitByM)
         b_h1 = b_h1 + acc2_ub
         if k2 > 0:
             acc3 = asctile.zeros_acc([k2, bv], dtype=asctile.float32)
@@ -157,13 +160,12 @@ def kda_chunk_delta_h_kernel(k_ptr: asctile.GlobalAddress, v_ptr: asctile.Global
                 k_l0 = asctile.copy_in(k_gm, [k_row_offset + bt_off, k1], [base_k, k2]).T
                 v_l0 = asctile.copy(v_l1, [bt_off, 0], [base_k, bv])
                 asctile.matmul_acc(acc3, k_l0, v_l0)
-            acc3_ub = asctile.copy(acc3, location=asctile.TensorLocation.UB)
+            acc3_ub = asctile.copy(acc3, location=asctile.TensorLocation.UB, distrib=asctile.DistribMode.SplitByM)
             b_h2 = b_h2 + acc3_ub
     state_row_offset = (i_n * h * k) + (i_h * k)
-    if sb == 0:
-        asctile.copy_out(b_h1.to(asctile.float32), state_gm, [state_row_offset, i_v * bv])
-        if k2 > 0:
-            asctile.copy_out(b_h2.to(asctile.float32), state_gm, [state_row_offset + k1, i_v * bv])
+    asctile.copy_out(b_h1.to(asctile.float32), state_gm, [state_row_offset + sb_off, i_v * bv])
+    if k2 > 0:
+        asctile.copy_out(b_h2.to(asctile.float32), state_gm, [state_row_offset + k1 + sb_off2, i_v * bv])
 
 
 def chunk_delta_h_ref(k, v, w, g=None, gk=None, initial_state=None, cu_seqlens=None, bt=64, use_exp2=False,
@@ -343,18 +345,12 @@ def run_kda_chunk_delta_h_test(profiler, runs, b, t, h, hg, k, v, bt, bv, dtype,
     "b, t, h, hg, k, v, bt, bv, dtype, use_g, use_gk, use_initial_state, save_new_value, is_varlen, use_exp2, "
     "base_k, unroll_factor_k, reuse_alloc", [
         # --- pypto-gym target shapes (HV=4, K=V=BT=128) ---
-        (1, 8192, 4, 4, 128, 128, 64, 64, torch.float16, False, True, False, False, False, False, 64, 1, 0
-         ),  #TODO: UB OVERFLOW BT=128, BV=128, reuse_alloc=2
-        (1, 4117, 4, 4, 128, 128, 64, 64, torch.float16, False, True, False, False, False, False, 64, 1,
-         0),  #TODO: UB OVERFLOW BT=128, BV=128, reuse_alloc=2
-        (1, 1024, 4, 4, 128, 128, 64, 64, torch.float16, False, True, False, False, True, False, 64, 1,
-         0),  #TODO: UB OVERFLOW BT=128, BV=128, reuse_alloc=2
-        (1, 3118, 4, 4, 128, 128, 64, 64, torch.float16, False, True, False, False, True, False, 64, 1,
-         0),  #TODO: UB OVERFLOW BT=128, BV=128, reuse_alloc=2
-        (1, 768, 4, 4, 128, 128, 64, 64, torch.float16, False, True, False, False, True, False, 64, 1,
-         0),  #TODO: UB OVERFLOW BT=128, BV=128, reuse_alloc=2
-        (1, 156, 4, 4, 128, 128, 64, 64, torch.float16, False, True, False, False, True, False, 64, 1,
-         0),  #TODO: UB OVERFLOW BT=128, BV=128, reuse_alloc=2
+        (1, 8192, 4, 4, 128, 128, 128, 128, torch.float16, False, True, False, False, False, False, 64, 1, 2),
+        (1, 4117, 4, 4, 128, 128, 128, 128, torch.float16, False, True, False, False, False, False, 64, 1, 2),
+        (1, 1024, 4, 4, 128, 128, 128, 128, torch.float16, False, True, False, False, True, False, 64, 1, 2),
+        (1, 3118, 4, 4, 128, 128, 128, 128, torch.float16, False, True, False, False, True, False, 64, 1, 2),
+        (1, 768, 4, 4, 128, 128, 128, 128, torch.float16, False, True, False, False, True, False, 64, 1, 2),
+        (1, 156, 4, 4, 128, 128, 128, 128, torch.float16, False, True, False, False, True, False, 64, 1, 2),
         # --- sgl-kernel-npu target shapes (D=K=V=128, BT=64, BV=32) ---
         (1, 6, 8, 8, 128, 128, 64, 32, torch.float16, True, False, False, True, True, False, 64, 1, 0),
         (1, 64, 8, 8, 128, 128, 64, 32, torch.float16, True, False, False, True, True, False, 64, 1, 0),
