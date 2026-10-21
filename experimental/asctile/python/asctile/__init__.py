@@ -28,7 +28,7 @@ from asc.language.core.dtype import (
 )
 from asc.language.core.ir_value import GlobalAddress
 from asc.lib import profiling, runtime
-from asc.runtime.config import Backend, KernelType, Platform, set_platform
+from asc.runtime.config import Backend, KernelType, Platform
 
 __all__ += [
     "Backend",
@@ -53,7 +53,6 @@ __all__ += [
     "int_",
     "profiling",
     "runtime",
-    "set_platform",
 ]
 
 from .language.global_tensor import GlobalTensor, global_tensor
@@ -173,6 +172,7 @@ from .language.reduction_ops import (
 )
 
 from .runtime.compiler import CompileOptions
+from .runtime.config import set_platform
 from .runtime.jit import jit
 
 __all__ += [
@@ -288,6 +288,8 @@ __all__ += [
     "reduce_prod",
     # .runtime.compiler
     "CompileOptions",
+    # .runtime.config
+    "set_platform",
     # .runtime.jit
     "jit",
 ]

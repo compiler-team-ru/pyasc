@@ -15,6 +15,7 @@ class NameScope:
     default_builtins: Dict[str, Any] = {
         b.__name__: b
         for b in (
+            breakpoint,
             dict,
             float,
             int,
