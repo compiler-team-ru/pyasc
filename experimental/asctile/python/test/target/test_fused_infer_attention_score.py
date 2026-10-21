@@ -68,6 +68,7 @@ def flash_attention_pyasc(q_ptr: asctile.GlobalAddress, k_ptr: asctile.GlobalAdd
         for j in asctile.range(asctile.ceildiv(S2, step2), unroll_factor=s2_unroll):
             s2 = n_kv * S2 + j * step2
             k_part = asctile.copy_in(k_gm, [s2, 0], [step2, D], location=asctile.TensorLocation.L1).transpose()
+            l1v = asctile.copy_in(v_gm, [s2, 0], [step2, D], location=asctile.TensorLocation.L1)
             mm_acc = asctile.zeros_acc([s1_batch, step2], dtype=asctile.float32)
             for k in asctile.range(asctile.ceildiv(D, mm1_K_step), unroll_factor=2):
                 l0q = asctile.copy(q_part, [0, k * mm1_K_step], [s1_batch, mm1_K_step],
@@ -77,17 +78,16 @@ def flash_attention_pyasc(q_ptr: asctile.GlobalAddress, k_ptr: asctile.GlobalAdd
                 asctile.matmul_acc(mm_acc, l0q, l0k)
             # BMM1 fixpipe, split by M: each AIV sub-block receives its row half of the attention tile.
             attn_weight = asctile.copy(mm_acc, location=asctile.TensorLocation.UB, distrib=asctile.DistribMode.SplitByM)
-            l1v = asctile.copy_in(v_gm, [s2, 0], [step2, D], location=asctile.TensorLocation.L1)
 
             # Online softmax on this sub-block's rows only (SPMD, no guards).
             attn_weight = attn_weight * scale_factor
             max_tmp = asctile.reduce_max(attn_weight, 1)
-            x_exp = asctile.exp(attn_weight - max_tmp.reshape(s1_half, 1).broadcast_to(s1_half, step2))
             x_max = asctile.maximum(softmax_max, max_tmp)
             beta = asctile.exp(max_tmp - x_max)
             exp_max = asctile.exp(softmax_max - x_max)
-            sum_tmp = asctile.reduce_sum(x_exp, 1)
             softmax_max = x_max
+            x_exp = asctile.exp(attn_weight - max_tmp.reshape(s1_half, 1).broadcast_to(s1_half, step2))
+            sum_tmp = asctile.reduce_sum(x_exp, 1)
             softmax_d = exp_max * softmax_d + beta * sum_tmp
             beta2 = x_exp * beta.reshape(s1_half, 1).broadcast_to(s1_half, step2)
             l1p = asctile.copy(beta2.to(dtype), location=asctile.TensorLocation.L1, distrib=asctile.DistribMode.JoinByM)
@@ -160,12 +160,17 @@ def test_flash_attention_score(profiler, runs, block_num, input_shapes, torch_dt
     asctile_dtype = asctile.bfloat16 if torch_dtype == torch.bfloat16 else asctile.float16
     scale_factor = 0.041666666666666664
 
-    step1, step2 = S1, 128
+    # Now a separate L1 buffer is allocated for each K/V tile. So, amount of memeory utilized
+    # by K/V matrices is 2 * (step2 * D * torch.finfo(dtype).bits // 8) * s2_unroll.
+    # So, if double buffering is used, step2 should be decreased to fit into L1 memory.
+    step1, step2 = S1, 128 // s2_unroll
+
     # Bigger S2 tile (CANN s2BaseSize=128). L0B (64KB) is double-buffered by the unrolled
     # bmm2 loop, so the B2 fragment area is bounded: 2 * mm2_K_step * D * 2B <= 64KB, i.e.
     # mm2_K_step * D <= 16384 elements.
     mm1_K_step = min(256, 16384 // step2)
     mm2_K_step = 16384 // D
+
     # L2 caching startegy:
     #  - Q tensor isn't cached (each tile is loaded once per kernel execution)
     #  - K/V tensors caching depends on whether full Q tensor sequence is processed
