@@ -60,7 +60,7 @@ torch.testing.assert_close(out, x + y)
 
 ## Documentation
 
-Read the full [documentation](https://compiler-team-ru.github.io/pyasc/) to learn more:
+Read the full [documentation](https://compiler-team-ru.github.io/asctile/) to learn more:
 
 | Section | Description |
 |---------|-------------|
