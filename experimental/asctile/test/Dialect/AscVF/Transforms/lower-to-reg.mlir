@@ -102,3 +102,17 @@ module attributes {asc.vf_vec_len = 256 : i32} {
     return
   }
 }
+
+// CHECK-LABEL: func.func @translate_row_broadcast
+// CHECK: emitasc.vf_for %c96 : index {
+// CHECK:   emitasc.vf_for
+// CHECK:   ascendc.update_mask
+// CHECK:   ascvf.load {{.*}} : !ascendc.reg_tensor<f32>, <1x16xf32>, index, !ascendc.mask_reg
+// CHECK-NOT: ascendc.duplicate_reg
+// CHECK:   ascvf.store {{.*}} : <96x16xf32>, index, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+func.func @translate_row_broadcast(%c0: i32, %dst: !ascendc.local_tensor<96x16xf32>, %src: !ascendc.local_tensor<1x16xf32>) {
+  ascvf.vf_group outs(%dst : !ascendc.local_tensor<96x16xf32>) ins(%src : !ascendc.local_tensor<1x16xf32>) {
+    ascendc.broadcast %dst, %src, %c0, %c0, %c0, %c0, %c0, %c0 {operandSegmentSizes = array<i32: 1, 1, 3, 3>} : !ascendc.local_tensor<96x16xf32>, !ascendc.local_tensor<1x16xf32>, i32, i32, i32, i32, i32, i32
+  } {groupType = !ascendc.local_tensor<96x16xf32>}
+  return
+}

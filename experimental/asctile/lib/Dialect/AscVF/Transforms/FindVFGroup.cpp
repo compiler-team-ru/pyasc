@@ -38,7 +38,7 @@ struct OpGroup {
     OpGroup(ArrayRef<Operation*> ops, Type groupType) : ops(ops), groupType(groupType) {}
 };
 
-bool isARPattern(ascendc::BroadcastOp bcastOp)
+bool isBroadcastSupported(ascendc::BroadcastOp bcastOp)
 {
     // broadcast by last axis
     // TODO: add case multiple last dim
@@ -49,12 +49,23 @@ bool isARPattern(ascendc::BroadcastOp bcastOp)
     if (!srcType || !dstType)
         return false;
     auto shape1 = SmallVector<int64_t>{srcType.getShape()};
-    if (shape1.back() != 1)
-        return false;
     auto shape2 = SmallVector<int64_t>{dstType.getShape()};
-    shape1.pop_back();
-    shape2.pop_back();
-    return shape1 == shape2;
+    if (shape1.empty() || shape1.size() != shape2.size())
+        return false;
+    if (shape1.back() == 1) {
+        // Column broadcast: leading dims match, the size-1 last dim is expanded.
+        // Ex: [96, 1] -> [96, 16]
+        return ArrayRef<int64_t>{shape1}.drop_back() == ArrayRef<int64_t>{shape2}.drop_back();
+    }
+    // Row broadcast: the source is a single row of the destination's row length,
+    // replicated over all rows. Ex: [1, 16] -> [96, 16]
+    if (shape1.back() != shape2.back())
+        return false;
+    for (size_t i = 0; i + 1 < shape1.size(); ++i) {
+        if (shape1[i] != 1)
+            return false;
+    }
+    return true;
 }
 
 ascendc::LocalTensorType getType(Operation* op)
@@ -91,7 +102,7 @@ bool isFusible(Operation* op)
     return llvm::TypeSwitch<Operation*, bool>(op)
         .Case<ascendc::ReduceSumOp, ascendc::ReduceMaxOp, ascendc::ReduceMinOp>(
             [](auto reduceOp) { return reduceOp.getPattern() == ascendc::ReducePattern::AR; })
-        .Case<ascendc::BroadcastOp>([](auto bcastOp) { return isARPattern(bcastOp); })
+        .Case<ascendc::BroadcastOp>([](auto bcastOp) { return isBroadcastSupported(bcastOp); })
         .Case<
             ascendc::DuplicateL2Op,
             // Vector binary operations (L2)
