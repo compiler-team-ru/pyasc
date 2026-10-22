@@ -86,41 +86,34 @@ The following environment variables can be **exported** to configure the install
 ``PYASC_SETUP_JOBS=<num>`` (optional)
     number of build jobs (default: number of available CPU cores)
 
-.. raw:: html
+.. spoiler:: Additional environment variables
 
-    <details>
-        <summary><strong>Additional environment variables</strong></summary>
+   ``PYASC_SETUP_ASAN=1`` (optional)
+       enable AddressSanitizer for the C++ build
 
-``PYASC_SETUP_ASAN=1`` (optional)
-    enable AddressSanitizer for the C++ build
+   ``PYASC_SETUP_BUILD_DIR=<path>`` (optional)
+       provide the directory for the temporary build files (default: ``build``)
 
-``PYASC_SETUP_BUILD_DIR=<path>`` (optional)
-    provide the directory for the temporary build files (default: ``build``)
+   ``PYASC_SETUP_CMAKE_APPEND=<args>`` (optional)
+       append additional CMake configure arguments; the value is shell-split before use
 
-``PYASC_SETUP_CMAKE_APPEND=<args>`` (optional)
-    append additional CMake configure arguments; the value is shell-split before use
+   ``PYASC_SETUP_COMPILER=<bin>`` (optional)
+       name or path of the compiler executable (default: system compiler, recommended: ``clang++``)
 
-``PYASC_SETUP_COMPILER=<bin>`` (optional)
-    name or path of the compiler executable (default: system compiler, recommended: ``clang++``)
+   ``PYASC_SETUP_CONFIG=<config>`` (optional)
+       build configuration for CMake (default: ``Release``)
 
-``PYASC_SETUP_CONFIG=<config>`` (optional)
-    build configuration for CMake (default: ``Release``)
+   ``PYASC_SETUP_LINKER=<bin>`` (optional)
+       name or path of the linker executable (default: system linker, recommended: ``lld``)
 
-``PYASC_SETUP_LINKER=<bin>`` (optional)
-    name or path of the linker executable (default: system linker, recommended: ``lld``)
+   ``PYASC_SETUP_NAME=<name>`` (optional)
+       override the Python distribution name (default: ``pyasc``)
 
-``PYASC_SETUP_NAME=<name>`` (optional)
-    override the Python distribution name (default: ``pyasc``)
+   ``PYASC_SETUP_VERSION=<version>`` (optional)
+       override the base package version
 
-``PYASC_SETUP_VERSION=<version>`` (optional)
-    override the base package version
-
-``PYASC_SETUP_VERSION_SUFFIX=<suffix>`` (optional)
-    append a suffix to the local package version
-
-.. raw:: html
-
-    </details><br />
+   ``PYASC_SETUP_VERSION_SUFFIX=<suffix>`` (optional)
+       append a suffix to the local package version
 
 Also, ``-v`` option can be added to pip arguments to increase the output verbosity.
 This will allow to see e.g. CMake and C++ compiler commands.
