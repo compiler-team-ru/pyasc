@@ -37,8 +37,7 @@ It is recommended to activate `a virtual environment <https://docs.python.org/3/
 
 .. code-block:: bash
 
-    python3 -m pip install virtualenv
-    python3 -m virtualenv $HOME/.pyasc_venv --prompt pyasc
+    python3 -m venv $HOME/.pyasc_venv --prompt pyasc
     source $HOME/.pyasc_venv/bin/activate
 
 

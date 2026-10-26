@@ -9,7 +9,7 @@
 Setup runtime environment
 =========================
 
-After the :doc:`installation <build-from-source>`, the following dependencies should be installed before running PyAsc operators:
+After the :doc:`installation <install-from-pypi>`, the following dependencies should be installed before running PyAsc operators:
 
 .. contents::
     :depth: 1

@@ -21,6 +21,7 @@ PyAsc + AscTile documentation
    :maxdepth: 1
    :caption: Installation
 
+   installation/install-from-pypi
    installation/build-from-source
    installation/setup-runtime-env
 

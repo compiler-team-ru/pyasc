@@ -23,7 +23,7 @@ Why use AscTile
 Install required packages
 -------------------------
 
-1. :doc:`Build AscTile from sources <../installation/build-from-source>`.
+1. :doc:`Install PyAsc + AscTile package <../installation/install-from-pypi>`.
 2. :doc:`Install CANN packages <../installation/setup-runtime-env>` if they are not installed.
 
 Learn AscTile with tutorials
