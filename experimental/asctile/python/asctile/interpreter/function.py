@@ -6,9 +6,9 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
+from contextlib import contextmanager
 import inspect
-import types
-from typing import Any, Callable, Dict, Set, Tuple
+from typing import Any, Callable, Dict, Iterator, Set, Tuple
 
 import numpy as np
 
@@ -40,10 +40,15 @@ def wrap_argument(value: Any) -> Any:
     raise TypeError(f"{value.__class__.__name__} arguments are not supported by the interpreter")
 
 
-def make_exec_function(fn: Callable) -> types.FunctionType:
-    namespace = dict(fn.__globals__)
+@contextmanager
+def interpret_asctile(fn: Callable[..., Any]) -> Iterator[None]:
+    namespace = fn.__globals__
+    original_asctile = namespace["asctile"]
     namespace["asctile"] = make_module()
-    return types.FunctionType(fn.__code__, namespace, fn.__name__, fn.__defaults__, fn.__closure__)
+    try:
+        yield
+    finally:
+        namespace["asctile"] = original_asctile
 
 
 class InterpretedFunction(JITFunction):
@@ -53,7 +58,8 @@ class InterpretedFunction(JITFunction):
         self._validated: Set[str] = set()
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return make_exec_function(self.fn)(*args, **kwargs)
+        with interpret_asctile(self.fn):
+            return self.fn(*args, **kwargs)
 
     def _compile_and_cache(self, prereqs: CompilePrereqs) -> Tuple[Dict[str, ConstExpr], None]:
         cache_key = get_mem_cache_key(self._gen_cache_factors(prereqs))
@@ -77,7 +83,7 @@ class InterpretedFunction(JITFunction):
         fn_args = tuple(
             ConstExpr.unwrap(constexprs[name]) if name in constexprs else next(arg_values)
             for name in inspect.signature(self.fn).parameters)
-        kernel_fn = make_exec_function(self.fn)
-        for block_idx in range(block_num):
-            operations.block_context.set(block_idx, block_num)
-            kernel_fn(*fn_args)
+        with interpret_asctile(self.fn):
+            for block_idx in range(block_num):
+                operations.block_context.set(block_idx, block_num)
+                self.fn(*fn_args)
