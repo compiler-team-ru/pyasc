@@ -7,6 +7,8 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 import builtins
+import math
+from numbers import Number
 from typing import Any, Callable, Iterable, Optional, Tuple, Union
 
 import numpy as np
@@ -128,24 +130,329 @@ def matmul_acc(acc: LocalTensor, input: LocalTensor, other: LocalTensor) -> None
     acc.data += input.data.astype(acc.data.dtype) @ other.data.astype(acc.data.dtype)
 
 
+def bind_tensor_method(obj: Any = None, *, binary: bool = False) -> Any:
+
+    def bind(fn: Callable[..., Any], name: Optional[str]) -> Callable[..., Any]:
+        method_name = name or fn.__name__
+        setattr(LocalTensor, method_name, fn)
+        if binary:
+
+            def swapped(self: Any, other: Any) -> Any:
+                return fn(other, self)
+
+            setattr(LocalTensor, "__r" + method_name[2:], swapped)
+        return fn
+
+    if callable(obj):
+        return bind(obj, None)
+    return lambda fn: bind(fn, obj)
+
+
+def binary_op(op: Callable[[Any, Any], Any], lhs: Any, rhs: Any) -> LocalTensor:
+    lhs = lhs.data if isinstance(lhs, LocalTensor) else lhs
+    rhs = rhs.data if isinstance(rhs, LocalTensor) else rhs
+    return LocalTensor(op(lhs, rhs))
+
+
+@bind_tensor_method("__add__", binary=True)
 @override
-def exp(input: LocalTensor) -> LocalTensor:
-    return LocalTensor(np.exp(input.data))
+def add(input: Union[LocalTensor, Number], other: Union[LocalTensor, Number]) -> LocalTensor:
+    return binary_op(np.add, input, other)
 
 
-def reduce_impl(op: Callable[..., Any], input: LocalTensor, dims: Tuple[int, ...], keep_dims: bool) -> Any:
-    check_type("input", input, LocalTensor)
+@bind_tensor_method("__and__", binary=True)
+@override
+def bitwise_and(input: Union[LocalTensor, Number], other: Union[LocalTensor, Number]) -> LocalTensor:
+    return binary_op(np.bitwise_and, input, other)
+
+
+@bind_tensor_method("__or__", binary=True)
+@override
+def bitwise_or(input: Union[LocalTensor, Number], other: Union[LocalTensor, Number]) -> LocalTensor:
+    return binary_op(np.bitwise_or, input, other)
+
+
+@bind_tensor_method("__xor__", binary=True)
+@override
+def bitwise_xor(input: Union[LocalTensor, Number], other: Union[LocalTensor, Number]) -> LocalTensor:
+    return binary_op(np.bitwise_xor, input, other)
+
+
+@bind_tensor_method("__truediv__", binary=True)
+@override
+def div(input: Union[LocalTensor, Number], other: Union[LocalTensor, Number]) -> LocalTensor:
+    return binary_op(np.divide, input, other)
+
+
+@bind_tensor_method("__lshift__")
+@override
+def left_shift(input: Union[LocalTensor, Number], other: Union[LocalTensor, Number]) -> LocalTensor:
+    return binary_op(np.left_shift, input, other)
+
+
+@bind_tensor_method("__matmul__", binary=True)
+@override
+def matmul(input: LocalTensor, other: LocalTensor, bias: Optional[LocalTensor] = None, *,
+           hf32: bool = False) -> LocalTensor:
+    del hf32
+    result = input.data.astype(np.float32) @ other.data.astype(np.float32)
+    if bias is not None:
+        result = result + bias.data.astype(np.float32)
+    return LocalTensor(result)
+
+
+@bind_tensor_method("__mul__", binary=True)
+@override
+def mul(input: Union[LocalTensor, Number], other: Union[LocalTensor, Number]) -> LocalTensor:
+    return binary_op(np.multiply, input, other)
+
+
+@bind_tensor_method("__pow__", binary=True)
+@override
+def pow(input: Union[LocalTensor, Number], other: Union[LocalTensor, Number]) -> LocalTensor:
+    return binary_op(np.power, input, other)
+
+
+@bind_tensor_method("__rshift__")
+@override
+def right_shift(input: Union[LocalTensor, Number], other: Union[LocalTensor, Number]) -> LocalTensor:
+    return binary_op(np.right_shift, input, other)
+
+
+@bind_tensor_method("__sub__", binary=True)
+@override
+def sub(input: Union[LocalTensor, Number], other: Union[LocalTensor, Number]) -> LocalTensor:
+    return binary_op(np.subtract, input, other)
+
+
+@bind_tensor_method("__eq__")
+@override
+def equal(input: Union[LocalTensor, Number], other: Union[LocalTensor, Number]) -> LocalTensor:
+    return binary_op(np.equal, input, other)
+
+
+@bind_tensor_method("__gt__")
+@override
+def greater(input: Union[LocalTensor, Number], other: Union[LocalTensor, Number]) -> LocalTensor:
+    return binary_op(np.greater, input, other)
+
+
+@bind_tensor_method("__ge__")
+@override
+def greater_equal(input: Union[LocalTensor, Number], other: Union[LocalTensor, Number]) -> LocalTensor:
+    return binary_op(np.greater_equal, input, other)
+
+
+@bind_tensor_method("__lt__")
+@override
+def less(input: Union[LocalTensor, Number], other: Union[LocalTensor, Number]) -> LocalTensor:
+    return binary_op(np.less, input, other)
+
+
+@bind_tensor_method("__le__")
+@override
+def less_equal(input: Union[LocalTensor, Number], other: Union[LocalTensor, Number]) -> LocalTensor:
+    return binary_op(np.less_equal, input, other)
+
+
+@bind_tensor_method("__ne__")
+@override
+def not_equal(input: Union[LocalTensor, Number], other: Union[LocalTensor, Number]) -> LocalTensor:
+    return binary_op(np.not_equal, input, other)
+
+
+def unary_op(op: Callable[[Any], Any], input: Union[LocalTensor, Number]) -> LocalTensor:
+    input = input.data if isinstance(input, LocalTensor) else input
+    return LocalTensor(op(input))
+
+
+@bind_tensor_method("__abs__")
+@bind_tensor_method
+@override
+def abs(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return unary_op(np.abs, input)
+
+
+@bind_tensor_method("__invert__")
+@override
+def bitwise_not(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return unary_op(np.invert, input)
+
+
+@bind_tensor_method
+@override
+def ceil(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return unary_op(np.ceil, input)
+
+
+@bind_tensor_method
+@override
+def cos(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return unary_op(np.cos, input)
+
+
+@bind_tensor_method
+@override
+def cosh(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return unary_op(np.cosh, input)
+
+
+@bind_tensor_method
+@override
+def erf(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return unary_op(np.vectorize(math.erf), input)
+
+
+@bind_tensor_method
+@override
+def exp(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return unary_op(np.exp, input)
+
+
+@bind_tensor_method
+@override
+def exp2(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return unary_op(np.exp2, input)
+
+
+@bind_tensor_method
+@override
+def floor(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return unary_op(np.floor, input)
+
+
+@bind_tensor_method
+@override
+def log(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return unary_op(np.log, input)
+
+
+@bind_tensor_method
+@override
+def log2(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return unary_op(np.log2, input)
+
+
+@bind_tensor_method("__neg__")
+@override
+def negative(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return unary_op(np.negative, input)
+
+
+@bind_tensor_method
+@override
+def relu(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return binary_op(np.maximum, input, 0)
+
+
+@bind_tensor_method
+@override
+def rsqrt(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return unary_op(lambda data: 1 / np.sqrt(data), input)
+
+
+@bind_tensor_method
+@override
+def sin(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return unary_op(np.sin, input)
+
+
+@bind_tensor_method
+@override
+def sinh(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return unary_op(np.sinh, input)
+
+
+@bind_tensor_method
+@override
+def sqrt(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return unary_op(np.sqrt, input)
+
+
+@bind_tensor_method
+@override
+def tan(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return unary_op(np.tan, input)
+
+
+@bind_tensor_method
+@override
+def tanh(input: Union[LocalTensor, Number]) -> LocalTensor:
+    return unary_op(np.tanh, input)
+
+
+def reduce_op(op: Callable[..., Any], input: LocalTensor, dims: Tuple[int, ...], keep_dims: bool) -> Any:
     if not dims:
         value = op(input.data)
         return LocalTensor(np.full([1] * input.rank, value, dtype=input.data.dtype)) if keep_dims else value
     return LocalTensor(op(input.data, axis=dims, keepdims=keep_dims))
 
 
+@bind_tensor_method("max")
 @override
 def reduce_max(input: LocalTensor, *dims: int, keep_dims: bool = False) -> Any:
-    return reduce_impl(np.max, input, dims, keep_dims)
+    return reduce_op(np.max, input, dims, keep_dims)
 
 
+@bind_tensor_method("min")
+@override
+def reduce_min(input: LocalTensor, *dims: int, keep_dims: bool = False) -> Any:
+    return reduce_op(np.min, input, dims, keep_dims)
+
+
+@bind_tensor_method("prod")
+@override
+def reduce_prod(input: LocalTensor, *dims: int, keep_dims: bool = False) -> Any:
+    return reduce_op(np.prod, input, dims, keep_dims)
+
+
+@bind_tensor_method("sum")
 @override
 def reduce_sum(input: LocalTensor, *dims: int, keep_dims: bool = False) -> Any:
-    return reduce_impl(np.sum, input, dims, keep_dims)
+    return reduce_op(np.sum, input, dims, keep_dims)
+
+
+@bind_tensor_method
+@override
+def broadcast_to(input: LocalTensor, *shape: Any) -> LocalTensor:
+    return LocalTensor(np.broadcast_to(input.data, normalize_shape_args(shape)))
+
+
+@bind_tensor_method
+@override
+def expand_dims(input: LocalTensor, *axis: Any) -> LocalTensor:
+    return LocalTensor(np.expand_dims(input.data, tuple(map(int, axis))))
+
+
+def normalize_shape_args(args: Tuple[Any, ...]) -> Tuple[int, ...]:
+    shape = args[0] if len(args) == 1 and isinstance(args[0], Iterable) else args
+    return tuple(map(int, shape))
+
+
+@bind_tensor_method
+@override
+def ravel(input: LocalTensor) -> LocalTensor:
+    return LocalTensor(input.data.reshape(-1))
+
+
+@bind_tensor_method
+@override
+def reshape(input: LocalTensor, *shape: Any) -> LocalTensor:
+    return LocalTensor(input.data.reshape(normalize_shape_args(shape)))
+
+
+@bind_tensor_method
+@override
+def squeeze(input: LocalTensor, *axis: Any) -> LocalTensor:
+    if axis:
+        return LocalTensor(np.squeeze(input.data, tuple(map(int, axis))))
+    return LocalTensor(np.squeeze(input.data))
+
+
+@bind_tensor_method
+@override
+def transpose(input: LocalTensor, *axis: Any) -> LocalTensor:
+    if not axis:
+        axis = list(range(input.rank))
+        axis[-1], axis[-2] = axis[-2], axis[-1]
+    return LocalTensor(np.transpose(input.data, tuple(map(int, axis))))

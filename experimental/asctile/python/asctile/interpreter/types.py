@@ -10,12 +10,14 @@ from __future__ import annotations
 
 from math import prod
 from types import MappingProxyType
-from typing import Any, Callable, Iterable, SupportsInt, Tuple, Union
+from typing import Any, Iterable, SupportsInt, Tuple, Union
 
 import numpy as np
 
 from asc.language.core.dtype import DataType
 
+from ..language.local_tensor import RoundMode
+from ..language.tensor_location import TensorLocation
 from ..language.validation import check_type
 from .patch import override
 
@@ -51,6 +53,28 @@ def numpy_to_dtype(dtype: np.dtype) -> DataType:
     if name is not None:
         return DataType(name)
     raise ValueError(f"dtype '{dtype}' is not supported by the interpreter")
+
+
+round_mode_map = MappingProxyType({
+    RoundMode.Rint: np.rint,
+    RoundMode.Floor: np.floor,
+    RoundMode.Ceil: np.ceil,
+    RoundMode.Round: lambda data: np.trunc(data + np.copysign(0.5, data)),
+    RoundMode.Trunc: np.trunc,
+    RoundMode.NoRound: np.trunc,
+    RoundMode.Default: np.trunc,
+    RoundMode.Odd: lambda data: 2 * np.rint(data / 2 - 0.5) + 1,
+})
+
+
+def cast_data(data: Any, dtype: DataType, round_mode: Any = RoundMode.Default) -> Any:
+    target = dtype_to_numpy(dtype)
+    if data.dtype.kind == "f" and target.kind in "iub":
+        data = round_mode_map[round_mode](data)
+    if target.kind in "iu":
+        info = np.iinfo(target)
+        data = np.clip(data, info.min, info.max)
+    return data.astype(target)
 
 
 @override
@@ -130,33 +154,24 @@ class LocalTensor:
     def size(self) -> int:
         return self.data.size
 
-    def to(self, dtype: DataType) -> LocalTensor:
-        return LocalTensor(self.data.astype(dtype_to_numpy(dtype)))
+    @property
+    def T(self) -> LocalTensor:
+        return self.transpose()
 
-    @staticmethod
-    def binary_op(op: Callable[[Any, Any], Any], lhs: Any, rhs: Any) -> LocalTensor:
-        lhs = lhs.data if isinstance(lhs, LocalTensor) else lhs
-        rhs = rhs.data if isinstance(rhs, LocalTensor) else rhs
-        return LocalTensor(op(lhs, rhs))
+    def to(self, dtype_or_location: Union[DataType, TensorLocation, str],
+           round_mode: Any = RoundMode.Default) -> LocalTensor:
+        if isinstance(dtype_or_location, DataType):
+            return LocalTensor(cast_data(self.data, dtype_or_location, round_mode))
+        return self
 
-    def __add__(self, other: Any) -> LocalTensor:
-        return self.binary_op(np.add, self, other)
+    def __pos__(self) -> LocalTensor:
+        return self
 
-    def __radd__(self, other: Any) -> LocalTensor:
-        return self.binary_op(np.add, other, self)
+    def __floordiv__(self, other: Any) -> LocalTensor:
+        return self / other
 
-    def __sub__(self, other: Any) -> LocalTensor:
-        return self.binary_op(np.subtract, self, other)
-
-    def __rsub__(self, other: Any) -> LocalTensor:
-        return self.binary_op(np.subtract, other, self)
-
-    def __truediv__(self, other) -> LocalTensor:
-        return self.binary_op(np.divide, self, other)
-
-    def __rtruediv__(self, other) -> LocalTensor:
-        return self.binary_op(np.divide, other, self)
+    def __rfloordiv__(self, other: Any) -> LocalTensor:
+        return other / self
 
     def __repr__(self) -> str:
-        # TODO: Support the printing of elements
-        return f"{self.__class__.__name__}(dtype={self.data.dtype}, shape={self.data.shape})"
+        return f"{self.__class__.__name__}(dtype={self.data.dtype}, shape={self.data.shape}, data={self.data})"
