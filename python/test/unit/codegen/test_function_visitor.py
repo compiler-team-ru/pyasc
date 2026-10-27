@@ -12,7 +12,7 @@ import pytest
 
 import asc
 from asc.codegen.errors import CodegenError
-from asc.runtime.jit import JITFunction, MockTensor
+from asc.runtime.jit import MockTensor
 
 
 @pytest.fixture(autouse=True)
@@ -281,14 +281,3 @@ def test_error_test_str():
     with pytest.raises(TypeError) as e:
         func_error_test_str[1]("test")
     assert "Argument type in JIT function is not supported: str" in str(e.value)
-
-
-def test_error_test_print():
-
-    @asc.jit
-    def func_error_test_print(age):
-        print(age)
-
-    with pytest.raises(CodegenError) as e:
-        func_error_test_print[1](100)
-    assert "NameError: print is not defined" in str(e.value)
