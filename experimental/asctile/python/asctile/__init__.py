@@ -109,6 +109,7 @@ from .language.memory_ops import (
     copy_in,
     copy_out,
     gather,
+    reindex,
     scatter,
 )
 from .language.low_level_ops import (
@@ -232,6 +233,7 @@ __all__ += [
     "copy_in",
     "copy_out",
     "gather",
+    "reindex",
     "scatter",
     # .language.low_level_ops
     "empty",
