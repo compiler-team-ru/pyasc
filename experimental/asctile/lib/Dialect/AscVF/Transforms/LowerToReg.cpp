@@ -307,7 +307,7 @@ struct ConvertReduceL2 : public ConvertOp<ReduceL2Op> {
             if (elemType.isF16())
                 return consts.f16(-std::numeric_limits<float>::infinity());
             if (elemType.isInteger(32))
-                return consts.i32(-std::numeric_limits<int>::infinity());
+                return consts.i32(std::numeric_limits<int>::lowest());
         }
         if constexpr (std::is_same_v<ReduceOpType, ascendc::ReduceSumL2Op>) {
             if (elemType.isF32())
@@ -323,7 +323,7 @@ struct ConvertReduceL2 : public ConvertOp<ReduceL2Op> {
             if (elemType.isF16())
                 return consts.f16(std::numeric_limits<float>::infinity());
             if (elemType.isInteger(32))
-                return consts.i32(std::numeric_limits<int>::infinity());
+                return consts.i32(std::numeric_limits<int>::max());
         }
         llvm_unreachable("unknown neutral element");
     }
