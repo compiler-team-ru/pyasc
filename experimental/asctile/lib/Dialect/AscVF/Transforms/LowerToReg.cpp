@@ -408,9 +408,8 @@ struct ConvertCompareScalar : public ConvertOp<ascendc::CompareScalarL2Op> {
         const auto& dims = vfInfo.shape;
         Value offset =
             makeNestedLoop(ArrayRef<int64_t>{dims}.drop_back(), ArrayRef<int64_t>{vfInfo.strides}.drop_back(), adaptor);
-        auto srcReg = adaptor.createRegTensor(vfInfo.elemType);
+        auto [srcReg, tmpReg] = adaptor.createRegTensors<2>(vfInfo.elemType);
         auto dstReg = adaptor.create<ascendc::MaskRegOp>(ascendc::MaskRegType::get(op.getContext()));
-        auto scalarVal = op.getSrc1Scalar();
         auto srcType = dyn_cast<ascendc::LocalTensorType>(op.getSrc0().getType());
         auto dstType = dyn_cast<ascendc::LocalTensorType>(op.getDst().getType());
         assert(srcType && "CompareScalarL2Op must have LocalTensorType");
@@ -423,8 +422,17 @@ struct ConvertCompareScalar : public ConvertOp<ascendc::CompareScalarL2Op> {
         Value updateMask = adaptor.updateMaskOp(sreg, vfInfo.elemType);
         Value loadOffset = adaptor.createFMA(offset, loop.getInductionVar(), vfInfo.oneRepeatSize);
         auto loadOp = adaptor.create<ascvf::LoadOp>(srcReg, op.getSrc0(), loadOffset, updateMask);
-        adaptor.create<ascendc::CompareScalarRegOp>(dstReg, srcReg, op.getSrc1Scalar(), updateMask, op.getCmpMode());
 
+        auto scalarVal = op.getSrc1Scalar();
+        if (isa<ascendc::LocalTensorType>(scalarVal.getType())) {
+            Value maskOne = adaptor.createMaskOp(vfInfo.elemType, ascendc::MaskPattern::VL1);
+            adaptor.create<ascvf::LoadOp>(srcReg, scalarVal, consts.index(0), maskOne);
+            Value maskAll = adaptor.createMaskOp(vfInfo.elemType);
+            adaptor.create<ascendc::DuplicateRegOp>(tmpReg, srcReg, maskAll);
+        } else {
+            adaptor.create<ascendc::DuplicateScalarRegOp>(tmpReg, scalarVal);
+        }
+        adaptor.create<ascendc::CompareRegOp>(dstReg, srcReg, tmpReg, updateMask, op.getCmpMode());
         auto sizeOfElem = consts.index(vfInfo.elemType.getIntOrFloatBitWidth() / CHAR_BIT);
         auto maskElemCount = adaptor.create<arith::DivSIOp>(vfInfo.vecLen, sizeOfElem);
         auto dstStrideBytes = adaptor.create<arith::DivSIOp>(maskElemCount, consts.index(CHAR_BIT));

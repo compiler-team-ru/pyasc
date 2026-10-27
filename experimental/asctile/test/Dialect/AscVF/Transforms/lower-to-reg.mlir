@@ -78,7 +78,7 @@ func.func @translate_vec_scalar_l2(%arg0: i32, %arg1: !ascendc.local_tensor<1024
 }
 
 // CHECK-LABEL: func.func @translate_mask_ops
-// CHECK: ascendc.compare_scalar_reg
+// CHECK: ascendc.compare_reg
 // CHECK: ascendc.select_reg
 func.func @translate_mask_ops(%arg0: i64, %arg1: !ascendc.local_tensor<96xui8>, %arg2: !ascendc.local_tensor<768xf16>, %arg3: f16) {
   ascvf.vf_group outs(%arg1, %arg2 : !ascendc.local_tensor<96xui8>, !ascendc.local_tensor<768xf16>) ins(%arg2 : !ascendc.local_tensor<768xf16>) {

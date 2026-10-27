@@ -115,7 +115,7 @@ bool isFusible(Operation* op)
             // Vector scalar operations (L2)
             ascendc::AddsL2Op, ascendc::MulsL2Op, ascendc::SubsL2Op, ascendc::DivsL2Op, ascendc::MaxsL2Op,
             ascendc::MinsL2Op, ascendc::LeakyReluL2Op, ascendc::ShiftLeftL2Op, ascendc::ShiftRightL2Op,
-            ascendc::SelectL2Op>([](auto op) {
+            ascendc::SelectL2Op, ascendc::CompareScalarL2Op>([](auto op) {
             if (auto opt = getConstantIntValue(op.getCalCount())) {
                 auto type = getType(op);
                 return opt.value() == type.getNumElements();
