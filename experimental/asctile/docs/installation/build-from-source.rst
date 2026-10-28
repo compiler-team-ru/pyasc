@@ -17,6 +17,30 @@ Build from source
 Prerequisites
 -------------
 
+Install build dependencies
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ``git`` (required to download the source code)
+- ``gcc`` or ``clang`` compiler and the compatible linker
+- ``python3`` with development packages
+- ``zlib`` (required for LLVM libraries)
+- ``ccache`` (can be installed to speed up the compilation)
+
++----------------+--------------------------------------------------------------------------------------+
+| Linux distro   + Install recommended packages using the system package manager                        |
++================+======================================================================================+
+| Debian/Ubuntu  | .. code-block:: bash                                                                 |
+|                |                                                                                      |
+|                |    sudo apt update                                                                   |
+|                |    sudo apt install git ccache clang lld python3 python3-pip python3-venv zlib1g-dev |
++----------------+--------------------------------------------------------------------------------------+
+| CentOS/EulerOS | .. code-block:: bash                                                                 |
+|                |                                                                                      |
+|                |    sudo dnf update                                                                   |
+|                |    sudo dnf install git python3 python3-devel python3-pip clang lld zlib-devel       |
++----------------+--------------------------------------------------------------------------------------+
+
+
 Obtain the source code
 ~~~~~~~~~~~~~~~~~~~~~~
 
@@ -39,21 +63,6 @@ It is recommended to activate `a virtual environment <https://docs.python.org/3/
 
     python3 -m venv $HOME/.pyasc_venv --prompt pyasc
     source $HOME/.pyasc_venv/bin/activate
-
-
-Install build dependencies
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-PyAsc requires either ``gcc`` or ``clang`` compiler and the compatible linker.
-Optionally, ``ccache`` can be installed to speed up the development flow.
-
-.. hint::
-
-    On Ubuntu, these packages can be installed from apt:
-
-    .. code-block:: bash
-
-        sudo apt install build-essential ccache clang lld
 
 
 Build and install
