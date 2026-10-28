@@ -46,7 +46,6 @@ class DataType:
         "bfloat16": BuiltinType("get_bf16_type", "get_bf16", 16, Kind.Float),
         "float32": BuiltinType("get_f32_type", "get_f32", 32, Kind.Float),
         "float64": BuiltinType("get_f64_type", "get_f64", 64, Kind.Float),
-        "float8_e8m0fnuz": BuiltinType("get_f8e8m0fnuz_type", "get_f8e8m0fnuz", 8, Kind.Float),
         "float8_e4m3fn": BuiltinType("get_f8e4m3fn_type", "get_f8e4m3fn", 8, Kind.Float),
         "float8_e5m2": BuiltinType("get_f8e5m2_type", "get_f8e5m2", 8, Kind.Float),
     }
@@ -136,7 +135,6 @@ int_ = int32
 half = float16
 float_ = float32
 double = float64
-float8_e8m0fnuz = DataType("float8_e8m0fnuz")
 float8_e4m3fn = DataType("float8_e4m3fn")
 float8_e5m2 = DataType("float8_e5m2")
 
@@ -162,6 +160,5 @@ class KnownTypes:
     half = half
     float_ = float_
     double = double
-    float8_e8m0fnuz = float8_e8m0fnuz
     float8_e4m3fn = float8_e4m3fn
     float8_e5m2 = float8_e5m2

@@ -210,17 +210,6 @@ def AscendC_NdDmaParams : AscendC_Type<"NdDmaParams","nd_dma_params"> {
   let assemblyFormat = "`<` $type `,` $dims `>`";
 }
 
-def AscendC_Float8E8M0FNUZ : TypeDef<AscendC_Dialect, "Float8E8M0FNUZ", [], "::mlir::Float8E5M2Type"> {
-  let summary = "8-bit floating point without mantissa";
-  let mnemonic = "f8e8m0fnuz";
-  let description = [{
-    Represents an 8-bit unsigned floating-point scale factor format with 8 exponent
-    bits and 0 mantissa bits, designed to represent pure powers of 2.
-    Representable Values: Covers powers of 2 from 2⁻¹²⁷ to 2¹²⁷ (values 0 through 254).
-    Special Values: The bit pattern 0xFF (255) is reserved for Not-a-Number (NaN).
-  }];
-}
-
 include "ascir/API/Types.td.inc"
 
 #endif // ASC_CORE_TYPES_TD

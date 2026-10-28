@@ -148,6 +148,17 @@ def AscendC_GlobalTensorSetGlobalBufferOp : APIOp<"global_tensor.set_global_buff
   }];
 }
 
+def AscendC_GlobalTensorReinterpretCastOp
+    : APIOp<"global_tensor.reinterpret_cast", "ReinterpretCast", [Pure, DeclareOpInterfaceMethods<CastOpInterface>]> {
+  let summary = "Call `AscendC::GlobalTensor::ReinterpretCast` method";
+  let arguments = (ins AscendC_GlobalTensor:$in);
+  let results = (outs AscendC_GlobalTensor:$out);
+  let assemblyFormat = [{
+    $in attr-dict `:` qualified(type($in)) `to` qualified(type($out))
+  }];
+  let hasFolder = 1;
+}
+
 //===----------------------------------------------------------------------===//
 // LocalTensor operations
 //===----------------------------------------------------------------------===//

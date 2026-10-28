@@ -897,11 +897,7 @@ LogicalResult CodeEmitter::emitFloatType(FloatType& fType, Location loc, Type /*
             return success();
         })
         .Case([this](Float8E4M3FNType) {
-            os << "fp8_e4m3_t";
-            return success();
-        })
-        .Case([this](ascendc::Float8E8M0FNUZType) {
-            os << "fp8_e8m0_t";
+            os << "fp8_e4m3fn_t";
             return success();
         })
         .Default([loc](FloatType type) { return emitError(loc, "cannot emit float type ") << type; });

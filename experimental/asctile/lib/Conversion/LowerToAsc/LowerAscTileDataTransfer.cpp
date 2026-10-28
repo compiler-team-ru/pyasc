@@ -123,14 +123,18 @@ SmallVector<int64_t> getStrides(ArrayRef<int64_t> shape)
 
 TensorInfo prepareTensorInfo(ConvertRewriter& rewriter, Location loc, Value base, ValueRange offsets = {})
 {
-    auto tensorOp = base.getDefiningOp<asctile::TensorOp>();
-    assert(tensorOp && "tensor must be created by asctile.tensor op");
-    SmallVector<Value> shape = asctile::getTensorShape(rewriter, tensorOp);
+    auto tensorOp = asctile::searchDefiningOp<
+        asctile::TensorOp, UnrealizedConversionCastOp, ascendc::GlobalTensorReinterpretCastOp, arith::BitcastOp>(base);
+    assert(tensorOp && "can't find root asctile.tensor op");
+    SmallVector<Value> shape = asctile::getTensorShape(rewriter, *tensorOp);
     Value tensor = rewriter.getRemappedValue(base);
     auto type = cast<ascendc::BaseTensorType>(tensor.getType());
     if (!offsets.empty()) {
         Value linearOffset = linearizeOffset(rewriter, loc, shape, offsets);
         tensor = rewriter.create<ascendc::GlobalTensorSubIndexOp>(loc, type, tensor, linearOffset);
+        assert(
+            type.getElementType().getIntOrFloatBitWidth() ==
+            tensorOp->getType().getElementType().getIntOrFloatBitWidth());
     }
     return {shape, tensor, type};
 }

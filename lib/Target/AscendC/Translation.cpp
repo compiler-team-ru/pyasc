@@ -240,7 +240,7 @@ using PrintableOpTypes = std::tuple<
 
     // Core
     // GlobalTensor operations
-    ascendc::GlobalTensorSubIndexOp, ascendc::GlobalTensorBracketOp,
+    ascendc::GlobalTensorSubIndexOp, ascendc::GlobalTensorBracketOp, ascendc::GlobalTensorReinterpretCastOp,
     // LocalTensor operations
     ascendc::LocalTensorV2Op, ascendc::LocalTensorV3Op, ascendc::LocalTensorBracketOp,
     ascendc::LocalTensorReinterpretCastOp, ascendc::LocalTensorSubIndexOp, ascendc::LocalTensorGetPhyAddrV2Op,

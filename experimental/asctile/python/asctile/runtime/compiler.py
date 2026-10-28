@@ -127,6 +127,7 @@ class Compiler(CompilerBase):
             asctile.passes.asctile.add_unscalarize_reduction(pm)
             passes.common.add_canonicalizer(pm)
             passes.common.add_cse(pm)
+        asctile.passes.asctile.add_replace_fp8_ops(pm)
         asctile.passes.asctile.add_wrap_cv_groups(pm)
         asctile.passes.asctile.add_merge_cv_groups(pm)
         if not self.options.debug:
