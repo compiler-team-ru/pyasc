@@ -7,9 +7,10 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 import builtins
+from contextlib import contextmanager
 import math
 from numbers import Number
-from typing import Any, Callable, Iterable, Optional, Tuple, Union
+from typing import Any, Callable, Generator, Iterable, Optional, Tuple, Union
 
 import numpy as np
 
@@ -24,12 +25,16 @@ from .types import GlobalAddress, GlobalTensor, LocalTensor, cast_data, dtype_to
 class BlockContext:
 
     def __init__(self) -> None:
-        self.block_idx: int = 0
-        self.block_num: int = 1
+        self.block_idx = 0
+        self.block_num = 1
+        self.sub_block_idx = 0
+        self.sub_block_num = 1
 
-    def set(self, block_idx: int, block_num: int) -> None:
-        self.block_idx = int(block_idx)
-        self.block_num = int(block_num)
+    def set(self, block_idx: int, block_num: int, sub_block_idx: int, sub_block_num: int) -> None:
+        self.block_idx = block_idx
+        self.block_num = block_num
+        self.sub_block_idx = sub_block_idx
+        self.sub_block_num = sub_block_num
 
 
 block_context = BlockContext()
@@ -43,6 +48,23 @@ def block_idx() -> int:
 @override
 def block_num() -> int:
     return block_context.block_num
+
+
+@override
+def sub_block_idx() -> int:
+    return block_context.sub_block_idx
+
+
+@override
+def sub_block_num() -> int:
+    return block_context.sub_block_num
+
+
+@override
+@contextmanager
+def cv_strategy(split: Any) -> Generator[None, None, None]:
+    del split
+    yield
 
 
 @override

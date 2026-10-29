@@ -8,7 +8,7 @@
 
 from contextlib import contextmanager
 import inspect
-from typing import Any, Callable, Dict, Iterator, Set, Tuple
+from typing import Any, Callable, Dict, Generator, Set, Tuple
 
 import numpy as np
 
@@ -19,7 +19,7 @@ from asc.runtime.jit import CompilePrereqs
 from asc.runtime.launcher import LaunchOptions
 
 from ..runtime.jit import JITFunction
-from . import operations
+from .operations import block_context
 from .patch import make_module
 from .types import GlobalAddress
 
@@ -41,7 +41,7 @@ def wrap_argument(value: Any) -> Any:
 
 
 @contextmanager
-def interpret_asctile(fn: Callable[..., Any]) -> Iterator[None]:
+def interpret_asctile(fn: Callable[..., Any]) -> Generator[None, None, None]:
     namespace = fn.__globals__
     original_asctile = namespace["asctile"]
     namespace["asctile"] = make_module()
@@ -56,12 +56,16 @@ class InterpretedFunction(JITFunction):
     def __init__(self, fn, **options):
         super().__init__(fn, **options)
         self._validated: Set[str] = set()
+        self.sub_block_num = 1
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         with interpret_asctile(self.fn):
             return self.fn(*args, **kwargs)
 
     def _compile_and_cache(self, prereqs: CompilePrereqs) -> Tuple[Dict[str, ConstExpr], None]:
+        if prereqs.compile_options.cv_ratio not in (1, 2):
+            raise RuntimeError(f"'cv_ratio' is only allowed to be 1 or 2, got {prereqs.compile_options.cv_ratio}")
+        self.sub_block_num = prereqs.compile_options.cv_ratio
         cache_key = get_mem_cache_key(self._gen_cache_factors(prereqs))
         if prereqs.compile_options.always_compile or cache_key not in self._validated:
             self._validate(prereqs)
@@ -85,5 +89,6 @@ class InterpretedFunction(JITFunction):
             for name in inspect.signature(self.fn).parameters)
         with interpret_asctile(self.fn):
             for block_idx in range(block_num):
-                operations.block_context.set(block_idx, block_num)
-                self.fn(*fn_args)
+                for sub_block_idx in range(self.sub_block_num):
+                    block_context.set(block_idx, block_num, sub_block_idx, self.sub_block_num)
+                    self.fn(*fn_args)
