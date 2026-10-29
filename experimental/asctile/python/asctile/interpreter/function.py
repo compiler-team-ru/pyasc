@@ -21,7 +21,7 @@ from asc.runtime.launcher import LaunchOptions
 from ..runtime.jit import JITFunction
 from .operations import block_context
 from .patch import make_module
-from .types import GlobalAddress
+from .types import GlobalAddress, dtype_to_numpy
 
 
 def wrap_argument(value: Any) -> Any:
@@ -34,7 +34,10 @@ def wrap_argument(value: Any) -> Any:
         if isinstance(value, torch.Tensor):
             if value.dim() == 0:
                 return value
-            return GlobalAddress(value.numpy(force=True))
+            name = str(value.dtype).removeprefix("torch.")
+            target = dtype_to_numpy(name)
+            uint = {1: torch.uint8, 2: torch.uint16, 4: torch.uint32, 8: torch.uint64}[target.itemsize]
+            return GlobalAddress(value.view(uint).numpy(force=True).view(target))
     except ModuleNotFoundError:
         pass
     raise TypeError(f"{value.__class__.__name__} arguments are not supported by the interpreter")
