@@ -35,6 +35,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "asctile/Dialect/AscVF/IR/AscVF.h"
+#include "asctile/Dialect/AscVF2/IR/AscVF2.h"
 #include "asctile/Dialect/AscendC/Transforms/Passes.h"
 #include "asctile/Dialect/AscendC/Utils/Attributes.h"
 #include "asctile/Dialect/AscendC/Utils/Utils.h"
@@ -180,7 +181,10 @@ public:
         llvm::stable_sort(uses, [&](OpOperand* lhso, OpOperand* rhso) {
             return ascendc::opPrecedes(lhso->getOwner(), rhso->getOwner(), *di);
         });
-        llvm::erase_if(uses, [](OpOperand* opnd) { return opnd->getOwner()->getParentOfType<ascvf::VFGroupOp>(); });
+        llvm::erase_if(uses, [](OpOperand* opnd) {
+            return opnd->getOwner()->getParentOfType<ascvf::VFGroupOp>() ||
+                   opnd->getOwner()->getParentOfType<ascvf2::VFGroupOp>();
+        });
         beginLifeOp = uses.front()->getOwner();
         firstUse = findFirstUse(uses);
         lastUse = uses.back();
