@@ -10,13 +10,14 @@ import builtins
 from contextlib import contextmanager
 import math
 from numbers import Number
-from typing import Any, Callable, Generator, Iterable, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Generator, Iterable, Optional, Tuple, Union
 
 import numpy as np
 
 from asc.language.core.dtype import DataType
 
 from ..language.local_tensor import RoundMode
+from ..language.memory_ops import DistribMode
 from ..language.validation import check_type
 from .patch import override
 from .types import GlobalAddress, GlobalTensor, LocalTensor, cast_data, dtype_to_numpy
@@ -116,10 +117,13 @@ def verify_real_shape(real_shape: Iterable[int], shape: Tuple[int, ...]) -> Tupl
 
 
 @override
-def copy_in(src: GlobalTensor, offsets: Iterable[Any], shape: Iterable[int], location: Any = None, *,
-            real_shape: Optional[Iterable[int]] = None, pad_value: Optional[Union[int, float]] = None) -> LocalTensor:
+def copy_in(src: GlobalTensor, offsets: Iterable[Any], shape: Optional[Iterable[int]] = None, location: Any = None, *,
+            real_shape: Optional[Iterable[int]] = None,
+            pad_value: Optional[Union[int, float]] = None) -> Union[LocalTensor, Number]:
     del location
     check_type("src", src, GlobalTensor)
+    if shape is None:
+        return src.data[tuple(map(int, offsets))].item()
     shape = tuple(map(int, shape))
     if pad_value is not None and real_shape is None:
         real_shape = shape
@@ -128,7 +132,7 @@ def copy_in(src: GlobalTensor, offsets: Iterable[Any], shape: Iterable[int], loc
     load_shape = shape if real_shape is None else verify_real_shape(real_shape, shape)
     region, head = clip(offsets, load_shape, src.shape)
     if real_shape is None:
-        data = np.empty(shape, dtype=src.data.dtype)
+        data = np.zeros(shape, dtype=src.data.dtype)
     else:
         data = np.full(shape, pad_value, dtype=src.data.dtype)
     data[head] = src.data[region]
@@ -136,24 +140,57 @@ def copy_in(src: GlobalTensor, offsets: Iterable[Any], shape: Iterable[int], loc
 
 
 @override
-def copy_out(src: LocalTensor, dst: GlobalTensor, offsets: Iterable[Any], *,
+def copy_out(src: Union[LocalTensor, Number], dst: GlobalTensor, offsets: Iterable[Any], *,
              real_shape: Optional[Iterable[int]] = None) -> None:
-    check_type("src", src, LocalTensor)
     check_type("dst", dst, GlobalTensor)
+    if not isinstance(src, LocalTensor) or src.size == 1:
+        value = src.data[(0, ) * src.rank] if isinstance(src, LocalTensor) else src
+        dst.data[tuple(map(int, offsets))] = value
+        return
     store_shape = src.shape if real_shape is None else verify_real_shape(real_shape, src.shape)
+    if src.rank < dst.rank:
+        flat = int(np.ravel_multi_index(tuple(map(int, offsets)), dst.shape))
+        dst.data.reshape(-1)[flat:flat + src.size] = src.data.reshape(-1)
+        return
     region, head = clip(offsets, store_shape, dst.shape)
     dst.data[region] = src.data[head]
 
 
+join_stage: Dict[Tuple[int, int, Tuple[int, ...], np.dtype], np.ndarray] = {}
+
+
 @override
-def copy(src: LocalTensor, offsets: Iterable[Any], shape: Iterable[int], location: Any = None) -> LocalTensor:
+def copy(src: LocalTensor, offsets: Optional[Iterable[Any]] = None, shape: Optional[Iterable[int]] = None,
+         location: Any = None, distrib: Optional[DistribMode] = None) -> LocalTensor:
     del location
     check_type("src", src, LocalTensor)
-    shape = tuple(map(int, shape))
-    region, head = clip(offsets, shape, src.shape)
-    data = np.empty(shape, dtype=src.data.dtype)
-    data[head] = src.data[region]
-    return LocalTensor(data)
+    if distrib is None:
+        offsets = (0, ) * src.rank if offsets is None else tuple(map(int, offsets))
+        shape = src.shape if shape is None else tuple(map(int, shape))
+        region, head = clip(offsets, shape, src.shape)
+        data = np.zeros(shape, dtype=src.data.dtype)
+        data[head] = src.data[region]
+        return LocalTensor(data)
+    idx = block_context.sub_block_idx
+    num = block_context.sub_block_num
+    if num == 1 or distrib in (DistribMode.FullVec0, DistribMode.FullVec1):
+        return LocalTensor(src.data.copy())
+    axis = 0 if distrib in (DistribMode.SplitByM, DistribMode.JoinByM) else 1
+    if distrib in (DistribMode.SplitByM, DistribMode.SplitByN):
+        dim = src.shape[axis] // num
+        region = (slice(None), ) * axis + (slice(idx * dim, (idx + 1) * dim), )
+        return LocalTensor(src.data[region])
+    joined = list(src.shape)
+    joined[axis] *= num
+    key = (block_context.block_idx, axis, tuple(joined), src.data.dtype)
+    stage = join_stage.get(key)
+    if stage is None:
+        stage = np.zeros(joined, dtype=src.data.dtype)
+        join_stage[key] = stage
+    dim = src.shape[axis]
+    region = (slice(None), ) * axis + (slice(idx * dim, (idx + 1) * dim), )
+    stage[region] = src.data
+    return LocalTensor(stage)
 
 
 @override
@@ -280,6 +317,9 @@ def zeros_like(input: LocalTensor) -> LocalTensor:
 @override
 def where(mask: LocalTensor, src0: Union[LocalTensor, Number], src1: Union[LocalTensor, Number]) -> LocalTensor:
     values = [value.data if isinstance(value, LocalTensor) else value for value in (src0, src1)]
+    data = next((value for value in values if isinstance(value, np.ndarray)), None)
+    if data is not None:
+        values = [value if isinstance(value, np.ndarray) else data.dtype.type(value) for value in values]
     return LocalTensor(np.where(mask.data, *values))
 
 
@@ -301,10 +341,63 @@ def bind_tensor_method(obj: Any = None, *, binary: bool = False) -> Any:
     return lambda fn: bind(fn, obj)
 
 
+class MaskContext:
+
+    def __init__(self) -> None:
+        self.count: Optional[int] = None
+        self.bits: Optional[Tuple[int, ...]] = None
+        self.other: Optional[Union[int, float]] = None
+
+    def set(self, count: Optional[int], bits: Optional[Iterable[int]], other: Optional[Union[int, float]]) -> None:
+        bits = None if bits is None else tuple(map(int, bits))
+        self.count = count
+        self.bits = bits
+        self.other = other
+
+    def clear(self) -> None:
+        self.count = None
+        self.bits = None
+        self.other = None
+
+
+mask_context = MaskContext()
+
+
+def bits64(value: int) -> np.ndarray:
+    value &= 0xFFFFFFFFFFFFFFFF
+    return np.array([bit == "1" for bit in bin(value)[2:].ljust(64, "0")[:64]])
+
+
+def apply_mask(data: np.ndarray) -> np.ndarray:
+    if mask_context.count is None and mask_context.bits is None:
+        return data
+    max_elem_count = 256 // data.dtype.itemsize
+    if mask_context.count is not None:
+        base = np.arange(max_elem_count) < mask_context.count
+    else:
+        hi, lo = mask_context.bits
+        base = np.concatenate((bits64(hi), bits64(lo)))
+    repeats = (data.size + max_elem_count - 1) // max_elem_count
+    mask_array = np.tile(base, repeats)[:data.size].reshape(data.shape)
+    other = 0 if mask_context.other is None else mask_context.other
+    return np.where(mask_array, data, data.dtype.type(other))
+
+
+@override
+@contextmanager
+def mask(*, count: Optional[int] = None, bits: Optional[Iterable[int]] = None,
+         other: Optional[Union[int, float]] = None) -> Generator[None, None, None]:
+    mask_context.set(count, bits, other)
+    try:
+        yield
+    finally:
+        mask_context.clear()
+
+
 def binary_op(op: Callable[[Any, Any], Any], lhs: Any, rhs: Any) -> LocalTensor:
     lhs = lhs.data if isinstance(lhs, LocalTensor) else lhs
     rhs = rhs.data if isinstance(rhs, LocalTensor) else rhs
-    return LocalTensor(op(lhs, rhs))
+    return LocalTensor(apply_mask(op(lhs, rhs)))
 
 
 @bind_tensor_method("__add__", binary=True)
@@ -426,7 +519,7 @@ def not_equal(input: Union[LocalTensor, Number], other: Union[LocalTensor, Numbe
 
 def unary_op(op: Callable[[Any], Any], input: Union[LocalTensor, Number]) -> LocalTensor:
     input = input.data if isinstance(input, LocalTensor) else input
-    return LocalTensor(op(input))
+    return LocalTensor(apply_mask(op(input)))
 
 
 @bind_tensor_method("__abs__")
@@ -668,11 +761,6 @@ def inline(*args: Any, **kwargs: Any) -> None:
 @override
 def inline_vf(*args: Any, **kwargs: Any) -> None:
     raise NotImplementedError("'inline_vf' is not supported by the interpreter")
-
-
-@override
-def mask(*args: Any, **kwargs: Any) -> None:
-    raise NotImplementedError("'mask' is not supported by the interpreter")
 
 
 @override

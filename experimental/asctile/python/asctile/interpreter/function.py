@@ -6,9 +6,11 @@
 # INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 # See LICENSE in the root of the software repository for the full text of the License.
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 import inspect
-from typing import Any, Callable, Dict, Generator, Set, Tuple
+import types
+from typing import Any, Dict, Generator, Set, Tuple
 
 import numpy as np
 
@@ -19,8 +21,8 @@ from asc.runtime.jit import CompilePrereqs
 from asc.runtime.launcher import LaunchOptions
 
 from ..runtime.jit import JITFunction
-from .operations import block_context
-from .patch import make_module
+from .operations import block_context, join_stage, range as asctile_range
+from .patch import make_asc_module, make_module, to_interpreted
 from .types import GlobalAddress, dtype_to_numpy
 
 
@@ -33,7 +35,7 @@ def wrap_argument(value: Any) -> Any:
         import torch
         if isinstance(value, torch.Tensor):
             if value.dim() == 0:
-                return value
+                return value.item()
             name = str(value.dtype).removeprefix("torch.")
             target = dtype_to_numpy(name)
             uint = {1: torch.uint8, 2: torch.uint16, 4: torch.uint32, 8: torch.uint64}[target.itemsize]
@@ -44,14 +46,22 @@ def wrap_argument(value: Any) -> Any:
 
 
 @contextmanager
-def interpret_asctile(fn: Callable[..., Any]) -> Generator[None, None, None]:
+def interpret_asctile(fn: types.FunctionType) -> Generator[None, None, None]:
     namespace = fn.__globals__
-    original_asctile = namespace["asctile"]
-    namespace["asctile"] = make_module()
+    absent = object()
+    names = {"asctile": make_module(), "range": asctile_range}
+    if "asc" in namespace:
+        names["asc"] = make_asc_module()
+    original = {name: namespace.get(name, absent) for name in names}
+    namespace.update(names)
     try:
         yield
     finally:
-        namespace["asctile"] = original_asctile
+        for name, value in original.items():
+            if value is absent:
+                namespace.pop(name, None)
+            else:
+                namespace[name] = value
 
 
 class InterpretedFunction(JITFunction):
@@ -69,6 +79,9 @@ class InterpretedFunction(JITFunction):
         if prereqs.compile_options.cv_ratio not in (1, 2):
             raise RuntimeError(f"'cv_ratio' is only allowed to be 1 or 2, got {prereqs.compile_options.cv_ratio}")
         self.sub_block_num = prereqs.compile_options.cv_ratio
+        for name, expr in prereqs.constexprs.items():
+            if isinstance(expr.value, Iterator):
+                prereqs.constexprs[name] = ConstExpr(tuple(expr.value))
         cache_key = get_mem_cache_key(self._gen_cache_factors(prereqs))
         if prereqs.compile_options.always_compile or cache_key not in self._validated:
             self._validate(prereqs)
@@ -88,9 +101,10 @@ class InterpretedFunction(JITFunction):
             raise ValueError("'core_num' must be positive")
         arg_values = map(wrap_argument, runtime_args)
         fn_args = tuple(
-            ConstExpr.unwrap(constexprs[name]) if name in constexprs else next(arg_values)
+            to_interpreted(ConstExpr.unwrap(constexprs[name])) if name in constexprs else next(arg_values)
             for name in inspect.signature(self.fn).parameters)
         with interpret_asctile(self.fn):
+            join_stage.clear()
             for block_idx in range(block_num):
                 for sub_block_idx in range(self.sub_block_num):
                     block_context.set(block_idx, block_num, sub_block_idx, self.sub_block_num)
