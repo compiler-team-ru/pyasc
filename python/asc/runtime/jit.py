@@ -145,6 +145,18 @@ class JITFunction(Function[P, T]):
         setattr(cls, attr, keywords)
         return keywords
 
+    def create_compile_prereqs(self, *args: P.args, **kwargs: P.kwargs) -> Tuple[CompilePrereqs, Tuple[Any, ...]]:
+        kwargs = merge_dict(self.default_options, kwargs)
+        codegen_options = self.extract_kwargs(self.codegen.options_cls, kwargs)
+        compile_options = self.extract_kwargs(self.compiler.options_cls, kwargs)
+        bound_args = inspect.signature(self.fn).bind(*args, **kwargs)
+        bound_args.apply_defaults()
+        annotations = get_annotations(self.fn)
+        runtime_args, constexprs = self.split_args(bound_args.arguments, annotations)
+        arg_types = {name: self.get_arg_type(value) for name, value in runtime_args.items()}
+        prereqs = CompilePrereqs(arg_types, constexprs, codegen_options, compile_options)
+        return prereqs, tuple(runtime_args.values())
+
     def _gen_cache_factors(self, prereqs: CompilePrereqs) -> str:
         cache_factors = []
         separator = ";"
@@ -223,17 +235,9 @@ class JITFunction(Function[P, T]):
         launcher.run(kernel, self.fn.__name__, runtime_args, not enable_cache, save_launched_kernel)
 
     def _run(self, *args: P.args, **kwargs: P.kwargs) -> T:
-        kwargs = merge_dict(self.default_options, kwargs)
-        codegen_options = self.extract_kwargs(self.codegen.options_cls, kwargs)
-        compile_options = self.extract_kwargs(self.compiler.options_cls, kwargs)
-        bound_args = inspect.signature(self.fn).bind(*args, **kwargs)
-        bound_args.apply_defaults()
-        annotations = get_annotations(self.fn)
-        runtime_args, constexprs = self.split_args(bound_args.arguments, annotations)
-        arg_types = {name: self.get_arg_type(value) for name, value in runtime_args.items()}
-        prereqs = CompilePrereqs(arg_types, constexprs, codegen_options, compile_options)
+        prereqs, runtime_args = self.create_compile_prereqs(*args, **kwargs)
         kernel, mem_cache_key = self._compile_and_cache(prereqs)
-        self._run_launcher(kernel, self.launch_options, tuple(runtime_args.values()), mem_cache_key)
+        self._run_launcher(kernel, self.launch_options, runtime_args, mem_cache_key)
 
 
 @overload
