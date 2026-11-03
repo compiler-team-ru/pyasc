@@ -15,7 +15,7 @@ import torch
 from .helpers import parametrize_is_static
 
 
-@asctile.jit(reuse_alloc=1)
+@asctile.jit(reuse_alloc=2)
 def gather_simple(input_ptr, index_ptr, result_ptr, row_length: asctile.ConstExpr, ub_row: asctile.ConstExpr,
                   step: asctile.ConstExpr, repeats, data_size, index_size, unroll_factor: asctile.ConstExpr):
     input_tensor = asctile.global_tensor(input_ptr, [data_size, row_length])

@@ -14,7 +14,7 @@ import torch
 
 
 # Reads (h,w) sub tile
-@asctile.jit(reuse_alloc=1)
+@asctile.jit(reuse_alloc=2)
 def transpose_block(input_ptr: asctile.GlobalAddress, output_ptr: asctile.GlobalAddress, width: asctile.ConstExpr[int],
                     height: asctile.ConstExpr[int], block_width: asctile.ConstExpr[int],
                     block_height: asctile.ConstExpr[int], tile_width: asctile.ConstExpr[int],
@@ -36,7 +36,7 @@ def transpose_block(input_ptr: asctile.GlobalAddress, output_ptr: asctile.Global
 
 
 # Reads (height,n) at once
-@asctile.jit(reuse_alloc=1)
+@asctile.jit(reuse_alloc=2)
 def transpose_column(input_ptr: asctile.GlobalAddress, output_ptr: asctile.GlobalAddress, width: asctile.ConstExpr[int],
                      height: asctile.ConstExpr[int], block_size: asctile.ConstExpr[int],
                      tile_width: asctile.ConstExpr[int], tile_height: asctile.ConstExpr[int],
@@ -53,7 +53,7 @@ def transpose_column(input_ptr: asctile.GlobalAddress, output_ptr: asctile.Globa
 
 
 # Reads (n,width) at once
-@asctile.jit(reuse_alloc=1)
+@asctile.jit(reuse_alloc=2)
 def transpose_line(input_ptr: asctile.GlobalAddress, output_ptr: asctile.GlobalAddress, width: asctile.ConstExpr[int],
                    height: asctile.ConstExpr[int], block_size: asctile.ConstExpr[int],
                    tile_width: asctile.ConstExpr[int], tile_height: asctile.ConstExpr[int],
@@ -70,7 +70,7 @@ def transpose_line(input_ptr: asctile.GlobalAddress, output_ptr: asctile.GlobalA
 
 # For permutation like [0,2,1,3] when last dimension untouch
 # Iterate over first dimension
-@asctile.jit(reuse_alloc=1)
+@asctile.jit(reuse_alloc=2)
 def transpose_nlast_axis(input_ptr: asctile.GlobalAddress, output_ptr: asctile.GlobalAddress,
                          axis_step: asctile.ConstExpr, repeats: asctile.ConstExpr, permute: asctile.ConstExpr,
                          gm_read_shape: asctile.ConstExpr, gm_write_shape: asctile.ConstExpr,
@@ -87,7 +87,7 @@ def transpose_nlast_axis(input_ptr: asctile.GlobalAddress, output_ptr: asctile.G
         asctile.copy_out(tile, output_tensor, store_offsets)
 
 
-@asctile.jit(reuse_alloc=1)
+@asctile.jit(reuse_alloc=2)
 def transpose_nlast_axis_fat(input_ptr: asctile.GlobalAddress, output_ptr: asctile.GlobalAddress,
                              axis_step: asctile.ConstExpr, repeats: asctile.ConstExpr, inner_steps: asctile.ConstExpr,
                              permute: asctile.ConstExpr, gm_read_shape: asctile.ConstExpr,
@@ -145,7 +145,7 @@ def launch_nlast_axis(input, permute, unroll_factor, block_num, input_dtype, ub_
 
 
 # Split input data for one axis loads at once slice of size axis_step on that dimension
-@asctile.jit(reuse_alloc=1)
+@asctile.jit(reuse_alloc=2)
 def transpose_one_axis(
     input_ptr: asctile.GlobalAddress,
     output_ptr: asctile.GlobalAddress,
@@ -206,7 +206,7 @@ def launch_one_axis(input, permute, axis, axis_step, unroll_factor, cores, dtype
     return output
 
 
-@asctile.jit(reuse_alloc=1)
+@asctile.jit(reuse_alloc=2)
 def simple_copy(input_ptr: asctile.GlobalAddress, output_ptr: asctile.GlobalAddress, input_lenth,
                 tile_shape: asctile.ConstExpr, unroll_factor: asctile.ConstExpr):
     in_gm = asctile.global_tensor(input_ptr, [input_lenth])
@@ -220,7 +220,7 @@ def simple_copy(input_ptr: asctile.GlobalAddress, output_ptr: asctile.GlobalAddr
 
 # Split tensor by 2 dimensions (store_axis), loads subpart
 # Example: output_shape = [1024,2048,512], store_axis=[0,1] iterate by [STEP1,STEP2,512]
-@asctile.jit(reuse_alloc=1)
+@asctile.jit(reuse_alloc=2)
 def transpose_2_axis(
     input_ptr: asctile.GlobalAddress,
     output_ptr: asctile.GlobalAddress,

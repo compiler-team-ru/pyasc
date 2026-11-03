@@ -13,7 +13,7 @@ import torch
 from .helpers import parametrize_is_static, select_elementwise_tile
 
 
-@asctile.jit(reuse_alloc=1)
+@asctile.jit(reuse_alloc=2)
 def reciprocal(input_ptr: asctile.GlobalAddress, output_ptr: asctile.GlobalAddress, input_length,
                tile_length: asctile.ConstExpr, unroll_factor: asctile.ConstExpr):
     x = asctile.global_tensor(input_ptr, [input_length])

@@ -15,7 +15,7 @@ import torch
 from .helpers import parametrize_is_static
 
 
-@asctile.jit(reuse_alloc=1)
+@asctile.jit(reuse_alloc=2)
 def gelu(input_ptr: asctile.GlobalAddress, output_ptr: asctile.GlobalAddress, input_length,
          tile_length: asctile.ConstExpr, TANH_APPROX_FACTOR: asctile.ConstExpr,
          NEG_SQRT_EIGHT_OVER_PI: asctile.ConstExpr, unroll_factor: asctile.ConstExpr, l2_cache: asctile.ConstExpr):

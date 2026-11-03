@@ -15,7 +15,7 @@ import torch
 from .helpers import parametrize_is_static
 
 
-@asctile.jit(reuse_alloc=1)
+@asctile.jit(reuse_alloc=2)
 def select(cond_ptr: asctile.GlobalAddress, input_x_ptr: asctile.GlobalAddress, input_y_ptr: asctile.GlobalAddress,
            output_ptr: asctile.GlobalAddress, input_length, tile_length: asctile.ConstExpr,
            unroll_factor: asctile.ConstExpr, l2_cache: asctile.ConstExpr):
