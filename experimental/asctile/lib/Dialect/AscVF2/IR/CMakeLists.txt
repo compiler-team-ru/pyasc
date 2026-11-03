@@ -20,6 +20,7 @@ DEPENDS
 
 LINK_LIBS PUBLIC
   MLIRAsc
+  MLIRAscUtils
   AscTileDialect
   MLIRIR
   MLIRSupport
