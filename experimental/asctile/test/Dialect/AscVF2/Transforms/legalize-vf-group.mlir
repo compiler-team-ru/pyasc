@@ -8,36 +8,45 @@
 
 // RUN: asctile-opt -ascvf2-legalize-vf-group %s | FileCheck %s
 
-module {
-
-// CHECK-LABEL: func.func @hoist_static_local_tensor_auto
-// CHECK-NEXT: %[[TENSOR:.*]] = ascendc.local_tensor_auto veccalc() : <32xf32>
-// CHECK-NEXT: %[[GROUP:.*]] = ascvf2.vf_group {
+// CHECK-LABEL: func.func @hoist_static_local_tensor_auto() -> !ascendc.local_tensor<32xf32> {
+// CHECK: %[[TENSOR:.*]] = ascendc.local_tensor_auto veccalc()
+// CHECK: %[[GROUP:.*]] = ascvf2.vf_group {
 // CHECK-NEXT: ascvf2.yield %[[TENSOR]]
-// CHECK-NEXT: }
-// CHECK-NEXT: return %[[GROUP]]
+// CHECK-NEXT: } : !ascendc.local_tensor<32xf32>
+// CHECK: return %[[GROUP]]
 func.func @hoist_static_local_tensor_auto() -> !ascendc.local_tensor<32xf32> {
-  %0 = ascvf2.vf_group {
-    %1 = ascendc.local_tensor_auto veccalc() : <32xf32>
-    ascvf2.yield %1 : !ascendc.local_tensor<32xf32>
+  %result = ascvf2.vf_group {
+    %tensor = ascendc.local_tensor_auto veccalc() : <32xf32>
+    ascvf2.yield %tensor : !ascendc.local_tensor<32xf32>
   } : !ascendc.local_tensor<32xf32>
-  return %0 : !ascendc.local_tensor<32xf32>
+  return %result : !ascendc.local_tensor<32xf32>
 }
 
-// CHECK-LABEL: func.func @keep_dynamic_local_tensor_auto
-// CHECK-NEXT: %[[SHAPE:.*]] = arith.constant 32 : i64
-// CHECK-NEXT: %[[GROUP:.*]] = ascvf2.vf_group {
-// CHECK-NEXT: %[[TENSOR:.*]] = ascendc.local_tensor_auto veccalc(%[[SHAPE]]) : <32xf32>
+// CHECK-LABEL: func.func @keep_dynamic_local_tensor_auto(%arg0: i64) -> !ascendc.local_tensor<32xf32> {
+// CHECK: %[[GROUP:.*]] = ascvf2.vf_group {
+// CHECK-NEXT: %[[TENSOR:.*]] = ascendc.local_tensor_auto veccalc(%arg0)
 // CHECK-NEXT: ascvf2.yield %[[TENSOR]]
-// CHECK-NEXT: }
-// CHECK-NEXT: return %[[GROUP]]
-func.func @keep_dynamic_local_tensor_auto() -> !ascendc.local_tensor<32xf32> {
-  %shape = arith.constant 32 : i64
-  %0 = ascvf2.vf_group {
-    %1 = ascendc.local_tensor_auto veccalc(%shape) : <32xf32>
-    ascvf2.yield %1 : !ascendc.local_tensor<32xf32>
+// CHECK-NEXT: } : !ascendc.local_tensor<32xf32>
+// CHECK: return %[[GROUP]]
+func.func @keep_dynamic_local_tensor_auto(%shape: i64) -> !ascendc.local_tensor<32xf32> {
+  %result = ascvf2.vf_group {
+    %tensor = ascendc.local_tensor_auto veccalc(%shape) : <32xf32>
+    ascvf2.yield %tensor : !ascendc.local_tensor<32xf32>
   } : !ascendc.local_tensor<32xf32>
-  return %0 : !ascendc.local_tensor<32xf32>
+  return %result : !ascendc.local_tensor<32xf32>
 }
 
+// CHECK-LABEL: func.func @convert_local_tensor_group(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
+// CHECK: %[[INPUT:.*]] = builtin.unrealized_conversion_cast %arg0 : tensor<32xf32, #asctile.local<UB>> to !ascendc.local_tensor<32xf32>
+// CHECK: %[[GROUP:.*]] = ascvf2.vf_group {
+// CHECK-NEXT: ascvf2.yield %[[INPUT]]
+// CHECK-NEXT: } : !ascendc.local_tensor<32xf32>
+// CHECK: %[[RESULT:.*]] = builtin.unrealized_conversion_cast %[[GROUP]] : !ascendc.local_tensor<32xf32> to tensor<32xf32, #asctile.local<UB>>
+// CHECK: return %[[RESULT]]
+func.func @convert_local_tensor_group(%tensor: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
+  %carrier = ascendc.local_tensor_auto veccalc() : <32xf32>
+  %result = ascvf2.vf_group {
+    ascvf2.yield %tensor : tensor<32xf32, #asctile.local<UB>>
+  } : tensor<32xf32, #asctile.local<UB>>
+  return %result : tensor<32xf32, #asctile.local<UB>>
 }

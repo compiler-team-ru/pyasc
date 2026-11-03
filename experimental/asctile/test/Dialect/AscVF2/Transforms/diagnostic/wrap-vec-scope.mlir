@@ -6,10 +6,11 @@
 // INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 // See LICENSE in the root of the software repository for the full text of the License.
 
-// RUN: not asctile-opt %s 2>&1 | FileCheck %s
-
-// CHECK: 'ascvf2.simple_mask_reg' op must specify either static or dynamic count
-func.func @missing_count() -> !ascendc.mask_reg {
-  %mask = ascvf2.simple_mask_reg f32 : !ascendc.mask_reg
-  return %mask : !ascendc.mask_reg
+// RUN: asctile-opt -ascvf2-wrap-vec-scope -verify-diagnostics %s
+func.func @reject_group_with_results(%vector: vector<4xf32>) -> vector<4xf32> {
+  // expected-error@+1 {{'ascvf2.vf_group' op cannot wrap a group with remaining results}}
+  %result = ascvf2.vf_group {
+    ascvf2.yield %vector : vector<4xf32>
+  } : vector<4xf32>
+  return %result : vector<4xf32>
 }

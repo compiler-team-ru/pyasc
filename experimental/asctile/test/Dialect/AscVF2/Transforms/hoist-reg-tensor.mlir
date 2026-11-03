@@ -8,34 +8,32 @@
 
 // RUN: asctile-opt -ascvf2-hoist-reg-tensor %s | FileCheck %s
 
-func.func @hoist_reg_tensors() attributes {ascvf2.vector_func} {
+// CHECK-LABEL: func.func @hoist_reg_tensors(%arg0: index, %arg1: index, %arg2: index) attributes {ascvf2.vector_func} {
+// CHECK-NEXT: %[[FIRST:.*]] = ascendc.reg_tensor
+// CHECK-NEXT: %[[SECOND:.*]] = ascendc.reg_tensor
+// CHECK-NEXT: %[[THIRD:.*]] = ascendc.reg_tensor
+// CHECK: %[[MASK:.*]] = ascendc.create_mask f32, ALL
+// CHECK-NEXT: ascendc.abs_reg %[[FIRST]], %[[SECOND]], %[[MASK]]
+// CHECK: scf.for
+// CHECK: ascendc.abs_reg %[[THIRD]], %[[FIRST]], %[[MASK]]
+func.func @hoist_reg_tensors(%upper: index, %lower: index, %step: index) attributes {ascvf2.vector_func} {
   %mask = ascendc.create_mask f32, ALL : !ascendc.mask_reg
   %first = ascendc.reg_tensor : <f32>
   %second = ascendc.reg_tensor : <f32>
-  ascendc.abs_reg %first, %second, %mask :
-    !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
-
-  %c0 = arith.constant 0 : index
-  %c1 = arith.constant 1 : index
-  %c8 = arith.constant 8 : index
-  scf.for %index = %c0 to %c8 step %c1 {
+  ascendc.abs_reg %first, %second, %mask : !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+  scf.for %index = %lower to %upper step %step {
     %third = ascendc.reg_tensor : <f32>
-    ascendc.abs_reg %third, %first, %mask :
-      !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+    ascendc.abs_reg %third, %first, %mask : !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
   }
-
   return
 }
 
-// CHECK-LABEL: func.func @hoist_reg_tensors(
-// CHECK-NEXT: %0 = ascendc.reg_tensor : <f32>
-// CHECK-NEXT: %1 = ascendc.reg_tensor : <f32>
-// CHECK-NEXT: %2 = ascendc.reg_tensor : <f32>
-// CHECK-NEXT: %3 = ascendc.create_mask f32, ALL : !ascendc.mask_reg
-// CHECK-NEXT: ascendc.abs_reg %0, %1, %3 :
-// CHECK: %c0 = arith.constant 0 : index
-// CHECK: %c1 = arith.constant 1 : index
-// CHECK: %c8 = arith.constant 8 : index
+// CHECK-LABEL: func.func @ignore_non_vector_function(%arg0: index, %arg1: index, %arg2: index) {
 // CHECK: scf.for
-// CHECK: ascendc.abs_reg %2, %0, %3 :
-// CHECK: return
+// CHECK: %[[TENSOR:.*]] = ascendc.reg_tensor
+func.func @ignore_non_vector_function(%upper: index, %lower: index, %step: index) {
+  scf.for %index = %lower to %upper step %step {
+    %tensor = ascendc.reg_tensor : <f32>
+  }
+  return
+}

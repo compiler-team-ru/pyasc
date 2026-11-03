@@ -6,45 +6,90 @@
 // INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 // See LICENSE in the root of the software repository for the full text of the License.
 
-// RUN: asctile-opt -ascvf2-outline-vf-group %s | FileCheck %s --check-prefix=OUTLINE
-// RUN: asctile-opt -ascvf2-outline-vf-group -canonicalize -inline -symbol-dce %s | FileCheck %s --check-prefix=RESTORE
+// RUN: asctile-opt -ascvf2-outline-vf-group %s | FileCheck %s
 
-// OUTLINE-LABEL: func.func @outline_constant(
-// OUTLINE: %0 = ascvf2.vf_group {
-// OUTLINE: %1 = func.call @outline_constant_vf1(%arg0
-// OUTLINE: ascvf2.yield %1
-
-// RESTORE-LABEL: func.func @outline_constant(
-// RESTORE: %0 = ascvf2.vf_group {
-// RESTORE: %1 = arith.addf %arg0, %arg0
-// RESTORE: %2 = asctile.muls %1, %cst
-// RESTORE: ascvf2.yield %2
-func.func @outline_constant(%arg0: tensor<128xf32, #asctile.local<UB>>) -> tensor<128xf32, #asctile.local<UB>> {
+// CHECK-LABEL: func.func @outline_constant_and_external_users(%arg0: tensor<128xf32, #asctile.local<UB>>) -> (tensor<128xf32, #asctile.local<UB>>, tensor<128xf32, #asctile.local<UB>>) {
+// CHECK: %cst = arith.constant 2.000000e+00 : f32
+// CHECK: %[[GROUP:.*]]:2 = ascvf2.vf_group {
+// CHECK-NEXT: %[[CALL:.*]]:2 = func.call @outline_constant_and_external_users_vf1(%arg0) : (tensor<128xf32, #asctile.local<UB>>) -> (tensor<128xf32, #asctile.local<UB>>, tensor<128xf32, #asctile.local<UB>>)
+// CHECK-NEXT: ascvf2.yield %[[CALL]]#0, %[[CALL]]#1 : tensor<128xf32, #asctile.local<UB>>, tensor<128xf32, #asctile.local<UB>>
+// CHECK-NEXT: } : tensor<128xf32, #asctile.local<UB>>, tensor<128xf32, #asctile.local<UB>>
+// CHECK-NEXT: return %[[GROUP]]#0, %[[GROUP]]#1 : tensor<128xf32, #asctile.local<UB>>, tensor<128xf32, #asctile.local<UB>>
+// CHECK-NEXT: }
+func.func @outline_constant_and_external_users(%arg0: tensor<128xf32, #asctile.local<UB>>) -> (tensor<128xf32, #asctile.local<UB>>, tensor<128xf32, #asctile.local<UB>>) {
   %cst = arith.constant 2.000000e+00 : f32
   %0 = arith.addf %arg0, %arg0 : tensor<128xf32, #asctile.local<UB>>
   %1 = asctile.muls %0, %cst : tensor<128xf32, #asctile.local<UB>>
-  return %1 : tensor<128xf32, #asctile.local<UB>>
+  return %0, %1 : tensor<128xf32, #asctile.local<UB>>, tensor<128xf32, #asctile.local<UB>>
 }
 
-// OUTLINE-LABEL: func.func @outline_multiple_groups(
-// OUTLINE: func.call @outline_multiple_groups_vf1(
-// OUTLINE: func.call @outline_multiple_groups_vf2(
-
-// OUTLINE-LABEL: func.func private @outline_constant_vf1(
-// OUTLINE-SAME: %arg0: tensor<128xf32, #asctile.local<UB>>
-// OUTLINE-SAME: attributes {ascvf2.vector_func}
-// OUTLINE: %cst = arith.constant 2.000000e+00 : f32
-// OUTLINE: %0 = arith.addf %arg0, %arg0
-// OUTLINE: %1 = asctile.muls %0, %cst
-// OUTLINE: return %1
-
-// OUTLINE-DAG: func.func private @outline_multiple_groups_vf2(
-// OUTLINE-DAG: func.func private @outline_multiple_groups_vf1(
-func.func @outline_multiple_groups(%arg0: tensor<128xf32, #asctile.local<UB>>, %arg1: tensor<128xf32, #asctile.local<UB>>) -> (tensor<128xf32, #asctile.local<UB>>, tensor<128xf32, #asctile.local<UB>>) {
+// CHECK-LABEL: func.func @outline_groups_split_by_call(%arg0: tensor<128xf32, #asctile.local<UB>>) -> tensor<128xf32, #asctile.local<UB>> {
+// CHECK: ascvf2.vf_group {
+// CHECK: func.call @outline_groups_split_by_call_vf1(
+// CHECK: ascvf2.yield
+// CHECK: %[[SPLIT:.*]] = call @split
+// CHECK: ascvf2.vf_group {
+// CHECK: func.call @outline_groups_split_by_call_vf2(
+// CHECK: ascvf2.yield
+func.func @outline_groups_split_by_call(%arg0: tensor<128xf32, #asctile.local<UB>>) -> tensor<128xf32, #asctile.local<UB>> {
   %0 = arith.addf %arg0, %arg0 : tensor<128xf32, #asctile.local<UB>>
   %1 = arith.subf %0, %arg0 : tensor<128xf32, #asctile.local<UB>>
-  %separator = asctile.power %1, %arg1 : tensor<128xf32, #asctile.local<UB>>
-  %2 = arith.mulf %separator, %separator : tensor<128xf32, #asctile.local<UB>>
-  %3 = arith.divf %2, %separator : tensor<128xf32, #asctile.local<UB>>
-  return %1, %3 : tensor<128xf32, #asctile.local<UB>>, tensor<128xf32, #asctile.local<UB>>
+  %2 = func.call @split(%1) : (tensor<128xf32, #asctile.local<UB>>) -> tensor<128xf32, #asctile.local<UB>>
+  %3 = arith.mulf %2, %2 : tensor<128xf32, #asctile.local<UB>>
+  %4 = arith.divf %3, %2 : tensor<128xf32, #asctile.local<UB>>
+  return %4 : tensor<128xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @outline_elementwise_with_reduction_sink(%arg0: tensor<128xf32, #asctile.local<UB>>, %arg1: tensor<128xf32, #asctile.local<UB>>) -> tensor<1xf32, #asctile.local<UB>> {
+// CHECK: ascvf2.vf_group {
+// CHECK: func.call @outline_elementwise_with_reduction_sink_vf1(
+// CHECK: ascvf2.yield
+func.func @outline_elementwise_with_reduction_sink(%arg0: tensor<128xf32, #asctile.local<UB>>, %arg1: tensor<128xf32, #asctile.local<UB>>) -> tensor<1xf32, #asctile.local<UB>> {
+  %0 = arith.subf %arg0, %arg1 : tensor<128xf32, #asctile.local<UB>>
+  %1 = asctile.reduce <sum> %0 {dims = [0 : i32]} : tensor<128xf32, #asctile.local<UB>>, tensor<1xf32, #asctile.local<UB>>
+  return %1 : tensor<1xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @outline_reduction_with_broadcast_prefix(%arg0: tensor<1x128xf32, #asctile.local<UB>>) -> tensor<1x128xf32, #asctile.local<UB>> {
+// CHECK: ascvf2.vf_group {
+// CHECK: func.call @outline_reduction_with_broadcast_prefix_vf1(
+// CHECK: ascvf2.yield
+func.func @outline_reduction_with_broadcast_prefix(%arg0: tensor<1x128xf32, #asctile.local<UB>>) -> tensor<1x128xf32, #asctile.local<UB>> {
+  %0 = asctile.reduce_as_1d <max> %arg0 : tensor<1x128xf32, #asctile.local<UB>>, tensor<1xf32, #asctile.local<UB>>
+  %1 = asctile.broadcast %0 : tensor<1xf32, #asctile.local<UB>> to tensor<1x128xf32, #asctile.local<UB>>
+  return %1 : tensor<1x128xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @do_not_outline_non_ub_tensors(%arg0: tensor<32xf32, #asctile.local<L1>>, %arg1: tensor<32xf32, #asctile.local<L1>>) -> tensor<32xf32, #asctile.local<L1>> {
+// CHECK-NOT: ascvf2.vf_group
+func.func @do_not_outline_non_ub_tensors(%arg0: tensor<32xf32, #asctile.local<L1>>, %arg1: tensor<32xf32, #asctile.local<L1>>) -> tensor<32xf32, #asctile.local<L1>> {
+  %0 = arith.subf %arg0, %arg1 : tensor<32xf32, #asctile.local<L1>>
+  %1 = arith.mulf %0, %arg0 : tensor<32xf32, #asctile.local<L1>>
+  return %1 : tensor<32xf32, #asctile.local<L1>>
+}
+
+// CHECK-LABEL: func.func @do_not_outline_unsupported_reduction(%arg0: tensor<128xf32, #asctile.local<UB>>, %arg1: tensor<128xf32, #asctile.local<UB>>) -> tensor<1xf32, #asctile.local<UB>> {
+// CHECK-NOT: ascvf2.vf_group
+func.func @do_not_outline_unsupported_reduction(%arg0: tensor<128xf32, #asctile.local<UB>>, %arg1: tensor<128xf32, #asctile.local<UB>>) -> tensor<1xf32, #asctile.local<UB>> {
+  %0 = arith.subf %arg0, %arg1 : tensor<128xf32, #asctile.local<UB>>
+  %1 = asctile.reduce <prod> %0 {dims = [0 : i32]} : tensor<128xf32, #asctile.local<UB>>, tensor<1xf32, #asctile.local<UB>>
+  return %1 : tensor<1xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @do_not_outline_single_operation(%arg0: tensor<128xf32, #asctile.local<UB>>) -> tensor<128xf32, #asctile.local<UB>> {
+// CHECK-NOT: ascvf2.vf_group
+func.func @do_not_outline_single_operation(%arg0: tensor<128xf32, #asctile.local<UB>>) -> tensor<128xf32, #asctile.local<UB>> {
+  %0 = arith.addf %arg0, %arg0 : tensor<128xf32, #asctile.local<UB>>
+  return %0 : tensor<128xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @do_not_outline_reduction_without_producer(%arg0: tensor<128xf32, #asctile.local<UB>>) -> tensor<1xf32, #asctile.local<UB>> {
+// CHECK-NOT: ascvf2.vf_group
+func.func @do_not_outline_reduction_without_producer(%arg0: tensor<128xf32, #asctile.local<UB>>) -> tensor<1xf32, #asctile.local<UB>> {
+  %0 = asctile.reduce <sum> %arg0 {dims = [0 : i32]} : tensor<128xf32, #asctile.local<UB>>, tensor<1xf32, #asctile.local<UB>>
+  return %0 : tensor<1xf32, #asctile.local<UB>>
+}
+// CHECK-LABEL: func.func private @split(%arg0: tensor<128xf32, #asctile.local<UB>>) -> tensor<128xf32, #asctile.local<UB>> {
+func.func private @split(%arg0: tensor<128xf32, #asctile.local<UB>>) -> tensor<128xf32, #asctile.local<UB>> {
+  return %arg0 : tensor<128xf32, #asctile.local<UB>>
 }

@@ -6,14 +6,11 @@
 // INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 // See LICENSE in the root of the software repository for the full text of the License.
 
-// RUN: asctile-opt -ascvf2-lower-to-reg %s | FileCheck %s
-
-// CHECK-LABEL: func.func @lower_vf_sync
-func.func @lower_vf_sync() attributes {ascvf2.vector_func} {
-  ascvf2.vf_group {
-    // CHECK: ascendc.local_mem_bar VEC_STORE, VEC_LOAD
-    ascvf2.barrier
-    ascvf2.yield
-  }
-  return
+// RUN: asctile-opt -ascvf2-assign-vf-group-tensors -verify-diagnostics %s
+func.func @reject_group_with_results(%tensor: !ascendc.local_tensor<8xf32>) -> !ascendc.local_tensor<8xf32> {
+  // expected-error@+1 {{'ascvf2.vf_group' op cannot assign tensors to a group with remaining results}}
+  %result = ascvf2.vf_group {
+    ascvf2.yield %tensor : !ascendc.local_tensor<8xf32>
+  } : !ascendc.local_tensor<8xf32>
+  return %result : !ascendc.local_tensor<8xf32>
 }

@@ -6,12 +6,9 @@
 // INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 // See LICENSE in the root of the software repository for the full text of the License.
 
-// RUN: not asctile-opt -ascvf2-wrap-vec-scope %s 2>&1 | FileCheck %s
-
-// CHECK: cannot wrap a group with remaining results
-func.func @reject_group_with_results(%arg0: vector<4xf32>) -> vector<4xf32> {
-  %result = ascvf2.vf_group {
-    ascvf2.yield %arg0 : vector<4xf32>
-  } : vector<4xf32>
-  return %result : vector<4xf32>
+// RUN: asctile-opt -ascvf2-insert-vf-sync -verify-diagnostics %s
+func.func @reject_unsupported_side_effecting_operation() attributes {ascvf2.vector_func} {
+  // expected-error@+1 {{'memref.alloc' op unsupported side-effecting operation in AscVF2 synchronization scan}}
+  %allocation = memref.alloc() : memref<1xf32>
+  return
 }

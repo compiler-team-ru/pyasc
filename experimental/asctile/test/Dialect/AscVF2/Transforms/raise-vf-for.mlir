@@ -8,18 +8,44 @@
 
 // RUN: asctile-opt -ascvf2-raise-vf-for %s | FileCheck %s
 
-func.func @keep_ineligible_loops(%arg0: index) {
-  %c8 = arith.constant 8 : index
+// CHECK-LABEL: func.func @raise_eligible_loops(%arg0: index, %arg1: index) {
+// CHECK: ascvf2.vf_group
+// CHECK: emitasc.vf_for %arg0 : index
+// CHECK: emitasc.vf_for %arg1 : index
+// CHECK: arith.addi
+// CHECK-NOT: scf.for
+func.func @raise_eligible_loops(%upper: index, %innerUpper: index) {
+  %c0 = arith.constant 0 : index
+  %c1 = arith.constant 1 : index
+  ascvf2.vf_group {
+    scf.for %index = %c0 to %upper step %c1 {
+      scf.for %nested = %c0 to %innerUpper step %c1 {
+        arith.addi %index, %nested : index
+      }
+    }
+  }
+  return
+}
+
+// CHECK-LABEL: func.func @keep_ineligible_loops(%arg0: index) {
+// CHECK: ascvf2.vf_group
+// CHECK: scf.for %{{.*}} = %{{.*}} to %arg0 step
+// CHECK: scf.for %{{.*}} = %{{.*}} to %arg0 step
+// CHECK: scf.for %{{.*}} = %{{.*}} to %arg0 step {{.*}} iter_args
+// CHECK: scf.yield
+// CHECK-NOT: emitasc.vf_for
+func.func @keep_ineligible_loops(%upper: index) {
+  %c0 = arith.constant 0 : index
   %c1 = arith.constant 1 : index
   %c2 = arith.constant 2 : index
   ascvf2.vf_group {
-    scf.for %nonzero = %c2 to %c8 step %c1 {
-      arith.addi %nonzero, %c1 : index
-    }
-    scf.for %stepped = %c1 to %c8 step %c2 {
+    scf.for %stepped = %c1 to %upper step %c2 {
       arith.addi %stepped, %c1 : index
     }
-    %result = scf.for %carrier = %c1 to %c8 step %c1 iter_args(%accumulator = %c1) -> (index) {
+    scf.for %nonzero = %c2 to %upper step %c1 {
+      arith.addi %nonzero, %c1 : index
+    }
+    %result = scf.for %carrier = %c0 to %upper step %c1 iter_args(%accumulator = %c0) -> (index) {
       %next = arith.addi %accumulator, %carrier : index
       scf.yield %next : index
     }
@@ -28,40 +54,14 @@ func.func @keep_ineligible_loops(%arg0: index) {
   return
 }
 
-
-func.func @keep_loop_outside_vec_scope(%arg0: index) {
+// CHECK-LABEL: func.func @keep_loop_outside_group(%arg0: index) {
+// CHECK: scf.for
+// CHECK-NOT: emitasc.vf_for
+func.func @keep_loop_outside_group(%upper: index) {
   %c0 = arith.constant 0 : index
-  %c8 = arith.constant 8 : index
   %c1 = arith.constant 1 : index
-  scf.for %index = %c0 to %c8 step %c1 {
+  scf.for %index = %c0 to %upper step %c1 {
     arith.addi %index, %c1 : index
   }
   return
 }
-
-// CHECK-LABEL: func.func @keep_loop_outside_vec_scope
-// CHECK: scf.for
-// CHECK-NOT: emitasc.vf_for
-
-func.func @raise_eligible_loops(%arg0: index) {
-  %c8 = arith.constant 8 : index
-  %c0 = arith.constant 0 : index
-  %c1 = arith.constant 1 : index
-  %c4 = arith.constant 4 : index
-  ascvf2.vf_group {
-    scf.for %index = %c0 to %c8 step %c1 {
-      scf.for %nested = %c0 to %c4 step %c1 {
-        arith.addi %index, %nested : index
-      }
-    }
-  }
-  return
-}
-
-// CHECK-LABEL: func.func @raise_eligible_loops
-// CHECK: ascvf2.vf_group
-// CHECK: emitasc.vf_for
-// CHECK: emitasc.vf_for
-// CHECK: arith.addi
-// CHECK-NOT: scf.for
-// CHECK-NOT: emitasc.vf_for
