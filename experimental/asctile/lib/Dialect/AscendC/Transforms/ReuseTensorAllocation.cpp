@@ -36,6 +36,7 @@
 
 #include "asctile/Dialect/AscVF/IR/AscVF.h"
 #include "asctile/Dialect/AscVF2/IR/AscVF2.h"
+#include "asctile/Dialect/AscendC/IR/Interfaces.h"
 #include "asctile/Dialect/AscendC/Transforms/Passes.h"
 #include "asctile/Dialect/AscendC/Utils/Attributes.h"
 #include "asctile/Dialect/AscendC/Utils/Utils.h"

@@ -9,6 +9,7 @@
  */
 
 #include "asctile/Dialect/AscVF2/IR/AscVF2.h"
+#include "asctile/Dialect/AscendC/IR/Interfaces.h"
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Utils/Inlining.h"
@@ -48,6 +49,10 @@ struct VFGroupSrcModel : public ascendc::OpWithSrc::ExternalModel<VFGroupSrcMode
 
 struct VFGroupReusableSrcModel
     : public ascendc::OpWithReusableSrc::ExternalModel<VFGroupReusableSrcModel, ascvf2::VFGroupOp> {
+    SmallVector<Value> getSrcTensors(Operation* op) const { return cast<ascendc::OpWithSrc>(op).getSrcTensors(); }
+
+    SmallVector<Value> getDstTensors(Operation* op) const { return cast<ascendc::OpWithDst>(op).getDstTensors(); }
+
     bool canReuse(Operation* op, OpOperand& src, OpOperand& dst) const
     {
         return cast<ascvf2::VFGroupOp>(op).canReuse(src, dst);

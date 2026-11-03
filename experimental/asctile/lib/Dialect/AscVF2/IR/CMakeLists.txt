@@ -23,4 +23,5 @@ LINK_LIBS PUBLIC
   AscTileDialect
   MLIRIR
   MLIRSupport
+  AscTileAscendCDialect
 )
