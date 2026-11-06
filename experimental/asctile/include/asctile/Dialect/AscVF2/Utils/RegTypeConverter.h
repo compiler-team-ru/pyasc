@@ -15,7 +15,6 @@
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
 
-#include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/Transforms/DialectConversion.h"
 
@@ -42,7 +41,7 @@ struct RegTypeConverter : TypeConverter {
     }
 
 private:
-    static std::optional<Value> addUnrealizedCast(OpBuilder& builder, Type type, ValueRange inputs, Location loc)
+    static Value addUnrealizedCast(OpBuilder& builder, Type type, ValueRange inputs, Location loc)
     {
         return builder.create<UnrealizedConversionCastOp>(loc, type, inputs).getResult(0);
     }

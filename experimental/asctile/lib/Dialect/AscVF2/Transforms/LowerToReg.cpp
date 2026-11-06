@@ -398,8 +398,11 @@ struct ConvertConstantMask : public OpConversionPattern<vector::ConstantMaskOp> 
     {
         if (!isSupportedConstantMask(op))
             return failure();
-
-        int64_t count = cast<IntegerAttr>(op.getMaskDimSizes()[0]).getInt();
+#if LLVM_VERSION_MAJOR >= 20
+        int64_t count = op.getMaskDimSizes()[0];
+#else
+        int64_t count = cast<IntegerAttr>(op.getMaskDimSizes()[0]).getValue().getSExtValue();
+#endif
         auto elementType = inferMaskElementType(op.getResult());
         Value mask = rewriter.create<ascvf2::SimpleMaskRegOp>(
             op.getLoc(), ascendc::MaskRegType::get(getContext()), TypeAttr::get(*elementType),

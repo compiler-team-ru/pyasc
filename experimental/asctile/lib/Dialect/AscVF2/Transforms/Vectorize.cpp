@@ -516,7 +516,7 @@ struct VectorizePass : public ascvf2::impl::VectorizeBase<VectorizePass> {
 
         TypeConverter typeConverter;
         typeConverter.addConversion([](Type type) { return std::optional<Type>{type}; });
-        auto materialize = [](OpBuilder& builder, Type type, ValueRange inputs, Location loc) -> std::optional<Value> {
+        auto materialize = [](OpBuilder& builder, Type type, ValueRange inputs, Location loc) -> Value {
             return builder.create<UnrealizedConversionCastOp>(loc, type, inputs).getResult(0);
         };
         typeConverter.addArgumentMaterialization(materialize);

@@ -8,18 +8,17 @@
  * See LICENSE in the root of the software repository for the full text of the License.
  */
 
-#include "asctile/Dialect/AscVF2/IR/AscVF2.h"
 #include "asctile/Dialect/AscVF2/Transforms/Passes.h"
 #include "asctile/Dialect/AscVF2/Utils/Utils.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/Config/llvm-config.h"
 
 #include <functional>
 
@@ -145,7 +144,11 @@ std::optional<unsigned> getActiveLanes(Value mask, VectorType vectorType, const 
     if (auto constantMask = mask.getDefiningOp<vector::ConstantMaskOp>()) {
         if (constantMask.getVectorType().getRank() != 1 || constantMask.getMaskDimSizes().size() != 1)
             return std::nullopt;
-        int64_t count = cast<IntegerAttr>(constantMask.getMaskDimSizes()[0]).getInt();
+#if LLVM_VERSION_MAJOR >= 20
+        int64_t count = constantMask.getMaskDimSizes()[0];
+#else
+        int64_t count = cast<IntegerAttr>(constantMask.getMaskDimSizes()[0]).getValue().getSExtValue();
+#endif
         return std::min<uint64_t>(std::max<int64_t>(count, 0), vectorType.getDimSize(0));
     }
     return vectorType.getDimSize(0);
@@ -288,7 +291,6 @@ bool haveCompatibleMemoryAccesses(AffineForOp first, AffineForOp second)
     for (Operation* parent = first->getParentOp(); parent; parent = parent->getParentOp())
         if (auto loop = dyn_cast<AffineForOp>(parent))
             enclosingLoops.push_back(loop);
-    llvm::reverse(enclosingLoops);
 
     SmallVector<LoopDomain, 4> enclosingDomains;
     enclosingDomains.reserve(enclosingLoops.size());
