@@ -286,10 +286,10 @@ TensorSet collectCrossGroupTensors(func::FuncOp funcOp)
         if (!direction)
             return;
         auto [src, dst] = *direction;
-        if (src == ascendc::TPosition::VECCALC && (dst == ascendc::TPosition::A1 || dst == ascendc::TPosition::B1))
-            if (auto root = ascendc::getAllocationRoot(copyOp.getSrc()))
-                crossGroup.insert(root);
-        if (src == ascendc::TPosition::CO1 && dst == ascendc::TPosition::VECCALC)
+        bool isUBToL1 =
+            src == ascendc::TPosition::VECCALC && (dst == ascendc::TPosition::A1 || dst == ascendc::TPosition::B1);
+        bool isL0CToUB = src == ascendc::TPosition::CO1 && dst == ascendc::TPosition::VECCALC;
+        if (isUBToL1 || isL0CToUB)
             if (auto root = ascendc::getAllocationRoot(copyOp.getDst()))
                 crossGroup.insert(root);
     });

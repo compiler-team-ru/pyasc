@@ -859,16 +859,16 @@ func.func @reuse_cv_block(%arg0: !ascendc.data_copy_ext_params, %arg1: !ascendc.
 // CHECK-LABEL: func.func @cross_group_in_cv_blocks_with_reg_after(%arg0: !ascendc.global_tensor<?xf32>, %arg1: !ascendc.mmad_params, %arg2: !ascendc.global_tensor<?xf32>) {
 // CHECK-NEXT:  %0 = ascendc.local_tensor_auto veccalc() : <8xf32>
 // CHECK-NEXT:  %1 = ascendc.local_tensor_auto co1() : <8xf32>
-// CHECK-NEXT:  %2 = ascendc.local_tensor_auto a1() : <8xf32>
 // CHECK-NEXT:  %c256_i32 = arith.constant 256 : i32
 // CHECK-NEXT:  %c8_i64 = arith.constant 8 : i64
-// CHECK-NEXT:  %3 = ascendc.local_tensor_auto veccalc() : <8xf32>
+// CHECK-NEXT:  %2 = ascendc.reinterpret_cast %0 : !ascendc.local_tensor<8xf32> to !ascendc.local_tensor<8xf32>
+// CHECK-NEXT:  %3 = ascendc.local_tensor_auto a1() : <8xf32>
 // CHECK-NEXT:  ascendc.if_aiv {
-// CHECK-NEXT:    ascendc.data_copy_l2 %3, %arg0, %c8_i64 : !ascendc.local_tensor<8xf32>, !ascendc.global_tensor<?xf32>, i64
-// CHECK-NEXT:    ascendc.data_copy_l2 %2, %3, %c256_i32 {direction = #ascendc.copy_direction<veccalc, a1>} : !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, i32
+// CHECK-NEXT:    ascendc.data_copy_l2 %2, %arg0, %c8_i64 : !ascendc.local_tensor<8xf32>, !ascendc.global_tensor<?xf32>, i64
+// CHECK-NEXT:    ascendc.data_copy_l2 %3, %2, %c256_i32 {direction = #ascendc.copy_direction<veccalc, a1>} : !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, i32
 // CHECK-NEXT:  }
 // CHECK-NEXT:  ascendc.if_aic {
-// CHECK-NEXT:    ascendc.mmad %1, %2, %2, %arg1 : !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, !ascendc.mmad_params
+// CHECK-NEXT:    ascendc.mmad %1, %3, %3, %arg1 : !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, !ascendc.mmad_params
 // CHECK-NEXT:  }
 // CHECK-NEXT:  ascendc.data_copy_l2 %0, %arg2, %c8_i64 : !ascendc.local_tensor<8xf32>, !ascendc.global_tensor<?xf32>, i64
 // CHECK-NEXT:  ascendc.data_copy_l2 %arg2, %0, %c8_i64 : !ascendc.global_tensor<?xf32>, !ascendc.local_tensor<8xf32>, i64
@@ -895,18 +895,18 @@ func.func @cross_group_in_cv_blocks_with_reg_after(%arg0: !ascendc.global_tensor
   return
 }
 
-// CHECK-LABEL: func.func @noreuse_cross_group_ub_to_b1(%arg0: !ascendc.global_tensor<?xf32>) {
+// CHECK-LABEL: func.func @reuse_ub_src_keep_b1_dst(%arg0: !ascendc.global_tensor<?xf32>) {
 // CHECK-NEXT:  %0 = ascendc.local_tensor_auto veccalc() : <8xf32>
-// CHECK-NEXT:  %1 = ascendc.local_tensor_auto b1() : <8xf32>
 // CHECK-NEXT:  %c256_i32 = arith.constant 256 : i32
 // CHECK-NEXT:  %c8_i64 = arith.constant 8 : i64
-// CHECK-NEXT:  %2 = ascendc.local_tensor_auto veccalc() : <8xf32>
-// CHECK-NEXT:  ascendc.data_copy_l2 %2, %arg0, %c8_i64 : !ascendc.local_tensor<8xf32>, !ascendc.global_tensor<?xf32>, i64
-// CHECK-NEXT:  ascendc.data_copy_l2 %1, %2, %c256_i32 {direction = #ascendc.copy_direction<veccalc, b1>} : !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, i32
+// CHECK-NEXT:  %1 = ascendc.reinterpret_cast %0 : !ascendc.local_tensor<8xf32> to !ascendc.local_tensor<8xf32>
+// CHECK-NEXT:  %2 = ascendc.local_tensor_auto b1() : <8xf32>
+// CHECK-NEXT:  ascendc.data_copy_l2 %1, %arg0, %c8_i64 : !ascendc.local_tensor<8xf32>, !ascendc.global_tensor<?xf32>, i64
+// CHECK-NEXT:  ascendc.data_copy_l2 %2, %1, %c256_i32 {direction = #ascendc.copy_direction<veccalc, b1>} : !ascendc.local_tensor<8xf32>, !ascendc.local_tensor<8xf32>, i32
 // CHECK-NEXT:  ascendc.data_copy_l2 %0, %arg0, %c8_i64 : !ascendc.local_tensor<8xf32>, !ascendc.global_tensor<?xf32>, i64
 // CHECK-NEXT:  return
 // CHECK-NEXT:}
-func.func @noreuse_cross_group_ub_to_b1(%arg0: !ascendc.global_tensor<?xf32>) {
+func.func @reuse_ub_src_keep_b1_dst(%arg0: !ascendc.global_tensor<?xf32>) {
   %c256_i32 = arith.constant 256 : i32
   %c8_i64 = arith.constant 8 : i64
   %ub_cross = ascendc.local_tensor_auto veccalc() : <8xf32>
