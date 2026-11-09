@@ -170,6 +170,18 @@ def ReorderGroupedOps : Pass<"ascvf2-reorder-grouped-ops", "func::FuncOp"> {
   let constructor = "mlir::ascvf2::createReorderGroupedOpsPass()";
 }
 
+def ReuseRegTensor : Pass<"ascvf2-reuse-reg-tensor", "func::FuncOp"> {
+  let summary = "Reuse non-overlapping AscVF2 register tensors";
+  let description = [{
+    Groups register tensors of the same type by loop-aware use interval and rewrites non-overlapping groups to one
+    representative. A value read before its first write inside a loop is live for the whole loop, including every
+    enclosing loop with the same property. The surviving allocation must dominate every rewritten use. The pass accepts
+    only linear structured control flow: single-region loops are allowed, while branches and region-crossing register
+    values are rejected.
+  }];
+  let constructor = "mlir::ascvf2::createReuseRegTensorPass()";
+}
+
 def ShrinkVFSignature : Pass<"ascvf2-shrink-vf-signature", "ModuleOp"> {
   let summary = "Removes unused results from outlined AscVF2 functions";
   let description = [{

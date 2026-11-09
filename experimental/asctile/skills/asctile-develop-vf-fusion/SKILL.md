@@ -25,6 +25,7 @@ outline pure VF groups
   -> broadcast-transfer merging
   -> synchronization
   -> AscendC register lowering
+  -> register-tensor reuse and ephemeral mask expansion
 ```
 
 Pipeline order is defined in `experimental/asctile/python/asctile/runtime/compiler.py`. Passes are under
@@ -107,6 +108,9 @@ addresses differently per iteration, fusion can interleave cross-iteration reads
 - Other stores use `DIST_NORM`.
 - A null `vector::MaskOp` means an unmasked source op; conversion must create a full mask.
 - Reduction identities must be type-correct: sum uses zero, max uses negative infinity, and min uses positive infinity.
+- `ReuseRegTensor` combines same-type non-overlapping loop-aware register intervals only when the surviving allocation
+  dominates all rewritten uses; values read before their first write in a loop remain live for that loop. Branching
+  functions and region-crossing or terminator uses are rejected.
 
 ## Source Map
 
@@ -125,6 +129,7 @@ addresses differently per iteration, fusion can interleave cross-iteration reads
 | Group reordering | `Transforms/ReorderGroupedOps.cpp` |
 | Synchronization | `Transforms/InsertVFSync.cpp` |
 | Register hoisting | `Transforms/HoistRegTensor.cpp` |
+| Register reuse | `Transforms/ReuseRegTensor.cpp` |
 | Ephemeral mask expansion | `Transforms/ExpandSimpleMaskReg.cpp` |
 | Shared utilities | `lib/Dialect/AscVF2/Utils/Utils.cpp` |
 

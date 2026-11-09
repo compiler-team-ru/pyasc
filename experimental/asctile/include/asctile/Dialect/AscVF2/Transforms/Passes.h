@@ -33,6 +33,7 @@ std::unique_ptr<Pass> createOutlineVFGroupPass();
 std::unique_ptr<Pass> createPromoteMemToRegPass();
 std::unique_ptr<Pass> createRaiseVFForPass();
 std::unique_ptr<Pass> createReorderGroupedOpsPass();
+std::unique_ptr<Pass> createReuseRegTensorPass();
 std::unique_ptr<Pass> createShrinkVFSignaturePass();
 std::unique_ptr<Pass> createVectorizePass();
 std::unique_ptr<Pass> createWrapVecScopePass();

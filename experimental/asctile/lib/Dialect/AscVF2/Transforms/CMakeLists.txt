@@ -22,6 +22,7 @@ add_mlir_dialect_library(AscVF2Transforms
   PromoteMemToReg.cpp
   RaiseVFFor.cpp
   ReorderGroupedOps.cpp
+  ReuseRegTensor.cpp
   WrapVecScope.cpp
   Vectorize.cpp
 

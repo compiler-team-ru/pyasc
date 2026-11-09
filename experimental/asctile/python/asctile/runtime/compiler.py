@@ -173,6 +173,7 @@ class Compiler(CompilerBase):
             asctile.passes.ascvf2.add_bufferize_loop_result(pm)
             passes.common.add_canonicalizer(pm)
             passes.common.add_cse(pm)
+            asctile.passes.ascvf2.add_reuse_reg_tensor(pm)
             asctile.passes.ascvf2.add_expand_simple_mask_reg(pm)
             passes.common.add_inliner(pm)
             passes.common.add_symbol_dce(pm)
