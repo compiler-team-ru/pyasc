@@ -8,7 +8,7 @@ description: Use when developing or debugging AscVF2, including vf_fusion=2 pass
 ## When to Use
 
 Use this skill for AscVF2 (`vf_fusion=2`) development, debugging, refactoring, and testing. For initial environment
-setup, use `pyasc-check-env-and-build`; for a new pass skeleton, use `pyasc-create-empty-pass`.
+setup, use `pyasc-check-env-and-build`; for a new pass skeleton, use `asctile-create-empty-pass`.
 
 ## Core Model
 
