@@ -15,6 +15,8 @@
 // Inline interface definitions
 #include "asctile/Dialect/AscendC/IR/AscTileAscendCOpInterfaces.cpp.inc"
 
+#include "mlir/IR/TypeUtilities.h"
+
 using namespace mlir;
 
 namespace {
@@ -29,8 +31,29 @@ struct ReusableSrcModel : public ascendc::OpWithReusableSrc::ExternalModel<Reusa
     {
         auto dstTensors = getDstTensors(op);
         auto srcTensors = getSrcTensors(op);
-        return llvm::is_contained(dstTensors, lhs.get()) && llvm::is_contained(srcTensors, rhs.get()) ||
-               llvm::is_contained(dstTensors, rhs.get()) && llvm::is_contained(srcTensors, lhs.get());
+        return getElementTypeOrSelf(lhs.get()) == getElementTypeOrSelf(rhs.get()) &&
+               (llvm::is_contained(dstTensors, lhs.get()) && llvm::is_contained(srcTensors, rhs.get()) ||
+                llvm::is_contained(dstTensors, rhs.get()) && llvm::is_contained(srcTensors, lhs.get()));
+    }
+};
+
+template <>
+struct ReusableSrcModel<ascendc::CastL2Op>
+    : public ascendc::OpWithReusableSrc::ExternalModel<ReusableSrcModel<ascendc::CastL2Op>, ascendc::CastL2Op> {
+    SmallVector<Value> getSrcTensors(Operation* op) const { return cast<ascendc::OpWithSrc>(op).getSrcTensors(); }
+
+    SmallVector<Value> getDstTensors(Operation* op) const { return cast<ascendc::OpWithDst>(op).getDstTensors(); }
+
+    bool canReuse(Operation* op, OpOperand& lhs, OpOperand& rhs) const
+    {
+        auto dstTensors = getDstTensors(op);
+        auto srcTensors = getSrcTensors(op);
+        auto check = [&](OpOperand& lhs, OpOperand& rhs) {
+            return llvm::is_contained(dstTensors, lhs.get()) && llvm::is_contained(srcTensors, rhs.get()) &&
+                   getElementTypeOrSelf(lhs.get()).getIntOrFloatBitWidth() <=
+                       getElementTypeOrSelf(rhs.get()).getIntOrFloatBitWidth();
+        };
+        return check(lhs, rhs) || check(rhs, lhs);
     }
 };
 
@@ -48,7 +71,7 @@ void ascendc::registerReusableSrcModels(DialectRegistry& registry)
         attachReusableSrcModels<
             ascendc::MmadOp, ascendc::MmadWithBiasOp, ascendc::CompareL0Op, ascendc::CompareL2Op,
             ascendc::CompareScalarL0Op, ascendc::CompareScalarL2Op, ascendc::SelectL0Op, ascendc::SelectL2Op,
-            ascendc::SelectScalarL0Op, ascendc::SelectScalarL2Op>(*context);
+            ascendc::SelectScalarL0Op, ascendc::SelectScalarL2Op, ascendc::CastL2Op>(*context);
         for (RegisteredOperationName opName : context->getRegisteredOperations()) {
             if (&opName.getDialect() != dialect)
                 continue;

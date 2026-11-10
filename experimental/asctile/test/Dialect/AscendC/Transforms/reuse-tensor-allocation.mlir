@@ -1277,3 +1277,37 @@ func.func @noreuse_nested_init_value_and_yield(%arg0: !ascendc.global_tensor<?xf
   }
   return
 }
+
+// CHECK-LABEL: func.func @dont_reuse_cast_if_output_type_width_greater(%arg0: !ascendc.global_tensor<?xi8>) {
+// CHECK-NEXT:    %0 = ascendc.local_tensor_auto veccalc() : <8xi8>
+// CHECK-NEXT:    %1 = ascendc.local_tensor_auto veccalc() : <8xi32>
+// CHECK-NEXT:    %c8_i64 = arith.constant 8 : i64
+// CHECK-NEXT:    ascendc.data_copy_l2 %0, %arg0, %c8_i64 : !ascendc.local_tensor<8xi8>, !ascendc.global_tensor<?xi8>, i64
+// CHECK-NEXT:    ascendc.cast_l2 %1, %0, %c8_i64 {roundMode = 0 : i32} : !ascendc.local_tensor<8xi32>, !ascendc.local_tensor<8xi8>, i64
+// CHECK-NEXT:    return
+// CHECK-NEXT:  }
+func.func @dont_reuse_cast_if_output_type_width_greater(%arg0: !ascendc.global_tensor<?xi8>) {
+  %src = ascendc.local_tensor_auto veccalc() : <8xi8>
+  %dst = ascendc.local_tensor_auto veccalc() : <8xi32>
+  %c8_i64 = arith.constant 8 : i64
+  ascendc.data_copy_l2 %src, %arg0, %c8_i64 : !ascendc.local_tensor<8xi8>, !ascendc.global_tensor<?xi8>, i64
+  ascendc.cast_l2 %dst, %src, %c8_i64 {roundMode = 0 : i32} : !ascendc.local_tensor<8xi32>, !ascendc.local_tensor<8xi8>, i64
+  return
+}
+
+// CHECK-LABEL: func.func @reuse_cast_if_output_type_width_less(%arg0: !ascendc.global_tensor<?xi32>) {
+// CHECK-NEXT:    %0 = ascendc.local_tensor_auto veccalc() : <8xi32>
+// CHECK-NEXT:    %1 = ascendc.reinterpret_cast %0 : !ascendc.local_tensor<8xi32> to !ascendc.local_tensor<8xi8>
+// CHECK-NEXT:    %c8_i64 = arith.constant 8 : i64
+// CHECK-NEXT:    ascendc.data_copy_l2 %0, %arg0, %c8_i64 : !ascendc.local_tensor<8xi32>, !ascendc.global_tensor<?xi32>, i64
+// CHECK-NEXT:    ascendc.cast_l2 %1, %0, %c8_i64 {roundMode = 0 : i32} : !ascendc.local_tensor<8xi8>, !ascendc.local_tensor<8xi32>, i64
+// CHECK-NEXT:    return
+// CHECK-NEXT:  }
+func.func @reuse_cast_if_output_type_width_less(%arg0: !ascendc.global_tensor<?xi32>) {
+  %src = ascendc.local_tensor_auto veccalc() : <8xi32>
+  %dst = ascendc.local_tensor_auto veccalc() : <8xi8>
+  %c8_i64 = arith.constant 8 : i64
+  ascendc.data_copy_l2 %src, %arg0, %c8_i64 : !ascendc.local_tensor<8xi32>, !ascendc.global_tensor<?xi32>, i64
+  ascendc.cast_l2 %dst, %src, %c8_i64 {roundMode = 0 : i32} : !ascendc.local_tensor<8xi8>, !ascendc.local_tensor<8xi32>, i64
+  return
+}

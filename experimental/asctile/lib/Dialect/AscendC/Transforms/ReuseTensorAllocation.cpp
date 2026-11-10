@@ -360,10 +360,6 @@ bool canReuse(const LifetimeInfo& topTensorLTI, const LifetimeInfo& bottomTensor
         return false;
     }
     if (auto* borderOp = topInfo->getEndBorderOp(*bottomInfo)) {
-        if (top.getType().getElementType() != bottom.getType().getElementType()) {
-            LLVM_DEBUG(llvm::dbgs() << "  reject: same-op element type mismatch\n");
-            return false;
-        }
         // Only allow same-op reuse for operations marked with OpWithReusableSrc.
         // Operations like BroadcastOp that read sources multiple times are not marked
         // and will be rejected here.
