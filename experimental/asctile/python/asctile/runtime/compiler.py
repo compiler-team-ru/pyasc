@@ -243,7 +243,6 @@ class Compiler(CompilerBase):
                 asctile.passes.ascendc.add_insert_bufid_sync(pm)
                 asctile.passes.ascendc.add_insert_bias_bufid_sync(pm)
                 passes.common.add_canonicalizer(pm)
-                asctile.passes.ascendc.add_fuse_bufid_sync(pm)
             else:
                 passes.ascendc.add_insert_que_sync(pm)
             passes.ascendc.add_unify_pipe(pm)
