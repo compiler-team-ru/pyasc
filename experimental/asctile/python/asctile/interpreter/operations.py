@@ -276,8 +276,8 @@ def cast(input: Union[LocalTensor, Number], dtype: DataType,
 
 
 @override
-def concat(*inputs: LocalTensor) -> LocalTensor:
-    return LocalTensor(np.concatenate([inp.data for inp in inputs], axis=0))
+def concat(*inputs: LocalTensor, dim: int) -> LocalTensor:
+    return LocalTensor(np.concatenate([inp.data for inp in inputs], axis=dim))
 
 
 @override
