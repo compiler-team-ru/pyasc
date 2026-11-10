@@ -47,7 +47,7 @@ def attn_residual_kernel(prefix_ptr: asctile.GlobalAddress, bank_ptr: asctile.Gl
             else:
                 value = asctile.copy_in(prefix_gm, [token, 0], [hidden_size])
             # Compute RMSNorm score
-            sum_sq = asctile.reduce_sum(value * value)
+            sum_sq = asctile.reduce_sum(value * value, 0, keep_dims=True)
             inverse_rms = 1.0 / asctile.sqrt(sum_sq / hidden_size + variance_epsilon)
             score = asctile.reduce_sum(value * inverse_rms * combined_weight)
             mask = indices_2d == asctile.full([num_candidates_aligned], row, dtype=asctile.int32)
