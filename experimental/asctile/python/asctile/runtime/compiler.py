@@ -111,6 +111,8 @@ class Compiler(CompilerBase):
         passes.common.add_canonicalizer(pm)
         passes.common.add_reconcile_unrealized_casts(pm)
         asctile.passes.asctile.add_resolve_auto_location(pm)
+        if arch_c310:
+            asctile.passes.asctile.add_unscalarize_reduction(pm)
         passes.common.add_canonicalizer(pm)
         passes.common.add_cse(pm)
         asctile.passes.asctile.add_location_cast_to_copy(pm)
@@ -134,7 +136,6 @@ class Compiler(CompilerBase):
         asctile.passes.asctile.add_mark_reuse_source(pm)
         if arch_c310:
             asctile.passes.asctile.add_vector_transpose_to_load_store(pm)
-            asctile.passes.asctile.add_unscalarize_reduction(pm)
             passes.common.add_canonicalizer(pm)
             passes.common.add_cse(pm)
         asctile.passes.asctile.add_replace_fp8_ops(pm)
