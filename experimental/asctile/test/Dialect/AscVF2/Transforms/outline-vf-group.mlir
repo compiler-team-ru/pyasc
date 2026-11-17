@@ -89,7 +89,28 @@ func.func @do_not_outline_reduction_without_producer(%arg0: tensor<128xf32, #asc
   %0 = asctile.reduce <sum> %arg0 {dims = [0 : i32]} : tensor<128xf32, #asctile.local<UB>>, tensor<1xf32, #asctile.local<UB>>
   return %0 : tensor<1xf32, #asctile.local<UB>>
 }
+
 // CHECK-LABEL: func.func private @split(%arg0: tensor<128xf32, #asctile.local<UB>>) -> tensor<128xf32, #asctile.local<UB>> {
 func.func private @split(%arg0: tensor<128xf32, #asctile.local<UB>>) -> tensor<128xf32, #asctile.local<UB>> {
   return %arg0 : tensor<128xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @outline_elementwise_with_reduce_min_sink(%arg0: tensor<128xf32, #asctile.local<UB>>, %arg1: tensor<128xf32, #asctile.local<UB>>) -> tensor<1xf32, #asctile.local<UB>> {
+// CHECK: ascvf2.vf_group
+// CHECK: func.call @outline_elementwise_with_reduce_min_sink_vf1(
+// CHECK: ascvf2.yield
+func.func @outline_elementwise_with_reduce_min_sink(%arg0: tensor<128xf32, #asctile.local<UB>>, %arg1: tensor<128xf32, #asctile.local<UB>>) -> tensor<1xf32, #asctile.local<UB>> {
+  %0 = arith.subf %arg0, %arg1 : tensor<128xf32, #asctile.local<UB>>
+  %1 = asctile.reduce <min> %0 {dims = [0 : i32]} : tensor<128xf32, #asctile.local<UB>>, tensor<1xf32, #asctile.local<UB>>
+  return %1 : tensor<1xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @outline_reduction_min_with_broadcast_prefix(%arg0: tensor<1x128xf32, #asctile.local<UB>>) -> tensor<1x128xf32, #asctile.local<UB>> {
+// CHECK: ascvf2.vf_group
+// CHECK: func.call @outline_reduction_min_with_broadcast_prefix_vf1(
+// CHECK: ascvf2.yield
+func.func @outline_reduction_min_with_broadcast_prefix(%arg0: tensor<1x128xf32, #asctile.local<UB>>) -> tensor<1x128xf32, #asctile.local<UB>> {
+  %0 = asctile.reduce_as_1d <min> %arg0 : tensor<1x128xf32, #asctile.local<UB>>, tensor<1xf32, #asctile.local<UB>>
+  %1 = asctile.broadcast %0 : tensor<1xf32, #asctile.local<UB>> to tensor<1x128xf32, #asctile.local<UB>>
+  return %1 : tensor<1x128xf32, #asctile.local<UB>>
 }
