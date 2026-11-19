@@ -7,7 +7,8 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 from dataclasses import dataclass
-from typing import Literal, Optional
+from pathlib import Path
+from typing import List, Literal, Optional
 
 from asc._C import ir, passes
 from asc._C.libpyasc import asctile
@@ -91,6 +92,13 @@ class Compiler(CompilerBase):
             raise RuntimeError("'vf_fusion' is only allowed to be 0, 1, 2")
         if self.options.vf_fusion and self.arch != CompilationArch.C310:
             raise RuntimeError(f"VF fusion is not supported for the {self.arch} architecture")
+
+    def _get_compiler_cmd(self, arch: str, src_path: Path, dst_path: Path, common_options: List[str]) -> List[str]:
+        compile_cmds = super()._get_compiler_cmd(arch, src_path, dst_path, common_options)
+        bisheng_vf_fusion_set = any(arg.startswith("--cce-simd-vf-fusion=") for arg in compile_cmds)
+        if not bisheng_vf_fusion_set:
+            compile_cmds += ["--cce-simd-vf-fusion=false"]
+        return compile_cmds
 
     def preprocess_module(self, mod: ir.ModuleOp) -> None:
         super().preprocess_module(mod)
