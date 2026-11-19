@@ -12,6 +12,8 @@
 #include "asctile/Dialect/AscTile/Transforms/Passes.h"
 #include "asctile/Dialect/AscTile/Utils/Attributes.h"
 
+#include "ascir/Dialect/Asc/Utils/Utils.h"
+
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
@@ -29,7 +31,7 @@ namespace {
 
 constexpr const char* const fusibleAttr = "asctile.fusible";
 
-bool isL0Locaction(TensorLocation loc) { return loc == TensorLocation::L0A || loc == TensorLocation::L0B; }
+bool isL0Location(TensorLocation loc) { return loc == TensorLocation::L0A || loc == TensorLocation::L0B; }
 
 RankedTensorType getTransposedType(LocalTensorType type)
 {
@@ -51,38 +53,52 @@ void setUnitAttr(PatternRewriter& rewriter, Operation* op, const char* attr)
     rewriter.finalizeOpModification(op);
 }
 
-WalkResult failWithDiag(
-    asctile::TransposeOp op, const char* msg, Operation* noteOp = nullptr, const char* noteMsg = nullptr)
+WalkResult failWithDiag(Operation* op, const char* msg, Operation* noteOp = nullptr, const char* noteMsg = nullptr)
 {
-    auto diag = op.emitError() << msg;
+    auto diag = op->emitError() << msg;
     if (noteOp != nullptr)
         diag.attachNote(noteOp->getLoc()) << noteMsg;
     return WalkResult::interrupt();
 }
 
-void markTransposeCopy(asctile::TransposeOp op)
+WalkResult markTransposeCopy(asctile::TransposeOp op)
 {
     auto tileLoc = op.getType().getLoc();
-    if (!isL0Locaction(tileLoc))
-        return;
+    if (!isL0Location(tileLoc))
+        return WalkResult::advance();
+
     auto copyOp = op.getOperand().getDefiningOp<asctile::CopyOp>();
-    if (!copyOp)
-        return;
-    if (copyOp.getType().getShape().size() != 2)
-        return;
-    auto* loadOp = copyOp.getBase().getDefiningOp();
-    if (!loadOp)
-        return;
-    for (auto* useLoad : loadOp->getUsers()) {
-        // TODO: Add support for copyOp with several transposeOp users
-        auto copyFromLoad = dyn_cast<asctile::CopyOp>(useLoad);
-        if (!copyFromLoad || !copyFromLoad->hasOneUse()) {
-            return;
-        }
-        if (!llvm::all_of(copyFromLoad->getUsers(), [](auto* useCopy) { return isa<asctile::TransposeOp>(useCopy); }))
-            return;
+    if (!copyOp) {
+        return failWithDiag(
+            op, "Transpose on L0A/B is supported for copy operation results only.", op.getOperand().getDefiningOp(),
+            "unexpected source operation");
     }
+    if (copyOp.getType().getShape().size() != 2) {
+        return failWithDiag(op, "Transpose op on Cube supports 2-dim tensors only.");
+    }
+    auto elemSize = ascendc::getElementTypeSize(copyOp.getType());
+    auto* loadOp = copyOp.getBase().getDefiningOp();
+    if (!loadOp || !isa<asctile::LoadOp>(loadOp)) {
+        return failWithDiag(
+            copyOp, "Copy operation on Cube expects load operation results only.", loadOp,
+            "unexpected source operation");
+    }
+    for (auto* user : loadOp->getUsers()) {
+        // TODO: Add support for copyOp with several transposeOp users
+        auto copyOp = dyn_cast<asctile::CopyOp>(user);
+        if (!copyOp || !copyOp->hasOneUse()) {
+            return failWithDiag(
+                op, "Load op on L1 should be used by copy operations only.", user, "unexpected user op");
+        }
+        if (elemSize != 2 &&
+            !llvm::all_of(copyOp->getUsers(), [](auto* useCopy) { return isa<asctile::TransposeOp>(useCopy); })) {
+            return failWithDiag(
+                op, "All copy operations should be used by transpose op only.", copyOp, "op without transpose op user");
+        }
+    }
+
     op->setAttr(fusibleAttr, UnitAttr::get(op.getContext()));
+    return WalkResult::advance();
 }
 
 WalkResult markTransposeLoad(asctile::TransposeOp op)
@@ -98,7 +114,7 @@ WalkResult markTransposeLoad(asctile::TransposeOp op)
             "unexpected source operation");
     }
     if (loadOp.getType().getShape().size() != 2) {
-        return failWithDiag(op, "Transpose supports 2-dim tensors on L1 only.");
+        return failWithDiag(op, "Transpose op on Cube supports 2-dim tensors only.");
     }
     if (!loadOp->hasOneUse()) {
         // TODO: Add support for loadOp with several transposeOp users
@@ -113,7 +129,7 @@ WalkResult markTransposeLoad(asctile::TransposeOp op)
                 op, "Transpose op on L1 should be used by copy operations only.", user, "unexpected user op");
         }
         auto copyLoc = copyOp.getType().getLoc();
-        if (!isL0Locaction(copyLoc)) {
+        if (!isL0Location(copyLoc)) {
             return failWithDiag(
                 op, "Transpose op on L1 should be used by copy to L0A/L0B operations only.", copyOp,
                 "unsupported copy op");
@@ -144,7 +160,7 @@ struct CubeTransposeToLoad : OpRewritePattern<asctile::TransposeOp> {
         auto tileLoc = opType.getLoc();
         Operation *oldOp, *newOp;
         const char* attr{};
-        if (isL0Locaction(tileLoc)) {
+        if (isL0Location(tileLoc)) {
             auto copyOp = op.getOperand().getDefiningOp<asctile::CopyOp>();
             attr = getTransposeAttrName(tileLoc, /*isL1=*/false);
             setUnitAttr(rewriter, copyOp.getBase().getDefiningOp(), attr);
@@ -180,8 +196,7 @@ struct CubeTransposeToLoadPass : public asctile::impl::CubeTransposeToLoadBase<C
     void runOnOperation() override
     {
         func::FuncOp funcOp = getOperation();
-        funcOp->walk(markTransposeCopy);
-        if (funcOp->walk(markTransposeLoad).wasInterrupted()) {
+        if (funcOp->walk(markTransposeCopy).wasInterrupted() || funcOp->walk(markTransposeLoad).wasInterrupted()) {
             signalPassFailure();
             return;
         }
@@ -193,7 +208,7 @@ struct CubeTransposeToLoadPass : public asctile::impl::CubeTransposeToLoadBase<C
             return;
         }
         funcOp->walk([this](asctile::TransposeOp op) {
-            if (isL0Locaction(op.getType().getLoc())) {
+            if (isL0Location(op.getType().getLoc())) {
                 op.emitOpError() << "not supported on cube";
                 signalPassFailure();
             }
