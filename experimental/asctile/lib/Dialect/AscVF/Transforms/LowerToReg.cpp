@@ -154,6 +154,16 @@ protected:
     const VFInfo& vfInfo;
 };
 
+bool isMaskByteAligned(ArrayRef<int64_t> dims, ArrayRef<int64_t> strides)
+{
+    assert(dims.size() == strides.size());
+    for (size_t i = 0; i < dims.size(); ++i) {
+        if (dims[i] != 1 && strides[i] % CHAR_BIT != 0)
+            return false;
+    }
+    return true;
+}
+
 Value makeNestedLoop(ArrayRef<int64_t> dims, ArrayRef<int64_t> strides, RewriterAdaptor& adaptor)
 {
     assert(dims.size() == strides.size());
@@ -452,8 +462,20 @@ struct ConvertSelectL2 : public ConvertOp<ascendc::SelectL2Op> {
     {
         ascir::ConstantOpBuilder consts(*adaptor);
         const auto& dims = vfInfo.shape;
-        Value offset =
-            makeNestedLoop(ArrayRef<int64_t>{dims}.drop_back(), ArrayRef<int64_t>{vfInfo.strides}.drop_back(), adaptor);
+        const auto& strides = vfInfo.strides;
+        auto leadingDims = ArrayRef<int64_t>{dims}.drop_back();
+        auto leadingStrides = ArrayRef<int64_t>{strides}.drop_back();
+        if (!isMaskByteAligned(leadingDims, leadingStrides))
+            return failure();
+        Value offset = consts.index(0);
+        Value offsetSel = consts.index(0);
+        for (int i = 0; i < leadingDims.size(); ++i) {
+            auto loop = adaptor.create<emitasc::VFForOp>(consts.index(leadingDims[i]));
+            adaptor->setInsertionPointToStart(loop.getBody());
+            Value iv = loop.getInductionVar();
+            offset = adaptor.createFMA(offset, iv, consts.index(leadingStrides[i]));
+            offsetSel = adaptor.createFMA(offsetSel, iv, consts.index(leadingStrides[i] / CHAR_BIT));
+        }
         auto [src0Reg, src1Reg, dstReg] = adaptor.createRegTensors<3>(vfInfo.elemType);
         auto maskReg = adaptor.create<ascendc::MaskRegOp>(ascendc::MaskRegType::get(op.getContext()));
         auto selReg = adaptor.createRegTensor(adaptor->getIntegerType(8, false));
@@ -468,7 +490,7 @@ struct ConvertSelectL2 : public ConvertOp<ascendc::SelectL2Op> {
         auto divOp = adaptor.create<arith::DivSIOp>(vfInfo.oneRepeatSize, consts.index(CHAR_BIT));
         Value mul2Op = adaptor.create<arith::MulIOp>(loop.getInductionVar(), divOp);
         Value offsetAct = adaptor.create<arith::AddIOp>(offset, mulOp);
-        Value offsetSel = adaptor.create<arith::AddIOp>(offset, mul2Op);
+        offsetSel = adaptor.create<arith::AddIOp>(offsetSel, mul2Op);
         auto loadMaskOp = adaptor.create<ascvf::LoadOp>(maskReg, op.getSelMask(), offsetSel, updateMask);
         auto load1Op = adaptor.create<ascvf::LoadOp>(src0Reg, op.getSrc0(), offsetAct, updateMask);
         auto load2Op = adaptor.create<ascvf::LoadOp>(src1Reg, op.getSrc1(), offsetAct, updateMask);

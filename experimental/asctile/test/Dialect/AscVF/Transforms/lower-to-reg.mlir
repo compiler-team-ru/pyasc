@@ -88,6 +88,31 @@ func.func @translate_mask_ops(%arg0: i64, %arg1: !ascendc.local_tensor<96xui8>, 
   return
 }
 
+// CHECK-LABEL: func.func @translate_select_2d
+// CHECK: %[[ONE_REPEAT:.*]] = arith.divsi %{{.*}}, %c2 : index
+// CHECK: emitasc.vf_for %c96 : index {
+// CHECK: bb0(%[[ROW:.*]]: index):
+// CHECK: %[[ELEM_MUL:.*]] = arith.muli %[[ROW]], %c16 : index
+// CHECK: %[[ELEM_OFF:.*]] = arith.addi %c0, %[[ELEM_MUL]] : index
+// CHECK: %[[MASK_MUL:.*]] = arith.muli %[[ROW]], %c2
+// CHECK: %[[MASK_OFF:.*]] = arith.addi %c0{{.*}}, %[[MASK_MUL]] : index
+// CHECK: emitasc.vf_for
+// CHECK: %[[ACT_CHUNK:.*]] = arith.muli %{{.*}}, %[[ONE_REPEAT]] : index
+// CHECK: %[[MASK_STRIDE:.*]] = arith.divsi %[[ONE_REPEAT]], %c8 : index
+// CHECK: %[[MASK_CHUNK:.*]] = arith.muli %{{.*}}, %[[MASK_STRIDE]] : index
+// CHECK: %[[ACT_OFF:.*]] = arith.addi %[[ELEM_OFF]], %[[ACT_CHUNK]] : index
+// CHECK: %[[SEL_OFF:.*]] = arith.addi %[[MASK_OFF]], %[[MASK_CHUNK]] : index
+// CHECK: ascvf.load %{{.*}}, %{{.*}}[%[[SEL_OFF]]]{{.*}} : !ascendc.mask_reg, <96x2xui8>, index, !ascendc.mask_reg
+// CHECK: ascvf.load %{{.*}}, %{{.*}}[%[[ACT_OFF]]]{{.*}} : !ascendc.reg_tensor<f16>, <96x16xf16>, index, !ascendc.mask_reg
+// CHECK: ascendc.select_reg
+// CHECK: ascvf.store %{{.*}}[%[[ACT_OFF]]]{{.*}} : <96x16xf16>, index, !ascendc.reg_tensor<f16>, !ascendc.mask_reg
+func.func @translate_select_2d(%c0: i32, %mask: !ascendc.local_tensor<96x2xui8>, %src: !ascendc.local_tensor<96x16xf16>) {
+  ascvf.vf_group outs(%mask, %src : !ascendc.local_tensor<96x2xui8>, !ascendc.local_tensor<96x16xf16>) ins(%src : !ascendc.local_tensor<96x16xf16>) {
+    ascendc.select_l2 %src, %mask, %src, %src, %c0 {asc.reuse_group = 0 : i64, selMode = 2 : i32} : !ascendc.local_tensor<96x16xf16>, !ascendc.local_tensor<96x2xui8>, !ascendc.local_tensor<96x16xf16>, !ascendc.local_tensor<96x16xf16>, i32
+  } {groupType = !ascendc.local_tensor<96x16xf16>}
+  return
+}
+
 // -----
 
 // CHECK-LABEL: func.func @known_vec_len
