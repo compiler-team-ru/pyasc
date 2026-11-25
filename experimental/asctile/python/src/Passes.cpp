@@ -58,6 +58,7 @@ void defineAscendCPasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_lower_to_l0", createLowerToL0Pass);
     DEFINE_ADD_PASS("add_promote_cv_block", createPromoteCVBlockPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_refine_cube_position", createRefineCubePositionPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_reify_buffer_by_id", createReifyBufferByIdPass);
     DEFINE_ADD_PASS("add_remove_debug_ops", createRemoveDebugOpsPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_reuse_tensor_allocation", createReuseTensorAllocationPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_unify_bias_tensor", createUnifyBiasTensorPass);
@@ -106,6 +107,7 @@ void defineAscTilePasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_merge_cv_groups", createMergeCVGroupsPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_prepare_cv_strategy", createPrepareCVStrategyPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_promote_pure_operations", createPromotePureOpsPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_propagate_buffer_loc", createPropagateBufferLocPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_replace_fp8_ops", createReplaceFp8OpsPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_resolve_auto_location", createResolveAutoLocationPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_split_cube_load", createSplitCubeLoadPass);

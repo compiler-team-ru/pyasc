@@ -317,3 +317,36 @@ def from_asc(asc_object: IRValue, **kwargs) -> IRValue:
         ir_type = asctile.ir.get_asctile_GlobalTensorType(asc_object.shape, asc_object.dtype.to_ir())
         return create_unrealized_cast(ir_type, GlobalTensor, asc_object)
     return asc_object
+
+
+@require_jit
+def buffer(tensor: LocalTensor, id: int) -> LocalTensor:
+    """
+    [Experimental] Recommend that local tensors share a single backing buffer.
+
+    Tensors with the same buffer ID are expected to have the same :class:`TensorLocation` and may share one allocation
+    during compilation. This is merely a compiler hint: it does not copy data or modify tensor values.
+
+    Args:
+        tensor: The local tensor to annotate with a buffer ID.
+        id: An arbitrary identifier shared by tensors that should use the same backing buffer.
+
+    Returns:
+        LocalTensor: The annotated ``tensor``.
+
+    Raises:
+        TypeError: If tensor is not a LocalTensor or id is not an integer.
+
+    Examples:
+        Recommend that an input tile and an addition result share a buffer: ::
+
+            x = asctile.copy_in(x_gm, [offset], [tile_length], asctile.TensorLocation.UB)
+            y = asctile.copy_in(y_gm, [offset], [tile_length], asctile.TensorLocation.UB)
+            z = asctile.buffer(x + y, 123)
+            asctile.buffer(x, 123)  # post-annotation also works
+    """
+    check_type("tensor", tensor, LocalTensor)
+    check_type("id", id, int)
+    buf_loc = asctile.ir.get_buffer_loc(tensor.to_ir().get_loc(), id)
+    tensor.to_ir().set_loc(buf_loc)
+    return tensor

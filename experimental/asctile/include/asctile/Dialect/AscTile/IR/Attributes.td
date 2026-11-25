@@ -107,7 +107,7 @@ def AscTile_DistribMode : I32EnumAttr<"DistribMode", "distribution mode", [
   let description = "Distribution strategy of the tensor data across the vector sub-blocks";
   let genSpecializedAttr = 0;
 }
- 
+
 def AscTile_DistribModeAttr : AscTile_EnumAttr<AscTile_DistribMode, "distrib_mode">;
 
 def AscTile_GlobalTensorAttr : AscTile_Attr<"GlobalTensor", "global",
@@ -120,6 +120,12 @@ def AscTile_LocalTensorAttr : AscTile_Attr<"LocalTensor", "local",
   let summary = "An encoding for a local tensor";
   let parameters = (ins "TensorLocation":$loc);
   let assemblyFormat = "`<` $loc `>`";
+}
+
+def AscTile_BufferAttr : AscTile_Attr<"Buffer", "buffer"> {
+  let summary = "Annotated buffer descriptor";
+  let parameters = (ins "int64_t":$id);
+  let assemblyFormat = "`<` $id `>`";
 }
 
 #endif // ASCTILE_ATTRIBUTES_TD

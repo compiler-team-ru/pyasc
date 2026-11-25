@@ -219,6 +219,7 @@ Low-level tweaking operations
     :toctree: generated
     :nosignatures:
 
+    buffer
     empty
     empty_like
     inline

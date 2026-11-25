@@ -111,6 +111,7 @@ from .language.memory_ops import (
     scatter,
 )
 from .language.low_level_ops import (
+    buffer,
     empty,
     empty_like,
     from_asc,
@@ -235,6 +236,7 @@ __all__ += [
     "reindex",
     "scatter",
     # .language.low_level_ops
+    "buffer",
     "empty",
     "empty_like",
     "from_asc",

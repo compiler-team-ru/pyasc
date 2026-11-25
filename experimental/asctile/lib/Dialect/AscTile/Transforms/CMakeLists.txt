@@ -21,6 +21,7 @@ add_mlir_dialect_library(AscTileTransforms
   MergeCVGroups.cpp
   PrepareCVStrategy.cpp
   PromotePureOps.cpp
+  PropagateBufferLoc.cpp
   ReplaceFp8Ops.cpp
   ResolveAutoLocation.cpp
   SplitCubeLoad.cpp

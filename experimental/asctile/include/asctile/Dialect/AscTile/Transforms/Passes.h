@@ -33,6 +33,7 @@ std::unique_ptr<Pass> createMarkReuseSourcePass();
 std::unique_ptr<Pass> createMergeCVGroupsPass();
 std::unique_ptr<Pass> createPrepareCVStrategyPass();
 std::unique_ptr<Pass> createPromotePureOpsPass();
+std::unique_ptr<Pass> createPropagateBufferLocPass();
 std::unique_ptr<Pass> createReplaceFp8OpsPass();
 std::unique_ptr<Pass> createResolveAutoLocationPass();
 std::unique_ptr<Pass> createSplitCubeLoadPass();

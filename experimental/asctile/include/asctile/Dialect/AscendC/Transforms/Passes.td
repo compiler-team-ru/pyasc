@@ -328,6 +328,17 @@ def PromoteCVBlock : Pass<"ascendc-promote-cv-block", "ModuleOp"> {
   }];
 }
 
+def ReifyBufferById : Pass<"ascendc-reify-buffer-by-id", "func::FuncOp"> {
+  let summary = "Reify shared buffer identifiers as single local tensor allocations";
+  let constructor = "mlir::ascendc::createReifyBufferByIdPass()";
+  let dependentDialects = ["ascendc::AscendCDialect"];
+  let description = [{
+    Groups `LocalTensorAutoOp` placeholders that carry the same `asctile.buffer` identifier + matching memory position.
+    For groups with multiple placeholders, creates one allocation at the beginning of the function and replaces each
+    placeholder either directly or through a `LocalTensorReinterpretCastOp` sized to its original type.
+  }];
+}
+
 def RefineCubePosition : Pass<"ascendc-refine-cube-position", "func::FuncOp"> {
   let summary = "Refine A1 cube tensor positions to B1 or C1 based on L0 consumer destinations";
   let constructor = "mlir::ascendc::createRefineCubePositionPass()";

@@ -410,6 +410,8 @@ void bindValue(py::module& m)
                 });
             })
         .def("get_type", &Value::getType)
+        .def("get_loc", &Value::getLoc)
+        .def("set_loc", &Value::setLoc)
         .def("dump", &Value::dump)
         .def("id", [](Value& self) { return reinterpret_cast<uint64_t>(self.getImpl()); });
 }
@@ -523,6 +525,8 @@ void bindOperation(py::module& m)
                 llvm::StringRef opName = self.getName().getStringRef();
                 return opName.str();
             })
+        .def("get_loc", &Operation::getLoc)
+        .def("set_loc", &Operation::setLoc)
         .def("get_num_operands", &Operation::getNumOperands)
         .def("get_operand", &Operation::getOperand)
         .def("get_num_results", &Operation::getNumResults)

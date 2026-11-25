@@ -486,6 +486,8 @@ struct ReuseTensorAllocationPass : public ascendc::impl::ReuseTensorAllocationBa
         std::map<ascendc::TPosition, TensorLifeTimes> tensorsByPos;
         TensorSet crossGroup = collectCrossGroupTensors(funcOp);
         funcOp.walk<WalkOrder::PreOrder>([&](TensorOp tensor) {
+            if (tensor.getLoc()->findInstanceOf<FusedLocWith<asctile::BufferAttr>>())
+                return;
             if (crossGroup.count(tensor)) {
                 LLVM_DEBUG(llvm::dbgs() << "tensor: ");
                 LLVM_DEBUG(tensor->dump());

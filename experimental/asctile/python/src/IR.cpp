@@ -18,6 +18,7 @@
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/DialectRegistry.h"
+#include "mlir/IR/Location.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/Types.h"
 
@@ -170,6 +171,10 @@ void mlir::asctile::initIRModule(py::module&& m)
         ascvf2::registerExternalModels(registry);
         context.appendDialectRegistry(registry);
         context.loadAllAvailableDialects();
+    });
+    m.def("get_buffer_loc", [](Location childLoc, int64_t id) -> Location {
+        auto buffer = asctile::BufferAttr::get(childLoc.getContext(), id);
+        return FusedLoc::get(childLoc.getContext(), childLoc, Attribute{buffer});
     });
 
     bindAttrs(m);

@@ -35,6 +35,7 @@ std::unique_ptr<Pass> createInsertSubBlockGuardPass();
 std::unique_ptr<Pass> createLowerToL0Pass();
 std::unique_ptr<Pass> createPromoteCVBlockPass();
 std::unique_ptr<Pass> createRefineCubePositionPass();
+std::unique_ptr<Pass> createReifyBufferByIdPass();
 std::unique_ptr<Pass> createReuseTensorAllocationPass();
 std::unique_ptr<Pass> createReuseUBAllocationPass(bool reuseInOut = false);
 std::unique_ptr<Pass> createRemoveDebugOpsPass();

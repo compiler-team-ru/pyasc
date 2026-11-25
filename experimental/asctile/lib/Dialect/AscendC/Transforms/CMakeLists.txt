@@ -23,6 +23,7 @@ add_mlir_dialect_library(AscTileAscendCTransforms
   LowerToL0.cpp
   PromoteCVBlock.cpp
   RefineCubePosition.cpp
+  ReifyBufferById.cpp
   RemoveDebugOps.cpp
   ReuseTensorAllocation.cpp
   ReuseUBAllocation.cpp

@@ -10,7 +10,7 @@ from asc.experimental import asctile
 from asc.runtime.jit import MockTensor
 import pytest
 
-from .helpers import all_locations
+from .helpers import all_dtypes, all_locations
 
 
 class TestInline:
@@ -190,3 +190,38 @@ def test_to_and_from_asc_passthrough(jit_test, mock_launch):
 
     kernel[1]()
     assert mock_launch.call_count == 1
+
+
+@pytest.mark.parametrize("dtype", all_dtypes)
+@pytest.mark.parametrize("loc", all_locations)
+def test_buffer(jit_test, mock_launch, zero_tile, dtype, loc):
+
+    @jit_test
+    def kernel():
+        x = zero_tile([32, 64], dtype, loc)
+        asctile.buffer(x, 123)
+        asctile.buffer(x.ravel(), 456)
+
+    kernel[1]()
+    assert mock_launch.call_count == 1
+
+
+def test_buffer_invalid_tensor(jit_test):
+
+    @jit_test
+    def kernel():
+        asctile.buffer(123, 456)
+
+    with pytest.raises(TypeError, match="tensor"):
+        kernel[1]()
+
+
+def test_buffer_invalid_id(jit_test, zero_tile):
+
+    @jit_test
+    def kernel():
+        x = zero_tile([32, 64], asctile.float32, asctile.TensorLocation.UB)
+        asctile.buffer(x, 4.56)
+
+    with pytest.raises(TypeError, match="id"):
+        kernel[1]()

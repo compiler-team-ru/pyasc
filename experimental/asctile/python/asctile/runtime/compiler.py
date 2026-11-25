@@ -113,6 +113,7 @@ class Compiler(CompilerBase):
 
     def schedule_passes(self, pm: passes.PassManager) -> None:
         arch_c310 = self.arch == CompilationArch.C310
+        asctile.passes.asctile.add_propagate_buffer_loc(pm)
         passes.ascendc.add_privatize_func(pm)
         passes.common.add_inliner(pm)
         passes.common.add_symbol_dce(pm)
@@ -208,6 +209,7 @@ class Compiler(CompilerBase):
         asctile.passes.ascendc.add_fill_asc_operands(pm)
         asctile.passes.ascendc.add_fixup_mmad_acc_params_pass(pm)
         passes.ascendc.add_input_output_tensor(pm)
+        asctile.passes.ascendc.add_reify_buffer_by_id(pm)
         if self.options.reuse_alloc == 1:
             asctile.passes.ascendc.add_reuse_ub_allocation(pm, reuse_in_out=True)
         asctile.passes.asctile.add_unroll_loop(pm, annotate=True)
