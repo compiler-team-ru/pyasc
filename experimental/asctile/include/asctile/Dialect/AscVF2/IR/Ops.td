@@ -27,19 +27,14 @@ class AscVF2_Op<string mnemonic, list<Trait> traits = []> : Op<AscVF2_Dialect, m
   let cppNamespace = "::mlir::ascvf2";
 }
 
-def VFGroupOp : AscVF2_Op<
-  "vf_group",
-  [AffineScope, AttrSizedOperandSegments, SingleBlockImplicitTerminator<"::mlir::ascvf2::YieldOp">]
-> {
+def VFGroupOp : AscVF2_Op<"vf_group", [AffineScope, AttrSizedOperandSegments,
+  SingleBlockImplicitTerminator<"::mlir::ascvf2::YieldOp">]> {
   let summary = "Group vector-function operations for fused execution";
   let description = [{
-    Groups a compatible use-def chain before lowering to AscendC. The operation
-    exposes input, output, and temporary tensor segments and produces shaped
-    values as results.
-    AscVF2 uses UB local tensors before register lowering and AscendC local
-    tensors after its boundary has been legalized. Its body is primarily SSA
-    dataflow, but may also contain explicit synchronization operations such as
-    ascvf2.barrier.
+    Groups a compatible use-def chain before lowering to AscendC. The operation exposes input, output, and temporary
+    tensor segments and produces shaped values as results. AscVF2 uses UB local tensors before register lowering and
+    AscendC local tensors after its boundary has been legalized. Its body is primarily SSA dataflow, but may also
+    contain explicit synchronization operations such as ascvf2.barrier.
   }];
   let arguments = (ins Variadic<AnyShaped>:$inputTensors, Variadic<AnyShaped>:$outputTensors,
                    Variadic<AnyShaped>:$tempTensors);
@@ -58,29 +53,29 @@ def VFGroupOp : AscVF2_Op<
   }];
 }
 
-def ToBufferOp : AscVF2_Op<"to_buffer", [Pure]> {
+def ToBufferOp : AscVF2_Op<"to_buffer", [Pure, AllShapesMatch<["tensor", "result"]>,
+  AllElementTypesMatch<["tensor", "result"]>]> {
   let summary = "Expose a UB local tensor as a same-shaped UB memref";
   let description = [{
-    Returns the backing UB memory of a static UB local tensor as a same-shaped
-    memref. The operation gives AscVF2 an explicit local-tensor alias boundary
-    while preserving the original tensor shape at the VF-group boundary.
+    Returns the backing UB memory of a static UB local tensor as a same-shaped memref. The operation gives AscVF2 an
+    explicit local-tensor alias boundary while preserving the original tensor shape at the VF-group boundary.
   }];
-  let arguments = (ins AnyType:$tensor);
-  let results = (outs AnyType:$result);
+  let arguments = (ins AnyNon0RankedTensor:$tensor);
+  let results = (outs AnyNon0RankedMemRef:$result);
   let assemblyFormat = "$tensor attr-dict `:` type($tensor) `to` type($result)";
   let hasFolder = 1;
   let hasVerifier = 1;
 }
 
-def ToTensorOp : AscVF2_Op<"to_tensor", [Pure]> {
+def ToTensorOp : AscVF2_Op<"to_tensor", [Pure, AllShapesMatch<["buffer", "result"]>,
+  AllElementTypesMatch<["buffer", "result"]>]> {
   let summary = "Materialize a UB local tensor from a same-shaped UB memref";
   let description = [{
-    Materializes a UB local tensor handle from a same-shaped UB memref. It is
-    the explicit tensor-side boundary for AscVF2's local-tensor alias semantics
-    after affine and vector operations have written through the memref.
+    Materializes a UB local tensor handle from a same-shaped UB memref. It is the explicit tensor-side boundary for
+    AscVF2's local-tensor alias semantics after affine and vector operations have written through the memref.
   }];
-  let arguments = (ins AnyType:$buffer);
-  let results = (outs AnyType:$result);
+  let arguments = (ins AnyNon0RankedMemRef:$buffer);
+  let results = (outs AnyNon0RankedTensor:$result);
   let assemblyFormat = "$buffer attr-dict `:` type($buffer) `to` type($result)";
   let hasFolder = 1;
   let hasVerifier = 1;
@@ -89,22 +84,21 @@ def ToTensorOp : AscVF2_Op<"to_tensor", [Pure]> {
 def BarrierOp : AscVF2_Op<"barrier"> {
   let summary = "Synchronize AscVF2 vector stores and loads";
   let description = [{
-    Fences pending vector stores before subsequent vector loads. The operation
-    is lowered to an AscendC local-memory barrier.
+    Fences pending vector stores before subsequent vector loads. The operation should be lowered to an AscendC local
+    memory barrier.
   }];
   let assemblyFormat = "attr-dict";
 }
 
-def ReduceOp : AscVF2_Op<"reduce", [Pure]> {
+def ReduceOp : AscVF2_Op<"reduce", [Pure, AllElementTypesMatch<["input", "result"]>]> {
   let summary = "Reduce a vector to a one-element vector";
   let description = [{
-    Defines the vector-to-vector reduction boundary used after lane-wise
-    accumulation. The operation intentionally returns vector<1xT> rather than a
-    scalar so later multi-dimensional reductions can preserve their result
-    shape while staying in vector/register space.
+    Defines the vector-to-vector reduction boundary used after lane-wise accumulation. The operation intentionally
+    returns vector<1xT> rather than a scalar so later multi-dimensional reductions can preserve their result shape while
+    staying in vector/register space.
   }];
-  let arguments = (ins AnyType:$input, I32ArrayAttr:$dims, AscTile_ReduceKindAttr:$kind);
-  let results = (outs AnyType:$result);
+  let arguments = (ins AnyVector:$input, I32ArrayAttr:$dims, AscTile_ReduceKindAttr:$kind);
+  let results = (outs VectorOfLength<[1]>:$result);
   let assemblyFormat = "$kind $input $dims attr-dict `:` type($input) `to` type($result)";
   let hasVerifier = 1;
 }
@@ -112,10 +106,9 @@ def ReduceOp : AscVF2_Op<"reduce", [Pure]> {
 def SimpleMaskRegOp : AscVF2_Op<"simple_mask_reg", [Pure]> {
   let summary = "Ephemeral register mask before AscendC materialization";
   let description = [{
-    Represents a one-dimensional register mask before choosing its final
-    AscendC materialization. The element type is carried explicitly, and the
-    mask count is either a static index attribute or a dynamic index operand;
-    exactly one form is present.
+    Represents a one-dimensional register mask before choosing its final AscendC materialization. The element type is
+    carried explicitly, and the mask count is either a static index attribute or a dynamic index operand; exactly one
+    form is present.
   }];
   let arguments = (ins TypeAttr:$elementType, OptionalAttr<IndexAttr>:$count, Optional<Index>:$dynamicCount);
   let results = (outs AnyType:$result);
@@ -124,28 +117,23 @@ def SimpleMaskRegOp : AscVF2_Op<"simple_mask_reg", [Pure]> {
 }
 
 class AscVF2_VecScalarOp<string mnemonic, string opSummary>
-    : AscVF2_Op<mnemonic, [Pure, AllTypesMatch<["base", "result"]>]>
-{
+    : AscVF2_Op<mnemonic, [Pure, AllTypesMatch<["base", "result"]>, AllElementTypesMatch<["base", "value"]>]> {
   let summary = opSummary;
-  let arguments = (ins AnyType:$base, AnyType:$value);
-  let results = (outs AnyType:$result);
+  let arguments = (ins AnyVector:$base, AnyTypeOf<[AnyFloat, AnyInteger]>:$value);
+  let results = (outs AnyVector:$result);
   let assemblyFormat = "$base `,` $value attr-dict `:` type($base) `,` type($value)";
-  let hasVerifier = 1;
 }
 
 class AscVF2_UnaryOp<string mnemonic, string opSummary>
-    : AscVF2_Op<mnemonic, [Pure, AllTypesMatch<["operand", "result"]>]>
-{
+    : AscVF2_Op<mnemonic, [Elementwise, Pure, AllTypesMatch<["operand", "result"]>]> {
   let summary = opSummary;
-  let arguments = (ins AnyType:$operand);
-  let results = (outs AnyType:$result);
+  let arguments = (ins AnyVector:$operand);
+  let results = (outs AnyVector:$result);
   let assemblyFormat = "$operand attr-dict `:` type($operand)";
-  let hasVerifier = 1;
 }
 
 class AscVF2_FusedBinaryOp<string mnemonic, string opSummary>
-    : AscVF2_Op<mnemonic, [Pure, AllTypesMatch<["lhs", "rhs", "result"]>]>
-{
+    : AscVF2_Op<mnemonic, [Pure, AllTypesMatch<["lhs", "rhs", "result"]>]> {
   let summary = opSummary;
   let arguments = (ins VectorOfRankAndType<[1], [F16, F32]>:$lhs, VectorOfRankAndType<[1], [F16, F32]>:$rhs);
   let results = (outs VectorOfRankAndType<[1], [F16, F32]>:$result);

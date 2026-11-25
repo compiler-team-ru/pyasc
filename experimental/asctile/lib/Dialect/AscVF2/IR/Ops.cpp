@@ -9,14 +9,12 @@
  */
 
 #include "asctile/Dialect/AscVF2/IR/AscVF2.h"
-#include "asctile/Dialect/AscVF2/Utils/Utils.h"
 
 #include "ascir/Dialect/Asc/IR/Asc.h"
 #include "ascir/Dialect/Asc/Utils/Utils.h"
 #include "ascir/Dialect/EmitAsc/IR/EmitAsc.h"
 #include "ascir/Dialect/Utils/CVGroupCanonicalization.h"
 
-#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/Dominance.h"
 #include "mlir/IR/OpImplementation.h"
@@ -26,36 +24,6 @@
 
 using namespace mlir;
 using namespace mlir::ascvf2;
-
-namespace {
-
-template <typename OpT>
-LogicalResult verifyVectorUnaryOp(OpT op)
-{
-    auto inputType = dyn_cast<VectorType>(op.getOperand().getType());
-    auto resultType = dyn_cast<VectorType>(op.getResult().getType());
-    if (!inputType || inputType.getRank() != 1 || !resultType || resultType != inputType)
-        return op.emitOpError("operand and result must be matching rank-one vectors");
-    if (isa<NotOp>(op) && !inputType.getElementType().isInteger())
-        return op.emitOpError("operand element type must be an integer");
-    return success();
-}
-
-template <typename OpT>
-LogicalResult verifyVectorScalarOp(OpT op)
-{
-    auto inputType = dyn_cast<VectorType>(op.getBase().getType());
-    auto resultType = dyn_cast<VectorType>(op.getResult().getType());
-    if (!inputType || inputType.getRank() != 1 || !resultType || resultType != inputType)
-        return op.emitOpError("base and result must be matching rank-one vectors");
-    if (!op.getValue().getType().isIntOrFloat() || op.getValue().getType() != inputType.getElementType())
-        return op.emitOpError("scalar must match the vector element type");
-    if ((isa<ShLSOp>(op) || isa<ShRSOp>(op)) && !inputType.getElementType().isInteger())
-        return op.emitOpError("base element type must be an integer");
-    return success();
-}
-
-} // namespace
 
 namespace {
 
@@ -214,22 +182,12 @@ LogicalResult VFGroupOp::verify()
 LogicalResult ToBufferOp::verify()
 {
     auto tensorType = dyn_cast<asctile::LocalTensorType>(getTensor().getType());
-    if (!tensorType || !tensorType.hasStaticShape() || tensorType.getLoc() != asctile::TensorLocation::UB)
-        return emitOpError("source must be a static UB local tensor");
-
-    auto memrefType = dyn_cast<MemRefType>(getResult().getType());
-    if (!memrefType || !memrefType.hasStaticShape() || memrefType.getRank() != tensorType.getRank() ||
-        memrefType.getShape() != tensorType.getShape() || memrefType.getElementType() != tensorType.getElementType() ||
-        !memrefType.getMemorySpace())
-        return emitOpError("result must be an N-D UB memref with the source shape and element type");
-
-    auto memorySpace = dyn_cast<IntegerAttr>(memrefType.getMemorySpace());
+    if (!tensorType || tensorType.getLoc() != asctile::TensorLocation::UB)
+        return emitOpError("source must be a UB local tensor");
+    auto memrefType = getResult().getType();
+    auto memorySpace = dyn_cast_if_present<IntegerAttr>(memrefType.getMemorySpace());
     if (!memorySpace || memorySpace.getValue().getSExtValue() != static_cast<int64_t>(asctile::TensorLocation::UB))
         return emitOpError("result memory space must be UB");
-
-    if (memrefType.getNumElements() != tensorType.getNumElements())
-        return emitOpError() << "result element count (" << memrefType.getNumElements()
-                             << ") must match source element count (" << tensorType.getNumElements() << ")";
     return success();
 }
 
@@ -243,21 +201,13 @@ OpFoldResult ToBufferOp::fold(FoldAdaptor)
 
 LogicalResult ToTensorOp::verify()
 {
-    auto memrefType = dyn_cast<MemRefType>(getBuffer().getType());
-    if (!memrefType || !memrefType.hasStaticShape() || !memrefType.getMemorySpace())
-        return emitOpError("source must be a UB memref");
-    auto memorySpace = dyn_cast<IntegerAttr>(memrefType.getMemorySpace());
+    auto memrefType = getBuffer().getType();
+    auto memorySpace = dyn_cast_if_present<IntegerAttr>(memrefType.getMemorySpace());
     if (!memorySpace || memorySpace.getValue().getSExtValue() != static_cast<int64_t>(asctile::TensorLocation::UB))
         return emitOpError("source memory space must be UB");
-
     auto tensorType = dyn_cast<asctile::LocalTensorType>(getResult().getType());
-    if (!tensorType || !tensorType.hasStaticShape() || tensorType.getLoc() != asctile::TensorLocation::UB ||
-        memrefType.getRank() != tensorType.getRank() || memrefType.getShape() != tensorType.getShape() ||
-        memrefType.getElementType() != tensorType.getElementType())
-        return emitOpError("result must be a UB local tensor with the source shape and element type");
-    if (memrefType.getNumElements() != tensorType.getNumElements())
-        return emitOpError() << "result element count (" << tensorType.getNumElements()
-                             << ") must match source element count (" << memrefType.getNumElements() << ")";
+    if (!tensorType || tensorType.getLoc() != asctile::TensorLocation::UB)
+        return emitOpError("result must be a UB local tensor");
     return success();
 }
 
@@ -271,11 +221,6 @@ OpFoldResult ToTensorOp::fold(FoldAdaptor)
 
 LogicalResult ReduceOp::verify()
 {
-    auto inputType = dyn_cast<VectorType>(getInput().getType());
-    auto resultType = dyn_cast<VectorType>(getResult().getType());
-    if (!inputType || inputType.getRank() != 1 || !resultType || resultType.getRank() != 1 ||
-        resultType.getShape() != ArrayRef<int64_t>{1} || inputType.getElementType() != resultType.getElementType())
-        return emitOpError("input must be vector<VxT> and result must be vector<1xT>");
     if (getDims().size() != 1 || cast<IntegerAttr>(getDims()[0]).getInt() != 0)
         return emitOpError("only reduction over vector dimension 0 is supported");
     if (getKind() != asctile::ReduceKind::Sum && getKind() != asctile::ReduceKind::Max &&
@@ -292,18 +237,6 @@ LogicalResult SimpleMaskRegOp::verify()
         return emitOpError("must specify either static or dynamic count");
     return success();
 }
-
-LogicalResult AddSOp::verify() { return verifyVectorScalarOp(*this); }
-LogicalResult SubSOp::verify() { return verifyVectorScalarOp(*this); }
-LogicalResult MulSOp::verify() { return verifyVectorScalarOp(*this); }
-LogicalResult DivSOp::verify() { return verifyVectorScalarOp(*this); }
-LogicalResult MinSOp::verify() { return verifyVectorScalarOp(*this); }
-LogicalResult MaxSOp::verify() { return verifyVectorScalarOp(*this); }
-LogicalResult ShLSOp::verify() { return verifyVectorScalarOp(*this); }
-LogicalResult ShRSOp::verify() { return verifyVectorScalarOp(*this); }
-LogicalResult LeakyReluOp::verify() { return verifyVectorScalarOp(*this); }
-LogicalResult ReluOp::verify() { return verifyVectorUnaryOp(*this); }
-LogicalResult NotOp::verify() { return verifyVectorUnaryOp(*this); }
 
 //===----------------------------------------------------------------------===//
 // AscVF2Dialect
