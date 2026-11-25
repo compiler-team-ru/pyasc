@@ -31,6 +31,8 @@ func.func @translate_unary_l2(%arg0: i32, %arg1: !ascendc.local_tensor<1024xf32>
 // CHECK: ascendc.add_reg {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
 // CHECK: ascendc.and_reg {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
 // CHECK: ascendc.div_reg {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.fused_abs_sub_reg {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascendc.fused_exp_sub_reg {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
 // CHECK: ascendc.sub_reg {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
 // CHECK: ascendc.max_reg {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
 // CHECK: ascendc.min_reg {{[^:]*}}: !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
@@ -43,6 +45,8 @@ func.func @translate_binary_l2(%arg0: i32, %arg1: !ascendc.local_tensor<1024xf32
     ascendc.add_l2 %arg1, %arg1, %arg1, %arg0 : !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, i32
     ascendc.and_l2 %arg1, %arg1, %arg1, %arg0 : !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, i32
     ascendc.div_l2 %arg1, %arg1, %arg1, %arg0 : !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, i32
+    ascendc.fused_abs_sub_l2 %arg1, %arg1, %arg1, %arg0 : !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, i32
+    ascendc.fused_exp_sub_l2 %arg1, %arg1, %arg1, %arg0 : !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, i32
     ascendc.sub_l2 %arg1, %arg1, %arg1, %arg0 : !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, i32
     ascendc.max_l2 %arg1, %arg1, %arg1, %arg0 : !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, i32
     ascendc.min_l2 %arg1, %arg1, %arg1, %arg0 : !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, !ascendc.local_tensor<1024xf32>, i32

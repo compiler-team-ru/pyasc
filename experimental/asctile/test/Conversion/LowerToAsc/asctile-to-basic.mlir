@@ -21,6 +21,32 @@ func.func @lower_relu(%arg0: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf3
   return %0 : tensor<32xf32, #asctile.local<UB>>
 }
 
+// CHECK-LABEL: func.func @lower_fused_exp_sub(%arg0: tensor<777xf32, #asctile.local<UB>>, %arg1: tensor<777xf32, #asctile.local<UB>>) -> tensor<777xf32, #asctile.local<UB>> {
+// CHECK:       %[[RHS:.*]] = builtin.unrealized_conversion_cast %arg1 : tensor<777xf32, #asctile.local<UB>> to !ascendc.local_tensor<777xf32>
+// CHECK-NEXT:  %[[LHS:.*]] = builtin.unrealized_conversion_cast %arg0 : tensor<777xf32, #asctile.local<UB>> to !ascendc.local_tensor<777xf32>
+// CHECK-NEXT:  %[[DST:.*]] = ascendc.local_tensor_auto veccalc() : <777xf32>
+// CHECK-NEXT:  ascendc.fused_exp_sub_l2 %[[DST]], %[[LHS]], %[[RHS]], %c777_i64 : !ascendc.local_tensor<777xf32>, !ascendc.local_tensor<777xf32>, !ascendc.local_tensor<777xf32>, i64
+// CHECK-NEXT:  %[[RESULT:.*]] = builtin.unrealized_conversion_cast %[[DST]] : !ascendc.local_tensor<777xf32> to tensor<777xf32, #asctile.local<UB>>
+// CHECK-NEXT:  return %[[RESULT]] : tensor<777xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @lower_fused_exp_sub(%arg0: tensor<777xf32, #asctile.local<UB>>, %arg1: tensor<777xf32, #asctile.local<UB>>) -> tensor<777xf32, #asctile.local<UB>> {
+  %0 = asctile.fused_exp_sub %arg0, %arg1 : tensor<777xf32, #asctile.local<UB>>
+  return %0 : tensor<777xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @lower_fused_abs_sub(%arg0: tensor<777xf16, #asctile.local<UB>>, %arg1: tensor<777xf16, #asctile.local<UB>>) -> tensor<777xf16, #asctile.local<UB>> {
+// CHECK:       %[[RHS:.*]] = builtin.unrealized_conversion_cast %arg1 : tensor<777xf16, #asctile.local<UB>> to !ascendc.local_tensor<777xf16>
+// CHECK-NEXT:  %[[LHS:.*]] = builtin.unrealized_conversion_cast %arg0 : tensor<777xf16, #asctile.local<UB>> to !ascendc.local_tensor<777xf16>
+// CHECK-NEXT:  %[[DST:.*]] = ascendc.local_tensor_auto veccalc() : <777xf16>
+// CHECK-NEXT:  ascendc.fused_abs_sub_l2 %[[DST]], %[[LHS]], %[[RHS]], %c777_i64 : !ascendc.local_tensor<777xf16>, !ascendc.local_tensor<777xf16>, !ascendc.local_tensor<777xf16>, i64
+// CHECK-NEXT:  %[[RESULT:.*]] = builtin.unrealized_conversion_cast %[[DST]] : !ascendc.local_tensor<777xf16> to tensor<777xf16, #asctile.local<UB>>
+// CHECK-NEXT:  return %[[RESULT]] : tensor<777xf16, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func @lower_fused_abs_sub(%arg0: tensor<777xf16, #asctile.local<UB>>, %arg1: tensor<777xf16, #asctile.local<UB>>) -> tensor<777xf16, #asctile.local<UB>> {
+  %0 = asctile.fused_abs_sub %arg0, %arg1 : tensor<777xf16, #asctile.local<UB>>
+  return %0 : tensor<777xf16, #asctile.local<UB>>
+}
+
 // CHECK-LABEL: func.func @lower_matmul(%arg0: tensor<8x16xf32, #asctile.local<L0A>>, %arg1: tensor<16x8xf32, #asctile.local<L0B>>) -> tensor<8x8xf32, #asctile.local<L0C>> {
 // CHECK:       %0 = builtin.unrealized_conversion_cast %arg1 : tensor<16x8xf32, #asctile.local<L0B>> to !ascendc.local_tensor<16x8xf32>
 // CHECK-NEXT:  %1 = builtin.unrealized_conversion_cast %arg0 : tensor<8x16xf32, #asctile.local<L0A>> to !ascendc.local_tensor<8x16xf32>

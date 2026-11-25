@@ -174,6 +174,18 @@ class AscTile_VecScalarOp<string mnemonic, string kind, list<Trait> traits = []>
   let assemblyFormat = "$base `,` $value attr-dict `:` qualified(type($base))";
 }
 
+class AscTile_FusedBinaryOp<string mnemonic, string kind> : AscTile_Op<mnemonic, [
+  Elementwise, Pure, AllTypesMatch<["lhs", "rhs", "result"]>]> {
+  let summary = "Compute element-wise " # kind # " of a tensor difference";
+  Type operandType = LocalTensorOf<[F16, F32]>;
+  let arguments = (ins operandType:$lhs, operandType:$rhs);
+  let results = (outs operandType:$result);
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` qualified(type($result))";
+}
+
+def FusedAbsSubOp : AscTile_FusedBinaryOp<"fused_abs_sub", "absolute value">;
+def FusedExpSubOp : AscTile_FusedBinaryOp<"fused_exp_sub", "exponential">;
+
 def AddSOp : AscTile_VecScalarOp<"adds", "addition">;
 def SubSOp : AscTile_VecScalarOp<"subs", "subtraction">;
 def MulSOp : AscTile_VecScalarOp<"muls", "multiplication">;

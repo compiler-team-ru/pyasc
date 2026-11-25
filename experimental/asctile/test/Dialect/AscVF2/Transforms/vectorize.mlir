@@ -127,4 +127,15 @@ func.func @asctile_integer_operations(%arg0: tensor<70xi32, #asctile.local<UB>>,
   return %1 : tensor<70xi32, #asctile.local<UB>>
 }
 
+// CHECK-LABEL: func.func @asctile_fused_operations(%arg0: tensor<70xf32, #asctile.local<UB>>, %arg1: tensor<70xf32, #asctile.local<UB>>) -> tensor<70xf32, #asctile.local<UB>> attributes {ascvf2.vector_func} {
+// CHECK: vector.mask %{{.+}} { ascvf2.fused_abs_sub %{{.+}}, %{{.+}} : vector<64xf32> }
+// CHECK: vector.mask %{{.+}} { ascvf2.fused_exp_sub %{{.+}}, %{{.+}} : vector<64xf32> }
+// CHECK-NOT: asctile.fused_abs_sub
+// CHECK-NOT: asctile.fused_exp_sub
+func.func @asctile_fused_operations(%arg0: tensor<70xf32, #asctile.local<UB>>, %arg1: tensor<70xf32, #asctile.local<UB>>) -> tensor<70xf32, #asctile.local<UB>> attributes {ascvf2.vector_func} {
+  %0 = asctile.fused_abs_sub %arg0, %arg1 : tensor<70xf32, #asctile.local<UB>>
+  %1 = asctile.fused_exp_sub %0, %arg1 : tensor<70xf32, #asctile.local<UB>>
+  return %1 : tensor<70xf32, #asctile.local<UB>>
+}
+
 }

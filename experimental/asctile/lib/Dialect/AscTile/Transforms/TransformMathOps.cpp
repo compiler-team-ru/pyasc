@@ -14,6 +14,7 @@
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/Matchers.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
@@ -299,6 +300,24 @@ struct ScalarizeShR : OpRewritePattern<arith::ShRSIOp> {
     }
 };
 
+template <typename UnaryOp, typename FusedOp>
+struct FuseUnarySubOp : public OpRewritePattern<UnaryOp> {
+    using OpRewritePattern<UnaryOp>::OpRewritePattern;
+
+    LogicalResult matchAndRewrite(UnaryOp op, PatternRewriter& rewriter) const override
+    {
+        auto resultType = dyn_cast<asctile::LocalTensorType>(op.getType());
+        if (!resultType || resultType.getLoc() != asctile::TensorLocation::UB || !resultType.hasStaticShape() ||
+            (!resultType.getElementType().isF16() && !resultType.getElementType().isF32()))
+            return failure();
+        auto subOp = op.getOperand().template getDefiningOp<arith::SubFOp>();
+        if (!subOp || !subOp->hasOneUse())
+            return failure();
+        rewriter.replaceOpWithNewOp<FusedOp>(op, resultType, subOp.getLhs(), subOp.getRhs());
+        return success();
+    }
+};
+
 class TransformMathOpsPass : public asctile::impl::TransformMathOpsBase<TransformMathOpsPass> {
 public:
     TransformMathOpsPass() = default;
@@ -322,7 +341,9 @@ public:
             ScalarizeArithRhsOp<arith::DivFOp, asctile::DivSOp>, ScalarizeShL, ScalarizeShR,
             ScalarizeArithOp<arith::MaximumFOp, asctile::MaxSOp>, ScalarizeArithOp<arith::MaxSIOp, asctile::MaxSOp>,
             ScalarizeArithOp<arith::MinimumFOp, asctile::MinSOp>, ScalarizeArithOp<arith::MinSIOp, asctile::MinSOp>,
-            ScalarizeCompare<arith::CmpFOp>, ScalarizeCompare<arith::CmpIOp>
+            ScalarizeCompare<arith::CmpFOp>, ScalarizeCompare<arith::CmpIOp>,
+            //
+            FuseUnarySubOp<math::ExpOp, asctile::FusedExpSubOp>, FuseUnarySubOp<math::AbsFOp, asctile::FusedAbsSubOp>
             //
             >(context, /*benefit=*/1);
         if (applyPatternsAndFoldGreedily(op, std::move(patterns)).failed())

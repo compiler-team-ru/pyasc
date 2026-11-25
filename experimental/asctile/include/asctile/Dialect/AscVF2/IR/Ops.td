@@ -143,6 +143,18 @@ class AscVF2_UnaryOp<string mnemonic, string opSummary>
   let hasVerifier = 1;
 }
 
+class AscVF2_FusedBinaryOp<string mnemonic, string opSummary>
+    : AscVF2_Op<mnemonic, [Pure, AllTypesMatch<["lhs", "rhs", "result"]>]>
+{
+  let summary = opSummary;
+  let arguments = (ins VectorOfRankAndType<[1], [F16, F32]>:$lhs, VectorOfRankAndType<[1], [F16, F32]>:$rhs);
+  let results = (outs VectorOfRankAndType<[1], [F16, F32]>:$result);
+  let assemblyFormat = "$lhs `,` $rhs attr-dict `:` type($lhs)";
+}
+
+def FusedAbsSubOp : AscVF2_FusedBinaryOp<"fused_abs_sub", "Compute the absolute value of a difference">;
+def FusedExpSubOp : AscVF2_FusedBinaryOp<"fused_exp_sub", "Compute the exponential of a difference">;
+
 def AddSOp : AscVF2_VecScalarOp<"adds", "Add a vector and a scalar">;
 def SubSOp : AscVF2_VecScalarOp<"subs", "Subtract a scalar from a vector">;
 def MulSOp : AscVF2_VecScalarOp<"muls", "Multiply a vector by a scalar">;

@@ -95,7 +95,7 @@ bool isSupportedElementwiseOperation(Operation* op)
             arith::MinSIOp, arith::AndIOp, arith::OrIOp, arith::NegFOp, math::AbsFOp, math::AbsIOp, math::ExpOp,
             math::LogOp, math::SqrtOp, asctile::AddSOp, asctile::SubSOp, asctile::MulSOp, asctile::DivSOp,
             asctile::MinSOp, asctile::MaxSOp, asctile::ShLSOp, asctile::ShRSOp, asctile::LeakyReluOp, asctile::ReluOp,
-            asctile::BitwiseNotOp>([](auto) { return true; })
+            asctile::BitwiseNotOp, asctile::FusedAbsSubOp, asctile::FusedExpSubOp>([](auto) { return true; })
         .Default([](auto) { return false; });
 }
 

@@ -225,7 +225,8 @@ bool isSupportedMaskedAscVF2Operation(Operation* op)
 {
     return isa<
         ascvf2::AddSOp, ascvf2::SubSOp, ascvf2::MulSOp, ascvf2::DivSOp, ascvf2::MinSOp, ascvf2::MaxSOp, ascvf2::ShLSOp,
-        ascvf2::ShRSOp, ascvf2::LeakyReluOp, ascvf2::ReluOp, ascvf2::NotOp>(op);
+        ascvf2::ShRSOp, ascvf2::LeakyReluOp, ascvf2::ReluOp, ascvf2::NotOp, ascvf2::FusedAbsSubOp,
+        ascvf2::FusedExpSubOp>(op);
 }
 
 struct ConvertToBuffer : public OpConversionPattern<ascvf2::ToBufferOp> {
@@ -673,16 +674,16 @@ struct LowerToRegPass : public ascvf2::impl::LowerToReg2Base<LowerToRegPass> {
             arith::MinimumFOp, arith::MaxNumFOp, arith::MinNumFOp, arith::MaxSIOp, arith::MinSIOp, arith::DivFOp,
             arith::DivSIOp, arith::AndIOp, arith::OrIOp, arith::NegFOp, math::AbsFOp, math::AbsIOp, math::ExpOp,
             math::LogOp, math::SqrtOp, ascvf2::AddSOp, ascvf2::SubSOp, ascvf2::MulSOp, ascvf2::DivSOp, ascvf2::MinSOp,
-            ascvf2::MaxSOp, ascvf2::ShLSOp, ascvf2::ShRSOp, ascvf2::LeakyReluOp, ascvf2::ReluOp, ascvf2::NotOp>(
-            [](Operation* op) {
-                if (isa_and_present<vector::MaskOp>(op->getParentOp()))
-                    return true;
-                if (!isSupportedMaskedArithOperation(op) && !isSupportedMaskedMathOperation(op) &&
-                    !isSupportedMaskedAscVF2Operation(op))
-                    return true;
-                auto vectorType = dyn_cast<VectorType>(op->getResult(0).getType());
-                return !vectorType || vectorType.getRank() != 1;
-            });
+            ascvf2::MaxSOp, ascvf2::ShLSOp, ascvf2::ShRSOp, ascvf2::LeakyReluOp, ascvf2::ReluOp, ascvf2::NotOp,
+            ascvf2::FusedAbsSubOp, ascvf2::FusedExpSubOp>([](Operation* op) {
+            if (isa_and_present<vector::MaskOp>(op->getParentOp()))
+                return true;
+            if (!isSupportedMaskedArithOperation(op) && !isSupportedMaskedMathOperation(op) &&
+                !isSupportedMaskedAscVF2Operation(op))
+                return true;
+            auto vectorType = dyn_cast<VectorType>(op->getResult(0).getType());
+            return !vectorType || vectorType.getRank() != 1;
+        });
         target.addLegalOp<ascvf2::SimpleMaskRegOp, ascvf2::VFGroupOp, ascvf2::YieldOp, UnrealizedConversionCastOp>();
         target.addIllegalOp<ascvf2::ToBufferOp, ascvf2::ToTensorOp>();
         target.addIllegalOp<memref::AllocaOp>();
@@ -728,8 +729,10 @@ struct LowerToRegPass : public ascvf2::impl::LowerToReg2Base<LowerToRegPass> {
             ConvertVecScalarOp<ascvf2::ShRSOp, ascendc::ShiftRightsRegOp>,
             ConvertVecScalarOp<ascvf2::LeakyReluOp, ascendc::LeakyReluRegOp>,
             ConvertUnaryOp<ascvf2::ReluOp, ascendc::ReluRegOp>, ConvertUnaryOp<ascvf2::NotOp, ascendc::NotRegOp>,
-            ConvertToBuffer, ConvertToTensor, ConvertAlloca, ConvertBarrier, ConvertCreateMask, ConvertConstantMask,
-            ConvertTransferRead, ConvertTransferWrite, ConvertVectorBroadcast, ConvertVectorConstant,
+            ConvertBinaryOp<ascvf2::FusedAbsSubOp, ascendc::FusedAbsSubRegOp>,
+            ConvertBinaryOp<ascvf2::FusedExpSubOp, ascendc::FusedExpSubRegOp>, ConvertToBuffer, ConvertToTensor,
+            ConvertAlloca, ConvertBarrier, ConvertCreateMask, ConvertConstantMask, ConvertTransferRead,
+            ConvertTransferWrite, ConvertVectorBroadcast, ConvertVectorConstant,
             ConvertBinaryOp<arith::AddFOp, ascendc::AddRegOp>, ConvertBinaryOp<arith::AddIOp, ascendc::AddRegOp>,
             ConvertBinaryOp<arith::SubFOp, ascendc::SubRegOp>, ConvertBinaryOp<arith::SubIOp, ascendc::SubRegOp>,
             ConvertBinaryOp<arith::MulFOp, ascendc::MulRegOp>, ConvertBinaryOp<arith::MulIOp, ascendc::MulRegOp>,

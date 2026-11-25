@@ -767,6 +767,8 @@ LogicalResult convertToReg(emitasc::VecScopeOp vecScopeOp)
         // BinaryOp
         ConvertBinaryL2<ascendc::AddL2Op, ascendc::AddRegOp>, ConvertBinaryL2<ascendc::AndL2Op, ascendc::AndRegOp>,
         ConvertBinaryL2<ascendc::DivL2Op, ascendc::DivRegOp, true>,
+        ConvertBinaryL2<ascendc::FusedAbsSubL2Op, ascendc::FusedAbsSubRegOp>,
+        ConvertBinaryL2<ascendc::FusedExpSubL2Op, ascendc::FusedExpSubRegOp>,
         ConvertBinaryL2<ascendc::MaxL2Op, ascendc::MaxRegOp>, ConvertBinaryL2<ascendc::MinL2Op, ascendc::MinRegOp>,
         ConvertBinaryL2<ascendc::MulL2Op, ascendc::MulRegOp>,
         ConvertBinaryL2<ascendc::MulAddDstL2Op, ascendc::MulAddDstRegOp>,

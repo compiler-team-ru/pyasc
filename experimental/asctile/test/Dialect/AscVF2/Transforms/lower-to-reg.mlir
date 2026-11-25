@@ -53,6 +53,21 @@ func.func @lower_math_and_scalar_duplicate(%arg0: vector<64xf32>, %arg1: f32) ->
   return %result : vector<64xf32>
 }
 
+// CHECK-LABEL: func.func @lower_fused_operations(%arg0: vector<64xf32>, %arg1: vector<64xf32>, %arg2: vector<64xf32>) -> vector<64xf32>
+// CHECK: ascvf2.simple_mask_reg f32 static 64 : !ascendc.mask_reg
+// CHECK: ascendc.fused_exp_sub_reg {{.*}} : !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK: ascvf2.simple_mask_reg f32 static 5 : !ascendc.mask_reg
+// CHECK: ascendc.fused_abs_sub_reg {{.*}} : !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.reg_tensor<f32>, !ascendc.mask_reg
+// CHECK-NOT: ascvf2.fused_exp_sub
+// CHECK-NOT: ascvf2.fused_abs_sub
+// CHECK-NOT: vector.mask
+func.func @lower_fused_operations(%arg0: vector<64xf32>, %arg1: vector<64xf32>, %arg2: vector<64xf32>) -> vector<64xf32> attributes {ascvf2.vector_func} {
+  %exp = ascvf2.fused_exp_sub %arg0, %arg1 : vector<64xf32>
+  %mask = vector.constant_mask [5] : vector<64xi1>
+  %result = vector.mask %mask { ascvf2.fused_abs_sub %exp, %arg2 : vector<64xf32> } : vector<64xi1> -> vector<64xf32>
+  return %result : vector<64xf32>
+}
+
 // CHECK-LABEL: func.func @lower_partial_width_masked_arithmetic(%arg0: vector<32xf32>, %arg1: vector<32xf32>, %arg2: vector<32xf32>) -> vector<32xf32>
 // CHECK: ascvf2.simple_mask_reg f32 static 32 : !ascendc.mask_reg
 // CHECK: ascvf2.simple_mask_reg f32 static 5 : !ascendc.mask_reg

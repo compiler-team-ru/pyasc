@@ -567,3 +567,34 @@ func.func public @no_leaky_relu_i32(%arg0: tensor<32xi32, #asctile.local<UB>>) -
   %result = arith.select %cmp, %arg0, %mul : tensor<32xi1, #asctile.local<UB>>, tensor<32xi32, #asctile.local<UB>>
   return %result : tensor<32xi32, #asctile.local<UB>>
 }
+
+// CHECK-LABEL: func.func public @fuse_exp_sub(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
+// CHECK-NEXT:  %0 = asctile.fused_exp_sub %arg0, %arg1 : tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  return %0 : tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func public @fuse_exp_sub(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: tensor<32xf32, #asctile.local<UB>>) -> tensor<32xf32, #asctile.local<UB>> {
+  %sub = arith.subf %arg0, %arg1 : tensor<32xf32, #asctile.local<UB>>
+  %result = math.exp %sub : tensor<32xf32, #asctile.local<UB>>
+  return %result : tensor<32xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func public @fuse_abs_sub(%arg0: tensor<32xf16, #asctile.local<UB>>, %arg1: tensor<32xf16, #asctile.local<UB>>) -> tensor<32xf16, #asctile.local<UB>> {
+// CHECK-NEXT:  %0 = asctile.fused_abs_sub %arg0, %arg1 : tensor<32xf16, #asctile.local<UB>>
+// CHECK-NEXT:  return %0 : tensor<32xf16, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func public @fuse_abs_sub(%arg0: tensor<32xf16, #asctile.local<UB>>, %arg1: tensor<32xf16, #asctile.local<UB>>) -> tensor<32xf16, #asctile.local<UB>> {
+  %sub = arith.subf %arg0, %arg1 : tensor<32xf16, #asctile.local<UB>>
+  %result = math.absf %sub : tensor<32xf16, #asctile.local<UB>>
+  return %result : tensor<32xf16, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func public @no_fuse_abs_sub_with_multiple_uses(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: tensor<32xf32, #asctile.local<UB>>) -> (tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>) {
+// CHECK-NEXT:  %0 = arith.subf %arg0, %arg1 : tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  %1 = math.absf %0 : tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  return %0, %1 : tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:}
+func.func public @no_fuse_abs_sub_with_multiple_uses(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: tensor<32xf32, #asctile.local<UB>>) -> (tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>) {
+  %sub = arith.subf %arg0, %arg1 : tensor<32xf32, #asctile.local<UB>>
+  %result = math.absf %sub : tensor<32xf32, #asctile.local<UB>>
+  return %sub, %result : tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>
+}

@@ -561,7 +561,8 @@ struct LowerAscTileToBasicPass : public asclower::impl::LowerAscTileToBasicBase<
             //
             asctile::LeakyReluOp, asctile::ReluOp, asctile::CastOp, asctile::MatmulOp, asctile::AddSOp, asctile::SubSOp,
             asctile::MulSOp, asctile::DivSOp, asctile::MinSOp, asctile::MaxSOp, asctile::ShLSOp, asctile::ShRSOp,
-            asctile::CmpSOp, asctile::ReduceAs1dOp, asctile::MatmulAccOp, asctile::TransposeOp
+            asctile::CmpSOp, asctile::ReduceAs1dOp, asctile::MatmulAccOp, asctile::TransposeOp, asctile::FusedAbsSubOp,
+            asctile::FusedExpSubOp
             //
             >();
         target.addLegalDialect<ascendc::AscendCDialect, arith::ArithDialect, emitasc::EmitAscDialect>();
@@ -575,7 +576,9 @@ struct LowerAscTileToBasicPass : public asclower::impl::LowerAscTileToBasicBase<
             ConvertToL2<asctile::MulSOp, ascendc::MulsL2Op>, ConvertToL2<asctile::LeakyReluOp, ascendc::LeakyReluL2Op>,
             ConvertVecScalarToL2<asctile::DivSOp, ascendc::DivsL2Op, ascendc::DivL2Op>,
             ConvertToL2<asctile::MinSOp, ascendc::MinsL2Op>, ConvertToL2<asctile::MaxSOp, ascendc::MaxsL2Op>,
-            ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>, ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>
+            ConvertToL2<asctile::ShLSOp, ascendc::ShiftLeftL2Op>, ConvertToL2<asctile::ShRSOp, ascendc::ShiftRightL2Op>,
+            ConvertToL2<asctile::FusedAbsSubOp, ascendc::FusedAbsSubL2Op>,
+            ConvertToL2<asctile::FusedExpSubOp, ascendc::FusedExpSubL2Op>
             //
             >(converter, context);
         if (applyPartialConversion(funcOp, target, std::move(patterns)).failed())
