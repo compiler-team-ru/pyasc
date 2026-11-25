@@ -38,6 +38,7 @@ time.
 - **Minimum Value**: `1` (unroll factor must be 1 or greater)
 - **Type**: `int`
 - **Scope**: Only applicable to `asctile.range()` loops
+
 Recommended value is 2.
 
 ## Usage Examples
@@ -96,11 +97,11 @@ def parallel_unroll(x: asc.GlobalAddress, y: asc.GlobalAddress, size: int):
 
 ### Limitations & Recommendations
 
-**No nested unroll**: Unroll for nested loops is not supported.
 **Recommended factor**: Recommended unroll factor is 2 for most cases due to
 HW design. Efficient operator will fully utilize one of the execution pipelines
 (e.g. MTE1, MTE2, MTE3, VECTOR or CUBE).
-**Increase code size**: Unrolling causes code size grow. The following may
+
+**Increase code size**: Unrolling causes code size growth. The following may
 cause lowering performance gain or performance degradation:
  - initial program load time increases;
  - increases icache miss rate (if program or loop block increases icache size).
@@ -146,7 +147,7 @@ scf.for %arg0 = %start to %stop step %step * 2 {
   %3 = asctile.add %2, %2 : tensor_type
   asctile.store %3, %gm_tensor[%start + %step] : tensor_type
 }
-  # Number of iterations to be procesed in the tail loop
+  # Number of iterations to be processed in the tail loop
   %4 = arith.remsi %stop, 2: i32
 # Tail iterations still in loop form
 scf.for %arg0 = %stop - %4 to %stop step %step {

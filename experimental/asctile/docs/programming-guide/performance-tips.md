@@ -87,7 +87,7 @@ def kernel(input_ptr, output_ptr, input_length: int, tile_length: int):
 |--------|---------|-------------------|
 | `static_alloc` | Static tensor allocation at compile time | Enabling recommended for most kernels. Leads to faster execution, no runtime memory management. Requires all local tensor shapes to be `ConstExpr`. When disabled provides TPipe-backed (dynamic) allocation. Use only for complex control flow with variable tile sizes. Slower but more flexible. |
 | `reuse_alloc` | Reuse freed memory regions across iterations | Setting to mode `2` recommended for most kernels. Reduces peak on-chip memory consumption by reusing buffers. |
-| `vf_fusion` | Enable vector fusion (experimental) | Advanced option, when enabled lowering generated code to register level API. Experimental feature. May improve performance for element-wise chains. |
+| `vf_fusion` | Enable vector fusion (experimental) | Advanced option, when enabled, lowers generated code to register level API. Experimental feature. May improve performance for element-wise chains. |
 | `always_compile` | Cached kernels usage | When enabled ignores cached kernels, provides recompilation. |
 
 ### Loop Control: `unroll_factor` and `parallel`
@@ -102,7 +102,7 @@ These parameters control how loops are compiled and executed:
 
 **`gm_barrier: bool`** (default is `False`, passed to `asctile.range()` or `range()`):
 - Inserts barriers for data transfer pipes and disables parallel load/store optimization across loop iterations
-- Only necessary when different iterations write and the read from the same memory
+- Only necessary when different iterations write and read from the same memory
 - When `False`, allows overlapping DMA transfers with computation
 - **Recommended: do not enable** for loops that perform independent tile operations
 

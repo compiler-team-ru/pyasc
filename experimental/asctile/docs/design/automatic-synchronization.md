@@ -132,7 +132,7 @@ The `InsertBufIdSync` pass (for C310 architecture) uses buffer ID-based synchron
    - `MmadOp`, `MmadWithBiasOp` → `PIPE_M`
    - Default (vector compute operations) → `PIPE_V`
 
-3. **Sync Injection**: Every operation is wrapped with `get_buf`/`rls_buf` commands where bufID corresponds to each local tensor in the operation. If operation requires several synchronization points, next synchronization pair is incapsulated in previous one.
+3. **Sync Injection**: Every operation is wrapped with `get_buf`/`rls_buf` commands where bufID corresponds to each local tensor in the operation. If operation requires several synchronization points, next synchronization pair is encapsulated in previous one.
 
 **Buffer ID Overflow Handling**:
 

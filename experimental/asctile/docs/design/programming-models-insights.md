@@ -394,7 +394,7 @@ generates the corresponding `nvvm.mbarrier.*` intrinsics for memory-vs-compute
 synchronization. <sup>[[15]](#ref-15) [[16]](#ref-16)</sup>
 
 
-> TODO: Exmplanation above is about MMA. Better here to insert GEMM example (not vecadd)
+> TODO: Explanation above is about MMA. Better here to insert GEMM example (not vecadd)
 ```python
 @ct.kernel
 def vector_add(a, b, c, tile_size: ct.Constant[int]):
