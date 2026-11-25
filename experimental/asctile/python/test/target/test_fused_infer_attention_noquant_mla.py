@@ -10,6 +10,8 @@ from asc.experimental import asctile
 import pytest
 import torch
 
+softmax_o_buf_id = 1
+
 
 @asctile.jit
 def bmm1(q_part, q_rope, k_part, k_rope):
@@ -115,7 +117,8 @@ def fused_infer_attention(q_ptr: asctile.GlobalAddress, q_rope_ptr: asctile.Glob
         with asctile.cv_strategy(asctile.DistribMode.SplitByM):
             softmax_max = asctile.full([s1_batch], -1e10, dtype=asctile.float32)
             softmax_d = asctile.zeros([s1_batch], dtype=asctile.float32)
-            o = asctile.copy_in(ws_o_gm, [0, 0], [s1_batch, D], location=asctile.TensorLocation.UB)
+            o = asctile.buffer(asctile.copy_in(ws_o_gm, [0, 0], [s1_batch, D], location=asctile.TensorLocation.UB),
+                               softmax_o_buf_id)
 
         # S2 innermost loop: stream K tiles GM->L1. V is same as K, so no extra load.
         for j in asctile.range(asctile.ceildiv(S2, step2), unroll_factor=s2_unroll):
@@ -133,14 +136,16 @@ def fused_infer_attention(q_ptr: asctile.GlobalAddress, q_rope_ptr: asctile.Glob
                 # One fixpipe per S2 step, split by M: each sub-block receives its [s1_batch, D] row half and
                 # accumulates it into its UB-resident O tensor, rescaling the previous state by exp_max.
                 mm_res = asctile.copy(pv, location=asctile.TensorLocation.UB)
-                o = o * exp_max.reshape(s1_batch, 1).broadcast_to(s1_batch, D) + mm_res
+                o = asctile.buffer(o * exp_max.reshape(s1_batch, 1).broadcast_to(s1_batch, D) + mm_res,
+                                   softmax_o_buf_id)
 
         # Final normalize: each sub-block owns the rows [q_row + s1_batch * sb, q_row + s1_batch * (sb + 1) // 2];
         # The fp16 cast is done after the fixpipe copies, on the UB tensor.
         with asctile.cv_strategy(asctile.DistribMode.SplitByM):
             lse = softmax_max + asctile.log(softmax_d)
-            update = o / softmax_d.reshape(s1_batch, 1).broadcast_to(s1_batch, D)
-            asctile.copy_out(update.to(dtype), o_gm, [q_row, 0])
+            update = asctile.buffer(o / softmax_d.reshape(s1_batch, 1).broadcast_to(s1_batch, D), softmax_o_buf_id)
+            update = asctile.buffer(update.to(dtype), softmax_o_buf_id)
+            asctile.copy_out(update, o_gm, [q_row, 0])
             asctile.copy_out(lse, lse_gm, [q_row])
 
 
@@ -178,16 +183,16 @@ test_cases = [
     # PYASC_TESTS_BEGIN
     pytest.param(None, ([8, 1, 16, 512], [8, 4096, 1, 512], "BSND"), torch.bfloat16, 16, 64, 2, id="8-1-16-512-4096"),
     pytest.param(None, ([8, 1, 128, 512], [8, 4096, 1, 512], "BSND"), torch.bfloat16, 32, 64, 2, id="8-1-128-512-4096"),
-    pytest.param(None, ([64, 64, 1, 512], [64, 1, 4096, 512], "BNSD"), torch.bfloat16, 64, 128, 1, id="64-64-1-512-4096"),
+    pytest.param(None, ([64, 64, 1, 512], [64, 1, 4096, 512], "BNSD"), torch.bfloat16, 64, 128, 2, id="64-64-1-512-4096"),
     pytest.param(None, ([64, 32, 1, 512], [64, 1, 4096, 512], "BNSD"), torch.bfloat16, 32, 64, 2, id="64-32-1-512-4096"),
     pytest.param(None, ([64, 16, 1, 512], [64, 1, 4096, 512], "BNSD"), torch.bfloat16, 16, 64, 2, id="64-16-1-512-4096"),
-    pytest.param(None, ([64, 128, 2, 512], [64, 1, 4096, 512], "BNSD"), torch.bfloat16, 32, 128, 1, id="64-128-2-512-4096"),
-    pytest.param(None, ([64, 128, 1, 512], [64, 1, 4096, 512], "BNSD"), torch.bfloat16, 64, 128, 1, id="64-128-1-512-4096"),
+    pytest.param(None, ([64, 128, 2, 512], [64, 1, 4096, 512], "BNSD"), torch.bfloat16, 32, 128, 2, id="64-128-2-512-4096"),
+    pytest.param(None, ([64, 128, 1, 512], [64, 1, 4096, 512], "BNSD"), torch.bfloat16, 64, 128, 2, id="64-128-1-512-4096"),
     pytest.param(None, ([64, 1, 16, 512], [64, 4096, 1, 512], "BSND"), torch.bfloat16, 16, 64, 2, id="64-1-16-512-4096"),
-    pytest.param(None, ([256, 64, 1, 512], [256, 1, 3584, 512], "BNSD"), torch.bfloat16, 64, 128, 1, id="256-64-1-512-3584"),
-    pytest.param(None, ([192, 1, 64, 512], [192, 4096, 1, 512], "BSND"), torch.bfloat16, 64, 128, 1, id="192-1-64-512-4096"),
-    pytest.param(None, ([192, 1, 64, 512], [192, 3584, 1, 512], "BSND"), torch.bfloat16, 64, 128, 1, id="192-1-64-512-3584"),
-    pytest.param(None, ([192, 1, 64, 512], [192, 3072, 1, 512], "BSND"), torch.bfloat16, 64, 128, 1, id="192-1-64-512-3072"),
+    pytest.param(None, ([256, 64, 1, 512], [256, 1, 3584, 512], "BNSD"), torch.bfloat16, 64, 128, 2, id="256-64-1-512-3584"),
+    pytest.param(None, ([192, 1, 64, 512], [192, 4096, 1, 512], "BSND"), torch.bfloat16, 64, 128, 2, id="192-1-64-512-4096"),
+    pytest.param(None, ([192, 1, 64, 512], [192, 3584, 1, 512], "BSND"), torch.bfloat16, 64, 128, 2, id="192-1-64-512-3584"),
+    pytest.param(None, ([192, 1, 64, 512], [192, 3072, 1, 512], "BSND"), torch.bfloat16, 64, 128, 2, id="192-1-64-512-3072"),
     # PYASC_TESTS_END
 ]
 # yapf: enable
