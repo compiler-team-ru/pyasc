@@ -260,7 +260,10 @@ struct InterchangeWithParentOp : OpRewritePattern<GroupOp> {
                 oldGroupYields[result] = yield;
             SmallVector<Value> newIfBlockYields;
             for (Value oldThenYield : oldIfBlock.getTerminator()->getOperands())
-                newIfBlockYields.push_back(oldGroupYields[oldThenYield]);
+                if (auto it = oldGroupYields.find(oldThenYield); it != oldGroupYields.end())
+                    newIfBlockYields.push_back(it->second);
+                else
+                    newIfBlockYields.push_back(oldThenYield);
             Block& newIfBlock = newIfRegion.front();
             // The freshly-built scf.if may have added an implicit yield; drop any
             // pre-existing ops so the block is repopulated with the group body and a
@@ -303,7 +306,10 @@ struct InterchangeWithParentOp : OpRewritePattern<GroupOp> {
             groupYields[result] = yield;
         SmallVector<Value> newForYields;
         for (Value oldForYield : oldBody->getTerminator()->getOperands())
-            newForYields.push_back(groupYields[oldForYield]);
+            if (auto it = groupYields.find(oldForYield); it != groupYields.end())
+                newForYields.push_back(it->second);
+            else
+                newForYields.push_back(oldForYield);
         rewriter.setInsertionPoint(forOp);
         Operation* outerGroup = rewriter.create<GroupOp>(loc, forOp.getResults().getTypes(), externalOperands);
         Block* outerBlock = rewriter.createBlock(&outerGroup->getRegion(0));

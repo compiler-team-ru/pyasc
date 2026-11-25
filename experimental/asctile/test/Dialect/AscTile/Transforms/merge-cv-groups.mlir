@@ -512,3 +512,59 @@ func.func @no_interchange_if_with_barrier_in_else(%arg0: tensor<32xf32, #asctile
   }
   return
 }
+
+// CHECK-LABEL:  func.func @interchange_if_with_yeild_arg(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: tensor<32xf32, #asctile.local<UB>>, %arg2: i1) -> (tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>) {
+// CHECK:          %0:2 = asctile.vector_group(%arg1, %arg0 : tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>) {
+// CHECK-NEXT:       %1:2 = scf.if %arg2 -> (tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>) {
+// CHECK-NEXT:         %2 = asctile.muls %arg0, %cst : tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:         scf.yield %2, %arg0 : tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:       } else {
+// CHECK-NEXT:         %2 = asctile.muls %arg1, %cst : tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:         scf.yield %arg0, %2 : tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:      }
+// CHECK-NEXT:      asctile.yield %1#0, %1#1 : tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:    } : tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:    return %0#0, %0#1 : tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:  }
+func.func @interchange_if_with_yeild_arg(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: tensor<32xf32, #asctile.local<UB>>, %arg2: i1) -> (tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>) {
+  %c_m1 = arith.constant -1.000000e+00 : f32
+  %if:2 = scf.if %arg2 -> (tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>) {
+    %then = asctile.vector_group(%arg0 : tensor<32xf32, #asctile.local<UB>>) {
+      %mul = asctile.muls %arg0, %c_m1: tensor<32xf32, #asctile.local<UB>>
+      asctile.yield %mul : tensor<32xf32, #asctile.local<UB>>
+    } : tensor<32xf32, #asctile.local<UB>>  
+    scf.yield %then, %arg0 : tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>
+  } else {
+    %else = asctile.vector_group(%arg1 : tensor<32xf32, #asctile.local<UB>>) {
+      %mul = asctile.muls %arg1, %c_m1: tensor<32xf32, #asctile.local<UB>>
+      asctile.yield %mul : tensor<32xf32, #asctile.local<UB>>
+    } : tensor<32xf32, #asctile.local<UB>>
+    scf.yield %arg0, %else: tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>
+  }
+  return %if#0, %if#1 : tensor<32xf32, #asctile.local<UB>>, tensor<32xf32, #asctile.local<UB>>
+}
+
+// CHECK-LABEL: func.func @interchange_for_with_yeild_arg(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: i32) -> (tensor<32xf32, #asctile.local<UB>>, i32) {
+// CHECK:       %0:2 = asctile.vector_group(%arg0 : tensor<32xf32, #asctile.local<UB>>) {
+// CHECK-NEXT:      %1:2 = scf.for %arg2 = %c0_i32 to %c32_i32 step %c1_i32 iter_args(%arg3 = %arg0, %arg4 = %c1_i32) -> (tensor<32xf32, #asctile.local<UB>>, i32)  : i32 {
+// CHECK-NEXT:        %2 = asctile.muls %arg3, %cst : tensor<32xf32, #asctile.local<UB>>
+// CHECK-NEXT:        scf.yield %2, %arg1 : tensor<32xf32, #asctile.local<UB>>, i32
+// CHECK-NEXT:      }
+// CHECK-NEXT:      asctile.yield %1#0, %1#1 : tensor<32xf32, #asctile.local<UB>>, i32
+// CHECK-NEXT:    } : tensor<32xf32, #asctile.local<UB>>, i32
+// CHECK-NEXT:    return %0#0, %0#1 : tensor<32xf32, #asctile.local<UB>>, i32
+// CHECK-NEXT:  }
+func.func @interchange_for_with_yeild_arg(%arg0: tensor<32xf32, #asctile.local<UB>>, %arg1: i32) -> (tensor<32xf32, #asctile.local<UB>>, i32) {
+  %c0_i32 = arith.constant 0 : i32
+  %c1_i32 = arith.constant 1 : i32
+  %c32_i32 = arith.constant 32 : i32
+  %c_m1 = arith.constant -1.000000e+00 : f32
+  %0:2 = scf.for %arg2 = %c0_i32 to %c32_i32 step %c1_i32 iter_args(%arg3 = %arg0, %arg4 = %c1_i32) -> (tensor<32xf32, #asctile.local<UB>>, i32) : i32 {
+    %g = asctile.vector_group(%arg0 : tensor<32xf32, #asctile.local<UB>>) {
+      %mul = asctile.muls %arg3, %c_m1: tensor<32xf32, #asctile.local<UB>>
+      asctile.yield %mul : tensor<32xf32, #asctile.local<UB>>
+    } : tensor<32xf32, #asctile.local<UB>>  
+    scf.yield %g, %arg1 : tensor<32xf32, #asctile.local<UB>>, i32
+  }
+  return %0#0, %0#1 : tensor<32xf32, #asctile.local<UB>>, i32
+}
