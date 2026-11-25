@@ -69,6 +69,7 @@ from .language.binary_ops import (
     bitwise_and,
     bitwise_or,
     bitwise_xor,
+    bind_scale,
     div,
     equal,
     greater,
@@ -195,6 +196,7 @@ __all__ += [
     "atomic_min",
     # .language.binary_ops
     "add",
+    "bind_scale",
     "bitwise_and",
     "bitwise_or",
     "bitwise_xor",

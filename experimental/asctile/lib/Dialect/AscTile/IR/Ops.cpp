@@ -180,6 +180,33 @@ LogicalResult CopyOp::verify()
 }
 
 //===----------------------------------------------------------------------===//
+// CopyScaleOp
+//===----------------------------------------------------------------------===//
+
+LogicalResult CopyScaleOp::canonicalize(CopyScaleOp op, PatternRewriter& rewriter)
+{
+    return ascir::eraseUnusedOp(op, rewriter);
+}
+
+LogicalResult CopyScaleOp::verify()
+{
+    auto distrib = getDistrib();
+    if (!distrib)
+        return success();
+    TensorLocation srcLoc = getBase().getType().getLoc();
+    TensorLocation scaleLoc = getScale().getType().getLoc();
+    TensorLocation dstLoc = getType().getLoc();
+    if (srcLoc != scaleLoc) {
+        return emitOpError() << " scale location " << stringifyTensorLocation(scaleLoc) << " not match data location "
+                             << stringifyTensorLocation(srcLoc);
+    }
+    if (dstLoc != TensorLocation::L0A && dstLoc != TensorLocation::L0B) {
+        return emitOpError() << "Wrong destination location " << stringifyTensorLocation(dstLoc);
+    }
+    return success();
+}
+
+//===----------------------------------------------------------------------===//
 // LoadOp
 //===----------------------------------------------------------------------===//
 

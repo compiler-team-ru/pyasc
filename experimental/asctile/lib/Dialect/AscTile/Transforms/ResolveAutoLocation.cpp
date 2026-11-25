@@ -257,6 +257,8 @@ using AcceptReluLoc = AcceptSameLoc<ReluOp, &ReluOp::getOperandMutable, TL::UB, 
 using AcceptReshapeLoc = AcceptSameLoc<ReshapeOp, &ReshapeOp::getInMutable>;
 using AcceptTransposeLoc =
     AcceptSameLoc<TransposeOp, &TransposeOp::getOperandMutable, TL::UB, TL::L1, TL::L0A, TL::L0B>;
+using AcceptBindScaleArg1Loc = AcceptSameLoc<BindScaleOp, &BindScaleOp::getBaseMutable, TL::L0A, TL::L0B>;
+using AcceptBindScaleArg2Loc = AcceptSameLoc<BindScaleOp, &BindScaleOp::getScaleMutable, TL::L0A, TL::L0B>;
 
 template <typename OpT, OpOperand& (OpT::*... operandAccessors)()>
 struct Traits {
@@ -451,8 +453,9 @@ void populateFirstStage(RewritePatternSet& patterns)
 {
     auto* context = patterns.getContext();
     populateCommon(patterns);
-    patterns.add<AcceptLoadLoc, AcceptStoreLoc, AcceptCastLoc, AcceptReluLoc, AcceptReshapeLoc, AcceptTransposeLoc>(
-        context);
+    patterns.add<
+        AcceptLoadLoc, AcceptStoreLoc, AcceptCastLoc, AcceptReluLoc, AcceptReshapeLoc, AcceptTransposeLoc,
+        AcceptBindScaleArg1Loc, AcceptBindScaleArg2Loc>(context);
 }
 
 void populateSecondStage(RewritePatternSet& patterns)

@@ -210,6 +210,22 @@ def AscendC_NdDmaParams : AscendC_Type<"NdDmaParams","nd_dma_params"> {
   let assemblyFormat = "`<` $type `,` $dims `>`";
 }
 
+def AscendC_Float8E8M0FNU : TypeDef<AscendC_Dialect, "Float8E8M0FNU", [MemRefElementTypeInterface], "::mlir::FloatType"> {
+  let description = "8-bit floating point without mantissa";
+  let mnemonic = "f8e8m0fnu";
+}
+
+def AscendC_MxFloat8E5M2 : TypeDef<AscendC_Dialect, "MxFloat8E5M2", [MemRefElementTypeInterface], "::mlir::Float8E5M2Type"> {
+  let description = "Type for microscaling matmul";
+  let mnemonic = "AscendC::mx_fp8_e5m2_t";
+}
+
+def AscendC_MxFloat8E4M3 : TypeDef<AscendC_Dialect, "MxFloat8E4M3", [MemRefElementTypeInterface], "::mlir::Float8E4M3FNType"> {
+  let description = "Type for microscaling matmul";
+  let mnemonic = "AscendC::mx_fp8_e4m3_t";
+}
+
+
 include "ascir/API/Types.td.inc"
 
 #endif // ASC_CORE_TYPES_TD

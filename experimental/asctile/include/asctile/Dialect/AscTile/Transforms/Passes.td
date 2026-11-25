@@ -74,6 +74,30 @@ def ApplyHomomorphism : Pass<"asctile-apply-homomorphism", "func::FuncOp"> {
   }];
 }
 
+def BindLoadScale : Pass<"asctile-bind-load-scale", "func::FuncOp"> {
+  let summary = "Replace bindScaleOp with loadScaleOp";
+  let description = [{
+    Replace asctile.bind_scale with asctile.load_scale and marking
+    operations on loading to L1 with mlir::asctile::load_scale attribute.
+    It also marks loading operation which loads scales from GM to L1 with
+    `asctile.load_scale`
+    ```mlir
+    // Before:
+    %0 = asctile.load %arg0[...]
+    %1 = asctile.copy %0[...]
+    %2 = asctile.copy %arg2[...]
+    %3 = asctile.bind_scale %1, %2 : ...
+    // After:
+    %0 = asctile.load %arg0[...] : {asctile.load_scale},
+    %1 = asctile.copy %0[...]
+    %2 = asctile.copy %arg2[...]
+    %3 = asctile.load_scale %1, %2 : ...
+    ```
+  }];
+  let constructor = "mlir::asctile::createBindLoadScalePass()";
+  let dependentDialects = ["asctile::AscTileDialect"];
+}
+
 def CombineExtractSlice : Pass<"asctile-combine-extract-slice", "func::FuncOp"> {
   let summary = "Fold tensor.extract_slice operations into compatible load and splat producers";
   let description = [{
@@ -248,6 +272,15 @@ def MarkMatmulAccWithBias : Pass<"asctile-mark-matmul-acc-with-bias", "func::Fun
     %acc = asctile.accumulator %bias : tensor<16x16xf32, #asctile.local<L0C>>, tensor<16xf32, #asctile.local<BT>>
     asctile.matmul_acc %acc, %a, %b {asctile.has_bias} : ...
     ```
+  }];
+}
+
+def MarkMatmulScale : Pass<"asctile-mark-matmul-scale", "func::FuncOp"> {
+  let summary = "Mark matmul and matmul_acc operations when use scale arguments";
+  let constructor = "mlir::asctile::createMarkMatmulScalePass()";
+  let description = [{
+    Mark `asctile.matmul` with attribute `asctile.mmad_scale` when matmul arguments
+    copied to L0 using asctile.copy_scale.
   }];
 }
 

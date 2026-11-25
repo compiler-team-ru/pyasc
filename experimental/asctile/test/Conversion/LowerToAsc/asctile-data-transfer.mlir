@@ -1390,6 +1390,57 @@ func.func @lower_copy_ub_to_ub_strided(%arg0: tensor<4x128xbf16, #asctile.local<
   return %0 : tensor<4x64xbf16, #asctile.local<UB>>
 }
 
+// CHECK-LABEL:  func.func @lower_copy_scale_a
+// CHECK:         %0 = builtin.unrealized_conversion_cast %arg1 : tensor<2x1x16x2xi8, #asctile.local<L1>> to !ascendc.local_tensor<2x1x16x2xi8>
+// CHECK-NEXT:    %1 = builtin.unrealized_conversion_cast %arg0 : tensor<32x64xf8E5M2, #asctile.local<L1>> to !ascendc.local_tensor<32x64xf8E5M2>
+// CHECK-NEXT:    %2 = ascendc.local_tensor_auto a2() : <32x64xf8E5M2>
+// CHECK-NEXT:    %3 = ascendc.reinterpret_cast %2 : !ascendc.local_tensor<32x64xf8E5M2> to !ascendc.local_tensor<32x64x!ascendc<AscendC::mx_fp8_e5m2_t>>
+// CHECK-NEXT:    %4 = emitasc.init_struct !ascendc.load_data_2d_params_v2("mStep" = %c2_i32 : i32, "kStep" = %c2_i32 : i32, "srcStride" = %c2_i32 : i32, "dstStride" = %c2_i32 : i32, "ifTranspose" = %false : i1)
+// CHECK-NEXT:    %5 = emitasc.init_struct !ascendc.load_data_2d_mx_params("xStartPosition" = %c0_i32 : i32, "yStartPosition" = %c0_i32 : i32, "xStep" = %c2_i32 : i32, "yStep" = %c1_i32 : i32, "srcStride" = %c1_i32 : i32, "dstStride" = %c1_i32 : i32)
+// CHECK-NEXT:    %6 = ascendc.reinterpret_cast %0 : !ascendc.local_tensor<2x1x16x2xi8> to !ascendc.local_tensor<2x1x16x2x!ascendc.f8e8m0fnu>
+// CHECK-NEXT:    ascendc.load_data_l0_mx %3, %1, %6, %4, %5 {direction = #ascendc.copy_direction<gm, a2>} : !ascendc.local_tensor<32x64x!ascendc<AscendC::mx_fp8_e5m2_t>>, !ascendc.local_tensor<32x64xf8E5M2>, !ascendc.local_tensor<2x1x16x2x!ascendc.f8e8m0fnu>, !ascendc.load_data_2d_params_v2, !ascendc.load_data_2d_mx_params
+// CHECK-NEXT:    %7 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<32x64xf8E5M2> to tensor<32x64xf8E5M2, #asctile.local<L0A>>
+// CHECK-NEXT:    return %7 : tensor<32x64xf8E5M2, #asctile.local<L0A>>
+func.func @lower_copy_scale_a(%arg0: tensor<32x64xf8E5M2, #asctile.local<L1>>, %arg1: tensor<2x1x16x2xi8, #asctile.local<L1>>) -> tensor<32x64xf8E5M2, #asctile.local<L0A>> {
+  %c0_i32 = arith.constant 0 : i32
+  %0 = asctile.copy_scale %arg0[%c0_i32, %c0_i32], %arg1[%c0_i32, %c0_i32, %c0_i32, %c0_i32] {asctile.is_matrix_a} : tensor<32x64xf8E5M2, #asctile.local<L1>>, tensor<2x1x16x2xi8, #asctile.local<L1>>, tensor<32x64xf8E5M2, #asctile.local<L0A>>
+  return %0 : tensor<32x64xf8E5M2, #asctile.local<L0A>>
+}
+
+// CHECK-LABEL:  func.func @lower_copy_scale_b
+// CHECK:         %0 = builtin.unrealized_conversion_cast %arg1 : tensor<2x1x16x2xi8, #asctile.local<L1>> to !ascendc.local_tensor<2x1x16x2xi8>
+// CHECK-NEXT:    %1 = builtin.unrealized_conversion_cast %arg0 : tensor<64x32xf8E5M2, #asctile.local<L1>> to !ascendc.local_tensor<64x32xf8E5M2>
+// CHECK-NEXT:    %2 = ascendc.local_tensor_auto b2() : <64x32xf8E5M2>
+// CHECK-NEXT:    %3 = ascendc.reinterpret_cast %2 : !ascendc.local_tensor<64x32xf8E5M2> to !ascendc.local_tensor<64x32x!ascendc<AscendC::mx_fp8_e5m2_t>>
+// CHECK-NEXT:    %4 = emitasc.init_struct !ascendc.load_data_2d_params_v2("mStep" = %c4_i32 : i32, "kStep" = %c1_i32 : i32, "srcStride" = %c4_i32 : i32, "dstStride" = %c2_i32 : i32, "ifTranspose" = %true : i1)
+// CHECK-NEXT:    %5 = emitasc.init_struct !ascendc.load_data_2d_mx_params("xStartPosition" = %c0_i32 : i32, "yStartPosition" = %c0_i32 : i32, "xStep" = %c2_i32 : i32, "yStep" = %c1_i32 : i32, "srcStride" = %c1_i32 : i32, "dstStride" = %c1_i32 : i32)
+// CHECK-NEXT:    %6 = ascendc.reinterpret_cast %0 : !ascendc.local_tensor<2x1x16x2xi8> to !ascendc.local_tensor<2x1x16x2x!ascendc.f8e8m0fnu>
+// CHECK-NEXT:    ascendc.load_data_l0_mx %3, %1, %6, %4, %5 {direction = #ascendc.copy_direction<gm, b2>} : !ascendc.local_tensor<64x32x!ascendc<AscendC::mx_fp8_e5m2_t>>, !ascendc.local_tensor<64x32xf8E5M2>, !ascendc.local_tensor<2x1x16x2x!ascendc.f8e8m0fnu>, !ascendc.load_data_2d_params_v2, !ascendc.load_data_2d_mx_params
+// CHECK-NEXT:    %7 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<64x32xf8E5M2> to tensor<64x32xf8E5M2, #asctile.local<L0B>>
+func.func @lower_copy_scale_b(%arg0: tensor<64x32xf8E5M2, #asctile.local<L1>>, %arg1: tensor<2x1x16x2xi8, #asctile.local<L1>>) -> tensor<64x32xf8E5M2, #asctile.local<L0B>> {
+  %c0_i32 = arith.constant 0 : i32
+  %0 = asctile.copy_scale %arg0[%c0_i32, %c0_i32], %arg1[%c0_i32, %c0_i32, %c0_i32, %c0_i32] : tensor<64x32xf8E5M2, #asctile.local<L1>>, tensor<2x1x16x2xi8, #asctile.local<L1>>, tensor<64x32xf8E5M2, #asctile.local<L0B>>
+  return %0 : tensor<64x32xf8E5M2, #asctile.local<L0B>>
+}
+
+// CHECK-LABEL:   func.func @lower_copy_scale_l1
+// CHECK:         %0 = asctile.tensor %arg0() : memref<*xi8, 22>, tensor<5x7x16x2xi8, #asctile.global>
+// CHECK-NEXT:    %1 = builtin.unrealized_conversion_cast %0 : tensor<5x7x16x2xi8, #asctile.global> to !ascendc.global_tensor<5x7x16x2xi8>
+// CHECK-NEXT:    %2 = ascendc.local_tensor_auto a1() alignment 32 : <5x7x16x2xi8>
+// CHECK-NEXT:    %3 = ascendc.construct !ascendc.data_copy_params(%c5_i32, %c7_i32, %c0_i32, %c0_i32) [ui16, ui16, ui16, ui16] : i32, i32, i32, i32
+// CHECK-NEXT:    ascendc.data_copy_l2 %2, %1, %3 {direction = #ascendc.copy_direction<gm, a1>} : !ascendc.local_tensor<5x7x16x2xi8>, !ascendc.global_tensor<5x7x16x2xi8>, !ascendc.data_copy_params
+// CHECK-NEXT:    %4 = builtin.unrealized_conversion_cast %2 : !ascendc.local_tensor<5x7x16x2xi8> to tensor<5x7x16x2xi8, #asctile.local<L1>>
+// CHECK-NEXT:    return %4 : tensor<5x7x16x2xi8, #asctile.local<L1>>
+func.func @lower_copy_scale_l1(%arg0: memref<*xi8, 22>, %arg1: i32, %arg2: i32) -> tensor<5x7x16x2xi8, #asctile.local<L1>> {
+  %c0_i32 = arith.constant 0 : i32
+  %c0_i8 = arith.constant 0 : i8
+  %c16_i32 = arith.constant 16 : i32
+  %c2_i32 = arith.constant 2 : i32
+  %0 = asctile.tensor %arg0() : memref<*xi8, 22>, tensor<5x7x16x2xi8, #asctile.global>
+  %1 = asctile.load %0[%c0_i32, %c0_i32, %c0_i32, %c0_i32], %c0_i8 {asctile.load_scale} : tensor<5x7x16x2xi8, #asctile.global>, tensor<5x7x16x2xi8, #asctile.local<L1>>
+  return %1: tensor<5x7x16x2xi8, #asctile.local<L1>>
+}
+
 // -----
 
 module attributes {ascendc.cv_ratio = 2 : i64} {

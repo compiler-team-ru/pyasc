@@ -19,6 +19,7 @@ constexpr unsigned ubBlockSize = 32;              // In bytes
 constexpr unsigned cubeKBlockBytes = ubBlockSize; // In bytes
 constexpr unsigned repeatBlockSize = 256;         // In bytes
 constexpr unsigned bitmaskSize = 64;              // In bits
+constexpr unsigned scaleMxAlign = 64;             // In elements
 
 } // namespace ascendc
 } // namespace mlir

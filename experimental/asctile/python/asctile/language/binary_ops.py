@@ -418,3 +418,49 @@ def matmul_acc(acc: LocalTensor, input: LocalTensor, other: LocalTensor, *, hf32
     input = cast_loc(input, TensorLocation.L0A)
     other = cast_loc(other, TensorLocation.L0B)
     global_builder.get_ir_builder().create_asctile_MatmulAccOp(acc.to_ir(), input.to_ir(), other.to_ir(), hf32)
+
+
+@require_jit
+def bind_scale(input: LocalTensor, scale: LocalTensor) -> LocalTensor:
+    """
+    Binds ``scale`` tile contains quantization coefficients with tile contains :py:func:`matmul` 
+    or :py:func:`matmul_acc` arguments.
+
+    When multiplying the left/right matrices with the left/right quantization coefficient matrices,
+    every 32 elements in the K direction 
+    share same quantization factor. 
+    Supported ``input`` data types are: ``float8_e5m2``, ``float8_e4m3fn``.
+
+    Args:
+        input: Tensor will be multiple by quantization coefficients
+        scale: Tensor with scale data
+
+    Raises:
+        RuntimeError: Wrong tile shape or memory location
+
+    Note:
+        ``scale`` dtype should be asctile.int8, and contains numbers in torch.float8_e8m0fnu format.
+        ``scale`` coefficients for matrix A should be packed in Zz of blocks [16,2], matrix B should
+        be packed in Nn format of blocks [2,16].
+        For matrix A of shape [M,K] ``scale`` should have shape [M//16,K//64,16,2]
+        For matrix B of shape [K,N] ``scale`` should have shape [N//16,K//64,16,2]
+        K needs to be a multiple of 64.
+
+    Example: ::
+
+        a = asctile.copy(a_l1, [0,0], [M,K], loc=asctile.TensorLocation.L0A)
+        b = asctile.copy(b_l1, [0,0], [K,N], loc=asctile.TensorLocation.L0B)
+        scale_a = asctile.copy(scalea_l1, [0,0,0,0], [M//16,K//64,16,2], loc=asctile.TensorLocation.L0A)
+        scale_b = asctile.copy(scaleb_l1, [0,0,0,0], [N//16,K//64,16,2], loc=asctile.TensorLocation.L0B)
+        a = asctile.bind_scale(a, scale_a)
+        b = asctile.bind_scale(b, scale_b)
+        c = a @ b
+    """
+    check_type("input", input, LocalTensor)
+    check_dtype("input", input, (KT.float8_e5m2, KT.float8_e4m3fn))
+    check_dtype("scale", scale, KT.int8)
+    if len(scale.shape) != 4 or scale.shape[3] * scale.shape[2] != 32:
+        raise RuntimeError("Scale tensor should have shape [W,H,16,2]")
+    ir_type = input.to_ir().get_type()
+    handle = global_builder.get_ir_builder().create_asctile_BindScaleOp(ir_type, input.to_ir(), scale.to_ir())
+    return LocalTensor(handle)

@@ -56,6 +56,21 @@ ascendc::CMPMODE getCmpMode(asctile::CompareMode mode)
     llvm_unreachable("unexpected cmpmode");
 }
 
+Value castTensorToMxType(ConvertRewriter& rewriter, Location loc, Value value)
+{
+    auto type = cast<ascendc::LocalTensorType>(value.getType());
+    Type mxType;
+    if (type.getElementType().isFloat8E5M2())
+        mxType = rewriter.getType<ascendc::MxFloat8E5M2Type>();
+    else if (type.getElementType().isFloat8E4M3FN())
+        mxType = rewriter.getType<ascendc::MxFloat8E4M3Type>();
+    else
+        llvm_unreachable("Unsupported float8 type");
+
+    auto targetType = type.cloneWith(std::nullopt, mxType);
+    return rewriter.create<ascendc::LocalTensorReinterpretCastOp>(loc, targetType, value);
+}
+
 struct ConvertRelu : ConvertOp<asctile::ReluOp> {
     using ConvertOp::ConvertOp;
     using ConvertOp::createTensorOp;
@@ -209,6 +224,13 @@ struct ConvertMatmul : ConvertOp<asctile::MatmulOp> {
                                   .addField("m", consts.i32(matrixATensorShape[0]))
                                   .addField("n", consts.i32(matrixBTensorShape[1]))
                                   .addField("k", consts.i32(matrixBTensorShape[0]));
+        if (op->hasAttrOfType<UnitAttr>(asctile::attr::mmadScale)) {
+            matrixA = castTensorToMxType(rewriter, op.getLoc(), matrixA);
+            matrixB = castTensorToMxType(rewriter, op.getLoc(), matrixB);
+            if (matrixBTensorShape[0] % ascendc::scaleMxAlign != 0) {
+                return op.emitError("Scaled matmul required K be multiple 64");
+            }
+        }
         if (auto bias = op.getBias()) {
             initMmadParams.addField("cmatrixInitVal", consts.i1(false)).addField("cmatrixSource", consts.i1(true));
             Value mmadParams = initMmadParams.create(rewriter, loc);
@@ -332,6 +354,13 @@ struct ConvertMatmulAcc : ConvertOp<asctile::MatmulAccOp> {
         if (op.getHf32()) {
             rewriter.create<ascendc::SetHF32ModeOp>(loc, consts.i1(true));
             rewriter.create<ascendc::SetHF32TransModeOp>(loc, consts.i1(true));
+        }
+        if (op->hasAttrOfType<UnitAttr>(asctile::attr::mmadScale)) {
+            matrixA = castTensorToMxType(rewriter, op.getLoc(), matrixA);
+            matrixB = castTensorToMxType(rewriter, op.getLoc(), matrixB);
+            if (matrixBTensorShape[0] % ascendc::scaleMxAlign != 0) {
+                return op.emitError("Scaled matmul required K be multiple 64");
+            }
         }
         auto params = emitasc::InitStructBuilder(rewriter.getType<ascendc::MmadParamsType>())
                           .addField("m", consts.i32(matrixATensorShape[0]))

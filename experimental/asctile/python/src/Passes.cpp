@@ -95,6 +95,7 @@ void defineAscTilePasses(py::module& mod)
     auto m = mod.def_submodule("asctile");
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_apply_cv_strategy", createApplyCVStrategyPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_apply_homomorphism", createApplyHomomorphismPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_bind_load_scale", createBindLoadScalePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_combine_extract_slice", createCombineExtractSlicePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_cube_transpose_to_load", createCubeTransposeToLoadPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_detect_bias_load", createDetectBiasLoadPass);
@@ -103,6 +104,7 @@ void defineAscTilePasses(py::module& mod)
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_legalize_matmul", createLegalizeMatmulPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_location_cast_to_copy", createLocationCastToCopyPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_mark_matmul_acc_with_bias", createMarkMatmulAccWithBiasPass);
+    DEFINE_ADD_PASS_ON(func::FuncOp, "add_mark_matmul_scale", createMarkMatmulScalePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_mark_reuse_source", createMarkReuseSourcePass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_merge_cv_groups", createMergeCVGroupsPass);
     DEFINE_ADD_PASS_ON(func::FuncOp, "add_prepare_cv_strategy", createPrepareCVStrategyPass);

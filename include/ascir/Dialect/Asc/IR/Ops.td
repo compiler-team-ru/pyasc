@@ -155,15 +155,20 @@ def AscendC_PopStackBufferOp : APIOp<"pop_stack_buffer", "PopStackBuffer"> {
 def AscendC_LocalTensorAutoOp : APIOp<"local_tensor_auto", "LocalTensorAuto"> {
   let summary = "Create virtual tensor with automatic allocation semantic";
   let arguments = (ins UnitAttr:$input, UnitAttr:$output, Variadic<I64>:$dynamicShape,
-                   DefaultValuedAttr<AscendC_TPositionAttr, "TPosition::VECCALC">:$position);
+                   DefaultValuedAttr<AscendC_TPositionAttr, "TPosition::VECCALC">:$position,
+                   OptionalAttr<I32Attr>:$alignment);
   let results = (outs AscendC_LocalTensor:$result);
   let assemblyFormat = [{
-    $position `(` $dynamicShape `)` (`input` $input^)? (`output` $output^)? attr-dict `:`
+    $position `(` $dynamicShape `)` (`input` $input^)? (`output` $output^)? (`alignment` $alignment^)? attr-dict `:`
     type($result)
   }];
   let builders = [
     OpBuilder<(ins "Type":$result, CArg<"TPosition", "TPosition::VECCALC">:$position), [{
       build($_builder, $_state, result, false, false, ValueRange{}, position);
+    }]>,
+    OpBuilder<(ins "Type":$result, "bool":$input, "bool":$output, "ValueRange":$dynamicShape,
+               CArg<"TPosition", "TPosition::VECCALC">:$position), [{
+      build($_builder, $_state, result, input, output, dynamicShape, position, ::mlir::IntegerAttr{} );
     }]>,
   ];
   let hasCanonicalizeMethod = 1;

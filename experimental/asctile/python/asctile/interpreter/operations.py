@@ -8,6 +8,7 @@
 
 import builtins
 from contextlib import contextmanager
+import itertools
 import math
 from numbers import Number
 from typing import Any, Callable, Dict, Generator, Iterable, Optional, Tuple, Union
@@ -264,7 +265,11 @@ def matmul_acc(acc: LocalTensor, input: LocalTensor, other: LocalTensor) -> None
     check_type("acc", acc, LocalTensor)
     check_type("input", input, LocalTensor)
     check_type("other", other, LocalTensor)
-    acc.data += input.data.astype(acc.data.dtype) @ other.data.astype(acc.data.dtype)
+    result = scaled_matmul(input, other)
+    if result is not None:
+        acc.data += result
+    else:
+        acc.data += input.data.astype(acc.data.dtype) @ other.data.astype(acc.data.dtype)
 
 
 @override
@@ -383,6 +388,35 @@ def apply_mask(data: np.ndarray) -> np.ndarray:
     return np.where(mask_array, data, data.dtype.type(other))
 
 
+def unpack_scale(scale: LocalTensor):
+    if len(scale.shape) != 4 or scale.shape[-1] != 2 or scale.shape[-2] != 16:
+        raise ValueError("Wrong scale dimensions")
+    result = np.zeros([scale.shape[0] * scale.shape[2], scale.shape[1] * scale.shape[3]], dtype=np.uint8)
+    for block_y, block_x, y, x in itertools.product(scale.shape[0], scale.shape[1], 16, 2):
+        result[block_y * 16 + y][block_x * 2 + x] = np.uint8(scale.data[block_y][block_x][y][x])
+    return result
+
+
+def scaled_matmul(a: LocalTensor, b: LocalTensor) -> Optional[np.ndarray]:
+    scale_a = a.scale
+    scale_b = b.scale
+    if scale_a is None or scale_b is None:
+        return None
+    scale_a = unpack_scale(scale_a)
+    scale_b = unpack_scale(scale_b)
+    scale_a = np.power(2, scale_a.astype(np.int32) - 127, dtype=np.float32)
+    scale_b = np.power(2, scale_b.astype(np.int32) - 127, dtype=np.float32)
+    shape_a = scale_a.shape
+    shape_b = scale_b.shape
+    scale_a = np.repeat(scale_a, 32).reshape([shape_a[0], shape_a[1] * 32])
+    scale_b = np.repeat(scale_b, 32).reshape([shape_b[0], shape_b[1] * 32]).T
+
+    s_a = scale_a[0:a.shape[0], 0:a.shape[1]]
+    s_b = scale_b[0:b.shape[0], 0:b.shape[1]]
+    result = (a.data.astype(np.float32) * s_a) @ (b.data.astype(np.float32) * s_b)
+    return result
+
+
 @override
 @contextmanager
 def mask(*, count: Optional[int] = None, bits: Optional[Iterable[int]] = None,
@@ -441,7 +475,9 @@ def left_shift(input: Union[LocalTensor, Number], other: Union[LocalTensor, Numb
 def matmul(input: LocalTensor, other: LocalTensor, bias: Optional[LocalTensor] = None, *,
            hf32: bool = False) -> LocalTensor:
     del hf32
-    result = input.data.astype(np.float32) @ other.data.astype(np.float32)
+    result = scaled_matmul(input, other)
+    if result is None:
+        result = input.data.astype(np.float32) @ other.data.astype(np.float32)
     if bias is not None:
         result = result + bias.data.astype(np.float32)
     return LocalTensor(result)
@@ -746,6 +782,16 @@ def transpose(input: LocalTensor, *axis: Any) -> LocalTensor:
         axis = list(range(input.rank))
         axis[-1], axis[-2] = axis[-2], axis[-1]
     return LocalTensor(np.transpose(input.data, tuple(map(int, axis))))
+
+
+@override
+def bind_scale(input: LocalTensor, scale: LocalTensor) -> LocalTensor:
+    check_type("input", input, LocalTensor)
+    check_type("scale", scale, LocalTensor)
+    if len(scale.shape) != 4 or scale.shape[-1] != 2 or scale.shape[-2] != 16:
+        raise ValueError("Wrong scale tensor shape")
+    input.scale = scale
+    return input
 
 
 @override

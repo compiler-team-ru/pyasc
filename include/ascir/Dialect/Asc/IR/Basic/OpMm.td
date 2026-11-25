@@ -84,6 +84,19 @@ def AscendC_LoadDataG2LV2Op
   }];
 }
 
+def AscendC_LoadDataL0MxOp
+    : CopyToL0Op<"load_data_l0_mx", "LoadData", [AscFunc]> {
+    let description = "Perform 2D LoadData with scale between LocalTensor and LocalTensor";
+    let arguments = (ins AscendC_LocalTensor:$dst,
+                         AscendC_BaseTensorTypeInterface:$src,
+                         AscendC_BaseTensorTypeInterface:$scale,
+                         AscendC_LoadData2DParamsV2:$loadDataParams,
+                         AscendC_LoadData2DMxParams:$loadDataMxParams);
+    let extraClassDeclaration = extraClassDeclarationBase # [{
+        SmallVector<Value> getSrcTensors() {return {getSrc(), getScale()}; }
+    }];
+}
+
 def AscendC_LoadData3DL0V1Op
     : CopyToL0Op<"load_data_3d_l0_v1", "LoadData", [AscFunc]> {
   let description = "Perform 3D LoadData V1 between LocalTensor and LocalTensor";

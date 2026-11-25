@@ -33,6 +33,17 @@ def AccumulatorOp : AscTile_Op<"accumulator"> {
   let hasVerifier = 1;
 }
 
+def BindScaleOp : AscTile_Op<"bind_scale", [AllElementTypesMatch<["base", "result"]>, Pure]> {
+  let summary = "Bind together tensor and scale for scaled matmul";
+  let arguments = (ins LocalTensorOfRankAndType<[2], [F8E5M2, F8E4M3FN]>:$base,
+                  LocalTensorOfRankAndType<[4], [I8]>:$scale);
+  let results = (outs NumericLocalTensor:$result);
+  let assemblyFormat = [{
+    $base `,` $scale attr-dict `:` qualified(type($base)) `,` qualified(type($scale)) `,`
+    qualified(type($result))
+  }];
+}
+
 def TensorOp : AscTile_Op<"tensor", [Pure]> {
   let summary = "Create tensor";
   let arguments = (ins AnyRankedOrUnrankedMemRef:$base, Variadic<I32>:$sizes, UnitAttr:$disableL2Cache);
@@ -56,6 +67,20 @@ def CopyOp : AscTile_Op<"copy", [AllElementTypesMatch<["base", "result"]>]> {
                    OptionalAttr<AscTile_DistribModeAttr>:$distrib);
   let results = (outs NumericLocalTensor:$result);
   let assemblyFormat = "$base `[` $offsets `]` attr-dict `:` qualified(type($base)) `,` qualified(type($result))";
+  let hasCanonicalizeMethod = 1;
+  let hasVerifier = 1;
+}
+
+def CopyScaleOp : AscTile_Op<"copy_scale", [AllElementTypesMatch<["base", "result"]>, AttrSizedOperandSegments]> {
+  let summary = "Used to load tensor with scale to L0A/L0B";
+  let arguments = (ins LocalTensorOfRankAndType<[2], [F8E5M2, F8E4M3FN]>:$base, Variadic<I32>:$offsets,
+                   LocalTensorOfRankAndType<[4], [I8]>:$scale, Variadic<I32>:$scaleOffsets,
+                   OptionalAttr<AscTile_DistribModeAttr>:$distrib);
+  let results = (outs NumericLocalTensor:$result);
+  let assemblyFormat = [{
+    $base `[` $offsets `]` `,` $scale `[` $scaleOffsets `]` attr-dict `:`
+    qualified(type($base)) `,` qualified(type($scale)) `,` qualified(type($result))
+  }];
   let hasCanonicalizeMethod = 1;
   let hasVerifier = 1;
 }

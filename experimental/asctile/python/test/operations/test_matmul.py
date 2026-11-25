@@ -7,6 +7,7 @@
 # See LICENSE in the root of the software repository for the full text of the License.
 
 from asc.experimental import asctile
+import itertools
 import pytest
 import torch
 
@@ -250,3 +251,126 @@ def test_matmul_gm_l1(m, k, n, tile_k, dtype):
     matmul_gm_l1_kernel[1](a, b, c, a.shape, b.shape, c.shape, tile_k)
     c_ref = a.to(torch.float32) @ b.to(torch.float32)
     torch.testing.assert_close(c, c_ref, atol=1e-3, rtol=1e-3)
+
+
+def pack_scale(input):
+    block_x = 2
+    block_y = 16
+    target_shape = [
+        asctile.ceildiv(input.shape[0], block_y) * block_y,
+        asctile.ceildiv(input.shape[1], block_x) * block_x
+    ]
+    input = torch.nn.functional.pad(input,
+                                    pad=(0, target_shape[1] - input.shape[1], 0, target_shape[0] - input.shape[0]),
+                                    mode='constant', value=0)
+    num_block_x = input.shape[1] // block_x
+    num_block_y = input.shape[0] // block_y
+    result = torch.empty([num_block_y, num_block_x, block_y, block_x], dtype=input.dtype)
+    for bx, by, cx, cy in itertools.product(range(num_block_x), range(num_block_y), range(block_x), range(block_y)):
+        data = input[block_y * by + cy][block_x * bx + cx]
+        result[by][bx][cy][cx] = data
+    return result
+
+
+@asctile.jit
+def matmul_scale_kernel(a_ptr: asctile.GlobalAddress, b_ptr: asctile.GlobalAddress, sa_ptr: asctile.GlobalAddress,
+                        sb_ptr: asctile.GlobalAddress, c_ptr: asctile.GlobalAddress, m: asctile.ConstExpr,
+                        n: asctile.ConstExpr, k: asctile.ConstExpr, gs_m: asctile.ConstExpr, gs_n: asctile.ConstExpr,
+                        gs_k: asctile.ConstExpr, scale_offset_a: asctile.ConstExpr, scale_offset_b: asctile.ConstExpr,
+                        use_accum: asctile.ConstExpr):
+
+    scale_k = asctile.ceildiv(k, 64)
+    scale_m = asctile.ceildiv(m, 16)
+    scale_n = asctile.ceildiv(n, 16)
+
+    a_gm = asctile.global_tensor(a_ptr, [m, k])
+    b_gm = asctile.global_tensor(b_ptr, [k, n])
+    c_gm = asctile.global_tensor(c_ptr, [m, n])
+
+    sa_gm = asctile.global_tensor(sa_ptr, [gs_m, gs_k, 16, 2])
+    sb_gm = asctile.global_tensor(sb_ptr, [gs_n, gs_k, 16, 2])
+
+    a1 = asctile.copy_in(a_gm, [0, 0], [m, k], asctile.TensorLocation.L1)
+    b1 = asctile.copy_in(b_gm, [0, 0], [k, n], asctile.TensorLocation.L1)
+    sa = asctile.copy_in(sa_gm, scale_offset_a + [0, 0], [scale_m, scale_k, 16, 2], location=asctile.TensorLocation.L1)
+    sb = asctile.copy_in(sb_gm, scale_offset_b + [0, 0], [scale_n, scale_k, 16, 2], location=asctile.TensorLocation.L1)
+
+    a0 = asctile.copy(a1, [0, 0], [m, k], location=asctile.TensorLocation.L0A)
+    b0 = asctile.copy(b1, [0, 0], [k, n], location=asctile.TensorLocation.L0B)
+    sa0 = asctile.copy(sa, [0, 0, 0, 0], [scale_m, scale_k, 16, 2], asctile.TensorLocation.L0A)
+    sb0 = asctile.copy(sb, [0, 0, 0, 0], [scale_n, scale_k, 16, 2], asctile.TensorLocation.L0B)
+
+    a0 = asctile.bind_scale(a0, sa0)
+    b0 = asctile.bind_scale(b0, sb0)
+    if use_accum:
+        accum = asctile.zeros_acc([m, n], dtype=asctile.float32)
+        asctile.matmul_acc(accum, a0, b0)
+        asctile.copy_out(accum, c_gm, [0, 0])
+    else:
+        c = a0 @ b0
+        asctile.copy_out(c, c_gm, [0, 0])
+
+
+def matmul_scale_reference(a, b, a1, b1):
+    a1_ = a1.view(torch.uint8).to(torch.float32) - 127
+    b1_ = b1.view(torch.uint8).to(torch.float32) - 127
+    scale_a = torch.repeat_interleave(torch.pow(2, a1_), 32, dim=1)
+    scale_b = torch.repeat_interleave(torch.pow(2, b1_), 32, dim=0)
+
+    if scale_a.shape[0] < a.shape[0] or scale_a.shape[1] < a.shape[1]:
+        scale_a = torch.nn.functional.pad(scale_a,
+                                          pad=(0, a.shape[1] - scale_a.shape[1], 0, a.shape[0] - scale_a.shape[0]),
+                                          mode='constant', value=1.0)
+    if scale_b.shape[0] < b.shape[0] or scale_b.shape[1] < b.shape[1]:
+        scale_b = torch.nn.functional.pad(scale_b,
+                                          pad=(0, b.shape[1] - scale_b.shape[1], 0, b.shape[0] - scale_b.shape[0]),
+                                          mode='constant', value=1.0)
+
+    result = (a.to(torch.float32) * scale_a) @ (b.to(torch.float32) * scale_b)
+    return result
+
+
+@pytest.mark.no_interpret
+@pytest.mark.parametrize("accum_mmad", [False, True])
+@pytest.mark.parametrize("dtype", [torch.float8_e5m2, torch.float8_e4m3fn])
+@pytest.mark.parametrize("m, n, k, scale_m, scale_n, scale_k, offsets_a, offsets_b", [
+    (31, 32, 64, 32, 32, 2, [0, 0], [0, 0]),
+    (32, 31, 64, 32, 32, 2, [0, 0], [0, 0]),
+    (128, 32, 128, 128, 32, 4, [0, 0], [0, 0]),
+    (32, 128, 128, 32, 128, 4, [0, 0], [0, 0]),
+    (32, 32, 64, 64, 64, 2, [0, 0], [0, 0]),
+    (32, 32, 64, 32, 32, 4, [0, 0], [0, 0]),
+    (32, 32, 64, 32, 32, 4, [0, 1], [0, 1]),
+    (32, 32, 64, 64, 64, 4, [1, 1], [1, 1]),
+    (32, 32, 64, 32, 32, 2, [1, 0], [0, 0]),
+    (32, 32, 64, 32, 32, 2, [1, 0], [1, 0]),
+])
+def test_matmul_scale(dtype, m, n, k, accum_mmad, scale_m, scale_n, scale_k, offsets_a, offsets_b, require_c310):
+    require_c310()
+
+    a = torch.randn([m, k]).to(dtype)
+    b = torch.randn([k, n]).to(dtype)
+    # Use scale range 1..8
+    a1 = torch.randint(127, 130, (
+        scale_m,
+        scale_k,
+    )).to(dtype=torch.uint8).view(dtype=torch.int8)
+    b1 = torch.randint(127, 130, (
+        scale_k,
+        scale_n,
+    )).to(dtype=torch.uint8).view(dtype=torch.int8)
+    c = torch.zeros([m, n], dtype=torch.float32)
+
+    scale_a = pack_scale(a1)
+    scale_b = pack_scale(b1.T)
+
+    ref_offsets_a = [offsets_a[0] * 16, offsets_a[1] * 2]
+    ref_offsets_b = [offsets_b[0] * 16, offsets_b[1] * 2]
+    sub_scale_a = a1[ref_offsets_a[0]:ref_offsets_a[0] + m, ref_offsets_a[1]:ref_offsets_a[1] + k // 32]
+    sub_scale_b = b1[ref_offsets_b[1]:ref_offsets_b[1] + k // 32, ref_offsets_b[0]:ref_offsets_b[0] + n]
+    print(offsets_a, offsets_b)
+
+    c_ref = matmul_scale_reference(a, b, sub_scale_a, sub_scale_b)
+    matmul_scale_kernel[1](a, b, scale_a, scale_b, c, m, n, k, scale_a.shape[0], scale_b.shape[0], scale_a.shape[1],
+                           offsets_a, offsets_b, accum_mmad)
+    torch.testing.assert_close(c_ref, c, atol=1e-3, rtol=1e-3)

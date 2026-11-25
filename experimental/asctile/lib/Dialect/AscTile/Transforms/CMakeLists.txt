@@ -9,6 +9,7 @@
 add_mlir_dialect_library(AscTileTransforms
   ApplyCVStrategy.cpp
   ApplyHomomorphism.cpp
+  BindLoadScale.cpp
   CombineExtractSlice.cpp
   CubeTransposeToLoad.cpp
   DetectBiasLoad.cpp
@@ -17,6 +18,7 @@ add_mlir_dialect_library(AscTileTransforms
   LegalizeMatmul.cpp
   LocationCastToCopy.cpp
   MarkMatmulAccWithBias.cpp
+  MarkMatmulScale.cpp
   MarkReuseSource.cpp
   MergeCVGroups.cpp
   PrepareCVStrategy.cpp

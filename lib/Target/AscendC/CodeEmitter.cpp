@@ -196,6 +196,18 @@ void CodeEmitter::createTypeEmitMapper()
     emitTypeMapper[TypeID::get<ascendc::NdDmaParamsType>()] = [this](Location loc, Type type, bool flag) {
         return this->emitAscNdDmaParams(loc, type, flag);
     };
+    emitTypeMapper[TypeID::get<ascendc::Float8E8M0FNUType>()] =
+        [this]([[maybe_unused]] Location loc, [[maybe_unused]] Type type, [[maybe_unused]] bool flag) {
+            return os << "fp8_e8m0_t", success();
+        };
+    emitTypeMapper[TypeID::get<ascendc::MxFloat8E5M2Type>()] =
+        [this]([[maybe_unused]] Location loc, [[maybe_unused]] Type type, [[maybe_unused]] bool flag) {
+            return os << "AscendC::mx_fp8_e5m2_t", success();
+        };
+    emitTypeMapper[TypeID::get<ascendc::MxFloat8E4M3Type>()] =
+        [this]([[maybe_unused]] Location loc, [[maybe_unused]] Type type, [[maybe_unused]] bool flag) {
+            return os << "AscendC::mx_fp8_e4m3_t", success();
+        };
 }
 
 void CodeEmitter::createAttributeEmitMapper()

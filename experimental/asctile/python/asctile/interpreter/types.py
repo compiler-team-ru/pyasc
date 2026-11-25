@@ -148,6 +148,7 @@ class LocalTensor:
 
     def __init__(self, data: np.ndarray):
         self.data = np.asarray(data)
+        self.scale = None
 
     @property
     def dtype(self) -> DataType:

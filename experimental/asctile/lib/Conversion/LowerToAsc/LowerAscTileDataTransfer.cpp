@@ -25,6 +25,7 @@
 #include "mlir/Dialect/EmitC/IR/EmitC.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/Utils/StaticValueUtils.h"
 #include "mlir/Pass/Pass.h"
 
 #include "Common.h"
@@ -397,7 +398,7 @@ struct ConvertLoadToL1 : ConvertOp<asctile::LoadOp> {
     {
         auto opType = op.getType();
         auto dstLoc = opType.getLoc();
-        if (dstLoc != asctile::TensorLocation::L1)
+        if (dstLoc != asctile::TensorLocation::L1 || op->hasAttr(asctile::attr::loadScale))
             return failure();
         auto loc = op.getLoc();
         TensorInfo srcInfo = prepareTensorInfo(rewriter, loc, op.getBase(), op.getOffsets());
@@ -1186,11 +1187,10 @@ struct ConvertCopyL1ToL0 : ConvertOp<asctile::CopyOp> {
                                             static_cast<int64_t>(llvm::alignTo(
                                                 isTransposeBL1 ? srcShape[1] : srcShape[0], ascendc::cubeBlockSize)) :
                                             1;
-        int64_t dValue = cubeKBlockSize;
         Value colOffset = rewriter.create<arith::MulIOp>(
             loc, consts.i32(dstNzC0StrideElements), isTransposeBL1 ? offsets[0] : offsets[1]);
         Value rowOffset =
-            rewriter.create<arith::MulIOp>(loc, isTransposeBL1 ? offsets[1] : offsets[0], consts.i32(dValue));
+            rewriter.create<arith::MulIOp>(loc, isTransposeBL1 ? offsets[1] : offsets[0], consts.i32(cubeKBlockSize));
         Value linearOffset = rewriter.create<arith::AddIOp>(loc, colOffset, rowOffset);
         src = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcType, src, linearOffset);
         Value params = buildLoadData2DV2Params(
@@ -1198,6 +1198,201 @@ struct ConvertCopyL1ToL0 : ConvertOp<asctile::CopyOp> {
             dstShape);
         auto copyOp = rewriter.create<ascendc::LoadDataL0V2Op>(loc, dst, src, params);
         setCopyDirection(copyOp);
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
+struct ConvertCopyL1ToL0MxScale : ConvertOp<asctile::CopyScaleOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+    static constexpr int scaleElementsK = 64;
+    static constexpr int scaleElementsM = 16;
+
+    static Value castTensor(OpBuilder& builder, Value value, Type elType)
+    {
+        auto tensorType = dyn_cast<ascendc::LocalTensorType>(value.getType());
+        if (!tensorType)
+            return value;
+        auto newType = tensorType.cloneWith(std::nullopt, elType);
+        auto op = builder.create<ascendc::LocalTensorReinterpretCastOp>(value.getLoc(), newType, value);
+        return op;
+    }
+
+    static llvm::SmallVector<int64_t> getRequiredScale(llvm::ArrayRef<int64_t> dstShape, bool isMatrixA)
+    {
+        int64_t width = scaleElementsK;
+        int64_t height = scaleElementsM;
+        if (isMatrixA) {
+            // dstShape MxK, scale MxK
+            return llvm::SmallVector<int64_t>{
+                (int64_t)llvm::alignTo(dstShape[0], height) / height,
+                (int64_t)llvm::alignTo(dstShape[1], width) / width};
+        }
+        // dstShape KxN, scale NxK
+        return llvm::SmallVector<int64_t>{
+            static_cast<int64_t>(llvm::alignTo(dstShape[1], height) / height),
+            static_cast<int64_t>(llvm::alignTo(dstShape[0], width) / width)};
+    }
+
+    LogicalResult matchAndRewrite(asctile::CopyScaleOp op, ConvertRewriter& rewriter) const override
+    {
+        auto opType = op.getType();
+        auto dstPos = opType.getLoc();
+        if (dstPos != asctile::TensorLocation::L0A && dstPos != asctile::TensorLocation::L0B)
+            return op.emitError("CopyScaleOp destination not in L0");
+        auto loc = op.getLoc();
+        auto base = op.getBase();
+        Value src = rewriter.getRemappedValue(base);
+        Type targetType;
+        Type elementType = dyn_cast<ascendc::BaseTensorType>(src.getType()).getElementType();
+        if (elementType.isFloat8E5M2())
+            targetType = rewriter.getType<ascendc::MxFloat8E5M2Type>();
+        else if (elementType.isFloat8E4M3FN())
+            targetType = rewriter.getType<ascendc::MxFloat8E4M3Type>();
+        else
+            llvm_unreachable("unexpected type");
+        auto srcType = src.getType();
+        auto srcShape = base.getType().getShape();
+        auto offsets = op.getOffsets();
+        auto scaleOffsets = op.getScaleOffsets();
+        auto scaleShape = op.getScale().getType().getShape();
+        ascir::ConstantOpBuilder consts(rewriter);
+        assert(scaleShape.size() == 4 && scaleOffsets.size() == 4 && "must be one offset for each scale dimension");
+        assert(srcShape.size() == 2 && offsets.size() == 2 && "must be one offset for each dimension");
+        auto offsetLast = getConstantIntValue(scaleOffsets[3]);
+        auto offsetPrev = getConstantIntValue(scaleOffsets[2]);
+        if (!offsetLast || !offsetPrev || (*offsetLast) != 0 || (*offsetPrev) != 0) {
+            return op.emitError("Non-zero offsets not supported for packed scale matrix");
+        }
+
+        auto dst = createTensorOp(rewriter, loc, opType);
+        auto dst2 = castTensor(rewriter, dst, targetType);
+        auto dstShape = dst.getType().getShape();
+        bool isTensorA = dstPos == asctile::TensorLocation::L0A;
+        bool isTransposeAL0 = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeAL0);
+        bool isTransposeBL0 = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeBL0);
+        bool isTransposeBL1 = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeBL1);
+        if (isTransposeAL0 || isTransposeBL0)
+            return op.emitError("Scale not support transpose");
+
+        const int64_t cubeKBlockSize = ascendc::cubeKBlockBytes / ascendc::getElementTypeSize(opType);
+        int64_t dstNzC0StrideElements = (srcShape[0] > 1 || !isTensorA) ?
+                                            static_cast<int64_t>(llvm::alignTo(
+                                                isTransposeBL1 ? srcShape[1] : srcShape[0], ascendc::cubeBlockSize)) :
+                                            1;
+        Value colOffset = rewriter.create<arith::MulIOp>(
+            loc, consts.i32(dstNzC0StrideElements), isTransposeBL1 ? offsets[0] : offsets[1]);
+        Value rowOffset =
+            rewriter.create<arith::MulIOp>(loc, isTransposeBL1 ? offsets[1] : offsets[0], consts.i32(cubeKBlockSize));
+        Value linearOffset = rewriter.create<arith::AddIOp>(loc, colOffset, rowOffset);
+        Value readTensor = rewriter.create<ascendc::LocalTensorSubIndexOp>(loc, srcType, src, linearOffset);
+
+        Value params = buildLoadData2DV2Params(
+            rewriter, loc, consts, isTensorA, isTransposeAL0, isTransposeBL0, isTransposeBL1, cubeKBlockSize, srcShape,
+            dstShape);
+
+        auto dstScaleShape = getRequiredScale(dstShape, isTensorA);
+        SmallVector<Value> srcScaleShape{consts.i32(scaleShape[0]), consts.i32(scaleShape[1])};
+        Value blocksCount0 =
+            calculateCopyCount(rewriter, loc, dstScaleShape, srcScaleShape, scaleOffsets, ValueRange{}, 0);
+        Value blocksCount1 =
+            calculateCopyCount(rewriter, loc, dstScaleShape, srcScaleShape, scaleOffsets, ValueRange{}, 1);
+        auto loadDataMxParamsType = rewriter.getType<ascendc::LoadData2DMxParamsType>();
+        Value loadMxParams = emitasc::InitStructBuilder(loadDataMxParamsType)
+                                 .addField("xStartPosition", scaleOffsets[0])
+                                 .addField("yStartPosition", scaleOffsets[1])
+                                 .addField("xStep", blocksCount0)
+                                 .addField("yStep", blocksCount1)
+                                 .addField("srcStride", srcScaleShape[1])
+                                 .addField("dstStride", consts.i32(dstScaleShape[1]))
+                                 .create(rewriter, loc);
+        Value scale = rewriter.getRemappedValue(op.getScale());
+        scale = castTensor(rewriter, scale, rewriter.getType<ascendc::Float8E8M0FNUType>());
+        auto copyOp = rewriter.create<ascendc::LoadDataL0MxOp>(loc, dst2, readTensor, scale, params, loadMxParams);
+        setCopyDirection(copyOp, src, dst);
+        rewriter.replaceOp(op, dst);
+        return success();
+    }
+};
+
+struct ConvertLoadToL1MxScale : ConvertOp<asctile::LoadOp> {
+    using ConvertOp::ConvertOp;
+    using ConvertOp::createTensorOp;
+
+    static constexpr uint16_t float8e8m0fnFill = 0x7F7F;
+
+    LogicalResult matchAndRewrite(asctile::LoadOp op, ConvertRewriter& rewriter) const override
+    {
+        auto opType = op.getType();
+        auto dstPos = opType.getLoc();
+
+        if (!op->hasAttrOfType<UnitAttr>(asctile::attr::loadScale) || dstPos != asctile::TensorLocation::L1)
+            return failure();
+
+        auto loc = op.getLoc();
+        auto elementSize = ascendc::getElementTypeSize(opType);
+        if (elementSize != 1)
+            return op.emitError("Only 1 byte types supported");
+        auto offsets = op.getOffsets();
+        bool transposeAL1 = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeAL1);
+        bool transposeBL1 = op->hasAttrOfType<UnitAttr>(asctile::attr::transposeBL1);
+        ascir::ConstantOpBuilder consts(rewriter);
+        auto ui16Type = rewriter.getIntegerType(16, false);
+        auto i8Type = rewriter.getIntegerType(8);
+
+        auto dst = createTensorOp(rewriter, loc, opType, locationToPosition(dstPos));
+        dst.setAlignment(ascendc::cubeKBlockBytes);
+        auto dstShape = dst.getType().getShape();
+        TensorInfo srcInfo = prepareTensorInfo(rewriter, loc, op.getBase(), op.getOffsets());
+
+        if (srcInfo.shape.size() != 4)
+            return failure();
+        auto blockWidth = getConstantIntValue(srcInfo.shape[3]);
+        auto blockHeight = getConstantIntValue(srcInfo.shape[2]);
+        if (!blockWidth || !blockHeight || *blockWidth * (*blockHeight) != ascendc::ubBlockSize) {
+            return op.emitError("Expecting specific gm tensor shape [W,H,16,2]");
+        }
+        if (offsets.size() != srcInfo.shape.size() || offsets.size() != dstShape.size()) {
+            return op.emitError("Offsets not match input/output tensors size");
+        }
+        auto offsetLast = getConstantIntValue(offsets[3]);
+        auto offsetPrev = getConstantIntValue(offsets[2]);
+
+        if (!offsetLast || !offsetPrev || (*offsetLast) != 0 || (*offsetPrev) != 0) {
+            return op.emitError("Non-zero offsets not supported for packed scale matrix");
+        }
+        Value yCount = calculateCopyCount(rewriter, loc, dstShape, srcInfo.shape, offsets, op.getRealShape(), 0);
+        Value xCount = calculateCopyCount(rewriter, loc, dstShape, srcInfo.shape, offsets, op.getRealShape(), 1);
+
+        Value isLessX = rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::slt, xCount, consts.i32(dstShape[1]));
+        Value isLessY = rewriter.create<arith::CmpIOp>(loc, arith::CmpIPredicate::slt, yCount, consts.i32(dstShape[0]));
+        Value needPadding = rewriter.create<arith::OrIOp>(loc, isLessX, isLessY);
+        auto ifFill = rewriter.create<scf::IfOp>(loc, needPadding);
+        {
+            ConvertRewriter::InsertionGuard guard(rewriter);
+            rewriter.setInsertionPointToStart(ifFill.thenBlock());
+            Value dataSize = consts.i32(dstShape[0] * dstShape[1]);
+
+            // Workaround: AscendC::Fill<uint8_t> have no effect
+            Value fillValue = consts.i32(float8e8m0fnFill);
+            auto constArgTypes = rewriter.getTypeArrayAttr(TypeRange{ui16Type, ui16Type, ui16Type, ui16Type});
+            auto params = rewriter.create<ascendc::ConstructOp>(
+                loc, rewriter.getType<ascendc::InitConstValueParamsType>(),
+                ValueRange{consts.i32(1), dataSize, consts.i32(0), fillValue}, constArgTypes);
+
+            auto targetType = dst.getType().cloneWith(std::nullopt, ui16Type);
+            auto fillTensor = rewriter.create<ascendc::LocalTensorReinterpretCastOp>(loc, targetType, dst);
+            rewriter.create<ascendc::FillOp>(loc, fillTensor, params.getResult());
+        }
+        Value srcGap = rewriter.create<arith::SubIOp>(loc, srcInfo.shape[1], xCount);
+        Value dstGap = rewriter.create<arith::SubIOp>(loc, consts.i32(dstShape[1]), xCount);
+        auto copyTypes = rewriter.getTypeArrayAttr(TypeRange{ui16Type, ui16Type, ui16Type, ui16Type});
+        auto dataCopyParams = rewriter.create<ascendc::ConstructOp>(
+            loc, rewriter.getType<ascendc::DataCopyParamsType>(), ValueRange{yCount, xCount, srcGap, dstGap},
+            copyTypes);
+        auto copyOp = rewriter.create<ascendc::DataCopyL2Op>(loc, dst, srcInfo.tensor, dataCopyParams);
+        copyOp.setDirection(ascendc::TPosition::GM, ascendc::TPosition::A1);
         rewriter.replaceOp(op, dst);
         return success();
     }
@@ -1518,7 +1713,8 @@ struct LowerAscTileDataTransferPass
         target.addIllegalOp<
             //
             asctile::LoadOp, asctile::StoreOp, asctile::CopyOp, asctile::StoreFixpipeOp, asctile::GetValueOp,
-            asctile::SetValueOp, asctile::CopyFixpipeOp, asctile::GatherOp, asctile::ScatterOp, asctile::ReindexOp
+            asctile::SetValueOp, asctile::CopyFixpipeOp, asctile::GatherOp, asctile::ScatterOp, asctile::ReindexOp,
+            asctile::CopyScaleOp
             //
             >();
         target.addLegalDialect<
@@ -1531,7 +1727,7 @@ struct LowerAscTileDataTransferPass
             ConvertLoadToUB, ConvertLoadToUBWithTranspose, ConvertLoadToL1, ConvertStore, ConvertStoreFixpipe,
             ConvertCopyL1ToL0, ConvertCopyUBToUB, ConvertCopyUBToL1, ConvertCopyL1ToBT, ConvertGetValue,
             ConvertSetValue, ConvertCopyFixpipe, ConvertStoreWithTranspose, ConvertGather, ConvertScatter,
-            ConvertReindex
+            ConvertReindex, ConvertCopyL1ToL0MxScale, ConvertLoadToL1MxScale
             //
             >(converter, context);
         auto op = getOperation();
