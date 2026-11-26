@@ -786,10 +786,6 @@ def transpose(input: LocalTensor, *axis: Any) -> LocalTensor:
 
 @override
 def bind_scale(input: LocalTensor, scale: LocalTensor) -> LocalTensor:
-    check_type("input", input, LocalTensor)
-    check_type("scale", scale, LocalTensor)
-    if len(scale.shape) != 4 or scale.shape[-1] != 2 or scale.shape[-2] != 16:
-        raise ValueError("Wrong scale tensor shape")
     input.scale = scale
     return input
 

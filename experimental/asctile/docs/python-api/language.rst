@@ -144,6 +144,7 @@ Matrix multiplication operations
 
     matmul
     matmul_acc
+    bind_scale
 
 
 Indexing operations
