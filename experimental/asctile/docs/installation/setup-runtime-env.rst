@@ -19,17 +19,20 @@ Ascend CANN
 -----------
 
 1. Download installation package from `the download center <https://www.hiascend.com/cann/download>`__
-   (recommended version is ``9.2.1``) **depending on the host platform**:
+   (recommended version is ``9.3.0-beta.1``) **depending on the host platform**:
 
-   .. code:: bash
-
-      wget https://ascend-cann-open.obs.cn-north-4.myhuaweicloud.com/CANN/CANN%209.2.1/Ascend-cann_9.2.1_linux-x86_64.run
+   ======== =======
+   Platform Command
+   ======== =======
+   x86_64   ``wget -LO cann.run https://ascend-cann-open.obs.cn-north-4.myhuaweicloud.com/CANN/CANN%209.3.0-beta.1/Ascend-cann_9.3.0-beta.1_linux-x86_64.run``
+   aarch64  ``wget -LO cann.run https://ascend-repo.obs.cn-east-2.myhuaweicloud.com/CANN/CANN%209.3.T2/Ascend-cann-toolkit_9.3.0-beta.1_linux-aarch64.run``
+   ======== =======
 
 2. Install downloaded package with the following command:
 
    .. code:: bash
 
-      bash Ascend-cann_9.2.1_linux-x86_64.run --full
+      bash cann.run --full
 
 3. Enable CANN environment:
 
