@@ -110,6 +110,7 @@ class FunctionVisitor(ast.NodeVisitor):
         options: CodegenOptions,
         visited_return_types: Optional[ReturnTypesDict] = None,
         is_kernel: bool = True,
+        func_name: Optional[str] = None,
     ):
         super().__init__()
         self.src = source_lines
@@ -122,6 +123,7 @@ class FunctionVisitor(ast.NodeVisitor):
         self.state = VisitorState()
         self.options = options
         self.is_kernel = is_kernel
+        self.func_name = func_name
         if visited_return_types is not None:
             self.state.visited_return_types = visited_return_types
 
@@ -222,6 +224,12 @@ class FunctionVisitor(ast.NodeVisitor):
         bound_args.apply_defaults()
         return bound_args.arguments
 
+    @staticmethod
+    def get_spec_key_str(arg_types: Dict[str, IRArgType], constexprs: Dict[str, ConstExpr]):
+        spec_key = tuple(str(arg_type.to_ir()) for arg_type in arg_types.values()) + tuple(
+            map(repr, (constexpr.value for constexpr in constexprs.values())))
+        return str(spec_key) if spec_key else ""
+
     def call_jit_function(self, fn: Function, args: Tuple[Any], kwargs: Dict[str, Any]) -> Optional[Any]:
         base_fn = fn.fn
         call_args = self.get_call_args(base_fn, *args, **kwargs)
@@ -234,7 +242,9 @@ class FunctionVisitor(ast.NodeVisitor):
             else:
                 arg_values[name] = materialize_ir_value(value)
         arg_types = {name: IRArgType(type(value), value.to_ir().get_type()) for name, value in arg_values.items()}
-        fn_name = fn.node.name
+        # All device only jit functions names are mangled to distinguish implementations with different argument types
+        # and constexpr values.
+        fn_name = fn.node.name + self.get_spec_key_str(arg_types, constexprs)
         ret_types = []
         if global_builder.get_ir_module().has_function(fn_name):
             ret_types = self.state.visited_return_types[fn_name]
@@ -242,12 +252,12 @@ class FunctionVisitor(ast.NodeVisitor):
             spec = Specialization(arg_types, constexprs)
             with self.visit_region():
                 visitor = FunctionVisitor(fn.src, spec, base_fn.__globals__, fn.location, self.options,
-                                          self.state.visited_return_types, is_kernel=False)
+                                          self.state.visited_return_types, is_kernel=False, func_name=fn_name)
                 visitor.visit(fn.node)
                 ret_types = visitor.state.return_types
                 self.state.visited_return_types[fn_name] = ret_types
         ir_operands = [value.to_ir() for value in arg_values.values()]
-        op = global_builder.get_ir_builder().create_func_CallOp(fn.node.name, ir_operands,
+        op = global_builder.get_ir_builder().create_func_CallOp(fn_name, ir_operands,
                                                                 [ret_type.ir_type for ret_type in ret_types])
         if len(ret_types) == 0:
             return None
@@ -602,7 +612,8 @@ class FunctionVisitor(ast.NodeVisitor):
         arg_types = self.spec.args.values()
         builder = global_builder.get_ir_builder()
         input_ir_types = [arg_type.to_ir() for arg_type in arg_types]
-        self.ir_function = builder.create_func_FuncOp(node.name, builder.get_function_type(input_ir_types))
+        func_name = self.func_name or node.name
+        self.ir_function = builder.create_func_FuncOp(func_name, builder.get_function_type(input_ir_types))
         self.ir_function.make_aicore()
         if self.is_kernel:
             self.ir_function.make_global()

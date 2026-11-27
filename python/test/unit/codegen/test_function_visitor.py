@@ -149,12 +149,39 @@ def test_nested_void_jit_functions(filecheck):
 
     @asc.jit
     def nested_void_kernel(value):
-        # CHECK-DAG: func.func @nested_void_middle
-        # CHECK-DAG: call @nested_void_leaf
-        # CHECK-DAG: call @nested_void_middle
+        # CHECK-DAG: func.func @"nested_void_middle
+        # CHECK-DAG: call @"nested_void_leaf
+        # CHECK-DAG: call @"nested_void_middle
         nested_void_middle(value)
 
     filecheck(nested_void_kernel)(1)
+
+
+@asc.jit
+def specialized_helper(i: asc.ConstExpr):
+    return i
+
+
+@asc.jit
+def specialized_helper_1():
+    return 1
+
+
+def test_jit_function_name_does_not_merge_with_existing_function(filecheck):
+
+    @asc.jit
+    def specialized_helper_kernel():
+        # CHECK-DAG: func.func @"specialized_helper('2',)"(
+        # CHECK-DAG: func.func @"specialized_helper('1',)"(
+        # CHECK-DAG: func.func @specialized_helper_1(
+        # CHECK-DAG: call @"specialized_helper('2',)"
+        # CHECK-DAG: call @"specialized_helper('1',)"
+        # CHECK-DAG: call @specialized_helper_1()
+        specialized_helper(2)
+        specialized_helper(1)
+        specialized_helper_1()
+
+    filecheck(specialized_helper_kernel)()
 
 
 @asc.jit
