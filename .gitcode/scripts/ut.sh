@@ -42,7 +42,7 @@ main(){
     export ASCEND_HOME_PATH=/usr/local/Ascend/cann
     source /usr/local/Ascend/cann/bin/setenv.bash
     # export LLVM_INSTALL_PREFIX=/home/jenkins/opensource/llvm
-
+    export PYASC_SETUP_EXPERIMENTAL=1
     export LD_LIBRARY_PATH="${ASCEND_HOME_PATH}/tools/simulator/Ascend910B1/lib:${LD_LIBRARY_PATH:-}"
     apt update && apt install -y lcov
     pip3 install lit -i https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple/

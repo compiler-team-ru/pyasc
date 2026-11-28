@@ -70,6 +70,7 @@ else
 fi
 
 source /usr/local/Ascend/cann/bin/setenv.bash
+export PYASC_SETUP_EXPERIMENTAL=1
 export ASCEND_HOME_PATH=/usr/local/Ascend/cann
 export LD_LIBRARY_PATH="${ASCEND_HOME_PATH}/tools/simulator/Ascend910B1/lib:${LD_LIBRARY_PATH:-}"
 echo "Build ${REPOSITORY_NAME}."
