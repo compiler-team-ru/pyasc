@@ -452,3 +452,24 @@ def test_set_tensor_auto_overloads(mock_launcher_run):
 
     kernel_set_tensors[1](MockTensor(asc.float16), MockTensor(asc.float16), MockTensor(asc.uint8))
     assert mock_launcher_run.call_count == 1
+
+
+def test_set_tensor_bfloat16_inputs(mock_launcher_run):
+
+    @asc.jit
+    def kernel(a: asc.GlobalAddress, b: asc.GlobalAddress, workspace: asc.GlobalAddress):
+        a_global = asc.GlobalTensor()
+        b_global = asc.GlobalTensor()
+        a_global.set_global_buffer(a)
+        b_global.set_global_buffer(b)
+        a_type = asc.adv.MatmulType(asc.TPosition.GM, asc.CubeFormat.ND, asc.bfloat16)
+        b_type = asc.adv.MatmulType(asc.TPosition.GM, asc.CubeFormat.ND, asc.bfloat16)
+        c_type = asc.adv.MatmulType(asc.TPosition.GM, asc.CubeFormat.ND, asc.float32)
+        matmul = asc.adv.Matmul(a_type, b_type, c_type)
+        pipe = asc.TPipe()
+        asc.adv.register_matmul(pipe, workspace, matmul)
+        matmul.set_tensor_a(a_global)
+        matmul.set_tensor_b(b_global)
+
+    kernel[1](MockTensor(asc.bfloat16), MockTensor(asc.bfloat16), MockTensor(asc.uint8))
+    assert mock_launcher_run.call_count == 1

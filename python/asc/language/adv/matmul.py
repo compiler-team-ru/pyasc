@@ -416,7 +416,7 @@ class Matmul(IRValue):
 
         @dispatcher.register_auto
         def _(tensor: BaseTensor, transpose: RuntimeBool = False):
-            check_type(tensor.dtype, [KT.half, KT.float_, KT.int8, KT.float16, KT.float32],
+            check_type(tensor.dtype, [KT.half, KT.float_, KT.int8, KT.float16, KT.bfloat16, KT.float32],
                        "Tensor type is not supported in set_tensor_a")
             transpose = _mat(transpose, KT.bit)
             builder.create_asc_MatmulSetTensorAOp(self.to_ir(), tensor.to_ir(), transpose.to_ir())
@@ -445,7 +445,7 @@ class Matmul(IRValue):
 
         @dispatcher.register_auto
         def _(tensor: BaseTensor, transpose: RuntimeBool = False):
-            check_type(tensor.dtype, [KT.half, KT.float_, KT.int8, KT.float16, KT.float32],
+            check_type(tensor.dtype, [KT.half, KT.float_, KT.int8, KT.float16, KT.bfloat16, KT.float32],
                        "Tensor type is not supported in set_tensor_b")
             transpose = _mat(transpose, KT.bit)
             builder.create_asc_MatmulSetTensorBOp(self.to_ir(), tensor.to_ir(), transpose.to_ir())
